@@ -55,6 +55,7 @@ jobs:
       - name: Run probe
         if: ${{ !inputs.providers_only }}
         run: |
+          set -o pipefail
           python research/cold_start_probe.py --seasons ${{ inputs.seasons }} ${{ inputs.flags }} | tee probe.txt
           { echo '```'; cat probe.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

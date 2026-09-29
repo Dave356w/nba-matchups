@@ -45,6 +45,7 @@ jobs:
         run: python nba_composite.py download --years 2015-2019 2021-2026
       - name: Run availability ceiling
         run: |
+          set -o pipefail
           python research/availability.py --seasons ${{ inputs.seasons }} --box-seasons ${{ inputs.box_seasons }} | tee availability.txt
           { echo '```'; cat availability.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

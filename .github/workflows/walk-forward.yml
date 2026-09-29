@@ -43,6 +43,7 @@ jobs:
         run: python nba_composite.py download --years 2015-2019 2021-2026
       - name: Run walk-forward
         run: |
+          set -o pipefail
           python research/walk_forward.py --seasons ${{ inputs.seasons }} --game-years ${{ inputs.game_years }} ${{ inputs.flags }} | tee walk_forward.txt
           { echo '```'; cat walk_forward.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
