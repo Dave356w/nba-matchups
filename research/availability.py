@@ -106,6 +106,8 @@ def parse_players(js):
             for a in block.get("athletes") or []:
                 st = a.get("stats") or []
                 ath = a.get("athlete") or {}
+                if not ath.get("id"):
+                    continue                 # unidentifiable row: skip
                 rows.append(dict(
                     team=team, player_id=str(ath.get("id")),
                     name=ath.get("displayName"),
@@ -123,8 +125,10 @@ def fetch_box(y, sleep=0.15, cache_dir=OUT_DIR):
     """Player minutes and +/- for every regular-season game of season y."""
     path = os.path.join(cache_dir, f"box_{y}.csv")
     if os.path.exists(path):
-        return pd.read_csv(path, dtype={"game_id": str, "player_id": str},
-                           parse_dates=["date"])
+        # keep_default_na=False: ids like "None" must stay strings, never NaN
+        df = pd.read_csv(path, dtype={"game_id": str, "player_id": str, "name": str},
+                         keep_default_na=False, parse_dates=["date"])
+        return clean_box(df)
     rows, n_games = [], 0
     for d in season_dates(y):
         ds = d.strftime("%Y-%m-%d")
@@ -155,7 +159,7 @@ def fetch_box(y, sleep=0.15, cache_dir=OUT_DIR):
                     margin=(g["home_pts"] - g["away_pts"]) * (1 if home else -1),
                     player_id=p["player_id"], name=p["name"],
                     minutes=p["minutes"], pm=p["pm"]))
-    df = pd.DataFrame(rows)
+    df = clean_box(pd.DataFrame(rows))
     os.makedirs(cache_dir, exist_ok=True)
     df.to_csv(path, index=False)
     print(f"box {y}: {n_games} games, {len(df)} player rows", flush=True)
@@ -204,17 +208,19 @@ def player_values(box, bpm):
     """player_id -> points per game above replacement per full 48 minutes:
     shrunk last-season BPM minus REPLACEMENT_BPM (0 for unmatched)."""
     names = box.drop_duplicates("player_id").set_index("player_id")["name"]
-    vals, hit = {}, 0
+    mins = box.groupby("player_id")["minutes"].sum()
+    vals, hit, hit_min = {}, 0, 0.0
     for pid, nm in names.items():
         rec = bpm.get(norm_name(nm))
         if rec is None:
             vals[pid] = 0.0
             continue
         hit += 1
+        hit_min += float(mins.get(pid, 0.0))
         b, mp, _ = rec
         shrunk = REPLACEMENT_BPM + (b - REPLACEMENT_BPM) * mp / (mp + BPM_SHRINK_MP)
         vals[pid] = shrunk - REPLACEMENT_BPM
-    return vals, hit / max(len(names), 1)
+    return vals, hit / max(len(names), 1), hit_min / max(float(mins.sum()), 1.0)
 
 
 def arrival_roles(box, bpm):
@@ -240,6 +246,20 @@ def arrival_roles(box, bpm):
             return float(rec[1] / rec[2] / 48.0)
         return 0.0
     return role
+
+
+def clean_box(df):
+    """Drop rows without a real player id (fresh and cached data alike)."""
+    if not len(df):
+        return df
+    pid = df["player_id"].astype(str).str.strip()
+    df = df[~pid.isin(["", "None", "nan", "NaN"])].copy()
+    df["player_id"] = df["player_id"].astype(str)
+    df["name"] = df["name"].fillna("").astype(str)
+    for c in ("minutes", "pm", "margin"):
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
+    df["home"] = df["home"].astype(str).isin(["True", "true", "1"])
+    return df
 
 
 # ---------------------------------------------------------- availability ---
@@ -402,9 +422,10 @@ def main(argv=None):
     for t in a.box_seasons:
         box = fetch_box(t)
         bpm = load_bpm(t - 1)                    # last season only: no lookahead
-        value, rate = player_values(box, bpm)
+        value, rate, rate_min = player_values(box, bpm)
         print(f"season {t}: {len(bpm)} BBR {t - 1} BPM rows; "
-              f"{100 * rate:.1f}% of ESPN players matched by name", flush=True)
+              f"{100 * rate:.1f}% of ESPN players ({100 * rate_min:.1f}% of "
+              "minutes) matched by name", flush=True)
         avail[t] = game_availability(box, value, arrival_roles(box, bpm))
     recon = ledger.graded(ledger.load(ledger.RECON_PATH))
     recon = recon[["slate_date", "home", "away", "close_q_home", "close_book",

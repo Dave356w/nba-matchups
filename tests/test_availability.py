@@ -112,9 +112,10 @@ def test_parse_advanced_keeps_multi_team_total_row():
 
 def test_player_values_shrink_and_default_to_replacement():
     box = pd.DataFrame(dict(player_id=["1", "2"], name=["Nikola Jokic", "Rookie"]))
-    vals, rate = av.player_values(box, {"nikola jokic": (13.0, 2500.0, 70.0)})
+    box["minutes"] = [30.0, 10.0]
+    vals, rate, rate_min = av.player_values(box, {"nikola jokic": (13.0, 2500.0, 70.0)})
     assert abs(vals["1"] - 15.0 * 2500 / 3000) < 1e-9 and vals["2"] == 0.0
-    assert rate == 0.5
+    assert rate == 0.5 and rate_min == 0.75
 
 
 def test_bpm_term_weights_value_and_counts_arrivals():
@@ -138,3 +139,19 @@ def test_arrival_role_uses_only_earlier_games():
     assert abs(role("9", "2025-11-05") - 25.0 / 48) < 1e-9
     assert abs(role("9", "2025-11-01") - 30.0 / 48) < 1e-9   # falls back to last season
     assert role("missing", "2025-11-05") == 0.0
+
+
+def test_box_cache_round_trip_drops_missing_ids(tmp_path):
+    df = pd.DataFrame(dict(
+        game_id=["1", "1", "1"], date=pd.to_datetime(["2025-11-01"] * 3),
+        team=["T"] * 3, opp=["O"] * 3, home=[True] * 3, margin=[5, 5, 5],
+        player_id=["11", "None", ""], name=["A", "B", "C"],
+        minutes=[30.0, 20.0, 10.0], pm=[3.0, 1.0, 0.0]))
+    df.to_csv(tmp_path / "box_2025.csv", index=False)
+    back = av.fetch_box(2025, cache_dir=str(tmp_path))
+    assert list(back["player_id"]) == ["11"]
+    assert back["home"].dtype == bool and back["home"].all()
+    av.team_availability(back)                         # sorts ids without error
+    js = {"boxscore": {"players": [{"team": {"abbreviation": "GS"}, "statistics": [
+        {"keys": ["minutes"], "athletes": [{"athlete": {}, "stats": ["12"]}]}]}]}}
+    assert av.parse_players(js) == []
