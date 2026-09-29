@@ -11,8 +11,12 @@ on:
         description: 'Seasons to reconstruct (BBR years; 2026 = 2025-26)'
         default: '2025 2026'
 
+# Its own queue, not site-build: GitHub keeps one *pending* run per group,
+# so a pending run here was cancelled whenever the hourly build queued.
+# Different files from the build (and from each other), so commits rebase
+# cleanly; the push below retries like the build's.
 concurrency:
-  group: site-build
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 permissions:
@@ -46,4 +50,8 @@ jobs:
           git add data/
           git diff --cached --quiet && exit 0
           git commit -m "reconstructed history ${{ inputs.seasons }}"
-          git pull --rebase origin main && git push origin HEAD:main
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "::error::reconstructed history push failed"; exit 1
