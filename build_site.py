@@ -6,11 +6,13 @@
   python build_site.py --render-only   # rebuild pages from committed data
 
 Steps
-  1. Grade: finished games from earlier slates get final scores and the DK
-     open/close (ESPN core odds). Pending games never receive a close.
+  1. Grade: finished games from earlier slates get final scores and one
+     book's open/close (ESPN core odds; the row's pregame book if it has a
+     close, see market.pick_close). Pending games never receive a close.
   2. Score: every regular-season game on today's ESPN scoreboard that has not
-     tipped gets the composite delta, P(home win), and the current DK
-     moneylines; written to data/nba_ledger.csv only while before tip.
+     tipped gets the composite delta, P(home win), and the current moneylines
+     of the first listed book in market.BOOKS (DraftKings, then ESPN BET);
+     written to data/nba_ledger.csv only while before tip.
   3. Render public/index.html, grades.html and market-calibration.html.
 
 The model is nba_composite.py, unchanged. This file only feeds it pregame game
@@ -127,12 +129,13 @@ def grade(led, today):
         except Exception as e:  # noqa: BLE001
             log(f"grade {date}: scoreboard failed ({e!r}); retry next run")
             continue
-        for gid in rows["game_id"].astype(str):
+        for gid, pre_book in zip(rows["game_id"].astype(str), rows["pre_book"]):
             g = games.get(gid)
             if not g or not g["completed"]:
                 continue
             try:
-                odds = market.dk_odds(gid)
+                odds = market.pick_close(market.book_odds(gid),
+                                         prefer=pre_book if pd.notna(pre_book) else None)
             except Exception as e:  # noqa: BLE001
                 log(f"grade {gid}: odds failed ({e!r}); graded without close")
                 odds = None
@@ -159,10 +162,11 @@ def score_slate(today, weights, model, now=None):
                  model_tag=MODEL_TAG, home=g["home"], away=g["away"])
         r.update(score_game(logs, g["home"], g["away"], today, weights, model))
         try:
-            odds = market.dk_odds(g["game_id"]) or {}
+            odds = market.pick_pregame(market.book_odds(g["game_id"]))
         except Exception as e:  # noqa: BLE001
             log(f"odds {g['game_id']}: {e!r}")
             odds = {}
+        r["pre_book"] = odds.get("book")
         r["pre_home_ml"] = odds.get("cur_home_ml")
         r["pre_away_ml"] = odds.get("cur_away_ml")
         q = market.devig(r["pre_home_ml"], r["pre_away_ml"])
@@ -259,10 +263,18 @@ def tip_et(s):
     return t.astimezone(ET).strftime("%-I:%M %p") if t else "—"
 
 
+def book_tag(book):
+    """Visible label for any price not from DraftKings (the default book)."""
+    if pd.isna(book) or book in ("", "dk"):
+        return ""
+    return f" <span class='basis'>{esc(market.BOOK_NAMES.get(book, book))}</span>"
+
+
 def render_index(led, today, built, model_ok):
     head = ("<h1>NBA composite vs market</h1><p class='lead'>Four-factors "
             "composite gap (home − away, in win-% points), the model's "
-            "P(win), and the DraftKings price with its vig removed. "
+            "P(win), and the sportsbook price (DraftKings when listed) with "
+            "its vig removed. "
             "<b>Model − market</b> is the lean side's model probability minus "
             "the no-vig market probability; <b>model EV</b> is what the model "
             "claims the posted price is worth. Both are model estimates, not "
@@ -287,7 +299,8 @@ def render_index(led, today, built, model_ok):
                    f"{nc.MIN_GAMES} games" if pd.notna(r["gp_home"])
                    else "abstain · no game log")
             rows.append([tip_et(r["tip_utc"]), match, "—", "—", "—",
-                         f"{ml_txt(r['pre_away_ml'])} / {ml_txt(r['pre_home_ml'])}",
+                         f"{ml_txt(r['pre_away_ml'])} / {ml_txt(r['pre_home_ml'])}"
+                         + book_tag(r["pre_book"]),
                          f"<span class='mut'>{why}</span>", "", ""])
             continue
         lean_home = r["lean"] == r["home"]
@@ -303,6 +316,7 @@ def render_index(led, today, built, model_ok):
             tip_et(r["tip_utc"]), match, f"{float(r['delta']):+.1f}", esc(b2b),
             f"{pct(1 - p)} / {pct(p)}",
             f"{ml_txt(r['pre_away_ml'])} / {ml_txt(r['pre_home_ml'])}"
+            + book_tag(r["pre_book"])
             + (f"<br><span class='mut'>{pct(1 - q_home)} / {pct(q_home)}</span>"
                if np.isfinite(q_home) else ""),
             f"<span class='chip'>{esc(r['lean'])}</span> {pct(pl)}",
@@ -310,11 +324,12 @@ def render_index(led, today, built, model_ok):
             pp(ev) if np.isfinite(ev) else "—",
         ])
     heads = ["Tip ET", "Away @ Home", "Composite Δ", "B2B",
-             "Model away / home", "DK away / home<br>no-vig",
+             "Model away / home", "Market away / home<br>no-vig",
              "Lean", "Model − market (pp)", "Model EV (%)"]
     note = ("<p class='note'>Composite Δ is 100 × standardised four-factor gap · "
             "ridge weights, in win-% points; P(home) = σ(a + b·Δ + c·b2b_net). "
-            "Prices are the DK moneyline at the snapshot time in the ledger, "
+            "Prices are the moneyline at the snapshot time in the ledger "
+            "(DraftKings unless tagged ESPN BET), "
             "refreshed each build until tip and frozen after. A game abstains "
             f"until both teams have {nc.MIN_GAMES} games.</p>")
     return page("NBA composite", "index.html",
@@ -322,11 +337,16 @@ def render_index(led, today, built, model_ok):
 
 
 def _basis_split(native, recon):
+    """[(label, rows)]: one section per basis x closing book, never pooled."""
     out = []
     for label, df in (("Native (pregame-locked, forward)", native),
                       ("Reconstructed (leave-one-season-out, hindsight)", recon)):
         h = analysis.with_close(ledger.graded(df))
-        out.append((label, h))
+        parts = analysis.book_split(h)
+        if not parts:
+            out.append((label, h))
+        for book, hb in parts:
+            out.append((f"{label} · {market.BOOK_NAMES[book]} close", hb))
     return out
 
 
@@ -386,7 +406,8 @@ def _calib_cell(a):
 
 def render_calibration(native, recon, built):
     body = ["<h1>Calibration</h1><p class='lead'>Implied versus actual. "
-            "First the <b>market</b> itself (devigged DK close vs results), "
+            "First the <b>market</b> itself (devigged close vs results, one "
+            "section per sportsbook), "
             "then the <b>model</b>: its probabilities against results with the "
             "market's probability on the same games, proper scores against the "
             "close, and its leans graded at the closing price.</p>"]
@@ -399,8 +420,20 @@ def render_calibration(native, recon, built):
         g = g.assign(_nat=(g["basis"] == "native")).sort_values(
             "_nat", ascending=False).drop_duplicates("game_id")
         g = g.assign(p_home=g["p_home"].fillna(0.5))   # market view needs no model
-    hm = analysis.with_close(g)
-    body.append("<h2>Market: devigged close vs actual</h2>")
+    hm_all = analysis.with_close(g)
+    parts = analysis.book_split(hm_all)
+    if not parts:
+        body.append("<h2>Market: devigged close vs actual</h2>")
+        body.append("<p class='note'>No graded games with a closing line yet.</p>")
+    for book, hm in parts:
+        body.append("<h2>Market: devigged close vs actual — "
+                    f"<span class='basis'>{esc(market.BOOK_NAMES[book])}</span></h2>")
+        _market_section(body, hm)
+    _model_sections(body, native, recon)
+    return page("NBA calibration", "market-calibration.html", "".join(body), built)
+
+
+def _market_section(body, hm):
     rows_, totals = analysis.market_calibration(hm)
     if rows_:
         nn = int((hm["basis"] == "native").sum())
@@ -423,7 +456,9 @@ def render_calibration(native, recon, built):
     else:
         body.append("<p class='note'>No graded games with a closing line yet.</p>")
 
-    # 2-4. Model sections, one basis at a time.
+
+def _model_sections(body, native, recon):
+    """Model vs market, one basis x closing book at a time."""
     for label, h in _basis_split(native, recon):
         body.append(f"<h2>Model — <span class='basis'>{esc(label)}</span></h2>")
         if not len(h):
@@ -468,7 +503,6 @@ def render_calibration(native, recon, built):
               pp(b["ev"]), f"{100 * b['ev_null']:+.1f}",
               f"{b['units']:+.2f}", f"{100 * b['roi']:+.1f}%"]
              for b in bands + [pooled]]))
-    return page("NBA calibration", "market-calibration.html", "".join(body), built)
 
 
 def write_pages(native, recon, today, model_ok):

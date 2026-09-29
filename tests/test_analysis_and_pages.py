@@ -7,7 +7,7 @@ import ledger
 import market
 
 
-def synth(n=400, seed=0, basis="native"):
+def synth(n=400, seed=0, basis="native", book="dk"):
     rng = np.random.default_rng(seed)
     rows = []
     for i in range(n):
@@ -27,10 +27,11 @@ def synth(n=400, seed=0, basis="native"):
             season=2027, tip_utc="2026-11-20T00:30Z", model_tag="t",
             basis=basis, home="HOM", away="AWY", delta=10 * (p - 0.5),
             p_home=p, lean="HOM" if lean_home else "AWY",
-            p_lean=p if lean_home else 1 - p, pre_home_ml=hml,
+            p_lean=p if lean_home else 1 - p, pre_book=book, pre_home_ml=hml,
             pre_away_ml=aml, pre_q_home=market.devig(hml, aml),
             close_home_ml=hml, close_away_ml=aml,
-            close_q_home=market.devig(hml, aml), home_pts=100 + won,
+            close_q_home=market.devig(hml, aml), close_book=book,
+            home_pts=100 + won,
             away_pts=100 + (1 - won), home_won=won))
     return pd.DataFrame(rows, columns=ledger.COLUMNS)
 
@@ -89,3 +90,30 @@ def test_pages_render_empty(tmp_path, monkeypatch):
                            model_ok=False)
     assert "Fit model" in (tmp_path / "index.html").read_text()
     assert "No graded" in (tmp_path / "market-calibration.html").read_text()
+
+
+def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    recon = pd.concat([synth(120, 3, "reconstructed", book="espnbet"),
+                       synth(80, 4, "reconstructed", book="dk")
+                       .assign(game_id=lambda d: "dk" + d["game_id"])],
+                      ignore_index=True)
+    build_site.write_pages(ledger.empty(), recon, "2026-11-19", model_ok=True)
+    cal = (tmp_path / "market-calibration.html").read_text()
+    grades = (tmp_path / "grades.html").read_text()
+    for page_ in (cal, grades):
+        assert "Reconstructed (leave-one-season-out, hindsight) · DraftKings close" in page_
+        assert "Reconstructed (leave-one-season-out, hindsight) · ESPN BET close" in page_
+    assert "120 games (0 native, 120 reconstructed)" in cal
+    assert "80 games (0 native, 80 reconstructed)" in cal
+    assert "200 games" not in cal
+    parts = dict(analysis.book_split(analysis.with_close(ledger.graded(recon))))
+    assert len(parts["espnbet"]) == 120 and len(parts["dk"]) == 80
+
+
+def test_clv_only_within_one_book():
+    g = ledger.graded(synth(40, 5))
+    g["pre_q_home"] = g["close_q_home"] - 0.02
+    g.loc[g.index[:10], "close_book"] = "espnbet"      # pre dk, close espnbet
+    c = analysis.clv(g)
+    assert c["n"] == 30

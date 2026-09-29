@@ -22,7 +22,7 @@ never pooled into one record.
 |---|---|
 | `nba_composite.py` | The model: BBR download, ridge composite weights, decayed game features, logit, backtest. Unchanged from the reference implementation. |
 | `build_site.py` | Daily pipeline: grade → score today's slate → write ledger → render pages. |
-| `market.py` | ESPN scoreboard + DraftKings odds, devig, break-even, EV null, SEs, price ladder. The single home for price arithmetic. |
+| `market.py` | ESPN scoreboard + sportsbook odds (DraftKings, else ESPN BET; each price labelled with its book), devig, break-even, EV null, SEs, price ladder. The single home for price arithmetic. |
 | `ledger.py` | Ledger schema, pregame-lock ingest, and grading rules. |
 | `analysis.py` | Calibration and same-row model-vs-market statistics. |
 | `backfill_history.py` | Leave-one-season-out reconstruction of completed seasons, with historical closes. |
@@ -36,7 +36,8 @@ never pooled into one record.
    the logit (2023–26), then commits `model/*.json`. Takes about 25 minutes
    because of Basketball-Reference's rate limit.
 3. **Actions → Backfill history → Run** (optional, about 1–2 hours) writes
-   the reconstructed 2024-25 and 2025-26 seasons against the DK close, so
+   the reconstructed 2024-25 and 2025-26 seasons against the close (ESPN BET
+   before late November 2025, DraftKings after; `close_book`), so
    the calibration page has data before the season starts.
 4. The **Build** workflow then runs on its schedule: 04:17 ET grading and
    hourly pregame refreshes from 10:07 to 22:07 ET.

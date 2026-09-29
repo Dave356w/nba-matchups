@@ -17,6 +17,9 @@ Invariants (tests/test_ledger.py pins each one):
   * Grading fills ONLY result and open/close market columns. It never touches
     a model or pregame-market column.
   * A pending (unfinished) game never receives a closing line.
+  * Every price names its book (`pre_book`, `close_book`: see market.BOOKS).
+    Open and close come from one book; rows priced by different books are
+    reported separately, never pooled.
 """
 from __future__ import annotations
 
@@ -40,11 +43,14 @@ COLUMNS = [
     "gp_home", "gp_away", "home_b2b", "away_b2b", "delta", "p_home", "lean",
     "p_lean",
     # pregame market snapshot
-    "pre_home_ml", "pre_away_ml", "pre_q_home",
+    "pre_book", "pre_home_ml", "pre_away_ml", "pre_q_home",
     # filled by grading
     "open_home_ml", "open_away_ml", "close_home_ml", "close_away_ml",
-    "close_q_home", "home_pts", "away_pts", "home_won",
+    "close_q_home", "close_book", "home_pts", "away_pts", "home_won",
 ]
+# Schema before the book columns. Every price in such a file is DraftKings
+# (the parser read nothing else), so `load` labels it "dk".
+LEGACY_COLUMNS = [c for c in COLUMNS if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = [c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
 GRADE_COLUMNS = [c for c in COLUMNS if c not in PREGAME_COLUMNS]
 
@@ -75,9 +81,15 @@ def load(path):
     if not os.path.exists(path):
         return empty()
     df = pd.read_csv(path, dtype={"game_id": str})
+    legacy = "close_book" not in df.columns
     for c in COLUMNS:
         if c not in df.columns:
             df[c] = np.nan
+    df["pre_book"] = df["pre_book"].astype(object)
+    df["close_book"] = df["close_book"].astype(object)
+    if legacy:
+        df.loc[df["pre_q_home"].notna(), "pre_book"] = "dk"
+        df.loc[df["close_q_home"].notna(), "close_book"] = "dk"
     return df[COLUMNS]
 
 
@@ -130,9 +142,11 @@ def upsert_pregame(led, rows, now=None):
 
 
 def apply_result(led, game_id, game, odds):
-    """Grade one row from a scoreboard game dict and DK odds dict (or None).
+    """Grade one row from a scoreboard game dict and ONE book's odds (or None).
 
-    Writes only GRADE_COLUMNS, and only for a completed game with scores.
+    `odds` is what market.pick_close returns: that book's open/close plus its
+    `book` label. Writes only GRADE_COLUMNS, and only for a completed game
+    with scores.
     """
     hit = led.index[led["game_id"].astype(str) == str(game_id)]
     if not len(hit) or not game or not game.get("completed"):
@@ -152,6 +166,9 @@ def apply_result(led, game_id, game, odds):
         q = market.devig(odds.get("close_home_ml"), odds.get("close_away_ml"))
         if np.isfinite(q):
             led.at[i, "close_q_home"] = round(q, 5)
+            if led["close_book"].dtype != object:
+                led["close_book"] = led["close_book"].astype(object)
+            led.at[i, "close_book"] = odds.get("book", "dk")
     return True
 
 

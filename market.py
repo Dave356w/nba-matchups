@@ -6,8 +6,13 @@ a reader cannot tell which one a page used.
 
 Sources
   ESPN site scoreboard  -> schedule, ESPN event ids, status, final scores.
-  ESPN core odds        -> DraftKings (provider id 100) moneylines:
-                           current (pregame snapshot), open, close.
+  ESPN core odds        -> sportsbook moneylines: current (pregame
+                           snapshot), open, close. ESPN listed ESPN BET
+                           (provider 58) until late November 2025 and
+                           DraftKings (100) after, so every price carries a
+                           `book` label and a row takes all its prices from
+                           ONE book. Provider 59 ("ESPN Bet - Live Odds")
+                           carries in-game prices and is never read.
 
 Conventions
   * American moneylines are ints; nothing strictly between -100 and +100 is a
@@ -30,6 +35,11 @@ HEADERS = {
     "Accept": "application/json",
 }
 DK_PROVIDER_ID = "100"
+ESPNBET_PROVIDER_ID = "58"
+# Books we read, in preference order: (ESPN provider id, label). Anything not
+# listed here (notably 59, ESPN BET live/in-game odds) is ignored.
+BOOKS = ((DK_PROVIDER_ID, "dk"), (ESPNBET_PROVIDER_ID, "espnbet"))
+BOOK_NAMES = {"dk": "DraftKings", "espnbet": "ESPN BET"}
 SCOREBOARD = ("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/"
               "scoreboard?dates={ds}&limit=100")
 ODDS = ("https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/"
@@ -132,15 +142,9 @@ def american(x):
     return v if (v <= -100 or v >= 100) else None
 
 
-def parse_dk_odds(js):
-    """ESPN core odds JSON -> DraftKings moneylines, or None without DK."""
-    dk = next((i for i in js.get("items", [])
-               if str(_dig(i, "provider", "id")) == DK_PROVIDER_ID), None)
-    if dk is None:
-        return None
-
+def _parse_provider(item):
     def side(which):
-        td = dk.get(which) or {}
+        td = item.get(which) or {}
         cur = american(_dig(td, "current", "moneyLine"))
         if cur is None:
             cur = american(td.get("moneyLine"))
@@ -152,8 +156,52 @@ def parse_dk_odds(js):
                 close_home_ml=h["close"], close_away_ml=a["close"])
 
 
+def parse_book_odds(js):
+    """ESPN core odds JSON -> {book label: moneylines} for the books in BOOKS."""
+    ids = dict(BOOKS)
+    out = {}
+    for it in js.get("items", []):
+        book = ids.get(str(_dig(it, "provider", "id")))
+        if book and book not in out:
+            out[book] = dict(_parse_provider(it), book=book)
+    return out
+
+
+def parse_dk_odds(js):
+    """ESPN core odds JSON -> DraftKings moneylines, or None without DK."""
+    return parse_book_odds(js).get("dk")
+
+
+def _pair_ok(o, kind):
+    return bool(o) and o.get(f"{kind}_home_ml") is not None \
+        and o.get(f"{kind}_away_ml") is not None
+
+
+def pick_pregame(books):
+    """The first book (preference order) with a current price pair, or {}."""
+    for _, book in BOOKS:
+        if _pair_ok(books.get(book), "cur"):
+            return books[book]
+    return {}
+
+
+def pick_close(books, prefer=None):
+    """The book to grade with: `prefer` (the row's pregame book) if it has a
+    close pair, else the first book in preference order that does. Open and
+    close then come from that one book. {} when no book has a close."""
+    order = ([prefer] if prefer else []) + [b for _, b in BOOKS if b != prefer]
+    for book in order:
+        if _pair_ok(books.get(book), "close"):
+            return books[book]
+    return {}
+
+
+def book_odds(game_id):
+    return parse_book_odds(get_json(ODDS.format(eid=game_id)))
+
+
 def dk_odds(game_id):
-    return parse_dk_odds(get_json(ODDS.format(eid=game_id)))
+    return book_odds(game_id).get("dk")
 
 
 # ------------------------------------------------------------ arithmetic ---

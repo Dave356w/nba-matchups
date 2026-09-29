@@ -1,9 +1,9 @@
 """Calibration and market comparisons, shared by the site and the report.
 
 Every function takes graded ledger rows (ledger.graded) and uses ONLY rows
-with a valid DraftKings closing pair, so the model and the market are always
-compared on identical games. Callers pass one basis at a time (native or
-reconstructed); nothing here pools the two.
+with a valid closing pair, so the model and the market are always compared on
+identical games. Callers pass one basis (native or reconstructed) and one
+closing book (`book_split`) at a time; nothing here pools either.
 """
 from __future__ import annotations
 
@@ -32,6 +32,14 @@ def with_close(g):
     h["lean_p"] = np.where(lean_home, h["p_home"], 1 - h["p_home"])
     h["lean_won"] = np.where(lean_home, h["home_won"], 1 - h["home_won"])
     return h
+
+
+def book_split(h):
+    """[(book label, rows)] by closing book, in market.BOOKS order."""
+    if h is None or not len(h):
+        return []
+    return [(b, h[h["close_book"] == b]) for _, b in market.BOOKS
+            if (h["close_book"] == b).any()]
 
 
 def _agg(p, won):
@@ -174,8 +182,15 @@ def lean_by_price(h):
 
 
 def clv(g):
-    """Closing-line value of native leans: close q - pregame q, lean side."""
+    """Closing-line value of native leans: close q - pregame q, lean side.
+
+    Only rows whose pregame and closing prices come from the same book; a
+    move between two books' lines is not a line move.
+    """
     if g is None or not len(g):
+        return None
+    g = g[g["pre_book"].astype(str) == g["close_book"].astype(str)]
+    if not len(g):
         return None
     pre = pd.to_numeric(g["pre_q_home"], errors="coerce")
     cls = pd.to_numeric(g["close_q_home"], errors="coerce")

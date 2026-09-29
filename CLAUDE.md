@@ -21,7 +21,9 @@ owner directs the product.
    with separate labels and counts; never pool them silently.
 2. Compare the model with the market on the **same rows** using proper
    scores (Brier, log loss) and calibration. Accuracy or ROI alone does not
-   show calibration.
+   show calibration. Each row's close comes from one book (`close_book`:
+   DraftKings, or ESPN BET before late Nov 2025); report books separately.
+   ESPN provider 59 (live odds) is in-game and never read.
 3. No-vig q and posted break-even are different thresholds. An EV figure
    (win% − break-even) is centred on `market.ev_null` (q − break-even, about
    minus the hold), **not zero**. Print the null beside every EV figure.
