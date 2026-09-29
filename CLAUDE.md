@@ -41,8 +41,10 @@ owner directs the product.
 - Grading writes only result and open/close columns (`ledger.GRADE_COLUMNS`).
 - A change to prediction math requires a new `MODEL_TAG`. A display change
   does not.
-- Keep `site-build` serialized (`cancel-in-progress: false`). Tests gate PRs
-  and are deliberately not wired into the daily build.
+- Keep `site-build` serialized (`cancel-in-progress: false`). Fit model and
+  Backfill history each have their own queue (a pending run in `site-build`
+  is cancelled by the next hourly build) and retry their push. Tests gate
+  PRs and are deliberately not wired into the daily build.
 - Do not hand-commit bot-generated `data/` changes or `public/`.
 
 Before a PR, run:
