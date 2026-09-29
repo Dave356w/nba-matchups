@@ -181,6 +181,101 @@ def lean_by_price(h):
     return rows, _lean_row("Pooled", h)
 
 
+PICK_RULES = (
+    ("lean", "Lean — the model's favourite"),
+    ("value", "Value — side where model P > no-vig market P"),
+)
+EARLY_BELOW = 10     # nba_composite.MIN_GAMES: below it v2 uses the carryover model
+EDGE_BINS = ((0.0, 0.02, "0–2 pp"), (0.02, 0.05, "2–5 pp"),
+             (0.05, 0.10, "5–10 pp"), (0.10, 1.0, "10+ pp"))
+
+
+def picks(g, price="close"):
+    """One flat 1-unit bet per game per pick rule, graded at one price.
+
+    price="close": the closing pair (every basis; for reconstructed rows the
+      value side is chosen against the close itself, i.e. with hindsight on
+      the price). price="pre": the pregame snapshot pair -- the price that
+      could actually be bet when the row was written (native rows only).
+
+    Returns rows with, per rule and game: the picked side's model P, no-vig
+    market P (q), break-even at the posted price, result, and unit P/L.
+    """
+    if g is None or not len(g):
+        return pd.DataFrame()
+    hml = pd.to_numeric(g[f"{price}_home_ml"], errors="coerce")
+    aml = pd.to_numeric(g[f"{price}_away_ml"], errors="coerce")
+    qh = pd.to_numeric(g[f"{price}_q_home"], errors="coerce")
+    ph = pd.to_numeric(g["p_home"], errors="coerce")
+    won = pd.to_numeric(g["home_won"], errors="coerce")
+    ok = (qh.between(0, 1, inclusive="neither") & hml.notna() & aml.notna()
+          & ph.notna() & won.isin([0, 1])).to_numpy()
+    g, hml, aml, qh, ph, won = (x[ok] for x in (g, hml, aml, qh, ph, won))
+    out = []
+    for rule, _label in PICK_RULES:
+        home = (ph >= 0.5) if rule == "lean" else (ph > qh)
+        if rule == "value":
+            keep = (ph != qh).to_numpy()
+        else:
+            keep = np.ones(len(ph), bool)
+        home = home.to_numpy()
+        ml = np.where(home, hml, aml)
+        d = pd.DataFrame(dict(
+            rule=rule, game_id=g["game_id"].to_numpy(),
+            early=(np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
+                           pd.to_numeric(g["gp_away"], errors="coerce"))
+                   < EARLY_BELOW).to_numpy(),
+            side=np.where(home, g["home"], g["away"]),
+            model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
+            ml=ml, won=np.where(home, won, 1 - won)))
+        d = d[keep]
+        d["breakeven"] = market.breakeven_prob(d["ml"])
+        d["units"] = [market.unit_profit(m, w) for m, w in zip(d["ml"], d["won"])]
+        d["units_null"] = d["q"] * [market.decimal_payout(m) for m in d["ml"]] - 1
+        d["edge"] = d["model_p"] - d["q"]
+        out.append(d)
+    return pd.concat(out, ignore_index=True)
+
+
+def roi_row(label, d):
+    """Flat-stake summary. roi_null is the ROI if the no-vig market is right
+    (about minus the hold, ~-4%); an ROI is judged against it, not zero."""
+    n = len(d)
+    if not n:
+        return None
+    u = d["units"].to_numpy(float)
+    return dict(
+        label=label, n=n, w=int(d["won"].sum()), l=n - int(d["won"].sum()),
+        model_p=float(d["model_p"].mean()), q=float(d["q"].mean()),
+        breakeven=float(d["breakeven"].mean()), actual=float(d["won"].mean()),
+        units=float(u.sum()), roi=float(u.mean()),
+        roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float("nan"),
+        roi_null=float(d["units_null"].mean()),
+    )
+
+
+def roi_summary(g, price="close"):
+    """[(rule label, [roi rows])]: all picks, early (games 1-9) vs later when
+    both exist, and value picks by model edge. Descriptive, not filters."""
+    p = picks(g, price)
+    if not len(p):
+        return []
+    out = []
+    for rule, label in PICK_RULES:
+        d = p[p["rule"] == rule]
+        rows = [roi_row("All picks", d)]
+        if d["early"].any() and (~d["early"]).any():
+            rows += [roi_row("Games 10+ (v1 model)", d[~d["early"]]),
+                     roi_row("Games 1–9 (carryover)", d[d["early"]])]
+        if rule == "value":
+            for lo, hi, lab in EDGE_BINS:
+                s = d[(d["edge"] >= lo) & (d["edge"] < hi)]
+                if len(s):
+                    rows.append(roi_row(f"Edge {lab}", s))
+        out.append((label, [r for r in rows if r]))
+    return out
+
+
 def clv(g):
     """Closing-line value of native leans: close q - pregame q, lean side.
 

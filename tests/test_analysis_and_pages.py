@@ -69,6 +69,31 @@ def test_rows_without_close_are_excluded_not_imputed():
     assert len(h) == 40
 
 
+def test_value_and_lean_picks_are_graded_at_the_right_price():
+    df = synth(300, 6)
+    g = ledger.graded(df)
+    p = analysis.picks(g, price="close")
+    lean, val = p[p["rule"] == "lean"], p[p["rule"] == "value"]
+    assert len(lean) == len(g) and (lean["model_p"] >= 0.5).all()
+    assert (val["model_p"] > val["q"]).all() and (val["edge"] > 0).all()
+    for _, r in val.head(20).iterrows():
+        assert r["units"] == market.unit_profit(r["ml"], r["won"])
+    s = dict(analysis.roi_summary(g, "close"))
+    top = s[analysis.PICK_RULES[1][1]][0]
+    assert top["label"] == "All picks" and top["n"] == len(val)
+    assert abs(top["roi"] - val["units"].mean()) < 1e-12
+    assert top["roi_null"] < 0             # the hold: market-correct ROI is negative
+
+
+def test_roi_splits_early_games_when_present():
+    df = synth(200, 7)
+    df.loc[:49, ["gp_home", "gp_away"]] = 5
+    df.loc[50:, ["gp_home", "gp_away"]] = 30
+    labels = [r["label"] for r in dict(analysis.roi_summary(
+        ledger.graded(df), "close"))[analysis.PICK_RULES[0][1]]]
+    assert labels[:3] == ["All picks", "Games 10+ (v1 model)", "Games 1–9 (carryover)"]
+
+
 def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(synth(200, 1, "native"),
@@ -80,6 +105,9 @@ def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
     assert "Null (pp)" in cal and "500 games (200 native, 300 reconstructed)" in cal
     grades = (tmp_path / "grades.html").read_text()
     assert "Closing-line value" in grades
+    assert "ROI — one unit on every pick" in grades and "ROI null" in grades
+    assert "pregame snapshot price" in grades        # native bettable price
+    assert "Value pick · P/L (1u)" in grades
     idx = (tmp_path / "index.html").read_text()
     assert "Model − market" in idx
 

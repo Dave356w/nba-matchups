@@ -50,6 +50,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import cold_start  # noqa: E402
 import market  # noqa: E402
 import nba_composite as nc  # noqa: E402
 
@@ -64,31 +65,8 @@ OUT_DIR = os.path.join("research", "output")
 
 
 # ------------------------------------------------------------- features ----
-def cold_features(cur, i, half_life=nc.HALF_LIFE, prior=None, rho=0.0,
-                  pre=None, kappa=0.0):
-    """Decayed four-factor features from [prior season][preseason][current].
-
-    Rows are ordered oldest -> newest and the decay counts games ago across
-    the whole sequence, so last season fades as new games arrive. `rho` and
-    `kappa` multiply the prior-season and preseason rows. Returns None when
-    there is nothing to weight (e.g. game 0 of the `current` arm).
-    """
-    parts, mult = [], []
-    if prior is not None and rho > 0 and len(prior):
-        parts.append(prior[nc.COLS].to_numpy(float))
-        mult.append(np.full(len(prior), float(rho)))
-    if pre is not None and kappa > 0 and len(pre):
-        parts.append(pre[nc.COLS].to_numpy(float))
-        mult.append(np.full(len(pre), float(kappa)))
-    if i > 0:
-        parts.append(cur[nc.COLS].to_numpy(float)[:i])
-        mult.append(np.ones(i))
-    if not parts:
-        return None
-    A = np.vstack(parts)
-    m = np.concatenate(mult)
-    w = 0.5 ** (np.arange(len(A))[::-1] / half_life) * m
-    return nc.features_from_totals((A * w[:, None]).sum(0))
+# One copy of the carryover features, shared with the shipped model.
+cold_features = cold_start.cold_features
 
 
 def arm_specs(have_pre):

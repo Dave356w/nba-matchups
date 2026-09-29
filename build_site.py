@@ -33,13 +33,16 @@ import numpy as np
 import pandas as pd
 
 import analysis
+import cold_start
 import ledger
 import market
 import nba_composite as nc
 
 ET = ZoneInfo("America/New_York")
 OUT_DIR = Path("public")
-MODEL_TAG = "fourfactors_hl25_b2b_v1"
+# v2 = v1 from game 10 on, plus the last-season carryover model (cold_start.py)
+# for games where min(games played) is 1-9. v1 abstained before game 10.
+MODEL_TAG = "fourfactors_hl25_b2b_carry25_v2"
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
     "CHI": "Bulls", "CLE": "Cavaliers", "DAL": "Mavericks", "DEN": "Nuggets",
@@ -74,6 +77,14 @@ def load_model():
         return None, None
 
 
+def load_early():
+    """The early-season logit (model/logit_early.json), or None."""
+    try:
+        return nc.load_json(cold_start.MODEL_FILE)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 def fresh_logs(year, today):
     """Game logs for `year`, refetched at most once per ET day."""
     stamp = nc.CACHE / f"refreshed_{year}.txt"
@@ -85,11 +96,14 @@ def fresh_logs(year, today):
     return logs
 
 
-def score_game(logs, home, away, date, weights, model, half_life=None):
+def score_game(logs, home, away, date, weights, model, half_life=None,
+               early=None, prior_logs=None):
     """Pregame composite and P(home win) from games strictly before `date`.
 
-    Abstains (delta/p NaN) when either team has fewer than MIN_GAMES logged
-    games, exactly as the validated model does.
+    From MIN_GAMES games on: the v1 model. Below that, when both teams have
+    played at least once and `early` (model/logit_early.json) and last
+    season's logs are given: the carryover model (cold_start.py). Otherwise
+    (game 0, or no early model) it abstains: delta/p NaN.
     """
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
@@ -101,14 +115,24 @@ def score_game(logs, home, away, date, weights, model, half_life=None):
     lh, la = logs[home], logs[away]
     ih, ia = int((lh["date"] < date).sum()), int((la["date"] < date).sum())
     out.update(gp_home=ih, gp_away=ia)
-    if min(ih, ia) < nc.MIN_GAMES:
-        return out
-    fh = nc.decayed_features(lh, ih, hl)
-    fa = nc.decayed_features(la, ia, hl)
-    d = nc.composite(fh - fa, weights["sd"], weights["w"])
     rh, ra = nc.rest_days(lh, ih, date), nc.rest_days(la, ia, date)
+    if min(ih, ia) >= nc.MIN_GAMES:
+        fh = nc.decayed_features(lh, ih, hl)
+        fa = nc.decayed_features(la, ia, hl)
+        d = nc.composite(fh - fa, weights["sd"], weights["w"])
+        use = model
+    elif min(ih, ia) >= 1 and early is not None and prior_logs:
+        d = cold_start.carry_delta(lh, ih, prior_logs.get(home), la, ia,
+                                   prior_logs.get(away), weights,
+                                   rho=early.get("rho", cold_start.RHO),
+                                   half_life=early.get("half_life", nc.HALF_LIFE))
+        if d is None:
+            return out
+        use = early
+    else:
+        return out
     vals = {"delta": d, "b2b_net": int(ra == 0) - int(rh == 0)}
-    p = float(nc.predict(model, [[vals[f] for f in model["features"]]])[0])
+    p = float(nc.predict(use, [[vals[f] for f in use["features"]]])[0])
     lean_home = p >= 0.5
     out.update(home_b2b=int(rh == 0), away_b2b=int(ra == 0),
                delta=round(d, 3), p_home=round(p, 5),
@@ -155,12 +179,21 @@ def score_slate(today, weights, model, now=None):
     if not pre:
         return []
     logs = fresh_logs(season_for(today), today)
+    early, prior = load_early(), None
+    if early is not None and any(
+            int((lg["date"] < pd.Timestamp(today)).sum()) < nc.MIN_GAMES
+            for lg in logs.values()):
+        try:
+            prior = nc.load_logs(season_for(today) - 1)   # cached; completed season
+        except Exception as e:  # noqa: BLE001
+            log(f"last-season logs failed ({e!r}); early games abstain")
     rows = []
     for g in pre:
         r = dict(game_id=g["game_id"], slate_date=today,
                  season=season_for(today), tip_utc=g["tip_utc"],
                  model_tag=MODEL_TAG, home=g["home"], away=g["away"])
-        r.update(score_game(logs, g["home"], g["away"], today, weights, model))
+        r.update(score_game(logs, g["home"], g["away"], today, weights, model,
+                            early=early, prior_logs=prior))
         try:
             odds = market.pick_pregame(market.book_odds(g["game_id"]))
         except Exception as e:  # noqa: BLE001
@@ -295,8 +328,8 @@ def render_index(led, today, built, model_ok):
         match = f"{esc(r['away'])} @ {esc(r['home'])}"
         p = pd.to_numeric(r["p_home"], errors="coerce")
         if not np.isfinite(p):
-            why = (f"abstain · {r['gp_away']:.0f}/{r['gp_home']:.0f} of "
-                   f"{nc.MIN_GAMES} games" if pd.notna(r["gp_home"])
+            why = (f"abstain · {r['gp_away']:.0f}/{r['gp_home']:.0f} games "
+                   "played" if pd.notna(r["gp_home"])
                    else "abstain · no game log")
             rows.append([tip_et(r["tip_utc"]), match, "—", "—", "—",
                          f"{ml_txt(r['pre_away_ml'])} / {ml_txt(r['pre_home_ml'])}"
@@ -310,6 +343,9 @@ def render_index(led, today, built, model_ok):
         pl = float(r["p_lean"])
         be = market.implied(ml)
         ev = pl * market.decimal_payout(ml) - 1 if np.isfinite(be) else np.nan
+        early_tag = (" <span class='basis'>early · carryover</span>"
+                     if pd.notna(r["gp_home"]) and
+                     min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES else "")
         b2b = "/".join(x for x, f in ((r["away"], r["away_b2b"]),
                                       (r["home"], r["home_b2b"])) if f == 1) or "—"
         rows.append([
@@ -319,7 +355,7 @@ def render_index(led, today, built, model_ok):
             + book_tag(r["pre_book"])
             + (f"<br><span class='mut'>{pct(1 - q_home)} / {pct(q_home)}</span>"
                if np.isfinite(q_home) else ""),
-            f"<span class='chip'>{esc(r['lean'])}</span> {pct(pl)}",
+            f"<span class='chip'>{esc(r['lean'])}</span> {pct(pl)}{early_tag}",
             pp(pl - q) if np.isfinite(q) else "—",
             pp(ev) if np.isfinite(ev) else "—",
         ])
@@ -328,10 +364,15 @@ def render_index(led, today, built, model_ok):
              "Lean", "Model − market (pp)", "Model EV (%)"]
     note = ("<p class='note'>Composite Δ is 100 × standardised four-factor gap · "
             "ridge weights, in win-% points; P(home) = σ(a + b·Δ + c·b2b_net). "
+            "<b>early · carryover</b>: a team has fewer than "
+            f"{nc.MIN_GAMES} games, so last season's log (×{cold_start.RHO}) is "
+            "carried in with its own early-season logit; in backtests it "
+            "trailed the close by about as much as mid-season games do. "
             "Prices are the moneyline at the snapshot time in the ledger "
             "(DraftKings unless tagged ESPN BET), "
             "refreshed each build until tip and frozen after. A game abstains "
-            f"until both teams have {nc.MIN_GAMES} games.</p>")
+            "only while a team has no games yet (or the early model is not "
+            "fitted).</p>")
     return page("NBA composite", "index.html",
                 head + table(heads, rows, left=(1, 6)) + note, built)
 
@@ -378,23 +419,75 @@ def render_grades(native, recon, built):
                                   f"± {100 * c['se']:.2f} · beat close "
                                   f"{pct(c['beat'], 0)} · n={c['n']}"))
         body.append("<div class='tiles'>" + "".join(tiles) + "</div>")
+        _roi_section(body, h, label.startswith("Native"))
         recent = h.sort_values(["slate_date", "tip_utc"], ascending=False).head(60)
+        val = analysis.picks(recent)
+        val = val[val["rule"] == "value"].set_index("game_id") if len(val) else val
         rows = []
         for _, r in recent.iterrows():
             won = int(r["lean_won"]) == 1
+            lean_u = market.unit_profit(r["lean_ml"], won)
+            v = val.loc[r["game_id"]] if len(val) and r["game_id"] in val.index else None
+            vtxt = ("—" if v is None else
+                    f"{esc(v['side'])} {ml_txt(v['ml'])} "
+                    f"<span class='{'pos' if v['units'] > 0 else 'neg'}'>"
+                    f"{v['units']:+.2f}u</span>")
             rows.append([
                 esc(r["slate_date"]), f"{esc(r['away'])} @ {esc(r['home'])}",
                 f"<span class='chip'>{esc(r['lean'])}</span>", pct(r["lean_p"]),
                 pct(r["lean_q"]), ml_txt(r["lean_ml"]),
                 f"{int(r['away_pts'])}–{int(r['home_pts'])}",
                 f"<span class='{'pos' if won else 'neg'}'>{'W' if won else 'L'}</span>",
+                f"<span class='{'pos' if lean_u > 0 else 'neg'}'>{lean_u:+.2f}u</span>",
+                vtxt,
             ])
-        body.append(table(["Date", "Away @ Home", "Lean", "Model p", "Close q",
-                           "Close ML", "Final", "Result"], rows, left=(0, 1, 2)))
+        body.append(table(["Date", "Away @ Home", "Lean", "Model WP", "Market WP (no-vig)",
+                           "Close ML", "Final", "Result", "Lean P/L (1u)",
+                           "Value pick · P/L (1u)"], rows, left=(0, 1, 2, 9)))
         if len(h) > 60:
             body.append(f"<p class='note'>Latest 60 of {len(h)} rows; the full "
                         "record is in the CSV under <code>data/</code>.</p>")
     return page("NBA ledger", "grades.html", "".join(body), built)
+
+
+def _roi_table(sections):
+    out = []
+    for rule_label, rows in sections:
+        out.append(f"<h3 style='font-size:15px;margin:14px 0 4px'>{esc(rule_label)}</h3>")
+        out.append(table(
+            ["Picks", "n", "W–L", "Model WP", "Market WP (no-vig)", "Break-even",
+             "Actual", "Units (1u flat)", "ROI", "± SE", "ROI null"],
+            [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}", pct(r["model_p"]),
+              pct(r["q"]), pct(r["breakeven"]), pct(r["actual"]),
+              f"{r['units']:+.2f}u",
+              f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
+              f"{100 * r['roi']:+.1f}%</span>",
+              f"{100 * r['roi_se']:.1f}", f"{100 * r['roi_null']:+.1f}%"]
+             for r in rows], left=(0,)))
+    return "".join(out)
+
+
+def _roi_section(body, h, native):
+    """1u flat-bet ROI for each pick rule: model WP, market WP, actual."""
+    body.append("<h3 style='font-size:16px;margin:18px 0 4px'>ROI — one unit "
+                "on every pick</h3>")
+    if native:
+        pre = _roi_table(analysis.roi_summary(h, price="pre"))
+        if pre:
+            body.append("<p class='note'>At the <b>pregame snapshot price</b> — "
+                        "what could have been bet when the row was written.</p>" + pre)
+    body.append("<p class='note'>At the <b>closing price</b>"
+                + ("" if native else ": the value side is picked against the "
+                   "close itself, which a bettor would not have known — "
+                   "hindsight on price as well as on the model")
+                + ".</p>" + _roi_table(analysis.roi_summary(h, price="close")))
+    body.append("<p class='note'><b>Model WP</b> and <b>market WP</b> are the "
+                "picked side's mean model probability and no-vig market "
+                "probability; <b>break-even</b> is the win rate the posted "
+                "price needs. <b>ROI null</b> is the ROI expected if the market "
+                "is right (about minus the hold, ~−4%): an ROI is judged against "
+                "it, and against its ± SE, not against zero. Edge bins are "
+                "descriptive, not a filter to bet.</p>")
 
 
 def _calib_cell(a):
