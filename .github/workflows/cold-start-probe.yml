@@ -1,0 +1,49 @@
+name: Cold-start probe
+
+# Research only: backtests last-season carryover and preseason games as
+# replacements for the model's 10-game abstention (research/cold_start_probe.py).
+# Writes nothing to the repo; results are the job summary and an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Test seasons (BBR years; 2026 = 2025-26)'
+        default: '2024 2025 2026'
+      flags:
+        description: 'Extra flags, e.g. --no-preseason or --no-market'
+        default: ''
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2019 2021-2026
+      - name: Run probe
+        run: |
+          python research/cold_start_probe.py --seasons ${{ inputs.seasons }} ${{ inputs.flags }} | tee probe.txt
+          { echo '```'; cat probe.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cold-start-probe
+          path: |
+            probe.txt
+            research/output/

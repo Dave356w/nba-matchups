@@ -53,6 +53,9 @@ Before a PR, run:
 - Market benchmark: Brier/log loss vs the DK close, and native CLV.
 - Player availability (injury reports, minutes shares) is the main missing
   information.
-- Early-season blend with last season's composite for games 1–20 (today the
-  model abstains before 10 games).
+- Early-season cold start (today the model abstains before 10 games):
+  `research/cold_start_probe.py` backtests last-season carryover (ρ),
+  preseason games (κ), and both, against the DK close on the same games. It
+  is research only; shipping any arm needs a new `MODEL_TAG` and its own
+  label on the card.
 - More game-log seasons to settle the half-life and to test travel/altitude.
