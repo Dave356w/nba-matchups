@@ -50,6 +50,10 @@ than a stronger rating.
   mid-season, where the v1-style "this season only" arm trailed by +0.03
   to +0.09. Game 0 trails by +0.07 on 45 games, so it still abstains.
 
+The reconstructed fits hold out the test season but keep later seasons (the
+2024-25 rows saw 2025-26), so they flatter the model slightly;
+`research/walk_forward.py` re-scores them with earlier seasons only.
+
 No arm or bucket beats the close. The model does not see injuries, lineups,
 or travel; the market does. Native rows are the forward test.
 

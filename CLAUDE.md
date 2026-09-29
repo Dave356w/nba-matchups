@@ -69,3 +69,7 @@ Before a PR, run:
   book as the moneyline close), and the ledger page grades ATS the same way
   (lean and value side, break-even and ROI null beside each ROI).
 - More game-log seasons to settle the half-life and to test travel/altitude.
+- Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
+  backtest") re-scores reconstructed seasons with every fit on earlier
+  seasons only, beside the leave-one-season-out rows and the close on the
+  same games, plus a possession-based pace arm (games 10+). Research only.
