@@ -3,6 +3,8 @@ name: Cold-start probe
 # Research only: backtests last-season carryover and preseason games as
 # replacements for the model's 10-game abstention (research/cold_start_probe.py).
 # Writes nothing to the repo; results are the job summary and an artifact.
+# First step dumps every sportsbook ESPN lists for a few sample games
+# (research/odds_providers.py); `providers_only` skips the probe itself.
 
 on:
   workflow_dispatch:
@@ -14,6 +16,10 @@ on:
         description: 'Extra flags, e.g. --no-preseason or --no-market'
         default: ''
         required: false
+      providers_only:
+        description: 'Only dump ESPN odds providers for sample dates; skip the probe'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,9 +40,16 @@ jobs:
           path: bbr_cache
           key: bbr-${{ github.run_id }}
           restore-keys: bbr-
+      - name: Dump ESPN odds providers (sample 2024-25 / 2025-26 games)
+        continue-on-error: true
+        run: |
+          python research/odds_providers.py | tee providers.txt
+          { echo '### ESPN odds providers'; echo '```'; cat providers.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Download (cached pages are skipped)
+        if: ${{ !inputs.providers_only }}
         run: python nba_composite.py download --years 2015-2019 2021-2026
       - name: Run probe
+        if: ${{ !inputs.providers_only }}
         run: |
           python research/cold_start_probe.py --seasons ${{ inputs.seasons }} ${{ inputs.flags }} | tee probe.txt
           { echo '```'; cat probe.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
@@ -46,4 +59,5 @@ jobs:
           name: cold-start-probe
           path: |
             probe.txt
+            providers.txt
             research/output/
