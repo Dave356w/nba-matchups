@@ -34,6 +34,10 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
             "UTA": make_log(40, start="2026-10-22", seed=2, strength=-1.0)}
     monkeypatch.setattr(market, "scoreboard", scoreboard)
     monkeypatch.setattr(market, "book_odds", odds)
+    inj = {"rows": [dict(team="GSW", player_id="7", name="Star", status="Out",
+                         detail="Knee"),
+                    dict(team="UTA", player_id="", name="", status="NONE", detail="")]}
+    monkeypatch.setattr(market, "game_injuries", lambda gid, h, a: inj["rows"])
     monkeypatch.setattr(build_site, "fresh_logs", lambda y, d: logs)
     monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
 
@@ -44,11 +48,17 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert r["pre_home_ml"] == -180 and pd.isna(r["close_home_ml"])
     assert pd.isna(r["home_won"]) and r["lean"] in ("GSW", "UTA")
     assert "UTA @ GSW" in (tmp_path / "public" / "index.html").read_text()
+    snap = ledger.load_injuries()
+    assert list(snap["game_id"]) == ["9001", "9001"]    # preseason game skipped
+    assert set(snap["status"]) == {"Out", "NONE"}
+    assert (snap["snapshot_utc"] < snap["tip_utc"].str.replace("Z", ":00Z")).all()
+    frozen = snap.copy()
 
     state["completed"] = True
     assert build_site.main(["--date", "2027-01-11"]) == 0
     r = ledger.load(ledger.NATIVE_PATH).iloc[0]
     assert r["home_won"] == 1 and r["close_home_ml"] == -200
     assert r["pre_home_ml"] == -180                    # pregame price untouched
+    pd.testing.assert_frame_equal(ledger.load_injuries(), frozen)
     assert "1–0" in (tmp_path / "public" / "grades.html").read_text() or \
         "0–1" in (tmp_path / "public" / "grades.html").read_text()

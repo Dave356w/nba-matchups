@@ -48,8 +48,29 @@ def check(path):
     return errs
 
 
+def check_injuries(path=ledger.INJURY_PATH):
+    if not os.path.exists(path):
+        return []
+    text = open(path, encoding="utf-8").read()
+    if any(m in text for m in ("<<<<<<<", ">>>>>>>", "\n=======\n")):
+        return [f"{path}: merge-conflict marker"]
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    if list(df.columns) != ledger.INJURY_COLUMNS:
+        return [f"{path}: columns differ from ledger.INJURY_COLUMNS"]
+    errs = []
+    snap = pd.to_datetime(df["snapshot_utc"], utc=True, errors="coerce")
+    tip = pd.to_datetime(df["tip_utc"], utc=True, errors="coerce")
+    if snap.isna().any() or tip.isna().any():
+        errs.append(f"{path}: unparseable snapshot_utc or tip_utc")
+    elif (snap >= tip).any():
+        errs.append(f"{path}: injury snapshot at or after tip")
+    if (df.groupby("game_id")["snapshot_utc"].nunique() > 1).any():
+        errs.append(f"{path}: a game mixes injury snapshots")
+    return errs
+
+
 def main():
-    errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH)
+    errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
     for e in errs:
         print("ERROR", e)
     print("data files OK" if not errs else f"{len(errs)} problem(s)")

@@ -142,3 +142,19 @@ def test_ats_result():
     assert market.ats_result(-3, 3.0) == 0.5       # push
     assert market.ats_result(-2, 3.0) == 1.0       # home +3 loses by 2
     assert np.isnan(market.ats_result(None, -3))
+
+
+def test_parse_injuries_records_listed_and_none():
+    js = {"injuries": [{"team": {"abbreviation": "GS"}, "injuries": [
+        {"athlete": {"id": 7, "displayName": "Star"}, "status": "Out",
+         "details": {"type": "Knee", "detail": "Soreness"}},
+        {"athlete": {"id": 8, "displayName": "Wing"},
+         "status": {"name": "Questionable"}, "shortComment": "ankle"}]}]}
+    rows = market.parse_injuries(js, "GSW", "UTA")
+    assert [(r["team"], r["name"], r["status"]) for r in rows] == [
+        ("GSW", "Star", "Out"), ("GSW", "Wing", "Questionable"), ("UTA", "", "NONE")]
+    assert rows[0]["player_id"] == "7" and rows[0]["detail"] == "Knee Soreness"
+    assert rows[1]["detail"] == "ankle"
+    assert market.parse_injuries({"boxscore": {}}, "GSW", "UTA") is None
+    assert [r["status"] for r in market.parse_injuries({"injuries": []}, "GSW", "UTA")] \
+        == ["NONE", "NONE"]
