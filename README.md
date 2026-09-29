@@ -10,8 +10,8 @@ Site (once Pages is enabled): **<https://dave356w.github.io/nba-matchups/>**
 
 | Page | Shows |
 |---|---|
-| `index.html` — Today | Composite Δ, the model's P(win), DK moneyline with the no-vig probability, the lean, **model − market** (pp) and the model's EV estimate at the posted price |
-| `grades.html` — Ledger | Lean record, excess over no-vig close ± SE, flat units at close, closing-line value (native rows) |
+| `index.html` — Today | Composite Δ, the model's P(win) (games 1–9 tagged *early · carryover*), the moneyline with the no-vig probability, the lean, **model − market** (pp) and the model's EV estimate at the posted price |
+| `grades.html` — Ledger | Lean record, excess over no-vig close ± SE, closing-line value (native rows), and **ROI of 1u flat bets** on the lean and on the value side (model P > no-vig P): model WP, market WP, break-even, actual, units, ROI ± SE **beside its market-correct null**, by early/later games and model edge; per-pick P/L |
 | `market-calibration.html` — Calibration | Market implied vs actual by price rung; model P vs actual with the market on the same games; Brier/log loss model vs market; leans by closing-price band with excess, EV **and its market-correct null** |
 
 Native (pregame-locked) and reconstructed (leave-one-season-out, hindsight)

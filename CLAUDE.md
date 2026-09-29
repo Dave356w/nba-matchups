@@ -55,9 +55,12 @@ Before a PR, run:
 - Market benchmark: Brier/log loss vs the DK close, and native CLV.
 - Player availability (injury reports, minutes shares) is the main missing
   information.
-- Early-season cold start (today the model abstains before 10 games):
-  `research/cold_start_probe.py` backtests last-season carryover (ρ),
-  preseason games (κ), and both, against the DK close on the same games. It
-  is research only; shipping any arm needs a new `MODEL_TAG` and its own
-  label on the card.
+- Early-season cold start: v2 (`cold_start.py`) ships the probe's
+  carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
+  the card; game 0 still abstains. `research/cold_start_probe.py` remains
+  the backtest (ρ, preseason κ, both) against the close on the same games.
+  Watch the native early-season rows against it.
+- ROI is the product goal: the ledger page grades 1u flat bets on the lean
+  and on the value side (model P > no-vig q), with model WP, market WP,
+  actual, and the ROI null beside every ROI.
 - More game-log seasons to settle the half-life and to test travel/altitude.

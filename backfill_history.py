@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 
 import build_site
+import cold_start
 import ledger
 import market
 import nba_composite as nc
@@ -43,6 +44,12 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS):
                          nc.LOGIT_FEATURES)
     test = nc.build_games(y, weights)
     test["p_home"] = nc.predict(model, test[nc.LOGIT_FEATURES].values)
+    # v2: games 1-9 from the carryover model, its logit also fit without y.
+    early = cold_start.fit_early([t for t in game_years if t != y], weights)
+    e = cold_start.early_games(y, weights, min_gp=1, window=nc.MIN_GAMES)
+    if len(e):
+        e["p_home"] = nc.predict(early, e[cold_start.FEATURES].values)
+        test = pd.concat([test, e], ignore_index=True)
     return test, weights, model
 
 
@@ -70,7 +77,8 @@ def attach_espn(test, sleep=0.25):
                 game_id=g["game_id"], slate_date=date, season=int(r["year"]),
                 tip_utc=g["tip_utc"], snapshot_utc=np.nan,
                 model_tag=build_site.MODEL_TAG, basis="reconstructed",
-                home=r["home"], away=r["away"], gp_home=np.nan, gp_away=np.nan,
+                home=r["home"], away=r["away"],
+                gp_home=r.get("gp_home", np.nan), gp_away=r.get("gp_away", np.nan),
                 home_b2b=r["h_b2b"], away_b2b=r["a_b2b"],
                 delta=round(float(r["delta"]), 3), p_home=round(p, 5),
                 lean=r["home"] if lean_home else r["away"],
