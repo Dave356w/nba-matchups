@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Reconstruct completed seasons against the historical DraftKings close.
+"""Reconstruct completed seasons against the historical sportsbook close.
 
   python backfill_history.py --seasons 2025 2026
 
 For each test season Y this reproduces the report's leave-one-season-out
-protocol, then attaches ESPN's DraftKings open/close for every game:
+protocol, then attaches one book's open/close for every game (DraftKings,
+else ESPN BET; `close_book` says which -- see market.pick_close):
 
   * composite weights: ridge fit on WEIGHT_YEARS with Y removed;
   * logit:             fit on game logs from GAME_YEARS with Y removed;
@@ -46,7 +47,7 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS):
 
 
 def attach_espn(test, sleep=0.25):
-    """Map each (date, away, home) to an ESPN event; fetch DK open/close."""
+    """Map each (date, away, home) to an ESPN event; fetch one book's open/close."""
     rows = []
     for date, day in test.groupby(test["date"].dt.strftime("%Y-%m-%d")):
         try:
@@ -59,7 +60,7 @@ def attach_espn(test, sleep=0.25):
             if g is None:
                 continue
             try:
-                odds = market.dk_odds(g["game_id"]) or {}
+                odds = market.pick_close(market.book_odds(g["game_id"]))
             except Exception:  # noqa: BLE001
                 odds = {}
             time.sleep(sleep)
@@ -97,8 +98,8 @@ def main(argv=None):
         test, _, model = reconstruct_season(y)
         print(f"season {y}: {len(test)} games scored; logit {model}", flush=True)
         rec = attach_espn(test)
-        have = pd.to_numeric(rec["close_q_home"], errors="coerce").notna().sum()
-        print(f"season {y}: {len(rec)} matched to ESPN, {have} with DK close",
+        by_book = rec["close_book"].value_counts().to_dict()
+        print(f"season {y}: {len(rec)} matched to ESPN; closes by book {by_book}",
               flush=True)
         out.append(rec)
     df = pd.concat([d for d in out if len(d)], ignore_index=True)

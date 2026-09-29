@@ -107,3 +107,20 @@ def test_end_to_end_on_synthetic_seasons(weights):
     res = probe.evaluate(df, arms + ["nested"])
     assert set(res["bucket"]) >= {"0", "1-4", "5-9", "10-19"}
     assert res["logloss"].notna().all()
+
+
+def test_evaluate_splits_market_by_book():
+    rng = np.random.default_rng(7)
+    n = 60
+    df = pd.DataFrame(dict(gp_min=np.full(n, 12),
+                           win=rng.integers(0, 2, n),
+                           p_hca=np.full(n, 0.55),
+                           q_close=rng.uniform(0.3, 0.7, n),
+                           close_book=["espnbet"] * 40 + ["dk"] * 20))
+    res = probe.evaluate(df, ["hca"])
+    arm = res[res["arm"] == "hca"]
+    assert (arm["n_espnbet"].fillna(0) + arm["n_dk"].fillna(0) <= arm["n"]).all()
+    assert arm["n_espnbet"].sum() == 40 and arm["n_dk"].sum() == 20
+    mk = res[res["arm"].str.startswith("MARKET")]
+    assert set(mk["arm"]) == {"MARKET (dk close)", "MARKET (espnbet close)"}
+    assert "d_logloss_vs_market" not in res.columns        # nothing pooled

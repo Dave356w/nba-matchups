@@ -26,14 +26,14 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
                      away_pts=None, home_pts=None)]
 
     def odds(gid):
-        return dict(cur_home_ml=-180, cur_away_ml=150, open_home_ml=-170,
+        return {"dk": dict(book="dk", cur_home_ml=-180, cur_away_ml=150, open_home_ml=-170,
                     open_away_ml=145, close_home_ml=-200 if state["completed"] else None,
-                    close_away_ml=165 if state["completed"] else None)
+                    close_away_ml=165 if state["completed"] else None)}
 
     logs = {"GSW": make_log(40, start="2026-10-21", seed=1, strength=1.0),
             "UTA": make_log(40, start="2026-10-22", seed=2, strength=-1.0)}
     monkeypatch.setattr(market, "scoreboard", scoreboard)
-    monkeypatch.setattr(market, "dk_odds", odds)
+    monkeypatch.setattr(market, "book_odds", odds)
     monkeypatch.setattr(build_site, "fresh_logs", lambda y, d: logs)
     monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
 

@@ -27,8 +27,10 @@ season. Buckets use min(games played) of the two teams: 0, 1-4, 5-9, 10-19.
 The 10-19 bucket is where the shipped model already predicts; `current` there
 is its no-minimum twin and the reference to beat.
 
-With --market (default) the DraftKings close is fetched from ESPN for every
-scored game, so every arm is also compared with the market on the same rows.
+With --market (default) the close is fetched from ESPN for every scored game
+(DraftKings, else ESPN BET, which ESPN listed until late November 2025), so
+every arm is also compared with the market on the same rows -- separately for
+each book (`_dk` / `_espnbet` columns), never pooled.
 That is the comparison that matters: in October the market knows about
 trades, signings and injuries and no arm here does.
 
@@ -219,6 +221,7 @@ def preseason_logs(y, sleep=0.2):
 # ------------------------------------------------------------- market ------
 def attach_close(df, sleep=0.2):
     q = np.full(len(df), np.nan)
+    book = np.full(len(df), None, dtype=object)
     for date, idx in df.groupby(df["date"].dt.strftime("%Y-%m-%d")).groups.items():
         try:
             sb = {(g["away"], g["home"]): g for g in market.scoreboard(date)}
@@ -229,14 +232,16 @@ def attach_close(df, sleep=0.2):
             if not g:
                 continue
             try:
-                o = market.dk_odds(g["game_id"]) or {}
+                o = market.pick_close(market.book_odds(g["game_id"]))
             except Exception:  # noqa: BLE001
                 o = {}
             time.sleep(sleep)
-            q[df.index.get_loc(k)] = market.devig(o.get("close_home_ml"),
-                                                  o.get("close_away_ml"))
+            i = df.index.get_loc(k)
+            q[i] = market.devig(o.get("close_home_ml"), o.get("close_away_ml"))
+            book[i] = o.get("book") if np.isfinite(q[i]) else None
     out = df.copy()
     out["q_close"] = q
+    out["close_book"] = book
     return out
 
 
@@ -279,14 +284,27 @@ def nested_select(df, grid_arms):
 
 
 def evaluate(df, arms):
+    """Per bucket x arm scores; the market comparison is split by closing book.
+
+    For each book B with a close on >1 game in the bucket: n_B, d_B (arm log
+    loss - B's log loss on those games; negative = arm better) and se_B, plus
+    one "MARKET (B close)" row. Books are never pooled.
+    """
     rows = []
     has_q = "q_close" in df and df["q_close"].notna().any()
+    books = [b for _, b in market.BOOKS]
     for lo, hi, label in BUCKETS:
         b = df[(df["gp_min"] >= lo) & (df["gp_min"] <= hi)]
         if not len(b):
             continue
         y = b["win"].to_numpy(float)
-        mk = b["q_close"].notna().to_numpy() if has_q else np.zeros(len(b), bool)
+        masks = {}
+        if has_q:
+            qok = b["q_close"].notna().to_numpy()
+            src = b["close_book"].to_numpy(object) if "close_book" in b \
+                else np.full(len(b), "dk", dtype=object)
+            masks = {bk: qok & (src == bk) for bk in books}
+            masks = {bk: m for bk, m in masks.items() if m.sum() > 1}
         for arm in arms:
             p = b["p_" + arm].to_numpy(float)
             ll = market.logloss(p, y)
@@ -294,16 +312,15 @@ def evaluate(df, arms):
                        logloss=float(ll.mean()),
                        brier=float(market.brier(p, y).mean()),
                        acc=float(((p >= 0.5) == (y == 1)).mean()))
-            if mk.sum() > 1:
+            for bk, mk in masks.items():
                 q = b["q_close"].to_numpy(float)[mk]
                 d = ll[mk] - market.logloss(q, y[mk])
-                rec.update(n_market=int(mk.sum()),
-                           d_logloss_vs_market=float(d.mean()),
-                           d_se=float(d.std(ddof=1) / np.sqrt(len(d))))
+                rec.update({f"n_{bk}": int(mk.sum()), f"d_{bk}": float(d.mean()),
+                            f"se_{bk}": float(d.std(ddof=1) / np.sqrt(len(d)))})
             rows.append(rec)
-        if mk.sum() > 1:
+        for bk, mk in masks.items():
             q = b["q_close"].to_numpy(float)[mk]
-            rows.append(dict(bucket=label, arm="MARKET (close)", n=int(mk.sum()),
+            rows.append(dict(bucket=label, arm=f"MARKET ({bk} close)", n=int(mk.sum()),
                              logloss=float(market.logloss(q, y[mk]).mean()),
                              brier=float(market.brier(q, y[mk]).mean()),
                              acc=float(((q >= 0.5) == (y[mk] == 1)).mean())))
@@ -345,7 +362,8 @@ def main(argv=None):
     if not a.no_market:
         df = attach_close(df)
         print(f"market: {int(df['q_close'].notna().sum())}/{len(df)} games "
-              "with a DK close", flush=True)
+              f"with a close; by book {df['close_book'].value_counts().to_dict()}",
+              flush=True)
 
     res = evaluate(df, arms)
     os.makedirs(OUT_DIR, exist_ok=True)

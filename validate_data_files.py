@@ -6,6 +6,7 @@ import sys
 import pandas as pd
 
 import ledger
+import market
 
 
 def check(path):
@@ -17,8 +18,17 @@ def check(path):
         errs.append(f"{path}: merge-conflict marker")
         return errs
     df = pd.read_csv(path, dtype={"game_id": str})
-    if list(df.columns) != ledger.COLUMNS:
+    if list(df.columns) == ledger.LEGACY_COLUMNS:
+        print(f"note {path}: pre-book schema (all prices DraftKings); "
+              "rewritten with book columns on the next bot write")
+    elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
+    else:
+        books = {b for _, b in market.BOOKS}
+        for col, q in (("pre_book", "pre_q_home"), ("close_book", "close_q_home")):
+            priced = pd.to_numeric(df[q], errors="coerce").notna()
+            if not df.loc[priced, col].isin(books).all():
+                errs.append(f"{path}: {col} missing or unknown on a priced row")
     if df["game_id"].duplicated().any():
         errs.append(f"{path}: duplicate game_id")
     won = pd.to_numeric(df["home_won"], errors="coerce").dropna()

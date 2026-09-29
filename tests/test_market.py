@@ -77,3 +77,34 @@ def test_parse_dk_odds_and_scoreboard_fixtures():
     g = market.parse_scoreboard(sb)[0]
     assert (g["home"], g["away"]) == ("GSW", "UTA")
     assert g["completed"] and g["home_pts"] == 110 and g["season_type"] == 2
+
+
+def _book(pid, name, home, away, close=True):
+    side = lambda ml: {"moneyLine": ml, "open": {"moneyLine": ml},
+                       **({"close": {"moneyLine": ml}} if close else {})}
+    return {"provider": {"id": pid, "name": name},
+            "homeTeamOdds": side(home), "awayTeamOdds": side(away)}
+
+
+def test_parse_book_odds_reads_dk_and_espnbet_never_live():
+    js = {"items": [_book("59", "ESPN Bet - Live Odds", -10000, 1800),
+                    _book("58", "ESPN BET", -240, 200),
+                    _book("100", "Draft Kings", -258, 210)]}
+    b = market.parse_book_odds(js)
+    assert set(b) == {"dk", "espnbet"}
+    assert b["espnbet"]["close_home_ml"] == -240 and b["espnbet"]["book"] == "espnbet"
+    assert b["dk"]["close_home_ml"] == -258
+    live_only = market.parse_book_odds({"items": [_book("59", "live", -10000, 1800)]})
+    assert live_only == {}
+    assert market.pick_close(live_only) == {} and market.pick_pregame(live_only) == {}
+
+
+def test_pick_close_prefers_row_book_then_preference_order():
+    both = market.parse_book_odds({"items": [_book("58", "ESPN BET", -240, 200),
+                                             _book("100", "DK", -258, 210)]})
+    assert market.pick_close(both)["book"] == "dk"
+    assert market.pick_close(both, prefer="espnbet")["book"] == "espnbet"
+    eb_only = market.parse_book_odds({"items": [_book("58", "ESPN BET", -240, 200),
+                                                _book("100", "DK", -258, 210, close=False)]})
+    assert market.pick_close(eb_only, prefer="dk")["book"] == "espnbet"
+    assert market.pick_pregame(eb_only)["book"] == "dk"   # DK current price exists

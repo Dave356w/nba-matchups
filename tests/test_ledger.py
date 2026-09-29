@@ -62,3 +62,23 @@ def test_save_load_roundtrip(tmp_path):
     back = ledger.load(str(p))
     assert list(back.columns) == ledger.COLUMNS and back.iloc[0]["game_id"] == "401"
     assert not list(p.parent.glob("*.tmp"))
+
+
+def test_grading_records_the_closing_book():
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    odds = dict(book="espnbet", close_home_ml=-160, close_away_ml=135)
+    assert ledger.apply_result(led, "401", dict(completed=True, home_pts=110,
+                                                away_pts=104), odds)
+    assert led.iloc[0]["close_book"] == "espnbet" and led.iloc[0]["pre_book"] == "dk"
+    assert "close_book" in ledger.GRADE_COLUMNS and "pre_book" in ledger.PREGAME_COLUMNS
+
+
+def test_legacy_file_loads_with_dk_labels(tmp_path):
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row()], now=BEFORE)
+    ledger.apply_result(led, "401", dict(completed=True, home_pts=110, away_pts=104),
+                        dict(close_home_ml=-160, close_away_ml=135))
+    p = tmp_path / "old.csv"
+    led[ledger.LEGACY_COLUMNS].to_csv(p, index=False)
+    back = ledger.load(str(p))
+    assert list(back.columns) == ledger.COLUMNS
+    assert back.iloc[0]["pre_book"] == "dk" and back.iloc[0]["close_book"] == "dk"
