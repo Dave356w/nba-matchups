@@ -59,7 +59,9 @@ Before a PR, run:
   information. `research/availability.py` (workflow "Availability ceiling")
   measures its HINDSIGHT ceiling: who actually played, relative to each
   team's rating window, added to walk-forward logits and compared with the
-  close on the same games. A pregame test needs timestamped injury reports.
+  close on the same games (v1: on/off-weighted; v2: last-season BBR BPM,
+  name-matched, plus players new to the team). A pregame test needs
+  timestamped injury reports.
   The daily build snapshots each game's ESPN injury list to
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does
