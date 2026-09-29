@@ -1,0 +1,91 @@
+import numpy as np
+import pandas as pd
+
+import analysis
+import build_site
+import ledger
+import market
+
+
+def synth(n=400, seed=0, basis="native"):
+    rng = np.random.default_rng(seed)
+    rows = []
+    for i in range(n):
+        q = rng.uniform(0.2, 0.8)
+        p = np.clip(q + rng.normal(0, 0.05), 0.05, 0.95)
+        won = int(rng.random() < q)
+        vig = 0.022
+
+        def ml(prob):
+            prob = prob + vig
+            return int(round(-100 * prob / (1 - prob))) if prob >= 0.5 \
+                else int(round(100 * (1 - prob) / prob))
+        hml, aml = ml(q), ml(1 - q)
+        lean_home = p >= 0.5
+        rows.append(dict(
+            game_id=f"{basis}{i}", slate_date=f"2026-11-{1 + i % 28:02d}",
+            season=2027, tip_utc="2026-11-20T00:30Z", model_tag="t",
+            basis=basis, home="HOM", away="AWY", delta=10 * (p - 0.5),
+            p_home=p, lean="HOM" if lean_home else "AWY",
+            p_lean=p if lean_home else 1 - p, pre_home_ml=hml,
+            pre_away_ml=aml, pre_q_home=market.devig(hml, aml),
+            close_home_ml=hml, close_away_ml=aml,
+            close_q_home=market.devig(hml, aml), home_pts=100 + won,
+            away_pts=100 + (1 - won), home_won=won))
+    return pd.DataFrame(rows, columns=ledger.COLUMNS)
+
+
+def test_ev_minus_null_equals_excess():
+    h = analysis.with_close(ledger.graded(synth()))
+    bands, pooled = analysis.lean_by_price(h)
+    for b in bands + [pooled]:
+        assert abs((b["ev"] - b["ev_null"]) - b["excess"]) < 1e-9
+        assert b["ev_null"] < 0
+    assert sum(b["n"] for b in bands) == pooled["n"] == len(h)
+
+
+def test_market_calibration_has_no_both_sides_total():
+    h = analysis.with_close(ledger.graded(synth()))
+    rows, totals = analysis.market_calibration(h)
+    assert set(totals) == {"home", "favourite"}
+    assert sum(r["all"]["n"] for r in rows) == 2 * len(h)
+    assert totals["favourite"]["n"] <= len(h)
+
+
+def test_scoring_on_identical_rows():
+    h = analysis.with_close(ledger.graded(synth()))
+    s = analysis.scoring(h)
+    assert s["n"] == len(h)
+    assert abs(s["d_brier"] - (s["model"]["brier"] - s["market"]["brier"])) < 1e-12
+    cal = analysis.model_calibration(h)
+    assert sum(c["n"] for c in cal) == len(h)
+
+
+def test_rows_without_close_are_excluded_not_imputed():
+    df = synth(50)
+    df.loc[:9, ["close_home_ml", "close_away_ml", "close_q_home"]] = np.nan
+    h = analysis.with_close(ledger.graded(df))
+    assert len(h) == 40
+
+
+def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(synth(200, 1, "native"),
+                           synth(300, 2, "reconstructed"),
+                           "2026-11-19", model_ok=True)
+    cal = (tmp_path / "market-calibration.html").read_text()
+    assert "Native (pregame-locked, forward)" in cal
+    assert "Reconstructed (leave-one-season-out, hindsight)" in cal
+    assert "Null (pp)" in cal and "500 games (200 native, 300 reconstructed)" in cal
+    grades = (tmp_path / "grades.html").read_text()
+    assert "Closing-line value" in grades
+    idx = (tmp_path / "index.html").read_text()
+    assert "Model − market" in idx
+
+
+def test_pages_render_empty(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(ledger.empty(), ledger.empty(), "2026-10-01",
+                           model_ok=False)
+    assert "Fit model" in (tmp_path / "index.html").read_text()
+    assert "No graded" in (tmp_path / "market-calibration.html").read_text()
