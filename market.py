@@ -142,6 +142,37 @@ def american(x):
     return v if (v <= -100 or v >= 100) else None
 
 
+def spread_line(x):
+    """A point-spread line ('-5.5', {'american': '+3'}, 'PK') -> float, else None.
+
+    Unlike `american`, small values are valid (a line of -1.5 is a real line).
+    """
+    if isinstance(x, dict):
+        for k in ("american", "alternateDisplayValue", "value"):
+            v = spread_line(x.get(k))
+            if v is not None:
+                return v
+        return None
+    if isinstance(x, str) and x.strip().upper() in ("PK", "PICK", "EVEN"):
+        return 0.0
+    try:
+        v = float(str(x).replace("+", "")) if x is not None else None
+    except (TypeError, ValueError):
+        return None
+    return v if v is not None and np.isfinite(v) and abs(v) <= 60 else None
+
+
+def _home_spread(h, a):
+    """The home line from both sides' lines; None if missing or inconsistent."""
+    if h is None and a is None:
+        return None
+    if h is None:
+        return -a + 0.0
+    if a is not None and abs(h + a) > 1e-9:
+        return None
+    return h
+
+
 def _parse_provider(item):
     def side(which):
         td = item.get(which) or {}
@@ -149,11 +180,16 @@ def _parse_provider(item):
         if cur is None:
             cur = american(td.get("moneyLine"))
         return dict(cur=cur, open=american(_dig(td, "open", "moneyLine")),
-                    close=american(_dig(td, "close", "moneyLine")))
+                    close=american(_dig(td, "close", "moneyLine")),
+                    close_line=spread_line(_dig(td, "close", "pointSpread")),
+                    close_spread=american(_dig(td, "close", "spread")))
     h, a = side("homeTeamOdds"), side("awayTeamOdds")
     return dict(cur_home_ml=h["cur"], cur_away_ml=a["cur"],
                 open_home_ml=h["open"], open_away_ml=a["open"],
-                close_home_ml=h["close"], close_away_ml=a["close"])
+                close_home_ml=h["close"], close_away_ml=a["close"],
+                close_spread=_home_spread(h["close_line"], a["close_line"]),
+                close_home_spread_odds=h["close_spread"],
+                close_away_spread_odds=a["close_spread"])
 
 
 def parse_book_odds(js):
@@ -240,6 +276,21 @@ def unit_profit(ml, won):
     if not won:
         return -1.0
     return ml / 100.0 if ml > 0 else 100.0 / -ml
+
+
+def ats_result(home_margin, home_spread):
+    """Home side against the spread: 1 cover, 0 miss, 0.5 push; NaN if invalid.
+
+    `home_spread` is the home line (-5.5 = home gives 5.5 points), so home
+    covers when home_margin + home_spread > 0. The away side is 1 - this.
+    """
+    try:
+        v = float(home_margin) + float(home_spread)
+    except (TypeError, ValueError):
+        return float("nan")
+    if not np.isfinite(v):
+        return float("nan")
+    return 1.0 if v > 0 else 0.0 if v < 0 else 0.5
 
 
 def decimal_payout(ml):

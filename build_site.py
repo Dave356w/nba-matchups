@@ -488,6 +488,37 @@ def _roi_section(body, h, native):
                 "is right (about minus the hold, ~−4%): an ROI is judged against "
                 "it, and against its ± SE, not against zero. Edge bins are "
                 "descriptive, not a filter to bet.</p>")
+    _ats_section(body, h)
+
+
+def _ats_section(body, h):
+    """1u flat spread bets at the closing spread, beside the moneyline ROI."""
+    sections = analysis.ats_summary(h)
+    if not sections:
+        return
+    body.append("<h3 style='font-size:16px;margin:18px 0 4px'>Against the "
+                "spread — one unit on every pick at the closing spread</h3>")
+    out = []
+    for rule_label, rows in sections:
+        out.append(f"<h3 style='font-size:15px;margin:14px 0 4px'>{esc(rule_label)}</h3>")
+        out.append(table(
+            ["Picks", "n", "W–L–P", "Model cover P", "Market cover P (no-vig)",
+             "Break-even", "Actual", "Units (1u flat)", "ROI", "± SE", "ROI null"],
+            [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}–{r['push']}",
+              pct(r["model_p"]), pct(r["q"]), pct(r["breakeven"]),
+              pct(r["actual"]), f"{r['units']:+.2f}u",
+              f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
+              f"{100 * r['roi']:+.1f}%</span>",
+              f"{100 * r['roi_se']:.1f}", f"{100 * r['roi_null']:+.1f}%"]
+             for r in rows], left=(0,)))
+    body.append("".join(out))
+    body.append("<p class='note'>Only rows with a recorded closing spread "
+                "(same book as the moneyline close). <b>Model cover P</b> maps "
+                "the model's win probability to a margin with σ = "
+                f"{analysis.ATS_SIGMA:g} pts; it is a display mapping, not a "
+                "new prediction. <b>Actual</b> is covers ÷ (covers + misses); "
+                "pushes refund. Judge the ROI against the <b>ROI null</b> "
+                "(minus the spread hold) and its ± SE, not zero.</p>")
 
 
 def _calib_cell(a):

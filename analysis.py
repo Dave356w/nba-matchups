@@ -7,6 +7,8 @@ closing book (`book_split`) at a time; nothing here pools either.
 """
 from __future__ import annotations
 
+from statistics import NormalDist
+
 import numpy as np
 import pandas as pd
 
@@ -298,3 +300,96 @@ def clv(g):
                 se=float(d.std(ddof=1) / np.sqrt(d.size)) if d.size > 1
                 else float("nan"),
                 beat=float((d > 0).mean()))
+
+
+# --------------------------------------------------------- against the spread
+ATS_SIGMA = 13.5     # pts: SD of margin about the market's expectation. Maps a
+                     # stored p_home to a margin for the ATS value side only;
+                     # it does not change any prediction (p_home is as written).
+ATS_RULES = (
+    ("lean", "Lean ATS — the model's moneyline favourite against the spread"),
+    ("value", "Value ATS — side the model's margin favours against the line"),
+)
+
+
+def ats_picks(g, sigma=ATS_SIGMA):
+    """One flat 1-unit spread bet per game per rule at the closing spread.
+
+    Rows need the closing spread line and both spread prices (one book, the
+    same as the moneyline close). The model's implied home margin is
+    sigma * Phi^-1(p_home); its cover probability for a side is
+    Phi((margin + line) / sigma). q is the no-vig cover probability from the
+    two spread prices. A push refunds the stake (0 units) and is left out of
+    the cover rate.
+    """
+    if g is None or not len(g):
+        return pd.DataFrame()
+    line = pd.to_numeric(g["close_spread"], errors="coerce")
+    hso = pd.to_numeric(g["close_home_spread_odds"], errors="coerce")
+    aso = pd.to_numeric(g["close_away_spread_odds"], errors="coerce")
+    ph = pd.to_numeric(g["p_home"], errors="coerce")
+    margin = (pd.to_numeric(g["home_pts"], errors="coerce")
+              - pd.to_numeric(g["away_pts"], errors="coerce"))
+    ok = (line.notna() & hso.notna() & aso.notna() & margin.notna()
+          & ph.between(0, 1, inclusive="neither")).to_numpy()
+    if not ok.any():
+        return pd.DataFrame()
+    g, line, hso, aso, ph, margin = (x[ok] for x in (g, line, hso, aso, ph, margin))
+    nd = NormalDist()
+    mdl_margin = np.array([sigma * nd.inv_cdf(p) for p in ph])
+    p_cover_home = np.array([nd.cdf(z) for z in (mdl_margin + line) / sigma])
+    q_home = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
+    res_home = np.array([market.ats_result(m, s) for m, s in zip(margin, line)])
+    out = []
+    for rule, _label in ATS_RULES:
+        home = (ph >= 0.5).to_numpy() if rule == "lean" else p_cover_home > 0.5
+        keep = np.ones(len(ph), bool) if rule == "lean" else p_cover_home != 0.5
+        d = pd.DataFrame(dict(
+            rule=rule, game_id=g["game_id"].to_numpy(),
+            side=np.where(home, g["home"], g["away"]),
+            line=np.where(home, line, -line),
+            model_p=np.where(home, p_cover_home, 1 - p_cover_home),
+            q=np.where(home, q_home, 1 - q_home),
+            ml=np.where(home, hso, aso),
+            result=np.where(home, res_home, 1 - res_home)))[keep]
+        d = d[np.isfinite(d["q"])]
+        d["breakeven"] = market.breakeven_prob(d["ml"])
+        d["units"] = [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
+                      for m, r in zip(d["ml"], d["result"])]
+        d["units_null"] = d["q"] * [market.decimal_payout(m) for m in d["ml"]] - 1
+        out.append(d)
+    return pd.concat(out, ignore_index=True)
+
+
+def ats_row(label, d):
+    """Flat-stake ATS summary. `actual` is covers / (covers + misses), judged
+    against break-even at the posted spread price (~52.4% at -110); roi_null
+    is the ROI if the no-vig spread is right (minus the hold, ~-4.5%)."""
+    n = len(d)
+    if not n:
+        return None
+    r = d["result"].to_numpy(float)
+    w, l = int((r == 1).sum()), int((r == 0).sum())
+    u = d["units"].to_numpy(float)
+    return dict(
+        label=label, n=n, w=w, l=l, push=n - w - l,
+        model_p=float(d["model_p"].mean()), q=float(d["q"].mean()),
+        breakeven=float(d["breakeven"].mean()),
+        actual=w / (w + l) if w + l else float("nan"),
+        units=float(u.sum()), roi=float(u.mean()),
+        roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float("nan"),
+        roi_null=float(d["units_null"].mean()),
+    )
+
+
+def ats_summary(g, sigma=ATS_SIGMA):
+    """[(rule label, [ats rows])] at the closing spread; [] without spreads."""
+    p = ats_picks(g, sigma)
+    if not len(p):
+        return []
+    out = []
+    for rule, label in ATS_RULES:
+        row = ats_row("All picks", p[p["rule"] == rule])
+        if row:
+            out.append((label, [row]))
+    return out

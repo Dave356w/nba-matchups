@@ -145,3 +145,28 @@ def test_clv_only_within_one_book():
     g.loc[g.index[:10], "close_book"] = "espnbet"      # pre dk, close espnbet
     c = analysis.clv(g)
     assert c["n"] == 30
+
+
+def test_ats_picks_grade_covers_pushes_and_null():
+    df = synth(200, 3)
+    rng = np.random.default_rng(3)
+    df["close_spread"] = np.round(rng.normal(0, 6, len(df)) * 2) / 2
+    df["close_home_spread_odds"] = -110
+    df["close_away_spread_odds"] = -110
+    df["home_pts"] = 100 + rng.integers(-15, 16, len(df))
+    df["away_pts"] = 100
+    df.loc[0, ["close_spread", "home_pts"]] = [-5.0, 105]   # a push
+    df.loc[1, "close_spread"] = np.nan                       # no spread: skipped
+    g = ledger.graded(df)
+    p = analysis.ats_picks(g)
+    lean, val = p[p["rule"] == "lean"], p[p["rule"] == "value"]
+    assert len(lean) == len(g) - 1
+    assert (val["model_p"] > 0.5).all()
+    push = lean[lean["game_id"] == g.iloc[0]["game_id"]].iloc[0]
+    assert push["result"] == 0.5 and push["units"] == 0.0
+    assert np.allclose(lean["q"], 0.5)
+    r = analysis.ats_row("All", lean)
+    assert r["w"] + r["l"] + r["push"] == r["n"] and r["push"] >= 1
+    assert abs(r["roi_null"] - (0.5 * (1 + 100 / 110) - 1)) < 1e-9
+    assert abs(r["breakeven"] - 110 / 210) < 1e-9
+    assert analysis.ats_summary(synth(20)) == []   # no spread columns filled

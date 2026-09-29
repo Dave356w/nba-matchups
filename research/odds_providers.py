@@ -8,7 +8,8 @@ returns None when it is absent. The reconstructed rows have no DK close for
 2024-25 and none before late November 2025, which suggests ESPN listed a
 different book (e.g. ESPN BET) before then. This dumps, for a few games per
 sample date, every provider in the odds response with its moneyline
-open/current/close, so we can see what exists before changing the parser.
+open/current/close and closing spread (line and prices), so we can see
+what exists before changing the parser.
 
 Raw responses are saved to research/output/odds_providers/ for inspection.
 Research only: nothing here changes the model, the ledger or MODEL_TAG.
@@ -53,6 +54,11 @@ def summarize_providers(js):
             away_close=_ml(a, "close"),
             home_ml=market.american(h.get("moneyLine")),
             away_ml=market.american(a.get("moneyLine")),
+            home_close_line=market.spread_line(market._dig(h, "close", "pointSpread")),
+            home_close_spread=market.american(market._dig(h, "close", "spread")),
+            away_close_line=market.spread_line(market._dig(a, "close", "pointSpread")),
+            away_close_spread=market.american(market._dig(a, "close", "spread")),
+            top_spread=it.get("spread"),
         ))
     return rows
 
@@ -106,7 +112,10 @@ def main(argv=None):
                       f"prio={r['priority']}  "
                       f"home open/cur/close {r['home_open']}/{r['home_cur']}/{r['home_close']}  "
                       f"away {r['away_open']}/{r['away_cur']}/{r['away_close']}  "
-                      f"(top-level {r['home_ml']}/{r['away_ml']})")
+                      f"(top-level {r['home_ml']}/{r['away_ml']})  "
+                      f"close spread home {r['home_close_line']} @ {r['home_close_spread']} "
+                      f"away {r['away_close_line']} @ {r['away_close_spread']} "
+                      f"(top-level spread {r['top_spread']})")
             time.sleep(0.3)
 
     print("\n=== providers seen (id, name): dates")
