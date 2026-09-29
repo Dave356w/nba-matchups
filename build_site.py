@@ -12,7 +12,9 @@ Steps
   2. Score: every regular-season game on today's ESPN scoreboard that has not
      tipped gets the composite delta, P(home win), and the current moneylines
      of the first listed book in market.BOOKS (DraftKings, then ESPN BET);
-     written to data/nba_ledger.csv only while before tip.
+     written to data/nba_ledger.csv only while before tip. Each game's ESPN
+     injury list is snapshotted alongside to data/nba_injuries.csv under the
+     same pregame lock (research input; the model does not read it).
   3. Render public/index.html, grades.html and market-calibration.html.
 
 The model is nba_composite.py, unchanged. This file only feeds it pregame game
@@ -629,6 +631,27 @@ def _model_sections(body, native, recon):
              for b in bands + [pooled]]))
 
 
+def snapshot_injuries(rows):
+    """Pregame injury lists for today's accepted rows -> data/nba_injuries.csv.
+
+    Recorded for research (the model does not use them). The snapshot time is
+    taken after the fetch, and a game at or after tip is never touched.
+    """
+    if not rows:
+        return
+    snaps = {}
+    for r in rows:
+        try:
+            got = market.game_injuries(r["game_id"], r["home"], r["away"])
+        except Exception as e:  # noqa: BLE001
+            log(f"injuries {r['game_id']}: {e!r}")
+            got = None
+        snaps[str(r["game_id"])] = (r["tip_utc"], got)
+    inj, acc, rej = ledger.upsert_injuries(ledger.load_injuries(), snaps)
+    ledger.save_injuries(inj)
+    log(f"injury snapshots: {len(acc)} written, {len(rej)} skipped {rej}")
+
+
 def write_pages(native, recon, today, model_ok):
     OUT_DIR.mkdir(exist_ok=True)
     built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -662,6 +685,7 @@ def main(argv=None):
                 rows = []
             native, acc, rej = ledger.upsert_pregame(native, rows)
             log(f"pregame rows: {len(acc)} written, {len(rej)} rejected {rej}")
+            snapshot_injuries([r for r in rows if str(r["game_id"]) in acc])
         else:
             log("no fitted model in model/ -- skipping slate scoring")
         ledger.save(native, ledger.NATIVE_PATH)

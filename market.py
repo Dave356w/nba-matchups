@@ -129,6 +129,48 @@ def scoreboard(date):
     return parse_scoreboard(get_json(SCOREBOARD.format(ds=date.replace("-", ""))))
 
 
+SUMMARY = ("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/"
+           "summary?event={eid}")
+
+
+def parse_injuries(js, home, away):
+    """ESPN summary JSON -> injury rows for both teams, or None if absent.
+
+    One row per listed player: team, player_id, name, status (e.g. "Out",
+    "Doubtful", "Questionable", "Day-To-Day"), detail. A team with nobody
+    listed gets one row with status "NONE" and no player, so "nothing
+    listed" is recorded and distinguishable from "not captured" (None).
+    """
+    if not isinstance(js, dict) or "injuries" not in js:
+        return None
+    by_team = {}
+    for t in js.get("injuries") or []:
+        team = bbr_code((t.get("team") or {}).get("abbreviation"))
+        for x in t.get("injuries") or []:
+            st = x.get("status")
+            if isinstance(st, dict):
+                st = st.get("name") or st.get("type") or st.get("description")
+            det = x.get("details") or {}
+            detail = " ".join(str(v) for v in (det.get("type"), det.get("detail"))
+                              if v) or x.get("shortComment") or \
+                _dig(x, "type", "description") or ""
+            ath = x.get("athlete") or {}
+            by_team.setdefault(team, []).append(dict(
+                team=team, player_id=str(ath.get("id") or ""),
+                name=ath.get("displayName") or "", status=str(st or ""),
+                detail=str(detail)))
+    rows = []
+    for team in (home, away):
+        rows += by_team.get(team) or [dict(team=team, player_id="", name="",
+                                           status="NONE", detail="")]
+    return rows
+
+
+def game_injuries(game_id, home, away):
+    """Pregame injury list for one game from ESPN's summary (see parse_injuries)."""
+    return parse_injuries(get_json(SUMMARY.format(eid=game_id)), home, away)
+
+
 def american(x):
     """American price from an int, '+120', or ESPN's {'american': ...} dict."""
     if isinstance(x, dict):

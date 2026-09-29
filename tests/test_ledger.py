@@ -118,3 +118,34 @@ def test_pre_spread_file_loads_with_blank_spreads(tmp_path):
     assert list(back.columns) == ledger.COLUMNS
     assert back[ledger.SPREAD_COLUMNS].isna().all().all()
     assert back.iloc[0]["pre_book"] == "dk"
+
+
+INJ = [dict(team="GSW", player_id="7", name="Star", status="Out", detail="Knee"),
+       dict(team="UTA", player_id="", name="", status="NONE", detail="")]
+
+
+def test_injury_snapshot_only_before_tip_and_frozen_after():
+    inj, acc, _ = ledger.upsert_injuries(ledger.load_injuries("nope.csv"),
+                                         {"401": (TIP, INJ)}, now=BEFORE)
+    assert acc == ["401"] and len(inj) == 2
+    assert (inj["snapshot_utc"] < TIP.replace("Z", ":00Z")).all()
+    later = [dict(team="GSW", player_id="7", name="Star", status="Questionable",
+                  detail="Knee")]
+    inj2, acc, _ = ledger.upsert_injuries(inj, {"401": (TIP, later)}, now=LATER_BEFORE)
+    assert acc and list(inj2["status"]) == ["Questionable"]    # replaced, not appended
+    inj3, acc, rej = ledger.upsert_injuries(inj2, {"401": (TIP, INJ)}, now=AFTER)
+    assert not acc and rej[0][1] == "at or after tip"
+    pd.testing.assert_frame_equal(inj3, inj2)
+
+
+def test_failed_injury_fetch_keeps_previous_snapshot(tmp_path):
+    inj, _, _ = ledger.upsert_injuries(ledger.load_injuries("nope.csv"),
+                                       {"401": (TIP, INJ)}, now=BEFORE)
+    inj2, acc, rej = ledger.upsert_injuries(inj, {"401": (TIP, None)}, now=LATER_BEFORE)
+    assert not acc and rej[0][1] == "no injury data"
+    pd.testing.assert_frame_equal(inj2, inj)
+    p = tmp_path / "data" / "inj.csv"
+    ledger.save_injuries(inj2, str(p))
+    back = ledger.load_injuries(str(p))
+    assert list(back.columns) == ledger.INJURY_COLUMNS and len(back) == 2
+    assert back.iloc[0]["player_id"] in ("7", "")

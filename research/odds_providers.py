@@ -81,6 +81,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--dates", nargs="+", default=DEFAULT_DATES)
     ap.add_argument("--per-date", type=int, default=2)
+    ap.add_argument("--injuries", action="store_true",
+                    help="also print market.parse_injuries for each sampled game "
+                         "(any season type, e.g. preseason dates)")
     args = ap.parse_args(argv)
     os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -116,6 +119,12 @@ def main(argv=None):
                       f"close spread home {r['home_close_line']} @ {r['home_close_spread']} "
                       f"away {r['away_close_line']} @ {r['away_close_spread']} "
                       f"(top-level spread {r['top_spread']})")
+            if args.injuries:
+                try:
+                    inj = market.game_injuries(g["game_id"], g["home"], g["away"])
+                except Exception as e:  # noqa: BLE001
+                    inj = f"failed {e!r}"
+                print(f"    injuries ({g['state']}): {inj}")
             time.sleep(0.3)
 
     print("\n=== providers seen (id, name): dates")

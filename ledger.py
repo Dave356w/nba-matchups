@@ -18,6 +18,8 @@ Invariants (tests/test_ledger.py pins each one):
     closing spread). It never touches
     a model or pregame-market column.
   * A pending (unfinished) game never receives a closing line.
+  * Injury snapshots (data/nba_injuries.csv) follow the same pregame lock:
+    replaced only before tip, frozen after.
   * Every price names its book (`pre_book`, `close_book`: see market.BOOKS).
     Open and close come from one book; rows priced by different books are
     reported separately, never pooled.
@@ -63,6 +65,15 @@ LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = [c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
 GRADE_COLUMNS = [c for c in COLUMNS if c not in PREGAME_COLUMNS]
+
+
+# Pregame injury snapshots: one row per listed player (or one "NONE" row per
+# team with nobody listed), from the latest snapshot taken before tip. Same
+# lock as the pregame columns: written or replaced only while now < tip,
+# frozen after. A failed fetch (None) leaves the previous snapshot in place.
+INJURY_PATH = os.path.join("data", "nba_injuries.csv")
+INJURY_COLUMNS = ["game_id", "tip_utc", "snapshot_utc", "team", "player_id",
+                  "name", "status", "detail"]
 
 
 def utc_now():
@@ -149,6 +160,56 @@ def upsert_pregame(led, rows, now=None):
                 pd.DataFrame([rec])[COLUMNS]
         accepted.append(gid)
     return led, accepted, rejected
+
+
+def load_injuries(path=INJURY_PATH):
+    if not os.path.exists(path):
+        return pd.DataFrame(columns=INJURY_COLUMNS)
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    return df[INJURY_COLUMNS]
+
+
+def save_injuries(df, path=INJURY_PATH):
+    """Atomic write, sorted like the ledger."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".", suffix=".tmp",
+                               dir=os.path.dirname(path) or ".")
+    os.close(fd)
+    df = df[INJURY_COLUMNS].sort_values(["tip_utc", "game_id", "team", "name"],
+                                        kind="stable")
+    df.to_csv(tmp, index=False)
+    os.replace(tmp, path)
+
+
+def upsert_injuries(inj, snaps, now=None):
+    """Replace each game's injury rows with a new pregame snapshot.
+
+    snaps: {game_id: (tip_utc, rows or None)}. Accepted only while now < tip;
+    None (fetch failed / not provided) keeps the existing rows. Returns
+    (frame, accepted, rejected).
+    """
+    now = now or utc_now()
+    inj = inj.copy()
+    accepted, rejected = [], []
+    for gid, (tip_s, rows) in snaps.items():
+        gid = str(gid)
+        tip = parse_utc(tip_s)
+        if tip is None or now >= tip:
+            rejected.append((gid, "at or after tip"))
+            continue
+        if rows is None:
+            rejected.append((gid, "no injury data"))
+            continue
+        new = pd.DataFrame([{**{c: "" for c in INJURY_COLUMNS}, **r,
+                             "game_id": gid, "tip_utc": str(tip_s),
+                             "snapshot_utc": fmt_utc(now)} for r in rows],
+                           columns=INJURY_COLUMNS)
+        keep = inj[inj["game_id"].astype(str) != gid]
+        inj = pd.concat([d for d in (keep, new) if len(d)], ignore_index=True) \
+            if len(keep) or len(new) else pd.DataFrame(columns=INJURY_COLUMNS)
+        accepted.append(gid)
+    return inj[INJURY_COLUMNS] if len(inj) else pd.DataFrame(columns=INJURY_COLUMNS), \
+        accepted, rejected
 
 
 def apply_result(led, game_id, game, odds):

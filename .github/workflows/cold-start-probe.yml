@@ -16,6 +16,10 @@ on:
         description: 'Extra flags, e.g. --no-preseason or --no-market'
         default: ''
         required: false
+      provider_args:
+        description: 'Args for research/odds_providers.py, e.g. --dates 2026-10-05 --injuries'
+        default: ''
+        required: false
       providers_only:
         description: 'Only dump ESPN odds providers for sample dates; skip the probe'
         type: boolean
@@ -43,7 +47,7 @@ jobs:
       - name: Dump ESPN odds providers (sample 2024-25 / 2025-26 games)
         continue-on-error: true
         run: |
-          python research/odds_providers.py | tee providers.txt
+          python research/odds_providers.py ${{ inputs.provider_args }} | tee providers.txt
           { echo '### ESPN odds providers'; echo '```'; cat providers.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Download (cached pages are skipped)
         if: ${{ !inputs.providers_only }}

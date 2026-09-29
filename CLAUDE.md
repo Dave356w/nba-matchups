@@ -62,6 +62,10 @@ Before a PR, run:
   close on the same games (v1: on/off-weighted; v2: last-season BBR BPM,
   name-matched, plus players new to the team). A pregame test needs
   timestamped injury reports.
+  The daily build snapshots each game's ESPN injury list to
+  `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
+  frozen after; "NONE" rows mark teams with nobody listed). The model does
+  not read it yet.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains
