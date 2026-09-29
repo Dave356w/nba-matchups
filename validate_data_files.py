@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Fail fast on a broken committed CSV (conflict markers, bad schema, dup ids)."""
+import os
+import sys
+
+import pandas as pd
+
+import ledger
+
+
+def check(path):
+    if not os.path.exists(path):
+        return []
+    errs = []
+    text = open(path, encoding="utf-8").read()
+    if any(m in text for m in ("<<<<<<<", ">>>>>>>", "\n=======\n")):
+        errs.append(f"{path}: merge-conflict marker")
+        return errs
+    df = pd.read_csv(path, dtype={"game_id": str})
+    if list(df.columns) != ledger.COLUMNS:
+        errs.append(f"{path}: columns differ from ledger.COLUMNS")
+    if df["game_id"].duplicated().any():
+        errs.append(f"{path}: duplicate game_id")
+    won = pd.to_numeric(df["home_won"], errors="coerce").dropna()
+    if not won.isin([0, 1]).all():
+        errs.append(f"{path}: home_won outside {{0,1}}")
+    p = pd.to_numeric(df["p_home"], errors="coerce").dropna()
+    if not p.between(0, 1).all():
+        errs.append(f"{path}: p_home outside [0,1]")
+    return errs
+
+
+def main():
+    errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH)
+    for e in errs:
+        print("ERROR", e)
+    print("data files OK" if not errs else f"{len(errs)} problem(s)")
+    return 1 if errs else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

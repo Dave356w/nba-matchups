@@ -1,0 +1,82 @@
+name: Build & deploy NBA site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'ET slate date (YYYY-MM-DD); blank = today'
+        required: false
+  # 04:17 ET grades last night; 10:07-22:07 ET hourly refreshes the pregame
+  # snapshot (NBA tips run noon to ~10:30 pm ET). A game's row is written or
+  # refreshed only before tip and frozen after, so any run is safe.
+  schedule:
+    - cron: '17 4 * * *'
+      timezone: America/New_York
+    - cron: '7 10-22 * * *'
+      timezone: America/New_York
+
+# One build at a time, queued not cancelled, so ledger commits never interleave.
+concurrency:
+  group: site-build
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+
+      # Basketball-Reference pages, refetched at most once per ET day.
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+
+      - name: Grade, score slate, render
+        run: python build_site.py ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+
+      - name: Validate data
+        run: python validate_data_files.py
+
+      - name: Commit ledger
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then echo "no data changes"; exit 0; fi
+          git commit -m "ledger $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "::error::ledger push failed"; exit 1
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
