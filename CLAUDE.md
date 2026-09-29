@@ -56,7 +56,10 @@ Before a PR, run:
 
 - Market benchmark: Brier/log loss vs the DK close, and native CLV.
 - Player availability (injury reports, minutes shares) is the main missing
-  information.
+  information. `research/availability.py` (workflow "Availability ceiling")
+  measures its HINDSIGHT ceiling: who actually played, relative to each
+  team's rating window, added to walk-forward logits and compared with the
+  close on the same games. A pregame test needs timestamped injury reports.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains
