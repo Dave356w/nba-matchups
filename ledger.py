@@ -14,7 +14,8 @@ Invariants (tests/test_ledger.py pins each one):
   * A row is accepted only while now < tip. After tip it can never be created.
   * Before tip a newer pregame snapshot replaces an older one (injury news and
     line moves arrive during the day); after tip the pregame fields freeze.
-  * Grading fills ONLY result and open/close market columns. It never touches
+  * Grading fills ONLY result and open/close market columns (moneyline and
+    closing spread). It never touches
     a model or pregame-market column.
   * A pending (unfinished) game never receives a closing line.
   * Every price names its book (`pre_book`, `close_book`: see market.BOOKS).
@@ -47,10 +48,19 @@ COLUMNS = [
     # filled by grading
     "open_home_ml", "open_away_ml", "close_home_ml", "close_away_ml",
     "close_q_home", "close_book", "home_pts", "away_pts", "home_won",
+    # closing spread from the same book as the closing moneyline: the home
+    # line (-5.5 = home gives 5.5) and each side's price at that line
+    "close_spread", "close_home_spread_odds", "close_away_spread_odds",
 ]
+SPREAD_COLUMNS = ["close_spread", "close_home_spread_odds",
+                  "close_away_spread_odds"]
+# Schema before the spread columns: `load` reads it with the spreads blank
+# and the next save writes the current schema.
+PRE_SPREAD_COLUMNS = [c for c in COLUMNS if c not in SPREAD_COLUMNS]
 # Schema before the book columns. Every price in such a file is DraftKings
 # (the parser read nothing else), so `load` labels it "dk".
-LEGACY_COLUMNS = [c for c in COLUMNS if c not in ("pre_book", "close_book")]
+LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
+                  if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = [c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
 GRADE_COLUMNS = [c for c in COLUMNS if c not in PREGAME_COLUMNS]
 
@@ -169,6 +179,11 @@ def apply_result(led, game_id, game, odds):
             if led["close_book"].dtype != object:
                 led["close_book"] = led["close_book"].astype(object)
             led.at[i, "close_book"] = odds.get("book", "dk")
+            # the spread is kept only with its book's moneyline close, so
+            # both closes on a row always name the same book
+            for c in SPREAD_COLUMNS:
+                if odds.get(c) is not None:
+                    led.at[i, c] = odds[c]
     return True
 
 
@@ -186,6 +201,6 @@ def graded(df):
     g = df[pd.to_numeric(df["home_won"], errors="coerce").isin([0, 1])].copy()
     for c in ("p_home", "delta", "home_won", "close_home_ml", "close_away_ml",
               "close_q_home", "pre_home_ml", "pre_away_ml", "pre_q_home",
-              "p_lean"):
+              "p_lean", "home_pts", "away_pts") + tuple(SPREAD_COLUMNS):
         g[c] = pd.to_numeric(g[c], errors="coerce")
     return g

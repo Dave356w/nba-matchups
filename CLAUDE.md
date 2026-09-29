@@ -64,5 +64,8 @@ Before a PR, run:
   Watch the native early-season rows against it.
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean
   and on the value side (model P > no-vig q), with model WP, market WP,
-  actual, and the ROI null beside every ROI.
+  actual, and the ROI null beside every ROI. Graded rows now also record the
+  closing spread (`close_spread`, home line, plus both spread prices, same
+  book as the moneyline close), and the ledger page grades ATS the same way
+  (lean and value side, break-even and ROI null beside each ROI).
 - More game-log seasons to settle the half-life and to test travel/altitude.

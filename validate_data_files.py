@@ -21,14 +21,22 @@ def check(path):
     if list(df.columns) == ledger.LEGACY_COLUMNS:
         print(f"note {path}: pre-book schema (all prices DraftKings); "
               "rewritten with book columns on the next bot write")
+    elif list(df.columns) == ledger.PRE_SPREAD_COLUMNS:
+        print(f"note {path}: pre-spread schema; spread columns added on the "
+              "next bot write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    else:
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_SPREAD_COLUMNS):
         books = {b for _, b in market.BOOKS}
         for col, q in (("pre_book", "pre_q_home"), ("close_book", "close_q_home")):
             priced = pd.to_numeric(df[q], errors="coerce").notna()
             if not df.loc[priced, col].isin(books).all():
                 errs.append(f"{path}: {col} missing or unknown on a priced row")
+    if "close_spread" in df.columns:
+        spread = pd.to_numeric(df["close_spread"], errors="coerce")
+        if (spread.notna() & pd.to_numeric(df["close_q_home"],
+                                           errors="coerce").isna()).any():
+            errs.append(f"{path}: close_spread on a row without a moneyline close")
     if df["game_id"].duplicated().any():
         errs.append(f"{path}: duplicate game_id")
     won = pd.to_numeric(df["home_won"], errors="coerce").dropna()

@@ -108,3 +108,37 @@ def test_pick_close_prefers_row_book_then_preference_order():
                                                 _book("100", "DK", -258, 210, close=False)]})
     assert market.pick_close(eb_only, prefer="dk")["book"] == "espnbet"
     assert market.pick_pregame(eb_only)["book"] == "dk"   # DK current price exists
+
+
+def test_spread_line_and_close_spread_parsing():
+    assert market.spread_line({"american": "-5.5"}) == -5.5
+    assert market.spread_line("+3") == 3.0 and market.spread_line(-1.5) == -1.5
+    assert market.spread_line("PK") == 0.0
+    for bad in (None, "", "abc", 99, {}):
+        assert market.spread_line(bad) is None
+    js = {"items": [{"provider": {"id": "100"},
+                     "homeTeamOdds": {"close": {
+                         "moneyLine": {"american": "-230"},
+                         "pointSpread": {"american": "-5.5"},
+                         "spread": {"american": "-108"}}},
+                     "awayTeamOdds": {"close": {
+                         "moneyLine": {"american": "+190"},
+                         "pointSpread": {"american": "+5.5"},
+                         "spread": {"american": "-112"}}}}]}
+    o = market.pick_close(market.parse_book_odds(js))
+    assert o["book"] == "dk" and o["close_spread"] == -5.5
+    assert o["close_home_spread_odds"] == -108 and o["close_away_spread_odds"] == -112
+    # home line derived from the away side; inconsistent lines are dropped
+    assert market._home_spread(None, 4.0) == -4.0
+    assert market._home_spread(-3.5, 4.5) is None
+    # a book without spreads still parses its moneyline
+    assert market.parse_dk_odds({"items": [_book("100", "DK", -150, 130)]}
+                                )["close_spread"] is None
+
+
+def test_ats_result():
+    assert market.ats_result(7, -5.5) == 1.0       # home -5.5 wins by 7
+    assert market.ats_result(5, -5.5) == 0.0
+    assert market.ats_result(-3, 3.0) == 0.5       # push
+    assert market.ats_result(-2, 3.0) == 1.0       # home +3 loses by 2
+    assert np.isnan(market.ats_result(None, -3))

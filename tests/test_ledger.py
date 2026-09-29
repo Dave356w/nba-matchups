@@ -82,3 +82,39 @@ def test_legacy_file_loads_with_dk_labels(tmp_path):
     back = ledger.load(str(p))
     assert list(back.columns) == ledger.COLUMNS
     assert back.iloc[0]["pre_book"] == "dk" and back.iloc[0]["close_book"] == "dk"
+
+
+def test_grading_records_spread_from_the_moneyline_book():
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row()], now=BEFORE)
+    before = led[ledger.PREGAME_COLUMNS].copy()
+    odds = dict(book="dk", close_home_ml=-160, close_away_ml=135,
+                close_spread=-3.5, close_home_spread_odds=-110,
+                close_away_spread_odds=-110)
+    live = dict(completed=False, home_pts=50, away_pts=40)
+    assert not ledger.apply_result(led, "401", live, odds)
+    assert pd.isna(led.iloc[0]["close_spread"])           # no close while pending
+    assert ledger.apply_result(led, "401", dict(completed=True, home_pts=110,
+                                                away_pts=104), odds)
+    pd.testing.assert_frame_equal(led[ledger.PREGAME_COLUMNS], before)
+    r = led.iloc[0]
+    assert r["close_spread"] == -3.5 and r["close_home_spread_odds"] == -110
+    assert set(ledger.SPREAD_COLUMNS) <= set(ledger.GRADE_COLUMNS)
+
+
+def test_spread_without_moneyline_close_is_not_written():
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row()], now=BEFORE)
+    odds = dict(close_spread=-3.5, close_home_spread_odds=-110,
+                close_away_spread_odds=-110)
+    ledger.apply_result(led, "401", dict(completed=True, home_pts=110,
+                                         away_pts=104), odds)
+    assert pd.isna(led.iloc[0]["close_spread"])
+
+
+def test_pre_spread_file_loads_with_blank_spreads(tmp_path):
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    p = tmp_path / "old.csv"
+    led[ledger.PRE_SPREAD_COLUMNS].to_csv(p, index=False)
+    back = ledger.load(str(p))
+    assert list(back.columns) == ledger.COLUMNS
+    assert back[ledger.SPREAD_COLUMNS].isna().all().all()
+    assert back.iloc[0]["pre_book"] == "dk"
