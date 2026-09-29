@@ -264,7 +264,7 @@ def clean_box(df):
 
 # ---------------------------------------------------------- availability ---
 def team_availability(tg, half_life=nc.HALF_LIFE, shrink=SHRINK, value=None,
-                      arrival_role=None):
+                      arrival_role=None, present=None):
     """One team-season of player rows -> {game_id: (av_min, av_oo, av_bpm)}.
 
     Game k uses only games before k for a_i, role_i and r_i; p_i is game k's
@@ -272,6 +272,12 @@ def team_availability(tg, half_life=nc.HALF_LIFE, shrink=SHRINK, value=None,
     value[player_id] (points above replacement per 48; v2) and also counts
     players new to the team who play today (a = 0) with role from
     arrival_role(player_id, date). v1 terms (av_min, av_oo) are unchanged.
+
+    present (pregame mode, research/pregame_availability.py) replaces the
+    hindsight p_i: {(game_id, player_id): P(plays)} from the injury report;
+    a player not in it counts as playing (1) if he was on the team's
+    previous box score (listed at all), else 0 (traded, released).
+    Arrivals are not counted in pregame mode.
     """
     value = value or {}
     games = (tg[["game_id", "date", "margin"]].drop_duplicates("game_id")
@@ -282,15 +288,23 @@ def team_availability(tg, half_life=nc.HALF_LIFE, shrink=SHRINK, value=None,
     pidx = {p: j for j, p in enumerate(players)}
     M = np.zeros((n, len(players)))
     PM = np.zeros((n, len(players)))
+    L = np.zeros((n, len(players)), bool)          # listed on that box at all
     for r in tg.itertuples(index=False):
         k, j = order[r.game_id], pidx[r.player_id]
         M[k, j] = r.minutes
         PM[k, j] = r.pm
+        L[k, j] = True
     v = np.array([value.get(p, 0.0) for p in players])
     margin = games["margin"].to_numpy(float)
     out = {}
     for k in range(n):
-        p = (M[k] > 0).astype(float)
+        if present is None:
+            p = (M[k] > 0).astype(float)
+        else:
+            gid = games.at[k, "game_id"]
+            prev = L[k - 1] if k > 0 else np.zeros(len(players), bool)
+            p = np.array([present.get((gid, pl), 1.0 if prev[j] else 0.0)
+                          for j, pl in enumerate(players)])
         if k == 0:
             wp = np.zeros(len(players))
             a = role = r = np.zeros(len(players))
@@ -313,7 +327,7 @@ def team_availability(tg, half_life=nc.HALF_LIFE, shrink=SHRINK, value=None,
         known = wp > 0
         dp = (p - a) * known
         av_bpm = float((role * v * dp).sum())
-        if arrival_role is not None:
+        if arrival_role is not None and present is None:
             date = games.at[k, "date"]
             for j in np.where((p > 0) & ~known)[0]:
                 av_bpm += arrival_role(players[j], date) * v[j]
@@ -322,13 +336,13 @@ def team_availability(tg, half_life=nc.HALF_LIFE, shrink=SHRINK, value=None,
     return out
 
 
-def game_availability(box, value=None, arrival_role=None):
+def game_availability(box, value=None, arrival_role=None, present=None):
     """Box rows -> one row per game: date, home, away, av_min, av_oo, av_bpm
     (home - away)."""
     feats = {}
     for _, tg in box.groupby("team"):
-        for gid, v in team_availability(tg, value=value,
-                                        arrival_role=arrival_role).items():
+        for gid, v in team_availability(tg, value=value, arrival_role=arrival_role,
+                                        present=present).items():
             feats[(gid, tg["team"].iloc[0])] = v
     g = box[box["home"]].drop_duplicates("game_id")[["game_id", "date", "team", "opp"]]
     rows = []

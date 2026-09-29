@@ -60,8 +60,11 @@ Before a PR, run:
   measures its HINDSIGHT ceiling: who actually played, relative to each
   team's rating window, added to walk-forward logits and compared with the
   close on the same games (v1: on/off-weighted; v2: last-season BBR BPM,
-  name-matched, plus players new to the team). A pregame test needs
-  timestamped injury reports.
+  name-matched, plus players new to the team). `research/pregame_availability.py`
+  (workflow "Pregame availability") is the pregame version: the NBA's
+  archived injury report, last edition at least --lead-minutes before tip
+  (Out/Doubtful = out; or status play rates fitted on training seasons),
+  same v2 values, and how often each status actually played.
   The daily build snapshots each game's ESPN injury list to
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does
