@@ -113,3 +113,38 @@ def test_pregame_mode_uses_report_and_previous_roster():
     # not listed and on G10's box -> assumed to play (1), unlike hindsight
     none = av.team_availability(df, value=val, present={})
     assert none["G11"][2] > hind["G11"][2]
+
+
+def test_merged_header_words_and_status_merged_with_reason():
+    header = [W("GameDate", 10, 50), W("GameTime", 80, 50), W("Matchup", 150, 50),
+              W("Team", 220, 50), W("PlayerName", 330, 50),
+              W("CurrentStatus", 450, 50), W("Reason", 540, 50)]
+    page = header + [
+        W("10/22/2024", 10, 70), W("07:30(ET)", 80, 70), W("NYK@BOS", 150, 70),
+        W("BostonCeltics", 220, 70), W("Porzingis,Kristaps", 330, 70),
+        W("OutInjury/Illness", 450, 70)]
+    rows = pa.rows_from_words([page])
+    assert rows == [dict(game_date="10/22/2024", matchup="NYK@BOS",
+                         team="BostonCeltics", player="Porzingis,Kristaps",
+                         status="Out")]
+    assert pa.team_code("BostonCeltics") == "BOS"
+    assert pa.report_name_to_first_last("Porzingis,Kristaps") == "Kristaps Porzingis"
+    assert pa.status_of("Questionable") == "Questionable" and pa.status_of("GLeague") == ""
+
+
+def test_text_fallback_spaced_and_unspaced():
+    text = "\n".join([
+        "Injury Report: 10/22/24 05:30 PM",
+        "Game Date Game Time Matchup Team Player Name Current Status Reason",
+        "10/22/2024 07:30 (ET) NYK@BOS Boston Celtics Porzingis, Kristaps Out Injury/Illness - Left Leg",
+        "Brown, Jaylen Questionable Injury/Illness - Hip",
+        "New York Knicks NOT YET SUBMITTED",
+        "10/22/2024 10:00(ET) MIN@LAL LosAngelesLakers Vincent,Gabe DoubtfulInjury/Illness-Knee",
+        "Porter Jr., Michael Available",
+    ])
+    rows = pa.rows_from_text([text])
+    got = [(pa.team_code(r["team"]), r["player"], r["status"], r["game_date"]) for r in rows]
+    assert got == [("BOS", "Porzingis, Kristaps", "Out", "10/22/2024"),
+                   ("BOS", "Brown, Jaylen", "Questionable", "10/22/2024"),
+                   ("LAL", "Vincent,Gabe", "Doubtful", "10/22/2024"),
+                   ("LAL", "Porter Jr., Michael", "Available", "10/22/2024")]

@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -136,6 +137,45 @@ class ReportArchive:
         json.dump(sorted(self.misses), open(self.miss_path, "w"))
 
 
+HEADER_CANON = {"gamedate": "date", "gametime": "time", "matchup": "matchup",
+                "team": "team", "playername": "player", "currentstatus": "status",
+                "reason": "reason"}
+PAIRS = {"game": ("date", "time"), "player": ("name",), "current": ("status",)}
+PARSER_VERSION = 2          # bump to invalidate cached parsed-report CSVs
+
+
+def header_columns(line):
+    """[(column, x0)] if this word line is the table header, else None.
+
+    Accepts header words split ('Game', 'Date') or merged ('GameDate'), as
+    PDFs without space glyphs give merged words.
+    """
+    toks, i = [], 0
+    while i < len(line):
+        t = line[i]["text"].replace(" ", "").lower()
+        nxt = line[i + 1]["text"].replace(" ", "").lower() if i + 1 < len(line) else ""
+        if t in PAIRS and nxt in PAIRS[t]:
+            toks.append((t + nxt, float(line[i]["x0"])))
+            i += 2
+            continue
+        toks.append((t, float(line[i]["x0"])))
+        i += 1
+    cols = [(HEADER_CANON[t], x) for t, x in toks if t in HEADER_CANON]
+    names = {c for c, _ in cols}
+    if {"matchup", "player", "status", "reason"} <= names:
+        return sorted(cols, key=lambda c: c[1])
+    return None
+
+
+def status_of(text):
+    """'Out' / 'OutInjury/Illness' -> 'Out'; else ''."""
+    t = str(text).strip()
+    for st in STATUSES:
+        if t.startswith(st):
+            return st
+    return ""
+
+
 def rows_from_words(pages):
     """pdfplumber words per page -> report rows.
 
@@ -152,18 +192,9 @@ def rows_from_words(pages):
             lines.setdefault(round(float(w["top"]) / 3), []).append(w)
         for key in sorted(lines):
             line = sorted(lines[key], key=lambda w: float(w["x0"]))
-            texts = [w["text"] for w in line]
-            if "Matchup" in texts and "Reason" in texts:
-                games = [w for w in line if w["text"] == "Game"]
-                pos = {"matchup": "Matchup", "team": "Team", "player": "Player",
-                       "status": "Current", "reason": "Reason"}
-                found = {k: next((float(w["x0"]) for w in line if w["text"] == t), None)
-                         for k, t in pos.items()}
-                if len(games) >= 2 and all(v is not None for v in found.values()):
-                    cols = sorted([("date", float(games[0]["x0"])),
-                                   ("time", float(games[1]["x0"]))]
-                                  + [(k, v) for k, v in found.items()],
-                                  key=lambda c: c[1])
+            hdr = header_columns(line)
+            if hdr:
+                cols = hdr
                 continue
             if cols is None:
                 continue
@@ -179,24 +210,92 @@ def rows_from_words(pages):
             for k in carry:
                 if cells.get(k):
                     carry[k] = cells[k]
-            status = cells.get("status", "").strip()
+            status = status_of(cells.get("status", ""))
             player = cells.get("player", "").strip()
-            if status in STATUSES and "," in player:
+            if status and "," in player:
                 rows.append(dict(game_date=carry["date"], matchup=carry["matchup"],
                                  team=carry["team"], player=player, status=status))
     return rows
 
 
+_DATE = re.compile(r"\b(\d{2}/\d{2}/\d{2,4})\b")
+_TIME = re.compile(r"\d{1,2}:\d{2}\s*\(ET\)")
+_MATCHUP = re.compile(r"\b([A-Z]{2,3}@[A-Z]{2,3})\b")
+_ROW = re.compile(r"^\s*(?P<player>[A-Z][^,]{1,40},\s*[A-Za-z.'\-]+?)\s*"
+                  r"(?P<status>Out|Doubtful|Questionable|Probable|Available)"
+                  r"(?![a-z])")
+
+
+def full_team_names():
+    out = {}
+    for code, nick in build_site.TEAM_NAMES.items():
+        city = CITIES[code]
+        out[code] = city if city.endswith(nick) else f"{city} {nick}"
+    return out
+
+
+def rows_from_text(pages_text):
+    """Fallback: plain-text lines -> report rows, by regular expressions.
+
+    Strips date, time and matchup (carried down), then a full team name
+    (spaced or not; carried down), then reads 'Last, First' and the status.
+    """
+    teams = full_team_names()
+    rows = []
+    carry = {"date": "", "matchup": "", "team": ""}
+    for text in pages_text:
+        for line in str(text or "").splitlines():
+            s = line
+            m = _DATE.search(s)
+            if m:
+                carry["date"] = m.group(1)
+                s = s.replace(m.group(0), " ")
+            s = _TIME.sub(" ", s)
+            m = _MATCHUP.search(s)
+            if m:
+                carry["matchup"] = m.group(1)
+                s = s.replace(m.group(0), " ")
+            for full in sorted(teams.values(), key=len, reverse=True):
+                for variant in (full, full.replace(" ", "")):
+                    if variant in s:
+                        carry["team"] = full
+                        s = s.replace(variant, " ", 1)
+                        break
+            m = _ROW.match(s)
+            if m and carry["team"]:
+                rows.append(dict(game_date=carry["date"], matchup=carry["matchup"],
+                                 team=carry["team"], player=m.group("player").strip(),
+                                 status=m.group("status")))
+    return rows
+
+
+_DUMPED = [0]
+
+
 def parse_report(path):
-    """Report PDF -> DataFrame of rows (cached next to the PDF as CSV)."""
-    csv = path[:-4] + ".csv"
+    """Report PDF -> DataFrame of rows (cached next to the PDF as CSV).
+
+    Column-position parse first; if that finds nothing, the text fallback.
+    The first two reports that still yield nothing are dumped to the log.
+    """
+    csv = path[:-4] + f".v{PARSER_VERSION}.csv"
     if os.path.exists(csv):
         return pd.read_csv(csv, dtype=str, keep_default_na=False)
     import pdfplumber  # research-only dependency, installed by the workflow
     with pdfplumber.open(path) as pdf:
         pages = [p.extract_words(keep_blank_chars=False) for p in pdf.pages]
-    df = pd.DataFrame(rows_from_words(pages),
-                      columns=["game_date", "matchup", "team", "player", "status"])
+        rows = rows_from_words(pages)
+        if not rows:
+            texts = [p.extract_text() or "" for p in pdf.pages]
+            rows = rows_from_text(texts)
+            if not rows and _DUMPED[0] < 2:
+                _DUMPED[0] += 1
+                print(f"\n--- unparsed report {os.path.basename(path)}: first page text"
+                      f"\n{texts[0][:1500] if texts else ''}\n--- first 40 words: " +
+                      "; ".join(f"{w['text']!r}@{float(w['x0']):.0f},{float(w['top']):.0f}"
+                                for w in (pages[0][:40] if pages else [])) +
+                      "\n---", flush=True)
+    df = pd.DataFrame(rows, columns=["game_date", "matchup", "team", "player", "status"])
     df.to_csv(csv, index=False)
     return df
 
@@ -272,7 +371,8 @@ def game_statuses(box, tips, archive, lead_minutes):
         names.setdefault((r.team, av.norm_name(r.name)), r.player_id)
     played = {(r.game_id, r.player_id): r.minutes > 0
               for r in box.itertuples(index=False)}
-    out, stats = [], dict(games=0, with_report=0, listed=0, matched=0, lags=[])
+    out, stats = [], dict(games=0, with_report=0, listed=0, matched=0, lags=[],
+                          reports=0, reports_rows=0)
     parsed = {}
     for gid, g in games.groupby("game_id"):
         tip = ledger.parse_utc(tips.get(gid))
@@ -295,6 +395,8 @@ def game_statuses(box, tips, archive, lead_minutes):
                 print(f"parse failed {os.path.basename(path)}: {e!r}", flush=True)
                 parsed[path] = pd.DataFrame(columns=["game_date", "team", "player",
                                                      "status"])
+            stats["reports"] += 1
+            stats["reports_rows"] += int(len(parsed[path]) > 0)
         rep = parsed[path]
         slate = pd.Timestamp(g["date"].iloc[0]).strftime("%Y-%m-%d")
         stats["with_report"] += 1
@@ -398,7 +500,8 @@ def main(argv=None):
             statuses[t] = st
             lag = np.median(s["lags"]) if s["lags"] else float("nan")
             print(f"season {t}: {s['with_report']}/{s['games']} team-games with a "
-                  f"report (median {lag:.0f} min before tip); {s['listed']} report "
+                  f"report (median {lag:.0f} min before tip); {s['reports_rows']}/"
+                  f"{s['reports']} reports parsed to rows; {s['listed']} report "
                   f"rows, {100 * s['matched'] / max(s['listed'], 1):.1f}% matched to "
                   f"box players; BPM covers {100 * rate_min:.1f}% of minutes; "
                   f"{archive.requests} archive requests so far", flush=True)
