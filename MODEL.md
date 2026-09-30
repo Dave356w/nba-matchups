@@ -1,8 +1,8 @@
-# Model: `fourfactors_hl25_b2b_carry25_v2`
+# Model: `fourfactors_hl25_b2b_carry25_avail_v3`
 
 Full technical report: [`docs/nba_composite_model_report.pdf`](docs/nba_composite_model_report.pdf).
-The implementation is `nba_composite.py` (games 10+) and `cold_start.py`
-(games 1–9). `build_site.py` supplies them with pregame game logs and records
+The implementation is `nba_composite.py` (games 10+), `cold_start.py`
+(games 1–9) and `player_availability.py` (v3 availability terms, games 10+). `build_site.py` supplies them with pregame game logs and records
 their output; it does not change the math.
 
 ## Specification
@@ -22,6 +22,16 @@ their output; it does not change the math.
   decay running across the offseason (ρ = 0.25). P(home) uses its own logit,
   fitted on every game in the first 20 games of the logit seasons
   (`model/logit_early.json`, `python cold_start.py fit`).
+- **Player availability (new in v3, games 10+)**: P(home) = σ(a + b·Δ +
+  c·b2b_net + d1·av_min + d2·av_bpm) (`model/logit_avail.json`,
+  `python player_availability.py fit`). For each player with history for
+  the team: a = share of the decayed rating window (half-life 25) he played
+  in, role = his minutes/48 when playing, value = last season's BBR BPM
+  shrunk by MP/(MP+500), minus replacement (−2). p = 0 if the latest NBA
+  injury report lists him Out or Doubtful, else 1 if he was on the team's
+  previous box score, else 0. av_bpm = Σ role·value·(p − a) and
+  av_min = Σ role·(p − a), home − away. When the report or box history is
+  missing, the row uses the v2 logit and keeps the v2 tag.
 - **Abstention**: only while a team has played no games (v1 abstained until
   both teams had 10).
 - **Lean**: the side with P ≥ 0.5 (a pick'em goes to the home side). Model −
@@ -57,11 +67,30 @@ The reconstructed fits hold out the test season but keep later seasons (the
 No arm or bucket beats the close. The model does not see injuries, lineups,
 or travel; the market does. Native rows are the forward test.
 
+## v3 evidence (research/pregame_availability.py, hindsight-free inputs)
+
+Walk-forward (every fit on earlier seasons), games 10+, the last injury
+report at least 30 min before tip, same games as the close, one book at a
+time (log loss; 95% intervals; negative = better):
+
+| Rows | v2 vs close | v3 vs close | v3 vs v2 |
+|---|---:|---:|---:|
+| 2024-25 ESPN BET (1,071) | +0.025 ± 0.014 | +0.016 ± 0.011 | −0.008 ± 0.010 |
+| 2025-26 DraftKings (964) | +0.036 ± 0.014 | +0.028 ± 0.012 | −0.008 ± 0.010 |
+
+Each season's v3 − v2 interval crosses zero, but the two agree in size and
+sign; the terms explain about a third of the market-minus-model logit gap
+(hindsight "who played": 43–46%). v3 still trails the close in both books.
+Close to tip, Questionable players have almost all been resolved to Out or
+Available, so the Out/Doubtful rule loses little. Native rows are the test.
+
 ## Version history
 
 - `fourfactors_hl25_b2b_v1`: games 10+ only.
 - `fourfactors_hl25_b2b_carry25_v2`: v1 unchanged from game 10; carryover
   model for games 1–9.
+- `fourfactors_hl25_b2b_carry25_avail_v3`: v2 plus the pregame player
+  availability terms for games 10+ (rows without a report keep the v2 tag).
 
 ## Version rule
 

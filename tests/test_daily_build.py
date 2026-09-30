@@ -62,3 +62,41 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     pd.testing.assert_frame_equal(ledger.load_injuries(), frozen)
     assert "1–0" in (tmp_path / "public" / "grades.html").read_text() or \
         "0–1" in (tmp_path / "public" / "grades.html").read_text()
+
+
+def test_build_tags_v3_with_availability_and_falls_back(tmp_path, monkeypatch, weights, model):
+    import json
+    import player_availability as pav
+    monkeypatch.chdir(tmp_path)
+    tip = (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%MZ")
+    games = [dict(game_id="9101", tip_utc=tip, season_type=2, away="UTA", home="GSW",
+                  state="pre", completed=False, away_pts=None, home_pts=None),
+             dict(game_id="9102", tip_utc=tip, season_type=2, away="LAL", home="BOS",
+                  state="pre", completed=False, away_pts=None, home_pts=None)]
+    logs = {t: make_log(40, start="2026-10-21", seed=i, strength=s)
+            for i, (t, s) in enumerate([("GSW", 1), ("UTA", -1), ("BOS", 0.5),
+                                        ("LAL", 0)])}
+    monkeypatch.setattr(market, "scoreboard", lambda d: games)
+    monkeypatch.setattr(market, "book_odds", lambda gid: {})
+    monkeypatch.setattr(market, "game_injuries", lambda gid, h, a: None)
+    monkeypatch.setattr(build_site, "fresh_logs", lambda y, d: logs)
+    monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
+    (tmp_path / "model").mkdir()
+    (tmp_path / "model" / pav.MODEL_FILE).write_text(json.dumps(
+        {"features": pav.FEATURES, "intercept": 0.24, "coef": [0.037, 0.33, 0.0, 0.1]}))
+
+    class Live:
+        report_time, report, bpm_minutes = "2027-01-10 17:30", pd.DataFrame(), 0.9
+
+        def __init__(self, *a, **k):
+            pass
+
+        def terms(self, gid, home, away, date):
+            return None if gid == "9102" else dict(av_min=-0.5, av_bpm=-4.0,
+                                                   report="2027-01-10 17:30")
+    monkeypatch.setattr(pav, "LiveAvailability", Live)
+    assert build_site.main(["--date", "2027-01-10"]) == 0
+    led = ledger.load(ledger.NATIVE_PATH).set_index("game_id")
+    assert led.loc["9101", "model_tag"] == build_site.MODEL_TAG_V3
+    assert led.loc["9102", "model_tag"] == build_site.MODEL_TAG      # no terms: v2
+    assert "injury report" in (tmp_path / "public" / "index.html").read_text()
