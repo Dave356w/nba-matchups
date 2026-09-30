@@ -64,11 +64,11 @@ Before a PR, run:
   (workflow "Pregame availability") is the pregame version: the NBA's
   archived injury report, last edition at least --lead-minutes before tip
   (Out/Doubtful = out; or status play rates fitted on training seasons),
-  same v2 values, and how often each status actually played. **Model v3**
+  same v2 values, and how often each status actually played. **Model v3/v4**
   (`player_availability.py`, `model/logit_avail.json`) ships its Out/Doubtful
   arm for games 10+: the build reads the latest NBA report and this season's
   box scores (`data/nba_box_<season>.csv`, extended daily). Rows without a
-  report fall back to v2 and keep the v2 tag.
+  report fall back to the base logit (v4 tag without "avail").
   The daily build snapshots each game's ESPN injury list to
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does
@@ -101,4 +101,7 @@ Before a PR, run:
   beats base by −0.0036 ± 0.0036 (2024-25 ESPN BET) and −0.0075 ± 0.0033
   (2025-26 DK) log loss; delta·|delta| adds nothing. The Pregame availability
   workflow also fits base+phase and od+phase to test it on top of v3.
-  Research only; shipping one needs a new MODEL_TAG.
+  **Model v4** ships delta·phase in both logits (MODEL.md; tags
+  `..._phase_v4` without a report, `..._phase_avail_v4` with one). The
+  reconstructed rows are re-scored with v4 by `backfill_history.py
+  --rescore` (workflow "Backfill history", prices and results kept).

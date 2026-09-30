@@ -10,6 +10,10 @@ on:
       seasons:
         description: 'Seasons to reconstruct (BBR years; 2026 = 2025-26)'
         default: '2025 2026'
+      rescore:
+        description: 'Only re-score existing rows with the current model (keep prices/results)'
+        type: boolean
+        default: true
 
 # Its own queue, not site-build: GitHub keeps one *pending* run per group,
 # so a pending run here was cancelled whenever the hourly build queued.
@@ -25,7 +29,7 @@ permissions:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,10 +42,24 @@ jobs:
           path: bbr_cache
           key: bbr-${{ github.run_id }}
           restore-keys: bbr-
+      # ESPN box scores, tip times and NBA injury reports for the v4
+      # availability arm (shared with the research and fit workflows).
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
       - name: Download seasons and logs
         run: python nba_composite.py download --years 2015-2019 2021-2026
       - name: Reconstruct
-        run: python backfill_history.py --seasons ${{ inputs.seasons }}
+        run: python backfill_history.py --seasons ${{ inputs.seasons }} ${{ inputs.rescore && '--rescore' || '' }}
       - run: python validate_data_files.py
       - name: Commit
         run: |

@@ -1,8 +1,8 @@
-# Model: `fourfactors_hl25_b2b_carry25_avail_v3`
+# Model: `fourfactors_hl25_b2b_carry25_phase_avail_v4`
 
 Full technical report: [`docs/nba_composite_model_report.pdf`](docs/nba_composite_model_report.pdf).
 The implementation is `nba_composite.py` (games 10+), `cold_start.py`
-(games 1–9) and `player_availability.py` (v3 availability terms, games 10+). `build_site.py` supplies them with pregame game logs and records
+(games 1–9) and `player_availability.py` (availability terms, games 10+). `build_site.py` supplies them with pregame game logs and records
 their output; it does not change the math.
 
 ## Specification
@@ -31,7 +31,15 @@ their output; it does not change the math.
   injury report lists him Out or Doubtful, else 1 if he was on the team's
   previous box score, else 0. av_bpm = Σ role·value·(p − a) and
   av_min = Σ role·(p − a), home − away. When the report or box history is
-  missing, the row uses the v2 logit and keeps the v2 tag.
+  missing, the row uses the base logit.
+- **Season phase (new in v4, games 10+)**: both logits add e·Δ·phase, where
+  phase = days since opening night / 175, capped at 1. A given composite gap
+  counts for more as the season goes on (about double by April). The base
+  logit (`model/logit.json`, `fit-logit --phase`) is fitted on the 2016–19
+  and 2021–26 game logs; the availability logit on the 2022-23 to 2025-26
+  report seasons. Rows with a report are tagged
+  `fourfactors_hl25_b2b_carry25_phase_avail_v4`; rows without one, and games
+  1–9 (carryover unchanged), `fourfactors_hl25_b2b_carry25_phase_v4`.
 - **Abstention**: only while a team has played no games (v1 abstained until
   both teams had 10).
 - **Lean**: the side with P ≥ 0.5 (a pick'em goes to the home side). Model −
@@ -84,6 +92,25 @@ sign; the terms explain about a third of the market-minus-model logit gap
 Close to tip, Questionable players have almost all been resolved to Out or
 Available, so the Out/Doubtful rule loses little. Native rows are the test.
 
+## v4 evidence (research/calibration_shape.py, research/pregame_availability.py)
+
+In-sample, the outcome's slope on the model logit was ~1 overall but
+1.4–1.9 in March–April (too flat) and ~0.8 before March. Walk-forward, same
+games as the close, one book at a time (log loss; 95% intervals):
+
+| Test | 2024-25 ESPN BET | 2025-26 DraftKings |
+|---|---:|---:|
+| base + Δ·phase vs base (logits 2016–24/25) | −0.0036 ± 0.0036 | −0.0075 ± 0.0033 |
+| base + Δ·abs(Δ) vs base | +0.0005 ± 0.0014 | −0.0007 ± 0.0009 |
+| od + Δ·phase vs od (report seasons from 2022-23) | −0.0008 ± 0.0006 | −0.0046 ± 0.0020 |
+
+The phase coefficient is stable (+0.02 to +0.025) whenever two or more
+training seasons are available; 2023-24 alone showed little of it, which is
+why the 2024-25 gain on top of the report is small. Mar–Apr slope in
+2025-26 DraftKings: od 1.79 → od + phase 1.61 (the close: 1.37). The 107
+early-season 2025-26 ESPN BET games were slightly worse with phase
+(+0.005 ± 0.013, unresolved); watch native games 10–25.
+
 ## Version history
 
 - `fourfactors_hl25_b2b_v1`: games 10+ only.
@@ -91,6 +118,11 @@ Available, so the Out/Doubtful rule loses little. Native rows are the test.
   model for games 1–9.
 - `fourfactors_hl25_b2b_carry25_avail_v3`: v2 plus the pregame player
   availability terms for games 10+ (rows without a report keep the v2 tag).
+- `fourfactors_hl25_b2b_carry25_phase_v4` /
+  `fourfactors_hl25_b2b_carry25_phase_avail_v4`: v3 plus Δ·season phase in
+  both logits; base logit on 2016–19, 2021–26; availability logit on
+  2023–26. The reconstructed rows are re-scored with v4 (leave-one-season-out
+  for weights, both logits and the carryover logit).
 
 ## Version rule
 

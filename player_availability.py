@@ -4,10 +4,11 @@ Shared by the daily build (model v3, games 10+) and the research scripts
 (research/availability.py, research/pregame_availability.py), so the
 backtest and production compute the availability terms the same way.
 
-  python player_availability.py fit --years 2024-2026 [--cache research/output]
+  python player_availability.py fit --years 2023-2026 [--cache research/output] [--no-phase]
 
 fits model/logit_avail.json: P(home) = sigma(a + b*delta + c*b2b_net +
-d1*av_min + d2*av_bpm) on games 10+, with av_* from the NBA injury report
+d1*av_min + d2*av_bpm + e*delta*phase) on games 10+ (v4; --no-phase drops
+the last term for v3), with av_* from the NBA injury report
 at least LEAD_MINUTES before tip (Out/Doubtful = out; anyone else on the
 previous box score plays) and last-season BBR BPM values. See MODEL.md.
 """
@@ -768,6 +769,8 @@ def present_map(st, arm, rates=None):
 # ------------------------------------------------------------ model v3 -----
 MODEL_FILE = "logit_avail.json"
 FEATURES = ["delta", "b2b_net", "av_min", "av_bpm"]
+# v4 adds the season-phase slope term (nba_composite.PHASE_FEATURES).
+FEATURES_V4 = FEATURES + ["d_phase"]
 LEAD_MINUTES = 30        # fit: last report at least this long before tip
 BOX_COLUMNS = ["game_id", "date", "team", "opp", "home", "margin", "player_id",
                "name", "minutes", "pm"]
@@ -865,22 +868,35 @@ class LiveAvailability:
                     report=f"{self.report_time:%Y-%m-%d %H:%M}")
 
 
-def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES):
-    """Fit model/logit_avail.json on games 10+ of `years` (see module doc)."""
+def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES):
+    """Pregame od availability terms (home - away) for every game of season t,
+    from box scores before each game and the NBA report at least
+    `lead_minutes` before tip. Independent of the composite weights."""
+    box = fetch_box(t, cache_dir=cache_dir)
+    value, _, _ = player_values(box, load_bpm(t - 1))
+    st, s = game_statuses(box, fetch_tips(t, cache_dir), archive, lead_minutes)
+    archive.save()
+    av = game_availability(box, value, present=present_map(st, "od"))
+    return av[["slate_date", "home", "away", "av_min", "av_bpm"]], s
+
+
+def with_terms(games, terms):
+    """nc.build_games rows joined to season_terms rows (inner)."""
+    g = games.copy()
+    g["slate_date"] = pd.to_datetime(g["date"]).dt.strftime("%Y-%m-%d")
+    return g.merge(terms, on=["slate_date", "home", "away"], how="inner")
+
+
+def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True):
+    """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
+    phase=True (v4) adds delta * season phase to the v3 features."""
     weights = nc.load_json("weights.json")
     archive = ReportArchive(os.path.join(cache_dir, "injury_reports"))
     frames = []
     try:
         for t in years:
-            box = fetch_box(t, cache_dir=cache_dir)
-            value, _, _ = player_values(box, load_bpm(t - 1))
-            st, s = game_statuses(box, fetch_tips(t, cache_dir), archive, lead_minutes)
-            archive.save()
-            av = game_availability(box, value, present=present_map(st, "od"))
-            g = nc.build_games(t, weights)
-            g["slate_date"] = pd.to_datetime(g["date"]).dt.strftime("%Y-%m-%d")
-            g = g.merge(av[["slate_date", "home", "away", "av_min", "av_bpm"]],
-                        on=["slate_date", "home", "away"], how="inner")
+            terms, s = season_terms(t, archive, cache_dir, lead_minutes)
+            g = with_terms(nc.build_games(t, weights), terms)
             print(f"season {t}: {len(g)} games 10+ with terms; "
                   f"{s['with_report']}/{s['games']} team-games with a report",
                   flush=True)
@@ -888,7 +904,10 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES):
     finally:
         archive.save()
     G = pd.concat(frames, ignore_index=True)
-    m = nc.fit_logit(G[FEATURES].to_numpy(float), G["win"], FEATURES)
+    feats = FEATURES_V4 if phase else FEATURES
+    m = nc.fit_logit(G[feats].to_numpy(float), G["win"], feats)
+    if phase:
+        m["season_days"] = nc.SEASON_DAYS
     m.update({"half_life": nc.HALF_LIFE, "n_games": int(len(G)),
               "years": list(years), "lead_minutes": lead_minutes, "rule": "od",
               "replacement_bpm": REPLACEMENT_BPM, "bpm_shrink_mp": BPM_SHRINK_MP})
@@ -903,11 +922,13 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["fit"])
-    ap.add_argument("--years", nargs="+", default=["2024-2026"])
+    ap.add_argument("--years", nargs="+", default=["2023-2026"])
     ap.add_argument("--cache", default=DEFAULT_CACHE)
     ap.add_argument("--lead-minutes", type=int, default=LEAD_MINUTES)
+    ap.add_argument("--no-phase", action="store_true",
+                    help="fit the v3 features (no season-phase term)")
     a = ap.parse_args(argv)
-    fit(nc.parse_years(a.years), a.cache, a.lead_minutes)
+    fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase)
     return 0
 
 

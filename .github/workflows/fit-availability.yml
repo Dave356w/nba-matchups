@@ -1,8 +1,8 @@
 name: Fit availability
 
-# Fits only the v3 availability logit (model/logit_avail.json) against the
-# committed model/weights.json, from ESPN box scores, tip times and NBA
-# injury reports (cached; first run downloads them). The preseason
+# Fits only the v4 availability logit (model/logit_avail.json, with the
+# season-phase term) against the committed model/weights.json, from ESPN
+# box scores, tip times and NBA injury reports (cached; first run downloads them). The preseason
 # "Fit model" run refits it too, after new weights.
 
 on:
@@ -10,7 +10,7 @@ on:
     inputs:
       years:
         description: 'Box-score / injury-report seasons (BBR years; 2026 = 2025-26)'
-        default: '2024-2026'
+        default: '2023-2026'
 
 concurrency:
   group: ${{ github.workflow }}

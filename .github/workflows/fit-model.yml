@@ -3,7 +3,7 @@ name: Fit model
 # Preseason refit (report §8): download Basketball-Reference season tables and
 # game logs, fit composite weights on completed seasons, fit the logit on the
 # game-log seasons, fit the early-season carryover logit (cold_start.py),
-# fit the v3 availability logit (player_availability.py), commit
+# fit the v4 availability logit (player_availability.py), commit
 # model/weights.json, model/logit.json, model/logit_early.json and
 # model/logit_avail.json.
 # `download` fetches every listed year's season page and 30 game logs:
@@ -16,11 +16,14 @@ on:
         description: 'Team-season years for composite weights'
         default: '2015-2019 2021-2026'
       logit_years:
-        description: 'Game-log years for the logit'
+        description: 'Game-log years for the v4 logit (delta, b2b, delta*phase)'
+        default: '2016-2019 2021-2026'
+      early_years:
+        description: 'Game-log years for the games 1-9 carryover logit'
         default: '2023-2026'
       avail_years:
-        description: 'Box-score / injury-report seasons for the v3 availability logit'
-        default: '2024-2026'
+        description: 'Box-score / injury-report seasons for the v4 availability logit'
+        default: '2023-2026'
 
 # Its own queue, not site-build: GitHub keeps one *pending* run per group,
 # so a pending run here was cancelled whenever the hourly build queued.
@@ -36,7 +39,7 @@ permissions:
 jobs:
   fit:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,16 +69,17 @@ jobs:
       - name: Download
         run: python nba_composite.py download --years ${{ inputs.weight_years }} ${{ inputs.logit_years }}
       - name: Backtest (report reproduction, printed only)
-        run: python nba_composite.py backtest --years ${{ inputs.logit_years }} --train-years 2015-2019 2021-2022
+        run: python nba_composite.py backtest --years ${{ inputs.early_years }} --train-years 2015-2019 2021-2022
       - name: Fit weights and logit
         run: |
           rm -f model/weights.json model/logit.json model/logit_early.json
           python nba_composite.py fit-weights --years ${{ inputs.weight_years }}
-          python nba_composite.py fit-logit --years ${{ inputs.logit_years }}
-          # v2 early-season (games 1-9) carryover logit; needs the season
-          # before the first logit year, which weight_years already downloads.
-          python cold_start.py fit --years ${{ inputs.logit_years }}
-      - name: Fit availability logit (v3)
+          # v4: delta, b2b_net and delta * season phase (MODEL.md).
+          python nba_composite.py fit-logit --phase --years ${{ inputs.logit_years }}
+          # Early-season (games 1-9) carryover logit, unchanged from v2; needs
+          # the season before the first early year (in weight_years).
+          python cold_start.py fit --years ${{ inputs.early_years }}
+      - name: Fit availability logit (v4)
         run: |
           # Games 10+ of the box-score seasons with an NBA injury report; the
           # first box season needs the BPM table of the season before it.
