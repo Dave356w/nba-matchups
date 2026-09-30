@@ -199,6 +199,35 @@ commit), because every historical test game was covered.
   games-10+ logits. Later fix (same tags, since each row's tag still names
   the formula that scored it): availability only on report-covered games.
 
+## v5 (code merged, activated by the refit after the gate)
+
+`fourfactors_hl25_b2b_carry25_phase_luck_talent_v5` /
+`..._phase_luck_talent_avail_v5` add two terms to both games-10+ logits
+(`nba_composite.V5_FEATURES`, `player_availability.FEATURES_V5`):
+
+- **luck_def** = home − away `nba_composite.opp_luck`: how much a team's
+  composite rises if the 3P% its opponents shot over its rating window
+  (same decay, 3PA from the BBR logs) were the league's 3P% before the
+  date. Fitted walk-forward, 71–78% of opponents' 3P% deviation is noise.
+- **talent_diff** = home − away `player_availability.talent_fn`: minutes
+  share (mean minutes / 48 this season before the date, else last season's)
+  × last-season BPM value above replacement, over the players on the team's
+  previous box score. Trades and returns count at once.
+
+Evidence (research/team_quality.py, walk-forward, box seasons 2015-16 on,
+games 10+, vs base v4 on the same games): −0.0036 ± 0.0098 (2024-25 ESPN
+BET) and −0.0054 ± 0.0089 (2025-26 DK) log loss; luck alone ≈ −0.002 per
+season (~2 SE pooled), talent alone −0.003 per season (unresolved). Routing:
+a game whose v5 terms cannot be computed (no box scores or 3PA) is scored by
+the frozen v4 base logit `model/logit_v4.json` and tagged v4; the CLI
+`score` always uses it (no box scores). Games 1–9 are unchanged.
+
+Activation order: (1) the gate — "Walk-forward backtest" with `--avail
+--v5`, v5 routing vs v4 routing on the same games (`prod` vs `prod_v4`);
+(2) only if v5 is not worse, "Fit model" (writes the v5 `logit.json`) and
+"Fit availability" (v5 `logit_avail.json`); (3) "Backfill history"
+`--rescore`. Until (2) the v4 files keep scoring v4.
+
 ## Version rule
 
 Any change to prediction math (features, weights protocol, half-life, logit

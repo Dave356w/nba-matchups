@@ -18,8 +18,8 @@ on:
         description: 'Logit seasons (only those before each test season are used)'
         default: '2023-2026'
       flags:
-        description: 'Extra flags, e.g. --no-pace; drop --avail to skip injury reports'
-        default: '--avail'
+        description: 'Extra flags, e.g. --no-pace; drop --avail to skip injury reports, --v5 for the v5 gate (prod vs prod_v4)'
+        default: '--avail --v5'
         required: false
 
 permissions:

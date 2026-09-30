@@ -21,6 +21,8 @@ Model
   b2b_net = (away team on a back-to-back) - (home team on a back-to-back)
   phase = days since opening night / SEASON_DAYS, capped at 1
   P(home win) = sigmoid(a + b * delta + c * b2b_net + e * delta * phase)   (v4)
+  v5 adds f * luck_def (opponent 3P% regressed to the league, opp_luck) and
+  g * talent_diff (player_availability.talent_fn); see V5_FEATURES.
   (3-in-4 / 4-in-6 flags were tested and added nothing beyond back-to-back.)
   logit_inputs() builds these features for every path (fit, CLI, daily
   build). Games 1-9 (cold_start.py) and the injury-report terms
@@ -62,6 +64,12 @@ LOGIT_FEATURES = ["delta", "b2b_net"]   # use ["delta"] for the no-rest model
 # v4: the rating's slope grows through the season (research/calibration_shape.py):
 # d_phase = delta * phase, phase = days since opening night / SEASON_DAYS, capped at 1.
 PHASE_FEATURES = ["delta", "b2b_net", "d_phase"]
+# v5 (research/team_quality.py): + luck_def, the change in the composite gap if
+# the 3P% each team's opponents shot over its rating window were the league's
+# to date (opponents' 3P% is mostly luck), and + talent_diff, minutes share x
+# last-season BPM over each team's previous box score
+# (player_availability.talent_fn).
+V5_FEATURES = PHASE_FEATURES + ["luck_def", "talent_diff"]
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
@@ -70,6 +78,7 @@ COLS = ["T" + s for s in STATS] + ["O" + s for s in STATS]   # 16 raw totals
 # Parsed when the log has them (T3PA / O3PA) for research/team_quality.py; the
 # model reads only COLS, so these change no prediction.
 EXTRA_STATS = ["3PA"]
+X3 = ["T3PA", "O3PA"]
 FEATURES = ["off eFG%", "-off TOV", "off ORB", "off FTA/FGA",
             "-opp eFG%", "opp TOV forced", "-opp ORB", "-opp FTA/FGA"]
 
@@ -287,10 +296,67 @@ def logit_inputs(delta, rest_home, rest_away, date, opening):
             "phase": phase, "d_phase": delta * phase}
 
 
-def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=False):
+def league_3p(logs):
+    """date -> league 3P% over every game strictly before that date."""
+    rows = [(pd.Timestamp(d), m, a) for lg in logs.values() if set(X3) <= set(lg.columns)
+            for d, m, a in zip(lg["date"], lg["T3P"], lg["T3PA"])]
+    if not rows:
+        return {}
+    df = pd.DataFrame(rows, columns=["date", "m", "a"]).groupby("date").sum()
+    cum = df.cumsum().shift(1)
+    return (cum["m"] / cum["a"]).to_dict()
+
+
+def league_3p_before(logs, date):
+    """League 3P% over every game strictly before `date` (NaN without 3PA)."""
+    date = pd.Timestamp(date)
+    m = a = 0.0
+    for lg in logs.values():
+        if not set(X3) <= set(lg.columns):
+            continue
+        before = lg["date"] < date
+        m += float(lg.loc[before, "T3P"].sum())
+        a += float(lg.loc[before, "T3PA"].sum())
+    return m / a if a > 0 else float("nan")
+
+
+def regress_3p(t, side, pct):
+    """Totals dict with `side`'s ('T' or 'O') made threes replaced by
+    3PA x pct; FG moves by the same amount (a three is a field goal)."""
+    t = dict(t)
+    new3 = t[side + "3PA"] * pct
+    t[side + "FG"] = t[side + "FG"] - t[side + "3P"] + new3
+    t[side + "3P"] = new3
+    return t
+
+
+def opp_luck(log, i, lg_pct, weights, half_life=HALF_LIFE):
+    """How much a team's composite rises if the 3P% its opponents shot over
+    its first i games (decayed) were the league's lg_pct: the luck the rating
+    counts as defence. NaN without 3PA, games or a league rate."""
+    if i <= 0 or not np.isfinite(lg_pct) or not set(X3) <= set(log.columns):
+        return float("nan")
+    A = log[COLS + X3].to_numpy(float)[:i]
+    if not np.isfinite(A).all():
+        return float("nan")
+    wt = 0.5 ** (np.arange(i)[::-1] / half_life)
+    t = dict(zip(COLS + X3, (A * wt[:, None]).sum(0)))
+
+    def comp(tt):
+        return composite(features_from_totals(np.array([tt[c] for c in COLS], float)),
+                         weights["sd"], weights["w"])
+    return comp(regress_3p(t, "O", lg_pct)) - comp(t)
+
+
+def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=False,
+                talent=None):
+    """Games 10+ of season y: v4 features (logit_inputs) plus the v5 terms
+    luck_def (home - away opp_luck) and talent_diff (talent(team, date), home
+    - away; NaN without a talent function). Games before the date only."""
     logs = load_logs(y, refresh)
     sd, w = weights["sd"], weights["w"]
     opening = season_opening(logs)
+    lg3 = league_3p(logs)
     cache = {}
 
     def feat(tm, i):
@@ -314,9 +380,15 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
                 continue
             rh, ra = rest_days(c, i), rest_days(c2, j)
             delta = composite(feat(tm, i) - feat(opp, j), sd, w)
+            pct = lg3.get(pd.Timestamp(r["date"]), float("nan"))
+            luck = opp_luck(c, i, pct, weights, half_life) \
+                - opp_luck(c2, j, pct, weights, half_life)
+            tal = (talent(tm, r["date"]) - talent(opp, r["date"])) if talent \
+                else float("nan")
             rows.append({"year": y, "date": r["date"], "home": tm, "away": opp,
                          "h_b2b": int(rh == 0), "a_b2b": int(ra == 0),
                          **logit_inputs(delta, rh, ra, r["date"], opening),
+                         "luck_def": luck, "talent_diff": tal,
                          "win": int(r["pts"] > r["opp_pts"])})
     return pd.DataFrame(rows)
 
@@ -387,6 +459,13 @@ def score_slate(y, date, half_life=HALF_LIFE, refresh=False, logs=None,
     from logit_inputs, phase from the season's opening night."""
     weights = weights or load_json("weights.json")
     model = model or load_json("logit.json")
+    if "talent_diff" in model["features"]:
+        # v5 needs player box scores (talent_diff), which only the daily build
+        # keeps; the CLI scores with the frozen v4 logit, as the build does
+        # for any game whose v5 terms are missing.
+        model = load_json("logit_v4.json")
+        print("score: v5 needs box-score talent; scoring with the v4 logit",
+              file=sys.stderr)
     logs = logs if logs is not None else load_logs(y, refresh)
     date = pd.Timestamp(date)
     opening = season_opening(logs)
@@ -438,6 +517,11 @@ def main():
         s.add_argument("--sleep", type=float, default=SLEEP)
         s.add_argument("--phase", action="store_true",
                        help="fit-logit: v4 features (adds delta*season phase)")
+        s.add_argument("--v5", action="store_true",
+                       help="fit-logit: v5 features (v4 + luck_def + talent_diff; "
+                            "needs player box scores, player_availability.season_talent)")
+        s.add_argument("--box-cache", default=None,
+                       help="--v5: directory of box_<season>.csv (default research/output)")
     a = ap.parse_args()
     SLEEP = a.sleep
 
@@ -483,11 +567,19 @@ def main():
         weights = load_json("weights.json") if (MODEL_DIR / "weights.json").exists() \
             else fit_weights(parse_years(a.train_years))
         save_json(weights, "weights.json")
-        G = pd.concat([build_games(y, weights, a.half_life) for y in parse_years(a.years)])
-        feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
+        if a.v5:
+            import player_availability as pav   # lazy: it imports this module
+            G = pd.concat([build_games(y, weights, a.half_life,
+                                       talent=pav.season_talent(y, a.box_cache))
+                           for y in parse_years(a.years)])
+            feats = V5_FEATURES
+            G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
+        else:
+            G = pd.concat([build_games(y, weights, a.half_life) for y in parse_years(a.years)])
+            feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
         m = fit_logit(G[feats].values, G["win"], feats)
         m.update({"half_life": a.half_life, "n_games": int(len(G)), "years": parse_years(a.years)})
-        if a.phase:
+        if a.phase or a.v5:
             m["season_days"] = SEASON_DAYS
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))

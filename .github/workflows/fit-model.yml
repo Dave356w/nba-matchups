@@ -74,12 +74,14 @@ jobs:
         run: |
           rm -f model/weights.json model/logit.json model/logit_early.json
           python nba_composite.py fit-weights --years ${{ inputs.weight_years }}
-          # v4: delta, b2b_net and delta * season phase (MODEL.md).
-          python nba_composite.py fit-logit --phase --years ${{ inputs.logit_years }}
+          # v5: delta, b2b_net, delta * season phase, opponent 3-point luck
+          # and roster talent (MODEL.md; box scores from the espn-box cache).
+          # model/logit_v4.json, the frozen v4 fallback, is not refitted.
+          python nba_composite.py fit-logit --v5 --years ${{ inputs.logit_years }}
           # Early-season (games 1-9) carryover logit, unchanged from v2; needs
           # the season before the first early year (in weight_years).
           python cold_start.py fit --years ${{ inputs.early_years }}
-      - name: Fit availability logit (v4)
+      - name: Fit availability logit (v5)
         run: |
           # Games 10+ of the box-score seasons with an NBA injury report; the
           # first box season needs the BPM table of the season before it.

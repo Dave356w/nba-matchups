@@ -67,6 +67,7 @@ import backfill_history as bf  # noqa: E402
 import ledger  # noqa: E402
 import market as mk  # noqa: E402
 import nba_composite as nc  # noqa: E402
+import player_availability as pav  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output",
                    "team_quality.csv")
@@ -98,27 +99,14 @@ TANK_WPCT, TOP_WPCT, TANK_MIN_GP = 0.35, 0.65, 40
 X3 = ["T3PA", "O3PA"]
 
 
-def regress_3p(t, side, lg_pct):
-    """Totals (COLS order) with `side`'s ('T' or 'O') made threes replaced by
-    3PA x lg_pct; FG moves by the same amount (a three is a field goal)."""
-    t = dict(t)
-    new3 = t[side + "3PA"] * lg_pct
-    t[side + "FG"] = t[side + "FG"] - t[side + "3P"] + new3
-    t[side + "3P"] = new3
-    return t
+regress_3p = nc.regress_3p          # shared with production (model v5)
 
 
 def totals_vec(t):
     return np.array([t[c] for c in nc.COLS], float)
 
 
-def league_3p(logs):
-    """date -> league 3P% over every game strictly before that date."""
-    rows = [(pd.Timestamp(d), a, b) for lg in logs.values()
-            for d, a, b in zip(lg["date"], lg["T3P"], lg["T3PA"])]
-    df = pd.DataFrame(rows, columns=["date", "m", "a"]).groupby("date").sum()
-    cum = df.cumsum().shift(1)
-    return (cum["m"] / cum["a"]).to_dict()
+league_3p = nc.league_3p            # shared with production (model v5)
 
 
 def prior_ratings(prior_logs, weights, half_life=nc.HALF_LIFE):
@@ -131,25 +119,7 @@ def prior_ratings(prior_logs, weights, half_life=nc.HALF_LIFE):
             for tm, lg in prior_logs.items() if len(lg)}
 
 
-def talent_fn(box, value, role):
-    """(team, date) -> sum over the players on the team's previous box score
-    (minutes > 0) of role(player, date) * value[player]: minutes share x
-    last-season value, the roster as it stood before the game. NaN before
-    the team's first game."""
-    b = box[box["minutes"] > 0]
-    by_team = {tm: g.sort_values("date") for tm, g in b.groupby("team")}
-
-    def f(tm, date):
-        g = by_team.get(tm)
-        if g is None:
-            return np.nan
-        prev = g[g["date"] < pd.Timestamp(date)]
-        if not len(prev):
-            return np.nan
-        last = prev[prev["date"] == prev["date"].max()]
-        return float(sum(role(pid, date) * value.get(pid, 0.0)
-                         for pid in last["player_id"]))
-    return f
+talent_fn = pav.talent_fn           # shared with production (model v5)
 
 
 def season_games(y, weights, logs=None, half_life=nc.HALF_LIFE,
@@ -364,7 +334,6 @@ def main(argv=None):
                    "home_won"]]
     talent = {}
     if not a.no_talent:
-        import player_availability as pav
         for t in nc.parse_years(a.box_seasons) if a.box_seasons else BOX_YEARS:
             if t > max(a.seasons):
                 continue
