@@ -1013,6 +1013,26 @@ def with_terms(games, terms):
     return g.merge(terms, on=["slate_date", "home", "away"], how="inner")
 
 
+FIXED_V5 = ["luck_def", "talent_diff"]
+
+
+def fit_fixed(G, base, fixed=FIXED_V5, features=None):
+    """The v5 availability logit with the `fixed` coefficients taken from
+    `base` (the v5 base logit, fit on the long game-log history) and only
+    the other features refit on G (the few report seasons), with the fixed
+    terms as an offset. Returns an ordinary model over `features` (default
+    FEATURES_V5), so it scores like any availability logit."""
+    features = list(features or FEATURES_V5)
+    c = dict(zip(base["features"], base["coef"]))
+    free = [f for f in features if f not in fixed]
+    off = sum(c[f] * G[f].to_numpy(float) for f in fixed)
+    m = nc.fit_logit(G[free].to_numpy(float), G["win"], free, offset=off)
+    fm = dict(zip(free, m["coef"]))
+    fm.update({f: c[f] for f in fixed})
+    return {"features": features, "intercept": m["intercept"],
+            "coef": [float(fm[f]) for f in features], "fixed": list(fixed)}
+
+
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
         v5=True):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).

@@ -1,8 +1,10 @@
-# Model v4
+# Model v5
 
-Tags: `fourfactors_hl25_b2b_carry25_phase_avail_v4` (games 10+ with a
-covering injury report) and `fourfactors_hl25_b2b_carry25_phase_v4` (all
-other scored games). Full technical report of the v1 core:
+Active since 2026-09-30 (refit `d765264`). Tags:
+`fourfactors_hl25_b2b_carry25_phase_luck_talent_avail_v5` (games 10+ with a
+covering injury report) and `fourfactors_hl25_b2b_carry25_phase_luck_talent_v5`
+(all other scored games); games 10+ whose v5 terms cannot be computed keep
+`fourfactors_hl25_b2b_carry25_phase_v4` (the frozen v4 logit). Full technical report of the v1 core:
 [`docs/nba_composite_model_report.pdf`](docs/nba_composite_model_report.pdf).
 
 | Module | Role |
@@ -24,9 +26,12 @@ For a game on date D, with g = min(games played before D by either team):
 | Condition | Formula | Model file | Tag |
 |---|---|---|---|
 | g = 0 | abstain (no P) | — | — |
-| 1 ≤ g ≤ 9 | carryover logit (§3) | `model/logit_early.json` | `..._phase_v4` |
-| g ≥ 10, report covers the game | availability logit (§4) | `model/logit_avail.json` | `..._phase_avail_v4` |
-| g ≥ 10, otherwise | base logit (§2) | `model/logit.json` | `..._phase_v4` |
+| 1 ≤ g ≤ 9 | carryover logit (§3) | `model/logit_early.json` | `..._luck_talent_v5` |
+| g ≥ 10, report covers the game | availability logit (§4) | `model/logit_avail.json` | `..._luck_talent_avail_v5` |
+| g ≥ 10, otherwise | base logit (§2) | `model/logit.json` | `..._luck_talent_v5` |
+| g ≥ 10, a v5 term missing (no box score, no 3PA) | frozen v4 base logit | `model/logit_v4.json` | `..._phase_v4` |
+
+The CLI `score` has no box scores, so it always uses `model/logit_v4.json`.
 
 **Report coverage** (`player_availability.covers`): the latest NBA injury
 report lists the game's matchup (or both teams) for date D, and neither
@@ -47,10 +52,21 @@ the same rule. In 2022-23 to 2025-26, 4,922 of 4,923 games were covered.
   season; `model/weights.json`, seasons 2015–19 and 2021–26.
 - **b2b_net** = [away played yesterday] − [home played yesterday].
 - **phase** = days since opening night / 175, capped at 1 (known before tip).
-- **P(home)** = σ(a + b·Δ + c·b2b_net + e·Δ·phase).
-  Committed fit (2016–19, 2021–26, n = 10,582): a = 0.291, b = 0.0228,
-  c = 0.306, e = 0.0274. The effective slope on Δ roughly doubles from
-  opening night (0.023) to April (0.050).
+- **luck_def** = home − away `nba_composite.opp_luck`: how much a team's
+  composite rises if the 3P% its opponents shot over its rating window
+  (same decay; 3PA from the BBR logs) were the league's 3P% before D.
+- **talent_diff** = home − away `player_availability.talent_fn`: minutes
+  share (mean minutes / 48 this season before D, else last season's) ×
+  last-season BPM value above replacement, summed over the players on the
+  team's previous box score. Trades and returns count at once.
+- **P(home)** = σ(a + b·Δ + c·b2b_net + e·Δ·phase + l·luck_def + t·talent_diff).
+  Committed fit (2016–19, 2021–26, games with every term, n = 10,192):
+  a = 0.297, b = 0.0160, c = 0.315, e = 0.0212, l = 0.0125, t = 0.0578.
+  Talent takes about a third of Δ's weight (v4: b = 0.0228). The effective
+  slope on Δ still roughly doubles from opening night to April.
+- **Fallback** `model/logit_v4.json` (frozen, not refitted): σ(a + b·Δ +
+  c·b2b_net + e·Δ·phase), n = 10,582: a = 0.291, b = 0.0228, c = 0.306,
+  e = 0.0274.
 
 ## 3. Early season (games 1–9)
 
@@ -69,10 +85,13 @@ players get replacement). p = 0 if the latest report lists him Out or
 Doubtful, else 1 if he was on the team's previous box score, else 0.
 
 - av_min = Σ role·(p − a), av_bpm = Σ role·value·(p − a), home − away.
-- **P(home)** = σ(a + b·Δ + c·b2b_net + d1·av_min + d2·av_bpm + e·Δ·phase).
+- **P(home)** = σ(a + b·Δ + c·b2b_net + d1·av_min + d2·av_bpm + e·Δ·phase
+  + l·luck_def + t·talent_diff), luck_def and talent_diff as in §2.
   Committed fit (report seasons 2022-23 to 2025-26, last report ≥ 30 min
-  before tip, covered games 10+, n = 4,289): a = 0.237, b = 0.0255,
-  c = 0.266, d1 = 0.143, d2 = 0.0548, e = 0.0233.
+  before tip, covered games 10+, n = 4,289): a = 0.247, b = 0.0199,
+  c = 0.277, d1 = 0.136, d2 = 0.0366, e = 0.0211, l = 0.0162, t = 0.0415.
+  Every term is refit on the four report seasons, so talent is estimated on
+  less than half of §2's games (t = 0.041 vs 0.058); see "v5" below.
 
 ## 5. Lean and displays
 
@@ -91,18 +110,22 @@ crossing zero has not resolved the effect.
 
 ### 6.1 Production routing, walk-forward (headline)
 
-`research/walk_forward.py --avail` (workflow "Walk-forward backtest",
-2026-09-30): every fit on earlier seasons only, the exact routing of §1.
+`research/walk_forward.py --avail --v5` (workflow "Walk-forward backtest",
+2026-09-30, the v5 gate): every fit on earlier seasons only, the exact
+routing of §1, v5 beside v4 on the same games.
 
-| Games | n | Model | Close | Model − close |
-|---|---:|---:|---:|---:|
-| 2024-25 ESPN BET, games 10+ | 1,071 | 0.5940 | 0.5776 | +0.0163 ± 0.0106 |
-| 2025-26 DraftKings, games 10+ | 964 | 0.5918 | 0.5702 | +0.0216 ± 0.0114 |
-| 2025-26 ESPN BET, games 10+ | 107 | 0.5400 | 0.5551 | −0.0151 ± 0.0399 |
-| 2024-25 ESPN BET, games 1–9 | 138 | 0.6101 | 0.6169 | −0.0067 ± 0.0381 |
-| 2025-26 ESPN BET, games 1–9 | 138 | 0.5785 | 0.5693 | +0.0092 ± 0.0420 |
+| Games | n | v5 | v4 | Close | v5 − close | v5 − v4 |
+|---|---:|---:|---:|---:|---:|---:|
+| 2024-25 ESPN BET, games 10+ | 1,071 | 0.5939 | 0.5940 | 0.5776 | +0.0163 ± 0.0099 | −0.0001 ± 0.0086 |
+| 2025-26 DraftKings, games 10+ | 964 | 0.5896 | 0.5918 | 0.5702 | +0.0194 ± 0.0112 | −0.0022 ± 0.0068 |
+| 2025-26 ESPN BET, games 10+ | 107 | 0.5481 | 0.5400 | 0.5551 | −0.0070 ± 0.0335 | +0.0081 ± 0.0247 |
+| 2024-25 ESPN BET, games 1–9 | 138 | 0.6101 | same | 0.6169 | −0.0067 ± 0.0381 | 0 |
+| 2025-26 ESPN BET, games 1–9 | 138 | 0.5785 | same | 0.5693 | +0.0092 ± 0.0420 | 0 |
 
 - The model trails the close wherever the sample resolves it.
+- v5 vs v4 is unresolved in every cell; v5 is not worse on the two large
+  books, which was the shipping criterion. All games 10+ were covered, so
+  every one was scored by the availability logit (§4).
 - v4 vs the v1-style base (Δ, b2b only), same games: −0.0090 ± 0.0079
   (2024-25) and −0.0137 ± 0.0089 (2025-26).
 - Walk-forward vs leave-one-season-out: +0.0010 ± 0.0030 (2024-25);
@@ -158,7 +181,7 @@ decomposition, not a stronger rating.
 
 ## 7. Known limitations
 
-- **No demonstrated edge.** v4 trails the close by about 0.016–0.022 log
+- **No demonstrated edge.** v5 trails the close by about 0.016–0.019 log
   loss per game on the resolved samples. Native (pregame-locked) rows are
   the forward test; there are none yet.
 - **Only the open is close to break-even.** At the close the model adds
@@ -177,10 +200,10 @@ decomposition, not a stronger rating.
 
 | Step | Workflow | Command |
 |---|---|---|
-| Weights, base and early logits | Fit model | `nba_composite.py fit-weights`, `fit-logit --phase`, `cold_start.py fit` |
-| Availability logit | Fit availability | `python player_availability.py fit --years 2023-2026` |
+| Weights, base, early and availability logits | Fit model | `nba_composite.py fit-weights`, `fit-logit --v5`, `cold_start.py fit`, `player_availability.py fit` |
+| Availability logit alone | Fit availability | `python player_availability.py fit --years 2023-2026` |
 | Reconstructed rows | Backfill history | `python backfill_history.py --seasons 2025 2026 --rescore` |
-| §6.1 | Walk-forward backtest | `python research/walk_forward.py --seasons 2025 2026 --avail` |
+| §6.1 | Walk-forward backtest | `python research/walk_forward.py --seasons 2025 2026 --avail --v5` |
 | §6.2 phase | Calibration shape | `python research/calibration_shape.py --seasons 2025 2026` |
 | Open vs close, H1–H3 | Open vs close | `python research/open_price.py --seasons 2025 2026` |
 
@@ -198,21 +221,18 @@ commit), because every historical test game was covered.
   `fourfactors_hl25_b2b_carry25_phase_avail_v4`: v3 plus Δ·phase in both
   games-10+ logits. Later fix (same tags, since each row's tag still names
   the formula that scored it): availability only on report-covered games.
+- `fourfactors_hl25_b2b_carry25_phase_luck_talent_v5` /
+  `..._phase_luck_talent_avail_v5`: v4 plus opponent 3-point luck and
+  roster talent in both games-10+ logits (next section); v4 base logit
+  kept as the fallback when a v5 term is missing.
 
-## v5 (code merged, activated by the refit after the gate)
+## v5 (active since 2026-09-30)
 
 `fourfactors_hl25_b2b_carry25_phase_luck_talent_v5` /
-`..._phase_luck_talent_avail_v5` add two terms to both games-10+ logits
-(`nba_composite.V5_FEATURES`, `player_availability.FEATURES_V5`):
-
-- **luck_def** = home − away `nba_composite.opp_luck`: how much a team's
-  composite rises if the 3P% its opponents shot over its rating window
-  (same decay, 3PA from the BBR logs) were the league's 3P% before the
-  date. Fitted walk-forward, 71–78% of opponents' 3P% deviation is noise.
-- **talent_diff** = home − away `player_availability.talent_fn`: minutes
-  share (mean minutes / 48 this season before the date, else last season's)
-  × last-season BPM value above replacement, over the players on the team's
-  previous box score. Trades and returns count at once.
+`..._phase_luck_talent_avail_v5` add luck_def and talent_diff (§2) to both
+games-10+ logits (`nba_composite.V5_FEATURES`,
+`player_availability.FEATURES_V5`). Fitted walk-forward, 71–78% of
+opponents' 3P% deviation is noise the v4 rating counted as defence.
 
 Evidence (research/team_quality.py, walk-forward, box seasons 2015-16 on,
 games 10+, vs base v4 on the same games): −0.0036 ± 0.0098 (2024-25 ESPN
@@ -222,11 +242,30 @@ a game whose v5 terms cannot be computed (no box scores or 3PA) is scored by
 the frozen v4 base logit `model/logit_v4.json` and tagged v4; the CLI
 `score` always uses it (no box scores). Games 1–9 are unchanged.
 
-Activation order: (1) the gate — "Walk-forward backtest" with `--avail
---v5`, v5 routing vs v4 routing on the same games (`prod` vs `prod_v4`);
-(2) only if v5 is not worse, "Fit model" (writes the v5 `logit.json`) and
-"Fit availability" (v5 `logit_avail.json`); (3) "Backfill history"
-`--rescore`. Until (2) the v4 files keep scoring v4.
+Activation (2026-09-30), in the pre-set order: (1) the gate, §6.1: v5 not
+worse than v4 on the same games (−0.0001 ± 0.0086 2024-25 ESPN BET,
+−0.0022 ± 0.0068 2025-26 DK); (2) "Fit model" refit (`d765264`,
+coefficients in §2 and §4); (3) "Backfill history" `--rescore`
+(`a3b5415`): all 2,418 reconstructed rows re-tagged v5, leave-one-season-
+out v5 − v4 −0.0009 ± 0.0074 (2024-25 ESPN BET, games 10+) and
+−0.0022 ± 0.0068 (2025-26 DK); games 1–9 unchanged.
+
+The gain is smaller than the team-quality arms (about −0.003 to −0.005),
+which were measured against base v4 without the availability terms. v5 is
+measured against v4 *with* them, and both av_bpm (the BPM of players out
+relative to the rating window) and talent_diff are built from last season's
+BPM of the roster, so part of talent's gain was already in v4.
+
+Tested and rejected (walk-forward, 2026-09-30, `prod_fixed` in
+`research/walk_forward.py --avail --v5`): the availability logit with luck
+and talent fixed at the base fit's coefficients (`player_availability.
+fit_fixed`, an offset) and only its other terms refit. Against the shipped
+v5 on the same games, games 10+: +0.0008 ± 0.0006 (2024-25 ESPN BET),
++0.0016 ± 0.0018 (2025-26 DK), −0.0013 ± 0.0065 (2025-26 ESPN BET, n =
+107). Holding talent at 0.060 pulls d_phase from 0.021 to 0.013 and av_min
+from 0.14 to 0.07. The availability logit's lower talent coefficient (0.041
+vs 0.058) reflects the overlap with av_bpm, not a noisy estimate, so the
+free fit stays.
 
 ## Version rule
 
