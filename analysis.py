@@ -229,7 +229,8 @@ def picks(g, price="close"):
                    < EARLY_BELOW).to_numpy(),
             side=np.where(home, g["home"], g["away"]),
             model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
-            ml=ml, won=np.where(home, won, 1 - won)))
+            ml=ml, won=np.where(home, won, 1 - won),
+            model_tag=g["model_tag"].astype(str).to_numpy()))
         d = d[keep]
         d["breakeven"] = market.breakeven_prob(d["ml"])
         d["units"] = [market.unit_profit(m, w) for m, w in zip(d["ml"], d["won"])]
@@ -275,6 +276,40 @@ def roi_summary(g, price="close"):
                 if len(s):
                     rows.append(roi_row(f"Edge {lab}", s))
         out.append((label, [r for r in rows if r]))
+    return out
+
+
+def roi_by_band(g, price="close", tags=None):
+    """[(rule label, [roi rows])] by the picked side's price rung.
+
+    Each row adds ev = actual - break-even, its null (q - break-even, about
+    minus the hold, not zero) and z = (roi - roi_null) / roi_se. `tags`
+    keeps only rows with those model tags (e.g. the v3 rows alone).
+    Descriptive monitoring dimensions, not a filter: a band that looks good
+    in-sample is a hypothesis to test forward.
+    """
+    p = picks(g, price)
+    if not len(p):
+        return []
+    if tags is not None:
+        p = p[p["model_tag"].isin(list(tags))]
+        if not len(p):
+            return []
+    rung = p["ml"].map(market.ladder_rung)
+    out = []
+    for rule, label in PICK_RULES:
+        rows = []
+        for _lo, _hi, band in market.ODDS_LADDER:
+            d = p[(p["rule"] == rule) & (rung == band)]
+            r = roi_row(band, d)
+            if r:
+                r["ev"] = r["actual"] - r["breakeven"]
+                r["ev_null"] = r["q"] - r["breakeven"]
+                r["z"] = ((r["roi"] - r["roi_null"]) / r["roi_se"]
+                          if r["roi_se"] > 0 else float("nan"))
+                rows.append(r)
+        if rows:
+            out.append((label, rows))
     return out
 
 

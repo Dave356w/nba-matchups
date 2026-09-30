@@ -84,6 +84,10 @@ Before a PR, run:
   closing spread (`close_spread`, home line, plus both spread prices, same
   book as the moneyline close), and the ledger page grades ATS the same way
   (lean and value side, break-even and ROI null beside each ROI).
+  It also grades both sides by the picked price band (EV beside its null,
+  z vs the ROI null); native rows are banded at the pregame price and the
+  v3 rows are shown alone. The hindsight rows leave one band hypothesis to
+  test forward: DraftKings leans at −249 to −130.
 - More game-log seasons to settle the half-life and to test travel/altitude.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
