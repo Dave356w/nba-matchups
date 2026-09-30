@@ -1,0 +1,65 @@
+name: Fit availability
+
+# Fits only the v3 availability logit (model/logit_avail.json) against the
+# committed model/weights.json, from ESPN box scores, tip times and NBA
+# injury reports (cached; first run downloads them). The preseason
+# "Fit model" run refits it too, after new weights.
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: 'Box-score / injury-report seasons (BBR years; 2026 = 2025-26)'
+        default: '2024-2026'
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  fit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2019 2021-2026
+      - name: Fit availability logit
+        run: python player_availability.py fit --years ${{ inputs.years }}
+      - name: Commit model
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add model/logit_avail.json
+          git diff --cached --quiet && exit 0
+          git commit -m "availability logit fit $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "::error::model push failed"; exit 1

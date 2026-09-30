@@ -64,7 +64,11 @@ Before a PR, run:
   (workflow "Pregame availability") is the pregame version: the NBA's
   archived injury report, last edition at least --lead-minutes before tip
   (Out/Doubtful = out; or status play rates fitted on training seasons),
-  same v2 values, and how often each status actually played.
+  same v2 values, and how often each status actually played. **Model v3**
+  (`player_availability.py`, `model/logit_avail.json`) ships its Out/Doubtful
+  arm for games 10+: the build reads the latest NBA report and this season's
+  box scores (`data/nba_box_<season>.csv`, extended daily). Rows without a
+  report fall back to v2 and keep the v2 tag.
   The daily build snapshots each game's ESPN injury list to
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does

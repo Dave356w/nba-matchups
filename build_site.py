@@ -39,12 +39,18 @@ import cold_start
 import ledger
 import market
 import nba_composite as nc
+import player_availability as pav
 
 ET = ZoneInfo("America/New_York")
 OUT_DIR = Path("public")
 # v2 = v1 from game 10 on, plus the last-season carryover model (cold_start.py)
 # for games where min(games played) is 1-9. v1 abstained before game 10.
 MODEL_TAG = "fourfactors_hl25_b2b_carry25_v2"
+# v3 = v2 plus pregame player availability for games 10+ (player_availability.py,
+# model/logit_avail.json): the NBA injury report's Out/Doubtful players,
+# weighted by last-season BPM, relative to the rating window. Rows fall back
+# to v2 (and keep the v2 tag) when the report or box history is missing.
+MODEL_TAG_V3 = "fourfactors_hl25_b2b_carry25_avail_v3"
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
     "CHI": "Bulls", "CLE": "Cavaliers", "DAL": "Mavericks", "DEN": "Nuggets",
@@ -79,6 +85,14 @@ def load_model():
         return None, None
 
 
+def load_avail():
+    """The v3 availability logit (model/logit_avail.json), or None."""
+    try:
+        return nc.load_json(pav.MODEL_FILE)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 def load_early():
     """The early-season logit (model/logit_early.json), or None."""
     try:
@@ -99,13 +113,17 @@ def fresh_logs(year, today):
 
 
 def score_game(logs, home, away, date, weights, model, half_life=None,
-               early=None, prior_logs=None):
+               early=None, prior_logs=None, avail_model=None, avail=None):
     """Pregame composite and P(home win) from games strictly before `date`.
 
     From MIN_GAMES games on: the v1 model. Below that, when both teams have
     played at least once and `early` (model/logit_early.json) and last
     season's logs are given: the carryover model (cold_start.py). Otherwise
     (game 0, or no early model) it abstains: delta/p NaN.
+
+    v3: from MIN_GAMES on, when `avail_model` (model/logit_avail.json) and this
+    game's availability terms `avail` ({'av_min', 'av_bpm'}) are given, the
+    availability logit is used and the row is tagged MODEL_TAG_V3.
     """
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
@@ -123,6 +141,9 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
         fa = nc.decayed_features(la, ia, hl)
         d = nc.composite(fh - fa, weights["sd"], weights["w"])
         use = model
+        if avail_model is not None and avail is not None:
+            use = avail_model
+            out["model_tag"] = MODEL_TAG_V3
     elif min(ih, ia) >= 1 and early is not None and prior_logs:
         d = cold_start.carry_delta(lh, ih, prior_logs.get(home), la, ia,
                                    prior_logs.get(away), weights,
@@ -133,7 +154,7 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
         use = early
     else:
         return out
-    vals = {"delta": d, "b2b_net": int(ra == 0) - int(rh == 0)}
+    vals = {"delta": d, "b2b_net": int(ra == 0) - int(rh == 0), **(avail or {})}
     p = float(nc.predict(use, [[vals[f] for f in use["features"]]])[0])
     lean_home = p >= 0.5
     out.update(home_b2b=int(rh == 0), away_b2b=int(ra == 0),
@@ -189,13 +210,31 @@ def score_slate(today, weights, model, now=None):
             prior = nc.load_logs(season_for(today) - 1)   # cached; completed season
         except Exception as e:  # noqa: BLE001
             log(f"last-season logs failed ({e!r}); early games abstain")
+    avail_model, live = load_avail(), None
+    if avail_model is not None:
+        try:
+            live = pav.LiveAvailability(season_for(today), today,
+                                        now.astimezone(ET).replace(tzinfo=None))
+            log(f"availability: report {live.report_time} "
+                f"({0 if live.report is None else len(live.report)} rows); "
+                f"BPM covers {100 * live.bpm_minutes:.0f}% of minutes")
+        except Exception as e:  # noqa: BLE001 - v3 falls back to v2
+            log(f"availability failed ({e!r}); rows fall back to v2")
     rows = []
     for g in pre:
         r = dict(game_id=g["game_id"], slate_date=today,
                  season=season_for(today), tip_utc=g["tip_utc"],
                  model_tag=MODEL_TAG, home=g["home"], away=g["away"])
+        terms = None
+        if live is not None:
+            try:
+                terms = live.terms(g["game_id"], g["home"], g["away"], today)
+            except Exception as e:  # noqa: BLE001
+                log(f"availability {g['game_id']}: {e!r}")
         r.update(score_game(logs, g["home"], g["away"], today, weights, model,
-                            early=early, prior_logs=prior))
+                            early=early, prior_logs=prior, avail_model=avail_model,
+                            avail=None if terms is None else
+                            {k: terms[k] for k in ("av_min", "av_bpm")}))
         try:
             odds = market.pick_pregame(market.book_odds(g["game_id"]))
         except Exception as e:  # noqa: BLE001
@@ -347,7 +386,9 @@ def render_index(led, today, built, model_ok):
         ev = pl * market.decimal_payout(ml) - 1 if np.isfinite(be) else np.nan
         early_tag = (" <span class='basis'>early · carryover</span>"
                      if pd.notna(r["gp_home"]) and
-                     min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES else "")
+                     min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES else
+                     " <span class='basis'>injury report</span>"
+                     if r.get("model_tag") == MODEL_TAG_V3 else "")
         b2b = "/".join(x for x, f in ((r["away"], r["away_b2b"]),
                                       (r["home"], r["home_b2b"])) if f == 1) or "—"
         rows.append([
@@ -370,6 +411,9 @@ def render_index(led, today, built, model_ok):
             f"{nc.MIN_GAMES} games, so last season's log (×{cold_start.RHO}) is "
             "carried in with its own early-season logit; in backtests it "
             "trailed the close by about as much as mid-season games do. "
+            "<b>injury report</b>: from game 10 the latest NBA injury report "
+            "is folded in (Out/Doubtful players, weighted by last season's "
+            "BPM, against how often they played in the rating window). "
             "Prices are the moneyline at the snapshot time in the ledger "
             "(DraftKings unless tagged ESPN BET), "
             "refreshed each build until tip and frozen after. A game abstains "

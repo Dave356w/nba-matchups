@@ -3,7 +3,9 @@ name: Fit model
 # Preseason refit (report §8): download Basketball-Reference season tables and
 # game logs, fit composite weights on completed seasons, fit the logit on the
 # game-log seasons, fit the early-season carryover logit (cold_start.py),
-# commit model/weights.json, model/logit.json and model/logit_early.json.
+# fit the v3 availability logit (player_availability.py), commit
+# model/weights.json, model/logit.json, model/logit_early.json and
+# model/logit_avail.json.
 # `download` fetches every listed year's season page and 30 game logs:
 # ~350 requests at 4 s each (the site allows ~20/min), about 25 minutes.
 
@@ -16,6 +18,9 @@ on:
       logit_years:
         description: 'Game-log years for the logit'
         default: '2023-2026'
+      avail_years:
+        description: 'Box-score / injury-report seasons for the v3 availability logit'
+        default: '2024-2026'
 
 # Its own queue, not site-build: GitHub keeps one *pending* run per group,
 # so a pending run here was cancelled whenever the hourly build queued.
@@ -44,6 +49,20 @@ jobs:
           path: bbr_cache
           key: bbr-${{ github.run_id }}
           restore-keys: bbr-
+      # ESPN box scores, tip times and NBA injury reports for the v3
+      # availability logit (shared with the research workflows' caches).
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
       - name: Download
         run: python nba_composite.py download --years ${{ inputs.weight_years }} ${{ inputs.logit_years }}
       - name: Backtest (report reproduction, printed only)
@@ -56,6 +75,12 @@ jobs:
           # v2 early-season (games 1-9) carryover logit; needs the season
           # before the first logit year, which weight_years already downloads.
           python cold_start.py fit --years ${{ inputs.logit_years }}
+      - name: Fit availability logit (v3)
+        run: |
+          # Games 10+ of the box-score seasons with an NBA injury report; the
+          # first box season needs the BPM table of the season before it.
+          rm -f model/logit_avail.json
+          python player_availability.py fit --years ${{ inputs.avail_years }}
       - name: Commit model
         run: |
           git config user.name  "github-actions[bot]"
