@@ -76,3 +76,17 @@ def test_report_splits_the_production_routes():
     assert "prod        vs market  n=  200" in txt
     assert "prod[avail] vs market  n=  150" in txt
     assert "prod[base]  vs wf      n=   50" in txt
+
+
+def test_report_compares_v5_with_v4_routing_on_the_same_games():
+    rng = np.random.default_rng(2)
+    n = 200
+    q = rng.uniform(0.3, 0.7, n)
+    m = pd.DataFrame(dict(
+        year=2026, close_book="dk", early=False,
+        home_won=(rng.random(n) < q).astype(float), close_q_home=q,
+        p_home=q, p_wf=q, p_prod=np.clip(q + .02, .05, .95), p_prod_v4=q,
+        route="base"))
+    txt = wf.report(m)
+    assert "prod        vs prod_v4 n=  200" in txt
+    assert "prod_v4     vs market  n=  200" in txt

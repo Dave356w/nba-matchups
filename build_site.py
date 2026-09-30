@@ -60,7 +60,15 @@ MODEL_TAG_V3 = "fourfactors_hl25_b2b_carry25_avail_v3"
 # follows the fitted model files, so v3 files keep producing v2/v3 tags.
 MODEL_TAG_V4 = "fourfactors_hl25_b2b_carry25_phase_v4"
 MODEL_TAG_V4_AVAIL = "fourfactors_hl25_b2b_carry25_phase_avail_v4"
-AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL)
+# v5 = v4 plus opponent 3-point luck (luck_def) and roster talent (talent_diff,
+# minutes share x last-season BPM over the previous box score) in both games-10+
+# logits (research/team_quality.py; nba_composite.V5_FEATURES). A game whose v5
+# terms cannot be computed (no box scores / 3PA) is scored by the frozen v4
+# base logit (model/logit_v4.json) and keeps the v4 tag.
+MODEL_TAG_V5 = "fourfactors_hl25_b2b_carry25_phase_luck_talent_v5"
+MODEL_TAG_V5_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_avail_v5"
+FALLBACK_FILE = "logit_v4.json"
+AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -104,22 +112,40 @@ def load_avail():
         return None
 
 
+def load_fallback():
+    """The frozen v4 base logit (model/logit_v4.json) for games whose v5
+    terms are missing, or None."""
+    try:
+        return nc.load_json(FALLBACK_FILE)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 def has_phase(model):
     return model is not None and "d_phase" in (model.get("features") or [])
+
+
+def is_v5(model):
+    return model is not None and "talent_diff" in (model.get("features") or [])
 
 
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
     if avail:
-        return MODEL_TAG_V4_AVAIL if has_phase(model) else MODEL_TAG_V3
-    return MODEL_TAG_V4 if has_phase(model) else MODEL_TAG
+        return (MODEL_TAG_V5_AVAIL if is_v5(model) else
+                MODEL_TAG_V4_AVAIL if has_phase(model) else MODEL_TAG_V3)
+    return (MODEL_TAG_V5 if is_v5(model) else
+            MODEL_TAG_V4 if has_phase(model) else MODEL_TAG)
 
 
-def active_tags(model, avail_model):
-    """Tags the current model files produce (page footer, ledger split)."""
+def active_tags(model, avail_model, fallback=None):
+    """Tags the current model files produce (page footer, ledger split),
+    including the v4 fallback's when the base model is v5."""
     tags = [model_tag(model)]
     if avail_model is not None:
         tags.append(model_tag(avail_model, avail=True))
+    if is_v5(model) and fallback is not None:
+        tags.append(model_tag(fallback))
     return tags
 
 
@@ -144,7 +170,7 @@ def fresh_logs(year, today):
 
 def score_game(logs, home, away, date, weights, model, half_life=None,
                early=None, prior_logs=None, avail_model=None, avail=None,
-               opening=None):
+               opening=None, talent=None, fallback=None):
     """Pregame composite and P(home win) from games strictly before `date`.
 
     From MIN_GAMES games on: the base logit. Below that, when both teams have
@@ -159,6 +185,12 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
     v4: models whose features include d_phase get delta * season phase, with
     phase measured from `opening` (default: the earliest date in `logs`, i.e.
     opening night). Every scored row carries model_tag (see model_tag()).
+
+    v5: models whose features include luck_def / talent_diff get opponent
+    3-point luck (nba_composite.opp_luck, league 3P% before `date`) and
+    talent(team, date) (player_availability.talent_fn), home - away. When a
+    term is missing the game is scored by `fallback` (the frozen v4 base
+    logit) and tagged v4; without a fallback it abstains.
     """
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
@@ -190,7 +222,20 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
         return out
     vals = {**nc.logit_inputs(d, rh, ra, date, nc.season_opening(logs)
                               if opening is None else opening), **(avail or {})}
-    p = float(nc.predict(use, [[vals[f] for f in use["features"]]])[0])
+    feats = use["features"]
+    if "luck_def" in feats:
+        pct = nc.league_3p_before(logs, date)
+        vals["luck_def"] = nc.opp_luck(lh, ih, pct, weights, hl) \
+            - nc.opp_luck(la, ia, pct, weights, hl)
+    if "talent_diff" in feats:
+        vals["talent_diff"] = (talent(home, date) - talent(away, date)) if talent \
+            else float("nan")
+    if not all(np.isfinite(vals.get(f, np.nan)) for f in feats):
+        if fallback is None:
+            return out
+        use, out["model_tag"] = fallback, model_tag(fallback)
+        feats = use["features"]
+    p = float(nc.predict(use, [[vals[f] for f in feats]])[0])
     lean_home = p >= 0.5
     out.update(home_b2b=int(rh == 0), away_b2b=int(ra == 0),
                delta=round(d, 3), p_home=round(p, 5),
@@ -246,16 +291,19 @@ def score_slate(today, weights, model, now=None):
         except Exception as e:  # noqa: BLE001
             log(f"last-season logs failed ({e!r}); early games abstain")
     avail_model, live = load_avail(), None
-    if avail_model is not None:
+    if avail_model is not None or is_v5(model):     # v5 needs box-score talent
         try:
             live = pav.LiveAvailability(season_for(today), today,
                                         now.astimezone(ET).replace(tzinfo=None))
             log(f"availability: report {live.report_time} "
                 f"({0 if live.report is None else len(live.report)} rows); "
                 f"BPM covers {100 * live.bpm_minutes:.0f}% of minutes")
-        except Exception as e:  # noqa: BLE001 - v3 falls back to v2
-            log(f"availability failed ({e!r}); rows fall back to v2")
+        except Exception as e:  # noqa: BLE001 - base / v4 fallback rows
+            log(f"availability failed ({e!r}); rows use the base logit "
+                "(v5: the v4 fallback)")
     opening = nc.season_opening(logs)
+    fallback = load_fallback() if is_v5(model) else None
+    talent = getattr(live, "talent", None)
     rows = []
     for g in pre:
         r = dict(game_id=g["game_id"], slate_date=today,
@@ -271,7 +319,7 @@ def score_slate(today, weights, model, now=None):
                             early=early, prior_logs=prior, avail_model=avail_model,
                             avail=None if terms is None else
                             {k: terms[k] for k in ("av_min", "av_bpm")},
-                            opening=opening))
+                            opening=opening, talent=talent, fallback=fallback))
         try:
             odds = market.pick_pregame(market.book_odds(g["game_id"]))
         except Exception as e:  # noqa: BLE001
@@ -460,7 +508,13 @@ def render_index(led, today, built, model_ok):
             + ("<b>v4</b>: a given composite gap counts for more as the "
                "season goes on (× days since opening night, about double by "
                "April), fitted on earlier seasons. "
-               if MODEL_TAG_V4 in ACTIVE_TAGS else "") +
+               if MODEL_TAG_V4 in ACTIVE_TAGS or MODEL_TAG_V5 in ACTIVE_TAGS
+               else "") +
+            ("<b>v5</b>: the rating discounts the 3-point shooting of a team's "
+             "opponents (mostly luck) and adds roster talent: minutes share × "
+             "last season's BPM over the players in each team's last game, so "
+             "trades and returns count at once. "
+             if MODEL_TAG_V5 in ACTIVE_TAGS else "") +
             "Prices are the moneyline at the snapshot time in the ledger "
             "(DraftKings unless tagged ESPN BET), "
             "refreshed each build until tip and frozen after. A game abstains "
@@ -819,7 +873,7 @@ def main(argv=None):
     model_ok = weights is not None and model is not None
     global ACTIVE_TAGS
     if model_ok:
-        ACTIVE_TAGS = active_tags(model, load_avail())
+        ACTIVE_TAGS = active_tags(model, load_avail(), load_fallback())
 
     if not a.render_only:
         native, n = grade(native, today)

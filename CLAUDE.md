@@ -162,9 +162,17 @@ Before a PR, run:
     (base_box is itself worse than base). `research/box_history.py`
     (workflow "Box-score history") builds 2015-16 on, so the Team quality
     run can fit talent on the same seasons as base.
-  - v5 decision after that rerun: opponent luck + talent in both logits if
-    talent holds up, else opponent luck alone; ship before the 2026-27
-    opener either way.
+  - Rerun on the full box history (2015-16 on, talent fit on the same
+    seasons as base): talent −0.0031 ± 0.0096 / −0.0032 ± 0.0087, stable
+    coefficient (0.066 / 0.062; delta 0.024 → 0.015); talent + prior + luck
+    −0.0036 ± 0.0098 / −0.0054 ± 0.0089 (pooled ≈ −0.0046 ± 0.0066).
+    Unresolved per season, same sign and size in both.
+  - **Model v5** (owner's decision, 2026-09-30): opponent luck + talent in
+    both games-10+ logits (MODEL.md "v5"). Games whose v5 terms are missing
+    use the frozen v4 base logit (`model/logit_v4.json`, v4 tag). Activation
+    is gated: Walk-forward `--avail --v5` (prod vs prod_v4 on the same
+    games) first; refit (Fit model, Fit availability) and Backfill
+    `--rescore` only if v5 is not worse. Native rows are the forward test.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the

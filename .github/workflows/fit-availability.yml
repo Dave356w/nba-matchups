@@ -1,7 +1,8 @@
 name: Fit availability
 
-# Fits only the v4 availability logit (model/logit_avail.json, with the
-# season-phase term) against the committed model/weights.json, from ESPN
+# Fits only the v5 availability logit (model/logit_avail.json: the v4 terms
+# plus opponent 3-point luck and roster talent) against the committed
+# model/weights.json, from ESPN
 # box scores, tip times and NBA injury reports (cached; first run downloads them). The preseason
 # "Fit model" run refits it too, after new weights.
 

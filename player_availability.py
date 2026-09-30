@@ -250,6 +250,37 @@ def arrival_roles(box, bpm):
     return role
 
 
+def talent_fn(box, value, role):
+    """(team, date) -> sum over the players on the team's previous box score
+    (minutes > 0) of role(player, date) * value[player]: minutes share x
+    last-season value above replacement, the roster as it stood before the
+    game (model v5's talent_diff; research/team_quality.py). NaN before the
+    team's first game."""
+    b = box[box["minutes"] > 0]
+    by_team = {tm: g.sort_values("date") for tm, g in b.groupby("team")}
+
+    def f(tm, date):
+        g = by_team.get(tm)
+        if g is None:
+            return float("nan")
+        prev = g[g["date"] < pd.Timestamp(date)]
+        if not len(prev):
+            return float("nan")
+        last = prev[prev["date"] == prev["date"].max()]
+        return float(sum(role(pid, date) * value.get(pid, 0.0)
+                         for pid in last["player_id"]))
+    return f
+
+
+def season_talent(y, cache_dir=None):
+    """talent_fn for season y from its box scores (fetch_box, cached) and
+    season y - 1's BPM table (no lookahead)."""
+    box = fetch_box(y, cache_dir=cache_dir or DEFAULT_CACHE)
+    bpm = load_bpm(y - 1)
+    value, _, _ = player_values(box, bpm)
+    return talent_fn(box, value, arrival_roles(box, bpm))
+
+
 def clean_box(df):
     """Drop rows without a real player id (fresh and cached data alike)."""
     if not len(df):
@@ -848,6 +879,8 @@ MODEL_FILE = "logit_avail.json"
 FEATURES = ["delta", "b2b_net", "av_min", "av_bpm"]
 # v4 adds the season-phase slope term (nba_composite.PHASE_FEATURES).
 FEATURES_V4 = FEATURES + ["d_phase"]
+# v5 adds opponent 3-point luck and roster talent (nba_composite.V5_FEATURES).
+FEATURES_V5 = FEATURES_V4 + ["luck_def", "talent_diff"]
 LEAD_MINUTES = 30        # fit: last report at least this long before tip
 BOX_COLUMNS = ["game_id", "date", "team", "opp", "home", "margin", "player_id",
                "name", "minutes", "pm"]
@@ -920,16 +953,24 @@ def upcoming_terms(box, team, gid, date, value, present):
 
 
 class LiveAvailability:
-    """Availability terms for today's slate (daily build, model v3)."""
+    """Availability terms and roster talent for today's slate (daily build,
+    models v3-v5). A failed injury-report fetch leaves report None (no
+    availability terms) but keeps talent."""
 
     def __init__(self, season, today, now_et, data_dir="data",
                  report_dir=os.path.join("bbr_cache", "injury_reports")):
         self.box = update_box(season, today, data_dir)
-        self.value, _, self.bpm_minutes = player_values(self.box, load_bpm(season - 1))
-        archive = ReportArchive(report_dir, now=now_et)
-        self.report_time, path = archive.latest_before(now_et)
-        archive.save()
-        self.report = parse_report(path) if path else None
+        bpm = load_bpm(season - 1)
+        self.value, _, self.bpm_minutes = player_values(self.box, bpm)
+        self.talent = talent_fn(self.box, self.value, arrival_roles(self.box, bpm))
+        self.report_time, self.report = None, None
+        try:
+            archive = ReportArchive(report_dir, now=now_et)
+            self.report_time, path = archive.latest_before(now_et)
+            archive.save()
+            self.report = parse_report(path) if path else None
+        except Exception as e:  # noqa: BLE001 - talent still usable
+            print(f"injury report unavailable ({e!r})", flush=True)
 
     def terms(self, gid, home, away, date):
         """{'av_min', 'av_bpm', 'report'} (home - away), or None -- the base
@@ -972,16 +1013,19 @@ def with_terms(games, terms):
     return g.merge(terms, on=["slate_date", "home", "away"], how="inner")
 
 
-def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True):
+def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
+        v5=True):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
-    phase=True (v4) adds delta * season phase to the v3 features."""
+    phase=True (v4) adds delta * season phase to the v3 features; v5=True
+    also adds luck_def and talent_diff (needs the seasons' box scores)."""
     weights = nc.load_json("weights.json")
     archive = ReportArchive(os.path.join(cache_dir, "injury_reports"))
     frames = []
     try:
         for t in years:
             terms, s = season_terms(t, archive, cache_dir, lead_minutes)
-            g = with_terms(nc.build_games(t, weights), terms)
+            g = with_terms(nc.build_games(
+                t, weights, talent=season_talent(t, cache_dir) if v5 else None), terms)
             print(f"season {t}: {len(g)} games 10+ with terms; "
                   f"{s['with_report']}/{s['games']} games with a report, "
                   f"{len(s['covered'])} covered",
@@ -990,9 +1034,10 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True):
     finally:
         archive.save()
     G = pd.concat(frames, ignore_index=True)
-    feats = FEATURES_V4 if phase else FEATURES
+    feats = FEATURES_V5 if v5 else FEATURES_V4 if phase else FEATURES
+    G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
     m = nc.fit_logit(G[feats].to_numpy(float), G["win"], feats)
-    if phase:
+    if phase or v5:
         m["season_days"] = nc.SEASON_DAYS
     m.update({"half_life": nc.HALF_LIFE, "n_games": int(len(G)),
               "years": list(years), "lead_minutes": lead_minutes, "rule": "od",
@@ -1013,8 +1058,11 @@ def main(argv=None):
     ap.add_argument("--lead-minutes", type=int, default=LEAD_MINUTES)
     ap.add_argument("--no-phase", action="store_true",
                     help="fit the v3 features (no season-phase term)")
+    ap.add_argument("--v4", action="store_true",
+                    help="fit the v4 features (no luck_def / talent_diff)")
     a = ap.parse_args(argv)
-    fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase)
+    fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
+        v5=not (a.v4 or a.no_phase))
     return 0
 
 

@@ -8,7 +8,9 @@ The reconstructed ledger (backfill_history.py) is leave-one-season-out: the
 re-scores the same seasons as a bettor could have, then compares on the SAME
 games (matched to data/nba_reconstructed.csv for result and close):
 
-  prod      the SHIPPED routing, walk-forward: backfill_history.
+  prod      (--v5: the v5 routing, beside prod_v4, the v4 routing on the
+            same games -- the gate for shipping v5)
+            the SHIPPED routing, walk-forward: backfill_history.
             reconstruct_season(walk_forward=True) -- games 1-9 carryover
             (GAME_YEARS < Y), games 10+ base v4 with delta*phase
             (PHASE_YEARS < Y), and with --avail the v4 availability logit
@@ -155,16 +157,19 @@ def walk_forward(y, weight_years, game_years, pace=True):
     return out, fits, dict(weight_years=wy, game_years=gy)
 
 
-def production(y, weight_years, game_years, phase_years=None, terms=None):
-    """p_prod / route: the shipped v4 routing for season y, every fit on
-    earlier seasons only (backfill_history.reconstruct_season)."""
+def production(y, weight_years, game_years, phase_years=None, terms=None, v5=False):
+    """p_prod / route: the production routing for season y, every fit on
+    earlier seasons only (backfill_history.reconstruct_season); v5=True
+    routes v5 and also returns the v4 routing's p_prod_v4 on the same games
+    (the v5 gate)."""
     test, _, _ = bf.reconstruct_season(
         y, game_years=game_years, weight_years=weight_years,
-        phase_years=phase_years or bf.PHASE_YEARS, terms=terms, walk_forward=True)
+        phase_years=phase_years or bf.PHASE_YEARS, terms=terms, walk_forward=True,
+        v5=v5)
     test["slate_date"] = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d")
-    return (test.drop_duplicates(["slate_date", "home", "away"])
-            [["slate_date", "home", "away", "p_home", "route"]]
-            .rename(columns={"p_home": "p_prod"}))
+    cols = ["slate_date", "home", "away", "p_home", "route"] + (["p_v4"] if v5 else [])
+    return (test.drop_duplicates(["slate_date", "home", "away"])[cols]
+            .rename(columns={"p_home": "p_prod", "p_v4": "p_prod_v4"}))
 
 
 def with_production(scored, prod):
@@ -214,6 +219,11 @@ def report(m):
             ok = np.isfinite(prod)
             comps += [("prod", "market", prod, q, ok), ("prod", "loso", prod, loso, ok),
                       ("prod", "wf", prod, wf, ok)]
+            if "p_prod_v4" in g:
+                v4 = g["p_prod_v4"].to_numpy(float)
+                ok4 = ok & np.isfinite(v4)
+                comps += [("prod", "prod_v4", prod, v4, ok4),
+                          ("prod_v4", "market", v4, q, ok4)]
             if not early:
                 for route in ("base", "avail"):
                     r = ok & (g["route"] == route).to_numpy()
@@ -254,6 +264,8 @@ def main(argv=None):
                     help="prod arm: injury-report availability on covered "
                          "games (fetches box scores, tips and reports)")
     ap.add_argument("--cache", default=pav.DEFAULT_CACHE)
+    ap.add_argument("--v5", action="store_true",
+                    help="prod arm: v5 routing, compared with v4 on the same games")
     a = ap.parse_args(argv)
     game_years = nc.parse_years(a.game_years) if a.game_years else bf.GAME_YEARS
     recon = ledger.load(ledger.RECON_PATH)
@@ -274,7 +286,7 @@ def main(argv=None):
                                           pace=not a.no_pace)
         if not a.no_prod:
             scored = with_production(scored, production(
-                y, bf.WEIGHT_YEARS, game_years, terms=terms))
+                y, bf.WEIGHT_YEARS, game_years, terms=terms, v5=a.v5))
             print(f"  prod routes: {scored['route'].value_counts().to_dict()}",
                   flush=True)
         m = attach_rows(scored, recon)
