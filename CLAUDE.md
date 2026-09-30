@@ -97,4 +97,8 @@ Before a PR, run:
   ~1 overall but ~1.4–1.9 in March–April (too flat) and ~0.8 before March.
   `research/calibration_shape.py` (workflow "Calibration shape") tests
   delta·|delta|, delta·phase and delta·[Mar+] arms walk-forward against the
-  close on the same games. Research only; shipping one needs a new MODEL_TAG.
+  close on the same games. Walk-forward (logits 2016–2024/25): delta·phase
+  beats base by −0.0036 ± 0.0036 (2024-25 ESPN BET) and −0.0075 ± 0.0033
+  (2025-26 DK) log loss; delta·|delta| adds nothing. The Pregame availability
+  workflow also fits base+phase and od+phase to test it on top of v3.
+  Research only; shipping one needs a new MODEL_TAG.

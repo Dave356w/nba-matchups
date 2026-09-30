@@ -3,6 +3,7 @@ import os
 import sys
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "research"))
@@ -163,3 +164,31 @@ def test_status_word_left_of_its_header_still_reads():
     assert [(r["player"], r["status"]) for r in rows] == [
         ("Brown, Jaylen", "Questionable"), ("Porzingis, Kristaps", "Out"),
         ("Holiday, Jrue", "Doubtful")]
+
+
+def test_report_adds_phase_arms_per_book():
+    rng = np.random.default_rng(3)
+    n = 240
+    q = rng.uniform(0.15, 0.9, n)
+    m = pd.DataFrame(dict(
+        year=2026, close_book=np.where(np.arange(n) < 150, "dk", "espnbet"),
+        home_won=(rng.random(n) < q).astype(float), close_q_home=q,
+        late=(np.arange(n) % 3 == 0).astype(int)))
+    for c in ["base", "hind", "od", "q", "base_phase", "od_phase"]:
+        m[f"p_{c}"] = np.clip(q + rng.normal(0, .05, n), .02, .98)
+    for a in ["hind", "od", "q"]:
+        m[f"{a}_min"] = rng.normal(0, .1, n)
+        m[f"{a}_bpm"] = rng.normal(0, 1, n)
+    txt = pa.report(m, ("hind", "od", "q"), phase=True)
+    assert "DraftKings close · games 10+ (n=150)" in txt
+    assert "od+ph vs od" in txt and "od+ph vs market" in txt
+    assert "base+ph vs base" in txt and "Mar-Apr" in txt
+    assert "od+ph" not in pa.report(m, ("hind", "od", "q"))
+
+
+def test_phase_is_measured_from_opening_night():
+    g = pd.DataFrame(dict(date=pd.to_datetime(["2025-11-12", "2026-01-10"]),
+                          delta=[10.0, 10.0]))
+    out = pa.cs.add_shape(g, opening="2025-10-21")
+    assert abs(out["phase"].iloc[0] - 22 / pa.cs.SEASON_DAYS) < 1e-12
+    assert pa.cs.add_shape(g)["phase"].iloc[0] == 0      # default: first date

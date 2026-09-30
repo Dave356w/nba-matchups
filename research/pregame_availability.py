@@ -25,6 +25,11 @@ market and each other, each arm's per-point coefficient against theory,
 and the share of the market-minus-base gap explained. Also prints how often
 players listed Out / Doubtful / Questionable / Probable actually played.
 
+Also fits two season-phase arms (research/calibration_shape.py) on the same
+training games: base + delta*phase and od + delta*phase (phase from each
+season's opening night), to test whether the phase gain survives the
+injury report.
+
 Research only: no change to the model, the ledger or MODEL_TAG. Reports,
 tip times and the parsed report rows are cached under research/output/.
 """
@@ -48,6 +53,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import availability as av  # noqa: E402
+import calibration_shape as cs  # noqa: E402
 import backfill_history as bf  # noqa: E402
 import build_site  # noqa: E402
 import ledger  # noqa: E402
@@ -57,6 +63,10 @@ from player_availability import (  # noqa: E402,F401  (moved; re-exported)
     ET, REPORT_URL, STATUSES, SLOT_MINUTES, MAX_LOOKBACK_H, slot_names, floor_slot, ReportArchive, HEADER_CANON, PAIRS, PARSER_VERSION, header_columns, status_of, rows_from_words, _DATE, _TIME, _MATCHUP, _ROW, full_team_names, rows_from_text, _DUMPED, parse_report, CITIES, team_code, report_name_to_first_last, report_date, fetch_tips, game_statuses, play_rates, present_map)
 
 ARMS = ("od", "q")
+# Season-phase arms (research/calibration_shape.py): does delta*phase still
+# help once the injury report is in the model?
+PHASE_ARMS = {"base_phase": list(nc.LOGIT_FEATURES) + ["d_phase"],
+              "od_phase": ["delta", "b2b_net", "od_min", "od_bpm", "d_phase"]}
 
 
 
@@ -116,7 +126,7 @@ def arm_features(name):
     return ["delta", "b2b_net", f"{name}_min", f"{name}_bpm"]
 
 
-def report(m, arms):
+def report(m, arms, phase=False):
     lines = []
     for (season, book), g in m.groupby(["year", "close_book"]):
         y = g["home_won"].to_numpy(float)
@@ -129,12 +139,29 @@ def report(m, arms):
             comps += [(a, "market", g[f"p_{a}"].to_numpy(float), q),
                       (a, "base", g[f"p_{a}"].to_numpy(float), base)]
         comps += [("hind", "q", g["p_hind"].to_numpy(float), g["p_q"].to_numpy(float))]
+        if phase:
+            col = lambda c: g[c].to_numpy(float)  # noqa: E731
+            comps += [("base+ph", "base", col("p_base_phase"), base),
+                      ("od+ph", "od", col("p_od_phase"), col("p_od")),
+                      ("od+ph", "market", col("p_od_phase"), q)]
         for na, nb, a, b in comps:
             s = av.paired(a, b, y)
             lines.append(
                 f"  {na:5s} vs {nb:7s} logloss {s['ll_a']:.4f} vs {s['ll_b']:.4f}  "
                 f"diff {s['d_ll']:+.4f} ± {1.96 * s['d_ll_se']:.4f}  "
                 f"Brier diff {s['d_br']:+.4f} ± {1.96 * s['d_br_se']:.4f}")
+        if phase:
+            late = g["late"].to_numpy(bool)
+            lines.append("  outcome slope on logit (1 = calibrated shape): "
+                         "all / Oct-Feb / Mar-Apr")
+            for name, c in (("market", "close_q_home"), ("base", "p_base"),
+                            ("base+ph", "p_base_phase"), ("od", "p_od"),
+                            ("od+ph", "p_od_phase")):
+                p = g[c].to_numpy(float)
+                parts = [cs.slope(p[k], y[k])
+                         for k in (np.ones(len(g), bool), ~late, late)]
+                lines.append(f"    {name:8s} " + "   ".join(
+                    f"{s:.2f} ± {e:.2f}" for s, e in parts))
         lines.append("  market-minus-base logit gap, R² from availability: " +
                      ", ".join(f"{a} {av.gap_explained(g, [f'{a}_min', f'{a}_bpm']):.3f}"
                                for a in arms))
@@ -211,7 +238,8 @@ def main(argv=None):
                 f = f.merge(arm_frame(box[t], value[t], p).rename(
                     columns={"av_min": f"{arm}_min", "av_bpm": f"{arm}_bpm"}),
                     on=["slate_date", "home", "away"])
-            frames[t] = season_frame(t, weights, f)
+            frames[t] = cs.add_shape(season_frame(t, weights, f),
+                                     opening=pd.to_datetime(box[t]["date"]).min())
         tr = pd.concat([frames[t] for t in tr_years], ignore_index=True)
         te = frames[y]
         base = nc.fit_logit(tr[nc.LOGIT_FEATURES].to_numpy(float), tr["win"],
@@ -224,13 +252,18 @@ def main(argv=None):
             c = dict(zip(fm["features"], fm["coef"]))
             print(f"  {arm:5s} {arm}_bpm logit per point {c[f'{arm}_bpm']:+.4f} "
                   f"vs theory {av.THEORY_D:+.4f}   ({arm}_min {c[f'{arm}_min']:+.4f})")
+        for arm, feats in PHASE_ARMS.items():
+            fm = nc.fit_logit(tr[feats].to_numpy(float), tr["win"], feats)
+            te[f"p_{arm}"] = nc.predict(fm, te[feats].to_numpy(float))
+            print(f"  {arm:10s} " + "  ".join(
+                f"{f}={v:+.4f}" for f, v in zip(fm["features"], fm["coef"])))
         m = te.merge(recon, on=["slate_date", "home", "away"], how="inner")
         print(f"  test games 10+: {len(te)}; matched to reconstructed rows: {len(m)}")
         allm.append(m)
     m = pd.concat(allm, ignore_index=True)
     print("\n== Same games, one book at a time (negative diff = first is better). "
           "hind = who played (hindsight); od / q = pregame report")
-    print(report(m, ("hind",) + ARMS))
+    print(report(m, ("hind",) + ARMS, phase=True))
     out = os.path.join(av.OUT_DIR, "pregame_availability.csv")
     m.to_csv(out, index=False)
     allst.to_csv(os.path.join(av.OUT_DIR, "report_statuses.csv"), index=False)
