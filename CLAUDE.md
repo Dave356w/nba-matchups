@@ -93,8 +93,33 @@ Before a PR, run:
   (lean and value side, break-even and ROI null beside each ROI).
   It also grades both sides by the picked price band (EV beside its null,
   z vs the ROI null); native rows are banded at the pregame price and the
-  v3 rows are shown alone. The hindsight rows leave one band hypothesis to
-  test forward: DraftKings leans at −249 to −130.
+  v3 rows are shown alone. The earlier band hypothesis (DraftKings leans at
+  −249 to −130) did not survive v4: −1.8% at the close, −3.2% at the open,
+  both at the ROI null (2025-26); it is retired.
+- **Pre-registered forward hypotheses** (fixed 2026-09-30, before any native
+  rows; thresholds may not be tuned on native data). Hindsight scan of 271
+  context × band × season cells: 3 passed a naive 95% test, about the 7
+  expected by chance. What replicated across seasons:
+  - **H1** games 1–9, value side with model P − no-vig q ≥ 0.08: +17.8% ±
+    25.0 ROI at the close (null −4.0%, n = 115; +24% 2024-25, +13% 2025-26,
+    ROI rising with the threshold). Carryover model, no injury terms, so no
+    timing contamination. Native test: the same rule at the pregame price.
+  - **H2** games 10+, value side that is the favourite, at the open: +1.6%
+    ± 4.6 (null −4.2%, n = 921); gone at the close (−3.7%).
+  - **H3** games 10+, value side with P − q ≥ 0.12, at the open: +18.7% ±
+    16.0 (n = 339); +1.0% at the close.
+  H2/H3 exist only at the open, and the v4 availability terms use the
+  report ≥ 30 min before tip, after the line opened, so they may be injury
+  timing. `research/open_price.py` (workflow "Open vs close") re-scores
+  without the report terms (`base`) to test that; if `base` loses them,
+  they are retired. Report every hypothesis's native ROI beside its null,
+  win or lose, with n; one season is not a verdict.
+- Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
+  adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
+  disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a
+  value bet needs to clear a 4% hold, and the value side gains +1.32 ±
+  0.35 pp of no-vig probability open → close (+2.4 / +1.1 pp in games 1–9,
+  which have no injury terms). Unresolved; native CLV is the test.
 - More game-log seasons to settle the half-life and to test travel/altitude.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
