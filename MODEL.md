@@ -1,56 +1,150 @@
-# Model: `fourfactors_hl25_b2b_carry25_phase_avail_v4`
+# Model v4
 
-Full technical report: [`docs/nba_composite_model_report.pdf`](docs/nba_composite_model_report.pdf).
-The implementation is `nba_composite.py` (games 10+), `cold_start.py`
-(games 1–9) and `player_availability.py` (availability terms, games 10+). `build_site.py` supplies them with pregame game logs and records
-their output; it does not change the math.
+Tags: `fourfactors_hl25_b2b_carry25_phase_avail_v4` (games 10+ with a
+covering injury report) and `fourfactors_hl25_b2b_carry25_phase_v4` (all
+other scored games). Full technical report of the v1 core:
+[`docs/nba_composite_model_report.pdf`](docs/nba_composite_model_report.pdf).
 
-## Specification
+| Module | Role |
+|---|---|
+| `nba_composite.py` | Four-factor composite, decayed game features, `logit_inputs` (every logit feature), base logit fit |
+| `cold_start.py` | Games 1–9: last-season carryover and its logit |
+| `player_availability.py` | Injury-report parsing, report coverage, availability terms and their logit |
+| `build_site.py` | `score_game`: routes each game to one formula and records it; changes no math |
+| `backfill_history.py` | `reconstruct_season`: the same routing on completed seasons (leave-one-season-out, or `walk_forward=True`) |
 
-- **Features** (higher = better): off eFG%, −off TOV/100, off ORB/100, off
-  FTA/FGA, −opp eFG%, opp TOV forced/100, −opp ORB/100, −opp FTA/FGA.
-- **Composite**: features centered within season and divided by pooled SD,
-  with ridge weights (λ = 0.1) fitted to team-season win%, expressed in
-  win-% points.
-- **Game features**: each team's 16 raw totals from prior games, weighted by
-  0.5^(games ago / 25), are summed *before* rates are computed.
-- **P(home win)** = σ(a + b·Δ + c·b2b_net), where Δ = home − away composite
-  and b2b_net = away on a back-to-back − home on a back-to-back. The report's
-  pooled 2023–26 fit is a = 0.241, b = 0.0374, c = 0.327 (`model/logit.json`).
-- **Early season (new in v2)**: when min(games played) is 1–9, each team's
-  totals are [last season's full log × ρ][this season so far], with the same
-  decay running across the offseason (ρ = 0.25). P(home) uses its own logit,
-  fitted on every game in the first 20 games of the logit seasons
-  (`model/logit_early.json`, `python cold_start.py fit`).
-- **Player availability (new in v3, games 10+)**: P(home) = σ(a + b·Δ +
-  c·b2b_net + d1·av_min + d2·av_bpm) (`model/logit_avail.json`,
-  `python player_availability.py fit`). For each player with history for
-  the team: a = share of the decayed rating window (half-life 25) he played
-  in, role = his minutes/48 when playing, value = last season's BBR BPM
-  shrunk by MP/(MP+500), minus replacement (−2). p = 0 if the latest NBA
-  injury report lists him Out or Doubtful, else 1 if he was on the team's
-  previous box score, else 0. av_bpm = Σ role·value·(p − a) and
-  av_min = Σ role·(p − a), home − away. The terms are used only when the
-  report **covers** the game: the game's matchup (or both teams) is on the
-  report for that date and neither team is NOT YET SUBMITTED
-  (`player_availability.covers`). Otherwise -- no report, an empty or
-  unparsed one, another slate, a team not yet filed -- or without box
-  history, the row uses the base logit; a missing report never reads as
-  "nobody is out". The same rule filters the fitting and backfill terms.
-- **Season phase (new in v4, games 10+)**: both logits add e·Δ·phase, where
-  phase = days since opening night / 175, capped at 1. A given composite gap
-  counts for more as the season goes on (about double by April). The base
-  logit (`model/logit.json`, `fit-logit --phase`) is fitted on the 2016–19
-  and 2021–26 game logs; the availability logit on the 2022-23 to 2025-26
-  report seasons. Rows with a report are tagged
-  `fourfactors_hl25_b2b_carry25_phase_avail_v4`; rows without one, and games
-  1–9 (carryover unchanged), `fourfactors_hl25_b2b_carry25_phase_v4`.
-- **Abstention**: only while a team has played no games (v1 abstained until
-  both teams had 10).
-- **Lean**: the side with P ≥ 0.5 (a pick'em goes to the home side). Model −
-  market is the lean side's P minus its no-vig market probability.
+Every path (fit, daily build, CLI `score`, backfill, walk-forward) builds
+its features with `nba_composite.logit_inputs`, so a feature means the same
+thing everywhere.
 
-## What the report established (leave-one-season-out, 2023–26, 4,289 games)
+## 1. Routing
+
+For a game on date D, with g = min(games played before D by either team):
+
+| Condition | Formula | Model file | Tag |
+|---|---|---|---|
+| g = 0 | abstain (no P) | — | — |
+| 1 ≤ g ≤ 9 | carryover logit (§3) | `model/logit_early.json` | `..._phase_v4` |
+| g ≥ 10, report covers the game | availability logit (§4) | `model/logit_avail.json` | `..._phase_avail_v4` |
+| g ≥ 10, otherwise | base logit (§2) | `model/logit.json` | `..._phase_v4` |
+
+**Report coverage** (`player_availability.covers`): the latest NBA injury
+report lists the game's matchup (or both teams) for date D, and neither
+team is marked NOT YET SUBMITTED. No report, an empty or unparsed one,
+another slate or an unfiled team is *not* coverage; such a game uses the
+base logit and is never read as "nobody is out". Fitting and backfill apply
+the same rule. In 2022-23 to 2025-26, 4,922 of 4,923 games were covered.
+
+## 2. Composite and base logit (games 10+)
+
+- **Team features** (higher = better): off eFG%, −off TOV/100, off ORB/100,
+  off FTA/FGA, −opp eFG%, opp TOV forced/100, −opp ORB/100, −opp FTA/FGA.
+- **Decay**: each prior game's 16 raw totals (8 team, 8 opponent) are
+  weighted by 0.5^(games ago / 25) and summed *before* rates are computed.
+  Only games strictly before D count.
+- **Composite** Δ = 100 · ((f_home − f_away) / sd) · w, in win-% points.
+  Ridge weights (λ = 0.1) on team-season win%, features centred within
+  season; `model/weights.json`, seasons 2015–19 and 2021–26.
+- **b2b_net** = [away played yesterday] − [home played yesterday].
+- **phase** = days since opening night / 175, capped at 1 (known before tip).
+- **P(home)** = σ(a + b·Δ + c·b2b_net + e·Δ·phase).
+  Committed fit (2016–19, 2021–26, n = 10,582): a = 0.291, b = 0.0228,
+  c = 0.306, e = 0.0274. The effective slope on Δ roughly doubles from
+  opening night (0.023) to April (0.050).
+
+## 3. Early season (games 1–9)
+
+Each team's totals are [last season's full log × ρ][this season so far],
+with the same decay running across the offseason (ρ = 0.25).
+P(home) = σ(a + b·Δ + c·b2b_net), fitted on every game in the first 20
+games of 2023–26 (n = 1,233): a = 0.392, b = 0.0348, c = 0.306. No phase
+term.
+
+## 4. Player availability (games 10+, covered)
+
+For each player with history for the team: a = his share of the decayed
+rating window (half-life 25), role = minutes/48 when playing, value = last
+season's BBR BPM shrunk by MP/(MP+500), minus replacement (−2; unmatched
+players get replacement). p = 0 if the latest report lists him Out or
+Doubtful, else 1 if he was on the team's previous box score, else 0.
+
+- av_min = Σ role·(p − a), av_bpm = Σ role·value·(p − a), home − away.
+- **P(home)** = σ(a + b·Δ + c·b2b_net + d1·av_min + d2·av_bpm + e·Δ·phase).
+  Committed fit (report seasons 2022-23 to 2025-26, last report ≥ 30 min
+  before tip, covered games 10+, n = 4,289): a = 0.237, b = 0.0255,
+  c = 0.266, d1 = 0.143, d2 = 0.0548, e = 0.0233.
+
+## 5. Lean and displays
+
+- **Lean**: the side with P ≥ 0.5 (a pick'em goes home). Model − market is
+  the lean side's P minus its no-vig market probability.
+- **ATS (display only)**: the ledger maps p_home to an implied margin with a
+  fixed σ = 13.5 points (`analysis.ATS_SIGMA`). This is an unvalidated
+  assumption used to pick an ATS side; it is not a calibrated spread model
+  and changes no prediction.
+
+## 6. Evidence
+
+All comparisons are on the same games as the close, one book at a time,
+log loss with 95% intervals; positive = the market is better. An interval
+crossing zero has not resolved the effect.
+
+### 6.1 Production routing, walk-forward (headline)
+
+`research/walk_forward.py --avail` (workflow "Walk-forward backtest",
+2026-09-30): every fit on earlier seasons only, the exact routing of §1.
+
+| Games | n | Model | Close | Model − close |
+|---|---:|---:|---:|---:|
+| 2024-25 ESPN BET, games 10+ | 1,071 | 0.5940 | 0.5776 | +0.0163 ± 0.0106 |
+| 2025-26 DraftKings, games 10+ | 964 | 0.5918 | 0.5702 | +0.0216 ± 0.0114 |
+| 2025-26 ESPN BET, games 10+ | 107 | 0.5400 | 0.5551 | −0.0151 ± 0.0399 |
+| 2024-25 ESPN BET, games 1–9 | 138 | 0.6101 | 0.6169 | −0.0067 ± 0.0381 |
+| 2025-26 ESPN BET, games 1–9 | 138 | 0.5785 | 0.5693 | +0.0092 ± 0.0420 |
+
+- The model trails the close wherever the sample resolves it.
+- v4 vs the v1-style base (Δ, b2b only), same games: −0.0090 ± 0.0079
+  (2024-25) and −0.0137 ± 0.0089 (2025-26).
+- Walk-forward vs leave-one-season-out: +0.0010 ± 0.0030 (2024-25);
+  identical in 2025-26 (every other season is earlier). The reconstructed
+  rows are therefore not materially flattered by seeing later seasons.
+- A possession-based pace arm adds nothing (±0.0003), and its interaction
+  changes sign between seasons.
+
+### 6.2 Components
+
+Season phase (`research/calibration_shape.py`, walk-forward, logits
+2016–24/25, rerun 2026-09-30 with production's opening-night clock; the
+result is unchanged to four decimals):
+
+| Test | 2024-25 ESPN BET | 2025-26 DraftKings |
+|---|---:|---:|
+| base + Δ·phase vs base | −0.0036 ± 0.0036 | −0.0075 ± 0.0032 |
+| base + Δ·abs(Δ) vs base | +0.0005 ± 0.0014 | −0.0007 ± 0.0009 |
+| od + Δ·phase vs od (`research/pregame_availability.py`) | −0.0008 ± 0.0006 | −0.0046 ± 0.0020 |
+
+March–April slope of the outcome on the model logit (1 = calibrated
+shape): base 1.42 → phase 1.16 (2024-25), 1.88 → 1.52 (2025-26); the close
+is 1.23 and 1.37. The phase coefficient is stable (+0.023 to +0.025) with
+two or more training seasons.
+
+Availability (`research/pregame_availability.py`, walk-forward, games 10+):
+
+| Rows | v2 vs close | v3 vs close | v3 vs v2 |
+|---|---:|---:|---:|
+| 2024-25 ESPN BET (1,071) | +0.025 ± 0.014 | +0.016 ± 0.011 | −0.008 ± 0.010 |
+| 2025-26 DraftKings (964) | +0.036 ± 0.014 | +0.028 ± 0.012 | −0.008 ± 0.010 |
+
+Each season's interval crosses zero, but both agree in size and sign; the
+terms explain about a third of the market-minus-model logit gap (hindsight
+"who played": 43–46%).
+
+Early season (`research/cold_start_probe.py`, 2023-24 … 2025-26, ESPN BET
+close): carryover trails by about +0.02 per game, like mid-season; the
+"this season only" arm trailed by +0.03 to +0.09. Game 0 trails by +0.07
+on 45 games, so it abstains.
+
+### 6.3 Original report (v1, leave-one-season-out, 2023–26, 4,289 games)
 
 | Model | Accuracy | Log loss |
 |---|---:|---:|
@@ -59,91 +153,50 @@ their output; it does not change the math.
 | Season-to-date composite | 65.7% | 0.6193 |
 | Home court only | 55.1% | — |
 
-Calibration by quintile was close to exact. The composite correlates 0.98
-with season-to-date margin, so it is an interpretable decomposition rather
-than a stronger rating.
+The composite correlates 0.98 with season-to-date margin: an interpretable
+decomposition, not a stronger rating.
 
-## Against the market (reconstructed, hindsight)
+## 7. Known limitations
 
-- Games 10+: the model trails the close by +0.035 ± 0.007 log loss per game
-  (DraftKings, 2025-26, n = 964) and +0.026 ± 0.007 (ESPN BET, 2024-25,
-  n = 1,071).
-- Games 1–9, `research/cold_start_probe.py` (2023-24 … 2025-26, ESPN BET
-  close): the carryover arm trails by about +0.02 per game, similar to
-  mid-season, where the v1-style "this season only" arm trailed by +0.03
-  to +0.09. Game 0 trails by +0.07 on 45 games, so it still abstains.
+- **No demonstrated edge.** v4 trails the close by about 0.016–0.022 log
+  loss per game on the resolved samples. Native (pregame-locked) rows are
+  the forward test; there are none yet.
+- **Heavy favourites are too flat.** Market favourites of 80–90% won
+  83–86%; the base + phase model's mean P was 77–78% (§6.2 runs).
+- **Reconstructed rows are hindsight**: priced at the close, with design
+  choices (half-life, B2B, phase) made on overlapping seasons.
+- **Not modelled**: travel, altitude, lineups beyond the report's
+  Out/Doubtful, in-game or late news after the last report.
+- **ATS** uses the fixed σ = 13.5 mapping (§5).
 
-The reconstructed fits hold out the test season but keep later seasons (the
-2024-25 rows saw 2025-26), so they flatter the model slightly;
-`research/walk_forward.py` re-scores them with earlier seasons only.
+## 8. Reproducing
 
-No arm or bucket beats the close. The model does not see injuries, lineups,
-or travel; the market does. Native rows are the forward test.
+| Step | Workflow | Command |
+|---|---|---|
+| Weights, base and early logits | Fit model | `nba_composite.py fit-weights`, `fit-logit --phase`, `cold_start.py fit` |
+| Availability logit | Fit availability | `python player_availability.py fit --years 2023-2026` |
+| Reconstructed rows | Backfill history | `python backfill_history.py --seasons 2025 2026 --rescore` |
+| §6.1 | Walk-forward backtest | `python research/walk_forward.py --seasons 2025 2026 --avail` |
+| §6.2 phase | Calibration shape | `python research/calibration_shape.py --seasons 2025 2026` |
 
-## v3 evidence (research/pregame_availability.py, hindsight-free inputs)
-
-Walk-forward (every fit on earlier seasons), games 10+, the last injury
-report at least 30 min before tip, same games as the close, one book at a
-time (log loss; 95% intervals; negative = better):
-
-| Rows | v2 vs close | v3 vs close | v3 vs v2 |
-|---|---:|---:|---:|
-| 2024-25 ESPN BET (1,071) | +0.025 ± 0.014 | +0.016 ± 0.011 | −0.008 ± 0.010 |
-| 2025-26 DraftKings (964) | +0.036 ± 0.014 | +0.028 ± 0.012 | −0.008 ± 0.010 |
-
-Each season's v3 − v2 interval crosses zero, but the two agree in size and
-sign; the terms explain about a third of the market-minus-model logit gap
-(hindsight "who played": 43–46%). v3 still trails the close in both books.
-Close to tip, Questionable players have almost all been resolved to Out or
-Available, so the Out/Doubtful rule loses little. Native rows are the test.
-
-## v4 evidence (research/calibration_shape.py, research/pregame_availability.py)
-
-In-sample, the outcome's slope on the model logit was ~1 overall but
-1.4–1.9 in March–April (too flat) and ~0.8 before March. Walk-forward, same
-games as the close, one book at a time (log loss; 95% intervals):
-
-| Test | 2024-25 ESPN BET | 2025-26 DraftKings |
-|---|---:|---:|
-| base + Δ·phase vs base (logits 2016–24/25) | −0.0036 ± 0.0036 | −0.0075 ± 0.0033 |
-| base + Δ·abs(Δ) vs base | +0.0005 ± 0.0014 | −0.0007 ± 0.0009 |
-| od + Δ·phase vs od (report seasons from 2022-23) | −0.0008 ± 0.0006 | −0.0046 ± 0.0020 |
-
-The phase coefficient is stable (+0.02 to +0.025) whenever two or more
-training seasons are available; 2023-24 alone showed little of it, which is
-why the 2024-25 gain on top of the report is small. Mar–Apr slope in
-2025-26 DraftKings: od 1.79 → od + phase 1.61 (the close: 1.37). The 107
-early-season 2025-26 ESPN BET games were slightly worse with phase
-(+0.005 ± 0.013, unresolved); watch native games 10–25.
-
-Reproducibility note: the first row (base + Δ·phase) was run while
-`research/calibration_shape.py` started its phase clock at the first games-10+
-date rather than opening night (production); the od row used opening night.
-The script now uses production's clock (`nc.logit_inputs`); rerun
-"Calibration shape" before quoting the first row. A shifted clock is partly
-absorbed by the fitted slope, so this is not evidence the gain disappears.
+The 2026-09-30 refit and re-score after the coverage fix reproduced the
+committed `logit_avail.json` and reconstructed rows exactly (nothing to
+commit), because every historical test game was covered.
 
 ## Version history
 
 - `fourfactors_hl25_b2b_v1`: games 10+ only.
-- `fourfactors_hl25_b2b_carry25_v2`: v1 unchanged from game 10; carryover
-  model for games 1–9.
-- `fourfactors_hl25_b2b_carry25_avail_v3`: v2 plus the pregame player
-  availability terms for games 10+ (rows without a report keep the v2 tag).
+- `fourfactors_hl25_b2b_carry25_v2`: v1 from game 10; carryover for games 1–9.
+- `fourfactors_hl25_b2b_carry25_avail_v3`: v2 plus availability terms for
+  games 10+ (rows without a report keep the v2 tag).
 - `fourfactors_hl25_b2b_carry25_phase_v4` /
-  `fourfactors_hl25_b2b_carry25_phase_avail_v4`: v3 plus Δ·season phase in
-  both logits; base logit on 2016–19, 2021–26; availability logit on
-  2023–26. The reconstructed rows are re-scored with v4 (leave-one-season-out
-  for weights, both logits and the carryover logit).
-  Routing fix (same tags, since each row's tag still names the formula that
-  scored it): availability terms only on report-covered games; others take
-  the base v4 logit. `model/logit_avail.json` was fitted before this filter,
-  so refit it ("Fit availability") and re-score ("Backfill history",
-  `--rescore`) to bring the reconstructed rows in line.
+  `fourfactors_hl25_b2b_carry25_phase_avail_v4`: v3 plus Δ·phase in both
+  games-10+ logits. Later fix (same tags, since each row's tag still names
+  the formula that scored it): availability only on report-covered games.
 
 ## Version rule
 
-Any change to prediction math (features, weights protocol, half-life,
-logit terms, abstention) needs a new `MODEL_TAG` in `build_site.py`. Rows
-keep the tag they were written under. A preseason refit that keeps the same
-protocol keeps the tag, and the refit date appears in `model/*.json` history.
+Any change to prediction math (features, weights protocol, half-life, logit
+terms, abstention) needs a new `MODEL_TAG` in `build_site.py`. Rows
+keep the tag they were written under. A refit with the same protocol keeps
+the tag; the fit's seasons and n are in `model/*.json`.

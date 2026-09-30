@@ -55,6 +55,10 @@ Before a PR, run:
 ## Open research questions (from the report §7–8)
 
 - Market benchmark: Brier/log loss vs the DK close, and native CLV.
+  Production v4, walk-forward (MODEL.md §6.1): trails the close by
+  +0.0163 ± 0.0106 (2024-25 ESPN BET) and +0.0216 ± 0.0114 (2025-26 DK) log
+  loss, games 10+; games 1–9 and the 107 early 2025-26 ESPN BET games are
+  unresolved. No demonstrated edge; native rows are the test.
 - Player availability (injury reports, minutes shares) is the main missing
   information. `research/availability.py` (workflow "Availability ceiling")
   measures its HINDSIGHT ceiling: who actually played, relative to each
@@ -71,7 +75,7 @@ Before a PR, run:
   does not cover (`player_availability.covers`: matchup on it, no team NOT
   YET SUBMITTED; an empty or unparsed report covers nothing) fall back to
   the base logit (v4 tag without "avail"), in the build, the fit and the
-  backfill alike.
+  backfill alike. Historically 4,922 of 4,923 games were covered.
   The daily build snapshots each game's ESPN injury list to
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does
@@ -98,7 +102,9 @@ Before a PR, run:
   same games, plus a possession-based pace arm (games 10+). Its `prod` arm
   is the shipped v4 routing (`backfill_history.reconstruct_season(...,
   walk_forward=True)`: early carryover, base v4, availability v4 on covered
-  games with `--avail`), split by route. Research only.
+  games with `--avail`), split by route. Walk-forward costs +0.0010 ±
+  0.0030 vs leave-one-season-out, so the reconstructed rows are not
+  materially flattered. Pace adds nothing. Research only.
 - One feature builder: `nba_composite.logit_inputs` (delta, b2b_net, phase
   from opening night, d_phase) serves build_games, the CLI scorer and
   `build_site.score_game`; research scripts reuse the `phase` column.
@@ -108,7 +114,8 @@ Before a PR, run:
   delta·|delta|, delta·phase and delta·[Mar+] arms walk-forward against the
   close on the same games. Walk-forward (logits 2016–2024/25): delta·phase
   beats base by −0.0036 ± 0.0036 (2024-25 ESPN BET) and −0.0075 ± 0.0033
-  (2025-26 DK) log loss; delta·|delta| adds nothing. The Pregame availability
+  (2025-26 DK) log loss (reproduced exactly with the opening-night clock,
+  2026-09-30); delta·|delta| adds nothing. The Pregame availability
   workflow also fits base+phase and od+phase to test it on top of v3.
   **Model v4** ships delta·phase in both logits (MODEL.md; tags
   `..._phase_v4` without a report, `..._phase_avail_v4` with one). The
