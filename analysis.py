@@ -268,7 +268,7 @@ def roi_summary(g, price="close"):
         d = p[p["rule"] == rule]
         rows = [roi_row("All picks", d)]
         if d["early"].any() and (~d["early"]).any():
-            rows += [roi_row("Games 10+ (v1 model)", d[~d["early"]]),
+            rows += [roi_row("Games 10+", d[~d["early"]]),
                      roi_row("Games 1–9 (carryover)", d[d["early"]])]
         if rule == "value":
             for lo, hi, lab in EDGE_BINS:
