@@ -141,7 +141,7 @@ HEADER_CANON = {"gamedate": "date", "gametime": "time", "matchup": "matchup",
                 "team": "team", "playername": "player", "currentstatus": "status",
                 "reason": "reason"}
 PAIRS = {"game": ("date", "time"), "player": ("name",), "current": ("status",)}
-PARSER_VERSION = 2          # bump to invalidate cached parsed-report CSVs
+PARSER_VERSION = 3          # bump to invalidate cached parsed-report CSVs
 
 
 def header_columns(line):
@@ -210,11 +210,15 @@ def rows_from_words(pages):
             for k in carry:
                 if cells.get(k):
                     carry[k] = cells[k]
-            status = status_of(cells.get("status", ""))
-            player = cells.get("player", "").strip()
-            if status and "," in player:
+            # Read player, status and reason as one stretch: a status word
+            # that starts left of its header (long words in a centred column)
+            # lands in the player cell, a short one may spill into reason.
+            tail = " ".join(cells.get(c, "") for c in ("player", "status", "reason"))
+            m = _ROW.match(tail)
+            if m:
                 rows.append(dict(game_date=carry["date"], matchup=carry["matchup"],
-                                 team=carry["team"], player=player, status=status))
+                                 team=carry["team"], player=m.group("player").strip(),
+                                 status=m.group("status")))
     return rows
 
 

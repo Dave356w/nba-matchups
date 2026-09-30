@@ -148,3 +148,18 @@ def test_text_fallback_spaced_and_unspaced():
                    ("BOS", "Brown, Jaylen", "Questionable", "10/22/2024"),
                    ("LAL", "Vincent,Gabe", "Doubtful", "10/22/2024"),
                    ("LAL", "Porter Jr., Michael", "Available", "10/22/2024")]
+
+
+def test_status_word_left_of_its_header_still_reads():
+    # 'Current Status' header at x=450; long status words start at 430 (centred
+    # column), so they fall in the player cell; 'Out' starts inside the column.
+    page = HEADER + [
+        W("10/22/2024", 10, 70), W("NYK@BOS", 150, 70), W("Boston", 220, 70),
+        W("Celtics", 260, 70), W("Brown,", 330, 70), W("Jaylen", 370, 70),
+        W("Questionable", 430, 70), W("Injury/Illness", 540, 70),
+        W("Porzingis,", 330, 85), W("Kristaps", 380, 85), W("Out", 462, 85),
+        W("Holiday,", 330, 100), W("Jrue", 372, 100), W("Doubtful", 438, 100)]
+    rows = pa.rows_from_words([page])
+    assert [(r["player"], r["status"]) for r in rows] == [
+        ("Brown, Jaylen", "Questionable"), ("Porzingis, Kristaps", "Out"),
+        ("Holiday, Jrue", "Doubtful")]
