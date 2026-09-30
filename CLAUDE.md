@@ -148,10 +148,23 @@ Before a PR, run:
     hold for more seasons.
   - None moves the market's team-level correction (team share 0.24 →
     0.20–0.24), so the persistent team disagreement is not luck, schedule
-    or incentives. Next: (1c) roster talent — minutes share × last-season
-    BPM over the previous box score (box seasons 2022-23 on, vs base fit on
-    the same seasons) and (1d) last-season carryover past game 10
-    (prior_diff, fading with phase); same script, v5 decided after both.
+    or incentives.
+  - (1d) last-season carryover past game 10: worse, +0.0028 ± 0.0055 /
+    +0.0041 ± 0.0048; last season's weight fades from 1.2–1.5× this
+    season's at opening night to ~0 late, so by game 10 it is spent.
+    Dropped (games 1–9 keep the v2 carryover).
+  - (1c) roster talent (minutes share × last-season BPM over the previous
+    box score): the strongest lead. It takes about half the rating's weight
+    (delta coefficient 0.031 → 0.018), and improves both seasons vs base fit
+    on the same box seasons: −0.0013 ± 0.0109 / −0.0040 ± 0.0088; with
+    prior and opponent luck −0.0029 / −0.0073 ± 0.0095 (gap to the DK close
+    +0.029 → +0.022). Unresolved: only 2–3 box seasons to train on
+    (base_box is itself worse than base). `research/box_history.py`
+    (workflow "Box-score history") builds 2015-16 on, so the Team quality
+    run can fit talent on the same seasons as base.
+  - v5 decision after that rerun: opponent luck + talent in both logits if
+    talent holds up, else opponent luck alone; ship before the 2026-27
+    opener either way.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the

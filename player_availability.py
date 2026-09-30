@@ -100,8 +100,13 @@ def parse_players(js):
     return rows
 
 
+# Regular seasons that ran past mid-April (2019-20 bubble, 2020-21 delayed).
+SEASON_END = {2020: "08-20", 2021: "05-20"}
+
+
 def season_dates(y):
-    return pd.date_range(f"{y - 1}-10-15", f"{y}-04-20")
+    """Every date that can hold a regular-season game of season y."""
+    return pd.date_range(f"{y - 1}-10-15", f"{y}-{SEASON_END.get(y, '04-20')}")
 
 
 def box_rows_for_date(d, sleep=0.15):

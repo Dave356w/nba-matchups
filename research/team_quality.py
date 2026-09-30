@@ -33,8 +33,9 @@ WEIGHT_YEARS < Y, every logit on PHASE_YEARS < Y), games 10+:
              give last season's weight relative to this season's, late and
              at opening night.
 
-Fitted only on the seasons with player box scores (2022-23 on; compared with
-base_box, base fitted on the same seasons):
+Fitted only on the seasons with cached player box scores (--box-seasons;
+research/box_history.py builds 2015-16 on) and compared with base_box, base
+fitted on the same seasons:
   talent (1c)        base + d9*talent_diff
              talent: sum over the players on the team's previous box score of
              minutes share (mean minutes / 48 this season before the date,
@@ -80,8 +81,9 @@ ARMS = {
                    "d_apr"],
     "prior": BASE + ["prior_diff", "prior_early"],
 }
-# Fitted only on seasons with player box scores (the injury-report seasons,
-# 2022-23 on), so they are compared with base fitted on the same seasons.
+# Fitted only on seasons with player box scores (--box-seasons that are cached
+# or fetchable; research/box_history.py builds 2015-16 on), and compared with
+# base fitted on the same seasons.
 BOX_ARMS = {
     "base_box": BASE,
     "talent": BASE + ["talent_diff"],
@@ -90,7 +92,7 @@ BOX_ARMS = {
                                  "luck_def"],
 }
 REF = {**{a: "base" for a in ARMS}, **{a: "base_box" for a in BOX_ARMS}}
-BOX_YEARS = [2023, 2024, 2025, 2026]
+BOX_YEARS = [2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026]
 SOS_MIN_GAMES = 5
 TANK_WPCT, TOP_WPCT, TANK_MIN_GP = 0.35, 0.65, 40
 X3 = ["T3PA", "O3PA"]
@@ -348,6 +350,9 @@ def main(argv=None):
     ap.add_argument("--phase-years", nargs="+", default=None,
                     help="logit seasons (only those before each test season are "
                          "used); default backfill_history.PHASE_YEARS")
+    ap.add_argument("--box-seasons", nargs="+", default=None,
+                    help="seasons whose box scores feed the talent arms "
+                         "(default BOX_YEARS; build history with box_history.py)")
     ap.add_argument("--no-talent", action="store_true",
                     help="skip the roster-talent arms (no box scores / BPM)")
     ap.add_argument("--cache", default=os.path.join(
@@ -360,8 +365,12 @@ def main(argv=None):
     talent = {}
     if not a.no_talent:
         import player_availability as pav
-        for t in BOX_YEARS:
+        for t in nc.parse_years(a.box_seasons) if a.box_seasons else BOX_YEARS:
             if t > max(a.seasons):
+                continue
+            if not os.path.exists(os.path.join(a.cache, f"box_{t}.csv")):
+                print(f"box season {t}: not cached (run research/box_history.py); "
+                      "talent skipped", flush=True)
                 continue
             try:
                 box = pav.fetch_box(t, cache_dir=a.cache)

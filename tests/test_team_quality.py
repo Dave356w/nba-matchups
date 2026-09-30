@@ -194,3 +194,33 @@ def test_fit_arms_skips_rows_with_missing_features():
     out, fits = tq.fit_arms(tr, te, tq.BOX_ARMS)
     assert fits["talent"]["n"] == n - 100 and fits["base_box"]["n"] == n
     assert out["p_talent"].isna().all() and out["p_base_box"].notna().all()
+
+
+def test_box_history_fetches_each_season_and_reports_coverage(tmp_path):
+    import importlib.util as iu
+    spec = iu.spec_from_file_location(
+        "box_history", os.path.join(os.path.dirname(__file__), "..", "research",
+                                    "box_history.py"))
+    bh = iu.module_from_spec(spec)
+    spec.loader.exec_module(bh)
+    seen = []
+    box = pd.DataFrame(dict(game_id=["g1", "g1"], player_id=["p1", "p2"],
+                            name=["A B", "C D"], minutes=[30.0, 18.0]))
+
+    def fetch(t, cache_dir=None):
+        seen.append(("box", t))
+        return box
+
+    def bpm(t):
+        seen.append(("bpm", t))
+        return {"a b": (4.0, 2000.0, 70.0)}
+    out = bh.build([2016, 2021], str(tmp_path), fetch=fetch, bpm=bpm)
+    assert seen == [("box", 2016), ("bpm", 2015), ("box", 2021), ("bpm", 2020)]
+    assert "1 games, 2 player rows" in out[2016] and "BPM covers 62%" in out[2016]
+
+
+def test_season_dates_cover_the_delayed_seasons():
+    import player_availability as pav
+    assert pav.season_dates(2021)[-1] == pd.Timestamp("2021-05-20")
+    assert pav.season_dates(2016)[-1] == pd.Timestamp("2016-04-20")
+    assert pav.season_dates(2021)[0] == pd.Timestamp("2020-10-15")
