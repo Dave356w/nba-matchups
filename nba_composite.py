@@ -55,6 +55,10 @@ HALF_LIFE = 25.0      # games; 20-45 was essentially flat in testing
 MIN_GAMES = 10        # both teams must have played this many games
 RIDGE_LAMBDA = 0.1
 LOGIT_FEATURES = ["delta", "b2b_net"]   # use ["delta"] for the no-rest model
+# v4: the rating's slope grows through the season (research/calibration_shape.py):
+# d_phase = delta * phase, phase = days since opening night / SEASON_DAYS, capped at 1.
+PHASE_FEATURES = ["delta", "b2b_net", "d_phase"]
+SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
 STATS = ["FG", "FGA", "3P", "FT", "FTA", "ORB", "DRB", "TOV"]
@@ -247,9 +251,25 @@ def composite(f, sd, w):
     return float((f / np.asarray(sd)) @ np.asarray(w) * 100)   # win%-points
 
 
+def season_opening(logs):
+    """Opening night of a season: the earliest game date in its logs."""
+    dates = [lg["date"].min() for lg in logs.values() if len(lg)]
+    return pd.Timestamp(min(dates)) if dates else None
+
+
+def season_phase(date, opening):
+    """Fraction of the regular season elapsed at `date` (0 on opening night,
+    capped at 1 after SEASON_DAYS). Known before tip."""
+    if opening is None:
+        return 0.0
+    days = (pd.Timestamp(date) - pd.Timestamp(opening)).days
+    return float(min(max(days / SEASON_DAYS, 0.0), 1.0))
+
+
 def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=False):
     logs = load_logs(y, refresh)
     sd, w = weights["sd"], weights["w"]
+    opening = season_opening(logs)
     cache = {}
 
     def feat(tm, i):
@@ -272,10 +292,12 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
             if i < min_games or j < min_games:
                 continue
             rh, ra = rest_days(c, i), rest_days(c2, j)
+            delta = composite(feat(tm, i) - feat(opp, j), sd, w)
+            phase = season_phase(r["date"], opening)
             rows.append({"year": y, "date": r["date"], "home": tm, "away": opp,
                          "h_b2b": int(rh == 0), "a_b2b": int(ra == 0),
                          "b2b_net": int(ra == 0) - int(rh == 0),
-                         "delta": composite(feat(tm, i) - feat(opp, j), sd, w),
+                         "delta": delta, "phase": phase, "d_phase": delta * phase,
                          "win": int(r["pts"] > r["opp_pts"])})
     return pd.DataFrame(rows)
 
@@ -388,6 +410,8 @@ def main():
         s.add_argument("--half-life", type=float, default=HALF_LIFE)
         s.add_argument("--refresh", action="store_true")
         s.add_argument("--sleep", type=float, default=SLEEP)
+        s.add_argument("--phase", action="store_true",
+                       help="fit-logit: v4 features (adds delta*season phase)")
     a = ap.parse_args()
     SLEEP = a.sleep
 
@@ -434,8 +458,11 @@ def main():
             else fit_weights(parse_years(a.train_years))
         save_json(weights, "weights.json")
         G = pd.concat([build_games(y, weights, a.half_life) for y in parse_years(a.years)])
-        m = fit_logit(G[LOGIT_FEATURES].values, G["win"], LOGIT_FEATURES)
+        feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
+        m = fit_logit(G[feats].values, G["win"], feats)
         m.update({"half_life": a.half_life, "n_games": int(len(G)), "years": parse_years(a.years)})
+        if a.phase:
+            m["season_days"] = SEASON_DAYS
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
         print(f"saved model/logit.json  intercept={m['intercept']:.3f} (home edge)  {coefs}  n={m['n_games']}")

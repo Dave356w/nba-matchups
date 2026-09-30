@@ -83,7 +83,7 @@ def test_score_game_uses_v3_only_with_terms(model, weights):
     date = "2027-01-10"
     v2 = build_site.score_game(logs, "GSW", "UTA", date, weights, model,
                                avail_model=avail_model, avail=None)
-    assert "model_tag" not in v2
+    assert v2["model_tag"] == build_site.MODEL_TAG            # no terms: v2
     same = build_site.score_game(logs, "GSW", "UTA", date, weights, model,
                                  avail_model=avail_model,
                                  avail={"av_min": 0.0, "av_bpm": 0.0})
@@ -93,3 +93,32 @@ def test_score_game_uses_v3_only_with_terms(model, weights):
                                  avail_model=avail_model,
                                  avail={"av_min": -0.7, "av_bpm": -6.0})
     assert hurt["p_home"] < v2["p_home"]
+
+
+def test_v4_phase_term_and_tags(model, weights):
+    from conftest import make_log
+    logs = {"GSW": make_log(40, start="2026-10-21", seed=1, strength=1.0),
+            "UTA": make_log(40, start="2026-10-22", seed=2, strength=-1.0)}
+    v4 = {"features": ["delta", "b2b_net", "d_phase"],
+          "intercept": model["intercept"], "coef": model["coef"] + [0.0]}
+    v4_avail = {"features": pav.FEATURES_V4, "intercept": model["intercept"],
+                "coef": model["coef"] + [0.0, 0.1, 0.0]}
+    date = "2027-01-10"
+    base = build_site.score_game(logs, "GSW", "UTA", date, weights, model)
+    zero = build_site.score_game(logs, "GSW", "UTA", date, weights, v4)
+    assert zero["model_tag"] == build_site.MODEL_TAG_V4
+    assert abs(zero["p_home"] - base["p_home"]) < 1e-9       # e = 0: v2 math
+    steep = dict(v4, coef=model["coef"] + [0.03])
+    early_season = build_site.score_game(logs, "GSW", "UTA", date, weights, steep,
+                                         opening="2027-01-09")
+    late_season = build_site.score_game(logs, "GSW", "UTA", date, weights, steep,
+                                        opening="2026-06-01")
+    # same delta; the later in the season, the further from 50%
+    assert abs(late_season["p_home"] - 0.5) > abs(early_season["p_home"] - 0.5)
+    rep = build_site.score_game(logs, "GSW", "UTA", date, weights, v4,
+                                avail_model=v4_avail,
+                                avail={"av_min": 0.0, "av_bpm": 0.0})
+    assert rep["model_tag"] == build_site.MODEL_TAG_V4_AVAIL
+    assert build_site.active_tags(v4, v4_avail) == [build_site.MODEL_TAG_V4,
+                                                    build_site.MODEL_TAG_V4_AVAIL]
+    assert build_site.active_tags(model, None) == [build_site.MODEL_TAG]

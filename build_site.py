@@ -51,6 +51,17 @@ MODEL_TAG = "fourfactors_hl25_b2b_carry25_v2"
 # weighted by last-season BPM, relative to the rating window. Rows fall back
 # to v2 (and keep the v2 tag) when the report or box history is missing.
 MODEL_TAG_V3 = "fourfactors_hl25_b2b_carry25_avail_v3"
+# v4 = the rating's slope grows through the season: + e*delta*phase
+# (phase = days since opening night / 175, capped at 1; research/
+# calibration_shape.py) in both the base logit (model/logit.json) and the
+# availability logit (model/logit_avail.json). MODEL_TAG_V4 tags v4 rows
+# without an injury report (and games 1-9, carryover unchanged);
+# MODEL_TAG_V4_AVAIL tags rows scored with the report. Which tag a row gets
+# follows the fitted model files, so v3 files keep producing v2/v3 tags.
+MODEL_TAG_V4 = "fourfactors_hl25_b2b_carry25_phase_v4"
+MODEL_TAG_V4_AVAIL = "fourfactors_hl25_b2b_carry25_phase_avail_v4"
+AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL)
+ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
     "CHI": "Bulls", "CLE": "Cavaliers", "DAL": "Mavericks", "DEN": "Nuggets",
@@ -93,6 +104,25 @@ def load_avail():
         return None
 
 
+def has_phase(model):
+    return model is not None and "d_phase" in (model.get("features") or [])
+
+
+def model_tag(model, avail=False):
+    """The tag for a row scored by `model` (the availability logit if avail)."""
+    if avail:
+        return MODEL_TAG_V4_AVAIL if has_phase(model) else MODEL_TAG_V3
+    return MODEL_TAG_V4 if has_phase(model) else MODEL_TAG
+
+
+def active_tags(model, avail_model):
+    """Tags the current model files produce (page footer, ledger split)."""
+    tags = [model_tag(model)]
+    if avail_model is not None:
+        tags.append(model_tag(avail_model, avail=True))
+    return tags
+
+
 def load_early():
     """The early-season logit (model/logit_early.json), or None."""
     try:
@@ -113,7 +143,8 @@ def fresh_logs(year, today):
 
 
 def score_game(logs, home, away, date, weights, model, half_life=None,
-               early=None, prior_logs=None, avail_model=None, avail=None):
+               early=None, prior_logs=None, avail_model=None, avail=None,
+               opening=None):
     """Pregame composite and P(home win) from games strictly before `date`.
 
     From MIN_GAMES games on: the v1 model. Below that, when both teams have
@@ -124,6 +155,10 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
     v3: from MIN_GAMES on, when `avail_model` (model/logit_avail.json) and this
     game's availability terms `avail` ({'av_min', 'av_bpm'}) are given, the
     availability logit is used and the row is tagged MODEL_TAG_V3.
+
+    v4: models whose features include d_phase get delta * season phase, with
+    phase measured from `opening` (default: the earliest date in `logs`, i.e.
+    opening night). Every scored row carries model_tag (see model_tag()).
     """
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
@@ -140,10 +175,9 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
         fh = nc.decayed_features(lh, ih, hl)
         fa = nc.decayed_features(la, ia, hl)
         d = nc.composite(fh - fa, weights["sd"], weights["w"])
-        use = model
+        use, out["model_tag"] = model, model_tag(model)
         if avail_model is not None and avail is not None:
-            use = avail_model
-            out["model_tag"] = MODEL_TAG_V3
+            use, out["model_tag"] = avail_model, model_tag(avail_model, avail=True)
     elif min(ih, ia) >= 1 and early is not None and prior_logs:
         d = cold_start.carry_delta(lh, ih, prior_logs.get(home), la, ia,
                                    prior_logs.get(away), weights,
@@ -151,10 +185,13 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
                                    half_life=early.get("half_life", nc.HALF_LIFE))
         if d is None:
             return out
-        use = early
+        use, out["model_tag"] = early, model_tag(model)
     else:
         return out
-    vals = {"delta": d, "b2b_net": int(ra == 0) - int(rh == 0), **(avail or {})}
+    phase = nc.season_phase(date, nc.season_opening(logs) if opening is None
+                            else opening)
+    vals = {"delta": d, "b2b_net": int(ra == 0) - int(rh == 0),
+            "d_phase": d * phase, **(avail or {})}
     p = float(nc.predict(use, [[vals[f] for f in use["features"]]])[0])
     lean_home = p >= 0.5
     out.update(home_b2b=int(rh == 0), away_b2b=int(ra == 0),
@@ -220,11 +257,12 @@ def score_slate(today, weights, model, now=None):
                 f"BPM covers {100 * live.bpm_minutes:.0f}% of minutes")
         except Exception as e:  # noqa: BLE001 - v3 falls back to v2
             log(f"availability failed ({e!r}); rows fall back to v2")
+    opening = nc.season_opening(logs)
     rows = []
     for g in pre:
         r = dict(game_id=g["game_id"], slate_date=today,
                  season=season_for(today), tip_utc=g["tip_utc"],
-                 model_tag=MODEL_TAG, home=g["home"], away=g["away"])
+                 model_tag=model_tag(model), home=g["home"], away=g["away"])
         terms = None
         if live is not None:
             try:
@@ -234,7 +272,8 @@ def score_slate(today, weights, model, now=None):
         r.update(score_game(logs, g["home"], g["away"], today, weights, model,
                             early=early, prior_logs=prior, avail_model=avail_model,
                             avail=None if terms is None else
-                            {k: terms[k] for k in ("av_min", "av_bpm")}))
+                            {k: terms[k] for k in ("av_min", "av_bpm")},
+                            opening=opening))
         try:
             odds = market.pick_pregame(market.book_odds(g["game_id"]))
         except Exception as e:  # noqa: BLE001
@@ -292,7 +331,8 @@ def page(title, active, body, built):
             f"<title>{esc(title)}</title><style>{CSS}</style></head><body><main>"
             f"<nav>{nav}</nav>{body}<p class='note'>Built "
             f"<span class='stamp'>{esc(built)}</span> · model "
-            f"<code>{MODEL_TAG}</code></p></main></body></html>")
+            + " / ".join(f"<code>{esc(t)}</code>" for t in ACTIVE_TAGS)
+            + "</p></main></body></html>")
 
 
 def pct(x, d=1):
@@ -388,7 +428,7 @@ def render_index(led, today, built, model_ok):
                      if pd.notna(r["gp_home"]) and
                      min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES else
                      " <span class='basis'>injury report</span>"
-                     if r.get("model_tag") == MODEL_TAG_V3 else "")
+                     if r.get("model_tag") in AVAIL_TAGS else "")
         b2b = "/".join(x for x, f in ((r["away"], r["away_b2b"]),
                                       (r["home"], r["home_b2b"])) if f == 1) or "—"
         rows.append([
@@ -414,6 +454,10 @@ def render_index(led, today, built, model_ok):
             "<b>injury report</b>: from game 10 the latest NBA injury report "
             "is folded in (Out/Doubtful players, weighted by last season's "
             "BPM, against how often they played in the rating window). "
+            + ("<b>v4</b>: a given composite gap counts for more as the "
+               "season goes on (× days since opening night, about double by "
+               "April), fitted on earlier seasons. "
+               if MODEL_TAG_V4 in ACTIVE_TAGS else "") +
             "Prices are the moneyline at the snapshot time in the ledger "
             "(DraftKings unless tagged ESPN BET), "
             "refreshed each build until tip and frozen after. A game abstains "
@@ -560,13 +604,16 @@ def _band_table(sections):
 
 def _band_section(body, h, native):
     """1u flat ROI by the picked side's price band; for native rows also the
-    v3 (injury-report) rows alone, the forward test of the band hypotheses."""
+    current model's rows alone, the forward test of the band hypotheses."""
     price = "pre" if native else "close"
     parts = [("All rows", analysis.roi_by_band(h, price))]
     if native:
-        v3 = analysis.roi_by_band(h, price, tags=[MODEL_TAG_V3])
-        if v3 and (h["model_tag"].astype(str) != MODEL_TAG_V3).any():
-            parts.append((f"v3 rows only (<code>{MODEL_TAG_V3}</code>)", v3))
+        cur = [t for t in ACTIVE_TAGS]
+        rows = analysis.roi_by_band(h, price, tags=cur)
+        if rows and (~h["model_tag"].astype(str).isin(cur)).any():
+            parts.append(("Current model rows only ("
+                          + " / ".join(f"<code>{esc(t)}</code>" for t in cur)
+                          + ")", rows))
     parts = [(t, s) for t, s in parts if s]
     if not parts:
         return
@@ -767,6 +814,9 @@ def main(argv=None):
     recon = ledger.load(ledger.RECON_PATH)
     weights, model = load_model()
     model_ok = weights is not None and model is not None
+    global ACTIVE_TAGS
+    if model_ok:
+        ACTIVE_TAGS = active_tags(model, load_avail())
 
     if not a.render_only:
         native, n = grade(native, today)

@@ -187,16 +187,18 @@ def test_roi_by_band_partitions_picks_with_ev_null():
             assert r["ev_null"] < 0                 # the hold, not zero
 
 
-def test_roi_by_band_filters_model_tag_and_page_shows_v3(tmp_path, monkeypatch):
+def test_roi_by_band_filters_model_tag_and_page_shows_current(tmp_path, monkeypatch):
     df = synth(300, 9)
-    df.loc[:149, "model_tag"] = build_site.MODEL_TAG_V3
+    df.loc[:149, "model_tag"] = build_site.MODEL_TAG_V4_AVAIL
     g = ledger.graded(df)
-    v3 = analysis.roi_by_band(g, "pre", tags=[build_site.MODEL_TAG_V3])
+    v3 = analysis.roi_by_band(g, "pre", tags=[build_site.MODEL_TAG_V4_AVAIL])
     assert sum(r["n"] for r in dict(v3)[analysis.PICK_RULES[0][1]]) == 150
     assert analysis.roi_by_band(g, "pre", tags=["nope"]) == []
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    monkeypatch.setattr(build_site, "ACTIVE_TAGS", [build_site.MODEL_TAG_V4,
+                                                    build_site.MODEL_TAG_V4_AVAIL])
     build_site.write_pages(df, synth(200, 10, "reconstructed"), "2026-11-19",
                            model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "ROI by price band" in grades and "EV null (pp)" in grades
-    assert "v3 rows only" in grades and "z vs null" in grades
+    assert "Current model rows only" in grades and "z vs null" in grades
