@@ -120,7 +120,20 @@ Before a PR, run:
   value bet needs to clear a 4% hold, and the value side gains +1.32 ±
   0.35 pp of no-vig probability open → close (+2.4 / +1.1 pp in games 1–9,
   which have no injury terms). Unresolved; native CLV is the test.
-- More game-log seasons to settle the half-life and to test travel/altitude.
+- More game-log seasons to settle the half-life. Travel/altitude/rest
+  context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
+  the market's correction and worsen 2025-26 log loss jointly; not pursued.
+- Team quality the four factors misread: the market's correction (logit q −
+  logit P, sd 0.42) is largely team-level and persistent (team-season
+  effects R² 0.23–0.33; same teams across seasons, r = +0.40), present at
+  the open (not late news), and borrowing the market's past team view
+  closes 18–39% of the log-loss gap. `research/team_quality.py` (workflow
+  "Team quality") tests, walk-forward on the same games vs the close:
+  (1a) 3-point luck — own and opponents' 3P% regressed to the league (3PA
+  parsed from the cached BBR logs, `nc.EXTRA_STATS`; the model's COLS are
+  unchanged); (1b) strength of schedule; (2) late-season tank/top flags and
+  delta·[April] (April favourites: z +2.35 beyond the model, +2.15 beyond
+  the market in the scan).
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the

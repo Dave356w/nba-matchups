@@ -67,6 +67,9 @@ SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
 STATS = ["FG", "FGA", "3P", "FT", "FTA", "ORB", "DRB", "TOV"]
 COLS = ["T" + s for s in STATS] + ["O" + s for s in STATS]   # 16 raw totals
+# Parsed when the log has them (T3PA / O3PA) for research/team_quality.py; the
+# model reads only COLS, so these change no prediction.
+EXTRA_STATS = ["3PA"]
 FEATURES = ["off eFG%", "-off TOV", "off ORB", "off FTA/FGA",
             "-opp eFG%", "opp TOV forced", "-opp ORB", "-opp FTA/FGA"]
 
@@ -165,6 +168,10 @@ def read_gamelog(tm, y, refresh=False):
         for s in STATS:
             out["T" + s] = pd.to_numeric(df["Team_" + s]).values
             out["O" + s] = pd.to_numeric(df["Opponent_" + s]).values
+        for s in EXTRA_STATS:                  # research only; not in COLS
+            if "Team_" + s in df.columns and "Opponent_" + s in df.columns:
+                out["T" + s] = pd.to_numeric(df["Team_" + s], errors="coerce").values
+                out["O" + s] = pd.to_numeric(df["Opponent_" + s], errors="coerce").values
         return out.sort_values("date").reset_index(drop=True)   # first table = regular season
     return None
 
