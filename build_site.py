@@ -534,7 +534,57 @@ def _roi_section(body, h, native):
                 "is right (about minus the hold, ~−4%): an ROI is judged against "
                 "it, and against its ± SE, not against zero. Edge bins are "
                 "descriptive, not a filter to bet.</p>")
+    _band_section(body, h, native)
     _ats_section(body, h)
+
+
+def _band_table(sections):
+    out = []
+    for rule_label, rows in sections:
+        out.append(f"<h3 style='font-size:15px;margin:14px 0 4px'>{esc(rule_label)}</h3>")
+        out.append(table(
+            ["Picked price", "n", "W–L", "Model WP", "Market WP (no-vig)",
+             "Break-even", "Actual", "EV (pp)", "EV null (pp)", "Units (1u flat)",
+             "ROI", "± SE", "ROI null", "z vs null"],
+            [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}", pct(r["model_p"]),
+              pct(r["q"]), pct(r["breakeven"]), pct(r["actual"]),
+              pp(r["ev"], cls=False), f"{100 * r['ev_null']:+.1f}",
+              f"{r['units']:+.2f}u",
+              f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
+              f"{100 * r['roi']:+.1f}%</span>",
+              f"{100 * r['roi_se']:.1f}", f"{100 * r['roi_null']:+.1f}%",
+              "—" if not np.isfinite(r["z"]) else f"{r['z']:+.1f}"]
+             for r in rows], left=(0,)))
+    return "".join(out)
+
+
+def _band_section(body, h, native):
+    """1u flat ROI by the picked side's price band; for native rows also the
+    v3 (injury-report) rows alone, the forward test of the band hypotheses."""
+    price = "pre" if native else "close"
+    parts = [("All rows", analysis.roi_by_band(h, price))]
+    if native:
+        v3 = analysis.roi_by_band(h, price, tags=[MODEL_TAG_V3])
+        if v3 and (h["model_tag"].astype(str) != MODEL_TAG_V3).any():
+            parts.append((f"v3 rows only (<code>{MODEL_TAG_V3}</code>)", v3))
+    parts = [(t, s) for t, s in parts if s]
+    if not parts:
+        return
+    body.append("<h3 style='font-size:16px;margin:18px 0 4px'>ROI by price "
+                "band — one unit on every pick</h3>")
+    body.append("<p class='note'>Graded at the <b>"
+                + ("pregame snapshot price" if native else "closing price")
+                + "</b>, banded by the picked side's moneyline. <b>EV</b> = "
+                "actual − break-even; its <b>null</b> is q − break-even (about "
+                "minus the hold), not zero. <b>z vs null</b> = (ROI − ROI null) "
+                "÷ SE; with ~16 cells per table, one |z| near 2 is expected by "
+                "chance. Bands are descriptive monitoring dimensions, not a "
+                "filter. The hindsight rows left one hypothesis to test "
+                "forward: DraftKings leans at −249 to −130.</p>")
+    for title, sections in parts:
+        if len(parts) > 1:
+            body.append(f"<p class='note'><b>{title}</b></p>")
+        body.append(_band_table(sections))
 
 
 def _ats_section(body, h):
