@@ -1,7 +1,9 @@
 name: Walk-forward backtest
 
 # Research only: re-scores reconstructed seasons with every fit trained on
-# EARLIER seasons only, plus a possession-based pace arm, and compares with
+# EARLIER seasons only -- the shipped v4 routing (early carryover, base v4,
+# availability v4 on report-covered games, base fallback) and the pre-v4
+# base -- plus a possession-based pace arm, and compares with
 # the leave-one-season-out rows and the close on the same games
 # (research/walk_forward.py). Writes nothing to the repo; results are the
 # job summary and an artifact.
@@ -16,8 +18,8 @@ on:
         description: 'Logit seasons (only those before each test season are used)'
         default: '2023-2026'
       flags:
-        description: 'Extra flags, e.g. --no-pace'
-        default: ''
+        description: 'Extra flags, e.g. --no-pace; drop --avail to skip injury reports'
+        default: '--avail'
         required: false
 
 permissions:
@@ -39,6 +41,20 @@ jobs:
           path: bbr_cache
           key: bbr-${{ github.run_id }}
           restore-keys: bbr-
+      # ESPN box scores, tip times and NBA injury reports for the --avail
+      # production arm (shared with the backfill, research and fit workflows).
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
       - name: Download (cached pages are skipped)
         run: python nba_composite.py download --years 2015-2019 2021-2026
       - name: Run walk-forward

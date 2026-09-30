@@ -30,8 +30,13 @@ their output; it does not change the math.
   shrunk by MP/(MP+500), minus replacement (−2). p = 0 if the latest NBA
   injury report lists him Out or Doubtful, else 1 if he was on the team's
   previous box score, else 0. av_bpm = Σ role·value·(p − a) and
-  av_min = Σ role·(p − a), home − away. When the report or box history is
-  missing, the row uses the base logit.
+  av_min = Σ role·(p − a), home − away. The terms are used only when the
+  report **covers** the game: the game's matchup (or both teams) is on the
+  report for that date and neither team is NOT YET SUBMITTED
+  (`player_availability.covers`). Otherwise -- no report, an empty or
+  unparsed one, another slate, a team not yet filed -- or without box
+  history, the row uses the base logit; a missing report never reads as
+  "nobody is out". The same rule filters the fitting and backfill terms.
 - **Season phase (new in v4, games 10+)**: both logits add e·Δ·phase, where
   phase = days since opening night / 175, capped at 1. A given composite gap
   counts for more as the season goes on (about double by April). The base
@@ -111,6 +116,13 @@ why the 2024-25 gain on top of the report is small. Mar–Apr slope in
 early-season 2025-26 ESPN BET games were slightly worse with phase
 (+0.005 ± 0.013, unresolved); watch native games 10–25.
 
+Reproducibility note: the first row (base + Δ·phase) was run while
+`research/calibration_shape.py` started its phase clock at the first games-10+
+date rather than opening night (production); the od row used opening night.
+The script now uses production's clock (`nc.logit_inputs`); rerun
+"Calibration shape" before quoting the first row. A shifted clock is partly
+absorbed by the fitted slope, so this is not evidence the gain disappears.
+
 ## Version history
 
 - `fourfactors_hl25_b2b_v1`: games 10+ only.
@@ -123,6 +135,11 @@ early-season 2025-26 ESPN BET games were slightly worse with phase
   both logits; base logit on 2016–19, 2021–26; availability logit on
   2023–26. The reconstructed rows are re-scored with v4 (leave-one-season-out
   for weights, both logits and the carryover logit).
+  Routing fix (same tags, since each row's tag still names the formula that
+  scored it): availability terms only on report-covered games; others take
+  the base v4 logit. `model/logit_avail.json` was fitted before this filter,
+  so refit it ("Fit availability") and re-score ("Backfill history",
+  `--rescore`) to bring the reconstructed rows in line.
 
 ## Version rule
 

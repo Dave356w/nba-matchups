@@ -457,7 +457,7 @@ HEADER_CANON = {"gamedate": "date", "gametime": "time", "matchup": "matchup",
 PAIRS = {"game": ("date", "time"), "player": ("name",), "current": ("status",)}
 
 
-PARSER_VERSION = 3          # bump to invalidate cached parsed-report CSVs
+PARSER_VERSION = 4          # bump to invalidate cached parsed-report CSVs
 
 
 def header_columns(line):
@@ -498,7 +498,9 @@ def rows_from_words(pages):
     pages: list of word lists ({text, x0, top}). Columns come from the header
     line (Game Date | Game Time | Matchup | Team | Player Name | Current
     Status | Reason); date, time, matchup and team carry down until they
-    change. Returns [{game_date, matchup, team, player, status}].
+    change. Returns [{game_date, matchup, team, player, status}]; a team
+    marked NOT YET SUBMITTED gives a row with player "" and status
+    NOT_SUBMITTED (coverage, see report_coverage).
     """
     rows, cols = [], None
     carry = {"date": "", "time": "", "matchup": "", "team": ""}
@@ -535,7 +537,15 @@ def rows_from_words(pages):
                 rows.append(dict(game_date=carry["date"], matchup=carry["matchup"],
                                  team=carry["team"], player=m.group("player").strip(),
                                  status=m.group("status")))
+            elif _NYS.search(tail) and carry["team"]:
+                rows.append(dict(game_date=carry["date"], matchup=carry["matchup"],
+                                 team=carry["team"], player="", status=NOT_SUBMITTED))
     return rows
+
+
+# A team that has not filed yet: a coverage row (player ""), never a player.
+NOT_SUBMITTED = "Not Yet Submitted"
+_NYS = re.compile(r"NOT\s*YET\s*SUBMITTED", re.I)
 
 
 _DATE = re.compile(r"\b(\d{2}/\d{2}/\d{2,4})\b")
@@ -565,6 +575,7 @@ def rows_from_text(pages_text):
 
     Strips date, time and matchup (carried down), then a full team name
     (spaced or not; carried down), then reads 'Last, First' and the status.
+    A team marked NOT YET SUBMITTED gives a coverage row (player "").
     """
     teams = full_team_names()
     rows = []
@@ -592,6 +603,9 @@ def rows_from_text(pages_text):
                 rows.append(dict(game_date=carry["date"], matchup=carry["matchup"],
                                  team=carry["team"], player=m.group("player").strip(),
                                  status=m.group("status")))
+            elif _NYS.search(s) and carry["team"]:
+                rows.append(dict(game_date=carry["date"], matchup=carry["matchup"],
+                                 team=carry["team"], player="", status=NOT_SUBMITTED))
     return rows
 
 
@@ -666,6 +680,53 @@ def report_date(s):
     return None
 
 
+# ------------------------------------------------------------ coverage ----
+# NBA tricodes (report matchups, e.g. "PHX@BKN") that differ from BBR codes.
+NBA_TO_BBR = {"BKN": "BRK", "CHA": "CHO", "PHX": "PHO"}
+
+
+def matchup_teams(s):
+    """'NYK@BOS' -> ('NYK', 'BOS') as BBR (away, home) codes, else None."""
+    m = _MATCHUP.search(str(s).replace(" ", ""))
+    if not m:
+        return None
+    away, home = m.group(1).split("@")
+    return NBA_TO_BBR.get(away, away), NBA_TO_BBR.get(home, home)
+
+
+def report_coverage(report_rows, slate):
+    """What a parsed report says about slate date `slate` (YYYY-MM-DD):
+    {'matchups': {(away, home)}, 'teams': {codes with a row},
+     'pending': {codes marked NOT YET SUBMITTED}}."""
+    out = dict(matchups=set(), teams=set(), pending=set())
+    if report_rows is None or not len(report_rows):
+        return out
+    for r in report_rows.itertuples(index=False):
+        if report_date(r.game_date) != slate:
+            continue
+        mt = matchup_teams(getattr(r, "matchup", ""))
+        if mt:
+            out["matchups"].add(mt)
+        code = team_code(r.team)
+        if code is None:
+            continue
+        out["teams"].add(code)
+        if r.status == NOT_SUBMITTED:
+            out["pending"].add(code)
+    return out
+
+
+def covers(cov, home, away):
+    """True when the report speaks for this game: its matchup (or both teams)
+    is on it and neither team is NOT YET SUBMITTED. A game the report does
+    not reach -- empty or unparsed report, another slate, a team that has not
+    filed -- is not covered and must fall back to the base model, never be
+    read as 'nobody is out'."""
+    if home in cov["pending"] or away in cov["pending"]:
+        return False
+    return (away, home) in cov["matchups"] or {home, away} <= cov["teams"]
+
+
 # ---------------------------------------------------------------- tips ----
 def fetch_tips(y, cache_dir=None):
     """game_id -> tip_utc for every regular-season game of season y."""
@@ -691,7 +752,9 @@ def fetch_tips(y, cache_dir=None):
 # --------------------------------------------------------- statuses -------
 def game_statuses(box, tips, archive, lead_minutes):
     """One row per (game, report-listed player matched to the box): game_id,
-    team, player_id, status, played, report time, lead (minutes before tip)."""
+    team, player_id, status, played, report time, lead (minutes before tip).
+    stats['covered'] is the set of game_ids the report covers (see covers());
+    only those may use report-based availability terms."""
     games = box.drop_duplicates(["game_id", "team"])[["game_id", "date", "team"]]
     names = {}                                  # (team, norm name) -> player_id
     for r in box.drop_duplicates(["team", "player_id"]).itertuples(index=False):
@@ -699,8 +762,10 @@ def game_statuses(box, tips, archive, lead_minutes):
     played = {(r.game_id, r.player_id): r.minutes > 0
               for r in box.itertuples(index=False)}
     out, stats = [], dict(games=0, with_report=0, listed=0, matched=0, lags=[],
-                          reports=0, reports_rows=0)
-    parsed = {}
+                          reports=0, reports_rows=0, covered=set())
+    parsed, coverage = {}, {}
+    home_of = dict(box[box["home"].astype(bool)].drop_duplicates("game_id")
+                   [["game_id", "team"]].itertuples(index=False))
     for gid, g in games.groupby("game_id"):
         tip = ledger.parse_utc(tips.get(gid))
         stats["games"] += 1
@@ -730,9 +795,16 @@ def game_statuses(box, tips, archive, lead_minutes):
         stats["lags"].append((tip.astimezone(ET).replace(tzinfo=None) - rdt)
                              .total_seconds() / 60)
         teams = set(g["team"])
+        if (path, slate) not in coverage:
+            coverage[(path, slate)] = report_coverage(rep, slate)
+        h = home_of.get(gid)
+        if len(teams) == 2 and h in teams and covers(coverage[(path, slate)], h,
+                                                     (teams - {h}).pop()):
+            stats["covered"].add(gid)
         for r in rep.itertuples(index=False):
             code = team_code(r.team)
-            if code not in teams or report_date(r.game_date) != slate:
+            if (code not in teams or report_date(r.game_date) != slate
+                    or r.status == NOT_SUBMITTED):
                 continue
             stats["listed"] += 1
             pid = names.get((code, norm_name(report_name_to_first_last(r.player))))
@@ -819,7 +891,8 @@ def od_present(report_rows, box, gid, teams, slate):
     out = {}
     for r in report_rows.itertuples(index=False):
         code = team_code(r.team)
-        if code not in teams or report_date(r.game_date) != slate:
+        if (code not in teams or report_date(r.game_date) != slate
+                or r.status == NOT_SUBMITTED):
             continue
         pid = names.get((code, norm_name(report_name_to_first_last(r.player))))
         if pid is not None:
@@ -854,11 +927,15 @@ class LiveAvailability:
         self.report = parse_report(path) if path else None
 
     def terms(self, gid, home, away, date):
-        """{'av_min', 'av_bpm', 'report'} (home - away), or None when there is
-        no report or a team has no box history."""
+        """{'av_min', 'av_bpm', 'report'} (home - away), or None -- the base
+        model -- when the report does not cover this game (none, empty or
+        unparsed, not on it, a team not yet submitted) or a team has no box
+        history."""
         if self.report is None:
             return None
         slate = pd.Timestamp(date).strftime("%Y-%m-%d")
+        if not covers(report_coverage(self.report, slate), home, away):
+            return None
         present = od_present(self.report, self.box, gid, {home, away}, slate)
         th = upcoming_terms(self.box, home, gid, date, self.value, present)
         ta = upcoming_terms(self.box, away, gid, date, self.value, present)
@@ -871,12 +948,15 @@ class LiveAvailability:
 def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES):
     """Pregame od availability terms (home - away) for every game of season t,
     from box scores before each game and the NBA report at least
-    `lead_minutes` before tip. Independent of the composite weights."""
+    `lead_minutes` before tip. Independent of the composite weights.
+    Only games the report covers get terms; the rest fall back to the base
+    model (the same routing as LiveAvailability.terms)."""
     box = fetch_box(t, cache_dir=cache_dir)
     value, _, _ = player_values(box, load_bpm(t - 1))
     st, s = game_statuses(box, fetch_tips(t, cache_dir), archive, lead_minutes)
     archive.save()
     av = game_availability(box, value, present=present_map(st, "od"))
+    av = av[av["game_id"].isin(s["covered"])]
     return av[["slate_date", "home", "away", "av_min", "av_bpm"]], s
 
 
@@ -898,7 +978,8 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True):
             terms, s = season_terms(t, archive, cache_dir, lead_minutes)
             g = with_terms(nc.build_games(t, weights), terms)
             print(f"season {t}: {len(g)} games 10+ with terms; "
-                  f"{s['with_report']}/{s['games']} team-games with a report",
+                  f"{s['with_report']}/{s['games']} games with a report, "
+                  f"{len(s['covered'])} covered",
                   flush=True)
             frames.append(g)
     finally:

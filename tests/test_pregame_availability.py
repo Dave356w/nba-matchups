@@ -40,6 +40,7 @@ def test_rows_from_words_carries_game_and_team_down():
     assert [(r["team"], r["player"], r["status"]) for r in rows] == [
         ("Boston Celtics", "Porzingis, Kristaps", "Out"),
         ("Boston Celtics", "Brown, Jaylen", "Questionable"),
+        ("New York Knicks", "", pa.NOT_SUBMITTED),        # coverage row
         ("New York Knicks", "Robinson, Mitchell", "Doubtful")]
     assert all(r["game_date"] == "10/22/2024" for r in rows)
 
@@ -147,6 +148,7 @@ def test_text_fallback_spaced_and_unspaced():
     got = [(pa.team_code(r["team"]), r["player"], r["status"], r["game_date"]) for r in rows]
     assert got == [("BOS", "Porzingis, Kristaps", "Out", "10/22/2024"),
                    ("BOS", "Brown, Jaylen", "Questionable", "10/22/2024"),
+                   ("NYK", "", pa.NOT_SUBMITTED, "10/22/2024"),
                    ("LAL", "Vincent,Gabe", "Doubtful", "10/22/2024"),
                    ("LAL", "Porter Jr., Michael", "Available", "10/22/2024")]
 
@@ -191,4 +193,12 @@ def test_phase_is_measured_from_opening_night():
                           delta=[10.0, 10.0]))
     out = pa.cs.add_shape(g, opening="2025-10-21")
     assert abs(out["phase"].iloc[0] - 22 / pa.cs.SEASON_DAYS) < 1e-12
-    assert pa.cs.add_shape(g)["phase"].iloc[0] == 0      # default: first date
+    # no first-row default: a games-10+ frame's first date is not opening night
+    try:
+        pa.cs.add_shape(g)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("add_shape guessed an opening night")
+    g["phase"] = out["phase"]
+    assert pa.cs.add_shape(g)["phase"].tolist() == out["phase"].tolist()

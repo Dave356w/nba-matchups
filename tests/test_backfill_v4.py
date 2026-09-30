@@ -77,3 +77,30 @@ def test_season_phase_is_capped_and_known_pregame():
     logs = {"A": pd.DataFrame(dict(date=pd.to_datetime(["2025-10-22", "2025-10-25"]))),
             "B": pd.DataFrame(dict(date=pd.to_datetime(["2025-10-21"])))}
     assert nc.season_opening(logs) == pd.Timestamp("2025-10-21")
+
+
+def test_walk_forward_routing_fits_only_on_earlier_seasons(monkeypatch):
+    seen = {"weights": [], "games": set(), "early": []}
+
+    def weights(years):
+        seen["weights"].append(list(years))
+        return {}
+
+    def games(y, w):
+        seen["games"].add(y)
+        return fake_games(y)
+    monkeypatch.setattr(nc, "fit_weights", weights)
+    monkeypatch.setattr(nc, "build_games", games)
+    monkeypatch.setattr(cold_start, "fit_early",
+                        lambda years, w: seen["early"].append(list(years)))
+    monkeypatch.setattr(cold_start, "early_games", lambda *a, **k: pd.DataFrame())
+    terms = {t: pd.DataFrame(dict(
+        slate_date=fake_games(t)["date"].dt.strftime("%Y-%m-%d").iloc[:150],
+        home=fake_games(t)["home"].iloc[:150], away=fake_games(t)["away"].iloc[:150],
+        av_min=0.1, av_bpm=0.5)) for t in bf.REPORT_YEARS}
+    test, _, _ = bf.reconstruct_season(2025, terms=terms, walk_forward=True)
+    assert all(t < 2025 for t in seen["weights"][0] + seen["early"][0])
+    assert max(seen["games"]) == 2025                 # the test season, scored only
+    assert test["route"].value_counts().to_dict() == {"avail": 150, "base": 50}
+    assert bf.training_years([2023, 2024, 2025, 2026], 2025) == [2023, 2024, 2026]
+    assert bf.training_years([2023, 2024, 2025, 2026], 2025, True) == [2023, 2024]

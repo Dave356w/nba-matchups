@@ -17,7 +17,7 @@ def test_shape_features_use_only_the_date_and_opening_night():
     g = pd.DataFrame(dict(
         date=pd.to_datetime(["2025-10-22", "2025-12-01", "2026-03-01", "2026-05-20"]),
         delta=[10.0, -20.0, 5.0, 30.0]))
-    out = cs.add_shape(g)
+    out = cs.add_shape(g, opening="2025-10-22")
     assert out["phase"].iloc[0] == 0 and out["phase"].iloc[-1] == 1   # capped
     assert abs(out["phase"].iloc[1] - 40 / cs.SEASON_DAYS) < 1e-12
     assert list(out["late"]) == [0, 0, 1, 1]
@@ -26,8 +26,27 @@ def test_shape_features_use_only_the_date_and_opening_night():
     assert list(out["d_late"]) == [0.0, 0.0, 5.0, 30.0]
     # a later game does not change an earlier game's features
     more = cs.add_shape(pd.concat([g, g.tail(1).assign(
-        date=pd.Timestamp("2026-06-01"))], ignore_index=True))
+        date=pd.Timestamp("2026-06-01"))], ignore_index=True), opening="2025-10-22")
     assert more.iloc[:4]["phase"].tolist() == out["phase"].tolist()
+
+
+def test_phase_clock_starts_at_opening_night_not_the_first_row():
+    # Games 10+ start ~3 weeks after opening night; the research clock must
+    # match production (nc.logit_inputs), which counts from opening night.
+    g = pd.DataFrame(dict(date=pd.to_datetime(["2025-11-12", "2026-01-10"]),
+                          delta=[10.0, -5.0]))
+    g["phase"] = [cs.nc.season_phase(d, "2025-10-21") for d in g["date"]]
+    out = cs.add_shape(g)                      # keeps build_games' phase
+    assert out["phase"].iloc[0] == 22 / cs.SEASON_DAYS > 0
+    assert out["d_phase"].tolist() == (g["delta"] * g["phase"]).tolist()
+    assert cs.add_shape(g.drop(columns="phase"), opening="2025-10-21")[
+        "phase"].tolist() == out["phase"].tolist()
+    try:
+        cs.add_shape(g.drop(columns="phase"))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("add_shape guessed an opening night")
 
 
 def test_slope_is_one_when_calibrated_and_above_one_when_too_flat():

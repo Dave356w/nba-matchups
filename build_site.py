@@ -188,10 +188,8 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
         use, out["model_tag"] = early, model_tag(model)
     else:
         return out
-    phase = nc.season_phase(date, nc.season_opening(logs) if opening is None
-                            else opening)
-    vals = {"delta": d, "b2b_net": int(ra == 0) - int(rh == 0),
-            "d_phase": d * phase, **(avail or {})}
+    vals = {**nc.logit_inputs(d, rh, ra, date, nc.season_opening(logs)
+                              if opening is None else opening), **(avail or {})}
     p = float(nc.predict(use, [[vals[f] for f in use["features"]]])[0])
     lean_home = p >= 0.5
     out.update(home_b2b=int(rh == 0), away_b2b=int(ra == 0),
