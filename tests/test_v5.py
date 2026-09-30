@@ -181,3 +181,17 @@ def test_reconstruct_v5_routes_and_keeps_v4_beside_it(monkeypatch):
     assert np.allclose(test["p_v4"], v4["p_home"])        # the gate's v4 arm
     fb = test["model_tag"] == build_site.MODEL_TAG_V4       # fallback rows = v4
     assert np.allclose(test.loc[fb, "p_home"], v4.loc[fb, "p_home"])
+
+
+def test_opp_luck_and_build_games_accept_season_to_date(monkeypatch):
+    # The Fit model backtest builds games with half_life=None (season to date).
+    logs = league(seed=6, rounds=20, opp_three={"T0": 0.50})
+    d = sorted({x for lg in logs.values() for x in lg["date"]})[10]
+    t0 = logs["T0"]
+    i = int((t0["date"] < d).sum())
+    pct = nc.league_3p_before(logs, d)
+    assert nc.opp_luck(t0, i, pct, WEIGHTS, None) > 0
+    assert nc.opp_luck(t0, i, pct, WEIGHTS, 1e9) == \
+        __import__("pytest").approx(nc.opp_luck(t0, i, pct, WEIGHTS, None))
+    monkeypatch.setattr(nc, "load_logs", lambda y, refresh=False: logs)
+    assert np.isfinite(nc.build_games(2026, WEIGHTS, None)["luck_def"]).all()

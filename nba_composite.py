@@ -339,7 +339,8 @@ def opp_luck(log, i, lg_pct, weights, half_life=HALF_LIFE):
     A = log[COLS + X3].to_numpy(float)[:i]
     if not np.isfinite(A).all():
         return float("nan")
-    wt = 0.5 ** (np.arange(i)[::-1] / half_life)
+    wt = (np.ones(i) if half_life is None                   # season to date
+          else 0.5 ** (np.arange(i)[::-1] / half_life))
     t = dict(zip(COLS + X3, (A * wt[:, None]).sum(0)))
 
     def comp(tt):
