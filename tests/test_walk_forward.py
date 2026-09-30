@@ -62,3 +62,17 @@ def test_report_compares_identical_rows_per_book():
     txt = wf.report(m)
     assert "DraftKings close" in txt and "ESPN BET close" in txt
     assert "n=  120" in txt and "n=   80" in txt and "n=  110" in txt
+
+
+def test_report_splits_the_production_routes():
+    rng = np.random.default_rng(1)
+    n = 200
+    q = rng.uniform(0.3, 0.7, n)
+    m = pd.DataFrame(dict(
+        year=2026, close_book="dk", early=False,
+        home_won=(rng.random(n) < q).astype(float), close_q_home=q,
+        p_home=q, p_wf=q, p_prod=q, route=np.where(np.arange(n) < 150, "avail", "base")))
+    txt = wf.report(m)
+    assert "prod        vs market  n=  200" in txt
+    assert "prod[avail] vs market  n=  150" in txt
+    assert "prod[base]  vs wf      n=   50" in txt

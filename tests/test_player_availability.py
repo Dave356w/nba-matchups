@@ -122,3 +122,74 @@ def test_v4_phase_term_and_tags(model, weights):
     assert build_site.active_tags(v4, v4_avail) == [build_site.MODEL_TAG_V4,
                                                     build_site.MODEL_TAG_V4_AVAIL]
     assert build_site.active_tags(model, None) == [build_site.MODEL_TAG]
+
+
+def _report(rows):
+    return pd.DataFrame(rows, columns=["game_date", "matchup", "team", "player",
+                                       "status"])
+
+
+def test_report_coverage_needs_the_game_and_every_team_filed():
+    rep = _report([
+        ("11/05/2026", "NYK@BOS", "Boston Celtics", "Brown, Jaylen", "Out"),
+        ("11/05/2026", "PHX@BKN", "Phoenix Suns", "", pav.NOT_SUBMITTED),
+        ("11/05/2026", "PHX@BKN", "Brooklyn Nets", "Claxton, Nic", "Questionable"),
+        ("11/06/2026", "LAL@DEN", "Denver Nuggets", "Braun, Christian", "Out")])
+    cov = pav.report_coverage(rep, "2026-11-05")
+    assert pav.matchup_teams("PHX@BKN") == ("PHO", "BRK")
+    # NYK has nobody listed, but the matchup is on the report: covered
+    assert pav.covers(cov, "BOS", "NYK")
+    assert not pav.covers(cov, "BRK", "PHO")          # Phoenix not yet submitted
+    assert not pav.covers(cov, "DEN", "LAL")          # another slate
+    assert not pav.covers(cov, "MIA", "ORL")          # not on the report
+    empty = pav.report_coverage(_report([]), "2026-11-05")
+    assert not pav.covers(empty, "BOS", "NYK")
+    assert not pav.covers(pav.report_coverage(None, "2026-11-05"), "BOS", "NYK")
+    # a not-yet-submitted row is coverage, never a player
+    box = box_rows("PHO", [{"devin booker": 34}])
+    assert pav.od_present(rep, box, "g", {"PHO"}, "2026-11-05") == {}
+
+
+def _live(report, box):
+    live = pav.LiveAvailability.__new__(pav.LiveAvailability)
+    live.box, live.value = box, {"jaylen brown": 8.0, "wing": 2.0}
+    live.report, live.report_time = report, datetime(2026, 11, 25, 17, 0)
+    return live
+
+
+def test_live_terms_fall_back_when_the_report_does_not_cover_the_game():
+    games = [{"jaylen brown": 36, "wing": 30}] * 12
+    box = pd.concat([box_rows("BOS", games, opp="NYK"),
+                     box_rows("NYK", [{"jalen brunson": 36, "hart": 30}] * 12,
+                              opp="BOS").assign(home=False)])
+    date = "2026-11-25"
+    listed = _report([("11/25/2026", "NYK@BOS", "Boston Celtics", "Brown, Jaylen", "Out")])
+    got = _live(listed, box).terms("g", "BOS", "NYK", date)
+    assert got is not None and got["av_bpm"] < 0      # BOS star out
+    # empty or unparsed report, other slate, team not yet submitted: base model
+    assert _live(_report([]), box).terms("g", "BOS", "NYK", date) is None
+    other = _report([("11/24/2026", "NYK@BOS", "Boston Celtics", "Brown, Jaylen", "Out")])
+    assert _live(other, box).terms("g", "BOS", "NYK", date) is None
+    nys = _report([("11/25/2026", "NYK@BOS", "Boston Celtics", "Brown, Jaylen", "Out"),
+                   ("11/25/2026", "NYK@BOS", "New York Knicks", "", pav.NOT_SUBMITTED)])
+    assert _live(nys, box).terms("g", "BOS", "NYK", date) is None
+
+
+def test_historical_statuses_mark_only_covered_games(monkeypatch):
+    def game(gid, date, home, away):
+        return [dict(game_id=gid, date=pd.Timestamp(date), team=t, opp=o, home=h,
+                     margin=0.0, player_id=f"{t.lower()} guy", name=f"{t.title()} Guy",
+                     minutes=30.0, pm=0.0)
+                for t, o, h in ((home, away, True), (away, home, False))]
+    box = pd.DataFrame(game("g1", "2026-11-25", "BOS", "NYK")
+                       + game("g2", "2026-11-25", "MIA", "ORL"))
+    tips = {"g1": "2026-11-26T00:30:00Z", "g2": "2026-11-26T00:30:00Z"}
+
+    class Archive:
+        def latest_before(self, cutoff):
+            return datetime(2026, 11, 25, 17, 0), "r.pdf"
+    rep = _report([("11/25/2026", "NYK@BOS", "Boston Celtics", "Guy, Bos", "Out")])
+    monkeypatch.setattr(pav, "parse_report", lambda path: rep)
+    st, s = pav.game_statuses(box, tips, Archive(), 30)
+    assert s["covered"] == {"g1"} and s["with_report"] == 2
+    assert list(st["player_id"]) == ["bos guy"]

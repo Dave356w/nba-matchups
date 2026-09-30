@@ -266,6 +266,16 @@ def season_phase(date, opening):
     return float(min(max(days / SEASON_DAYS, 0.0), 1.0))
 
 
+def logit_inputs(delta, rest_home, rest_away, date, opening):
+    """Every logit feature derivable from the composite, rest and the date:
+    delta, b2b_net, phase, d_phase. Shared by build_games (fitting),
+    score_slate (CLI) and build_site.score_game (daily build), so a model's
+    features mean the same thing on every path. All known before tip."""
+    phase = season_phase(date, opening)
+    return {"delta": delta, "b2b_net": int(rest_away == 0) - int(rest_home == 0),
+            "phase": phase, "d_phase": delta * phase}
+
+
 def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=False):
     logs = load_logs(y, refresh)
     sd, w = weights["sd"], weights["w"]
@@ -293,11 +303,9 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
                 continue
             rh, ra = rest_days(c, i), rest_days(c2, j)
             delta = composite(feat(tm, i) - feat(opp, j), sd, w)
-            phase = season_phase(r["date"], opening)
             rows.append({"year": y, "date": r["date"], "home": tm, "away": opp,
                          "h_b2b": int(rh == 0), "a_b2b": int(ra == 0),
-                         "b2b_net": int(ra == 0) - int(rh == 0),
-                         "delta": delta, "phase": phase, "d_phase": delta * phase,
+                         **logit_inputs(delta, rh, ra, r["date"], opening),
                          "win": int(r["pts"] > r["opp_pts"])})
     return pd.DataFrame(rows)
 
@@ -361,12 +369,19 @@ def schedule_for(y, date, refresh=False):
             if h in names and v in names]
 
 
-def score_slate(y, date, half_life=HALF_LIFE, refresh=False):
-    weights, model = load_json("weights.json"), load_json("logit.json")
-    logs = load_logs(y, refresh)
+def score_slate(y, date, half_life=HALF_LIFE, refresh=False, logs=None,
+                schedule=None, weights=None, model=None):
+    """P(home win) for `date`'s games from the checked-in base logit (games
+    10+ only; the daily build adds carryover and availability). Features come
+    from logit_inputs, phase from the season's opening night."""
+    weights = weights or load_json("weights.json")
+    model = model or load_json("logit.json")
+    logs = logs if logs is not None else load_logs(y, refresh)
     date = pd.Timestamp(date)
+    opening = season_opening(logs)
+    games = schedule if schedule is not None else schedule_for(y, date, refresh)
     out = []
-    for h, a in schedule_for(y, date, refresh):
+    for h, a in games:
         ih = int((logs[h]["date"] < date).sum())
         ia = int((logs[a]["date"] < date).sum())
         if min(ih, ia) < MIN_GAMES:
@@ -374,9 +389,9 @@ def score_slate(y, date, half_life=HALF_LIFE, refresh=False):
             continue
         fh = decayed_features(logs[h], ih, half_life)
         fa = decayed_features(logs[a], ia, half_life)
-        d = float(((fh - fa) / np.asarray(weights["sd"])) @ np.asarray(weights["w"]) * 100)
+        d = composite(fh - fa, weights["sd"], weights["w"])
         rh, ra = rest_days(logs[h], ih, date), rest_days(logs[a], ia, date)
-        vals = {"delta": d, "b2b_net": int(ra == 0) - int(rh == 0)}
+        vals = logit_inputs(d, rh, ra, date, opening)
         x = [vals[f] for f in model["features"]]
         out.append((h, a, d, float(predict(model, [x])[0]), int(rh == 0), int(ra == 0), ih, ia))
     return pd.DataFrame(out, columns=["home", "away", "delta", "p_home",

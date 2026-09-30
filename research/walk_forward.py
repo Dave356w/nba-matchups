@@ -8,7 +8,14 @@ The reconstructed ledger (backfill_history.py) is leave-one-season-out: the
 re-scores the same seasons as a bettor could have, then compares on the SAME
 games (matched to data/nba_reconstructed.csv for result and close):
 
-  wf        weights: ridge on WEIGHT_YEARS < Y; logit: GAME_YEARS < Y;
+  prod      the SHIPPED routing, walk-forward: backfill_history.
+            reconstruct_season(walk_forward=True) -- games 1-9 carryover
+            (GAME_YEARS < Y), games 10+ base v4 with delta*phase
+            (PHASE_YEARS < Y), and with --avail the v4 availability logit
+            (report seasons < Y) on games the injury report covers, base v4
+            elsewhere. Split by route: early / base / avail.
+  wf        the pre-v4 base (delta, b2b_net; no phase, no availability):
+            weights on WEIGHT_YEARS < Y; logit on GAME_YEARS < Y;
             games 1-9 from the carryover model fitted on GAME_YEARS < Y
   loso      the reconstructed row's p_home (leave-one-season-out)
   wf_pace   wf plus a possession-based pace arm (games 10+ only):
@@ -40,6 +47,7 @@ import cold_start  # noqa: E402
 import ledger  # noqa: E402
 import market  # noqa: E402
 import nba_composite as nc  # noqa: E402
+import player_availability as pav  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output",
                    "walk_forward.csv")
@@ -147,6 +155,23 @@ def walk_forward(y, weight_years, game_years, pace=True):
     return out, fits, dict(weight_years=wy, game_years=gy)
 
 
+def production(y, weight_years, game_years, phase_years=None, terms=None):
+    """p_prod / route: the shipped v4 routing for season y, every fit on
+    earlier seasons only (backfill_history.reconstruct_season)."""
+    test, _, _ = bf.reconstruct_season(
+        y, game_years=game_years, weight_years=weight_years,
+        phase_years=phase_years or bf.PHASE_YEARS, terms=terms, walk_forward=True)
+    test["slate_date"] = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d")
+    return (test.drop_duplicates(["slate_date", "home", "away"])
+            [["slate_date", "home", "away", "p_home", "route"]]
+            .rename(columns={"p_home": "p_prod"}))
+
+
+def with_production(scored, prod):
+    """Attach p_prod and route to walk_forward() rows (same games)."""
+    return scored.merge(prod, on=["slate_date", "home", "away"], how="left")
+
+
 def attach_rows(scored, recon):
     """Join scored games to reconstructed rows (result, close, LOSO p_home)."""
     r = ledger.graded(recon)
@@ -184,6 +209,16 @@ def report(m):
         every = np.ones(len(g), bool)
         comps = [("wf", "market", wf, q, every), ("loso", "market", loso, q, every),
                  ("wf", "loso", wf, loso, every)]
+        if "p_prod" in g:
+            prod = g["p_prod"].to_numpy(float)
+            ok = np.isfinite(prod)
+            comps += [("prod", "market", prod, q, ok), ("prod", "loso", prod, loso, ok),
+                      ("prod", "wf", prod, wf, ok)]
+            if not early:
+                for route in ("base", "avail"):
+                    r = ok & (g["route"] == route).to_numpy()
+                    comps += [(f"prod[{route}]", "market", prod, q, r),
+                              (f"prod[{route}]", "wf", prod, wf, r)]
         if "p_wf_pace" in g and not early:
             pace = g["p_wf_pace"].to_numpy(float)
             ok = np.isfinite(pace)
@@ -194,7 +229,7 @@ def report(m):
                 continue
             s = paired(a[ok], b[ok], y[ok])
             lines.append(
-                f"  {na:8s} vs {nb:7s} n={s['n']:5d}  logloss {s['ll_a']:.4f} vs "
+                f"  {na:11s} vs {nb:7s} n={s['n']:5d}  logloss {s['ll_a']:.4f} vs "
                 f"{s['ll_b']:.4f}  diff {s['d_ll']:+.4f} ± {1.96 * s['d_ll_se']:.4f}"
                 f"  Brier diff {s['d_br']:+.4f} ± {1.96 * s['d_br_se']:.4f}")
     return "\n".join(lines)
@@ -213,13 +248,35 @@ def main(argv=None):
                     help="logit seasons (only those before each test season "
                          "are used); default backfill_history.GAME_YEARS")
     ap.add_argument("--no-pace", action="store_true")
+    ap.add_argument("--no-prod", action="store_true",
+                    help="skip the shipped-routing (prod) arm")
+    ap.add_argument("--avail", action="store_true",
+                    help="prod arm: injury-report availability on covered "
+                         "games (fetches box scores, tips and reports)")
+    ap.add_argument("--cache", default=pav.DEFAULT_CACHE)
     a = ap.parse_args(argv)
     game_years = nc.parse_years(a.game_years) if a.game_years else bf.GAME_YEARS
     recon = ledger.load(ledger.RECON_PATH)
+    terms = None
+    if a.avail and not a.no_prod:
+        archive = pav.ReportArchive(os.path.join(a.cache, "injury_reports"))
+        terms = {}
+        try:
+            for t in [t for t in bf.REPORT_YEARS if t <= max(a.seasons)]:
+                terms[t], s = pav.season_terms(t, archive, a.cache)
+                print(f"report season {t}: {s['with_report']}/{s['games']} games "
+                      f"with a report, {len(s['covered'])} covered", flush=True)
+        finally:
+            archive.save()
     allm = []
     for y in a.seasons:
         scored, fits, used = walk_forward(y, bf.WEIGHT_YEARS, game_years,
                                           pace=not a.no_pace)
+        if not a.no_prod:
+            scored = with_production(scored, production(
+                y, bf.WEIGHT_YEARS, game_years, terms=terms))
+            print(f"  prod routes: {scored['route'].value_counts().to_dict()}",
+                  flush=True)
         m = attach_rows(scored, recon)
         print(f"\n=== season {y}: weights {used['weight_years']}, logit "
               f"{used['game_years']}; scored {len(scored)}, matched {len(m)} "

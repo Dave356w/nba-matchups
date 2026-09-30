@@ -13,8 +13,9 @@ same training games for every arm (games 10+):
 
   base       P = sigma(a + b*delta + c*b2b_net)                  (shipped form)
   ext        base + d*delta*|delta|/100        extremes steeper (or flatter)
-  phase      base + e*delta*phase              phase = days since the season's
-                                               first game / 175, capped at 1
+  phase      base + e*delta*phase              phase = days since opening
+                                               night / 175, capped at 1
+                                               (nc.logit_inputs, as shipped)
   late       base + e*delta*[date >= Mar 1]
   phase_ext  base + d*delta*|delta|/100 + e*delta*phase
 
@@ -47,7 +48,7 @@ import walk_forward as wfm  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output",
                    "calibration_shape.csv")
-SEASON_DAYS = 175.0
+SEASON_DAYS = nc.SEASON_DAYS
 BASE = list(nc.LOGIT_FEATURES)
 ARMS = {
     "base": BASE,
@@ -61,12 +62,17 @@ ARMS = {
 def add_shape(games, opening=None):
     """Add the shape features to nc.build_games rows of ONE season.
 
-    `opening` is the season's opening night; by default the earliest date in
-    `games` (for games 10+ that is ~3 weeks after opening night)."""
+    Phase is measured from the season's opening night, as in production
+    (nc.logit_inputs): by default the `phase` column nc.build_games already
+    carries; `opening` recomputes it from that date. Never the earliest date
+    in `games` -- for games 10+ that is ~3 weeks after opening night."""
     g = games.copy()
     d = pd.to_datetime(g["date"])
-    opening = d.min() if opening is None else pd.Timestamp(opening)
-    g["phase"] = np.clip((d - opening).dt.days / SEASON_DAYS, 0, 1)
+    if opening is not None:
+        g["phase"] = [nc.season_phase(x, opening) for x in d]
+    elif "phase" not in g:
+        raise ValueError("add_shape needs the season's opening night or the "
+                         "phase column from nc.build_games")
     g["late"] = ((d.dt.month >= 3) & (d.dt.month <= 6)).astype(int)
     g["dsq"] = g["delta"] * g["delta"].abs() / 100
     g["d_phase"] = g["delta"] * g["phase"]

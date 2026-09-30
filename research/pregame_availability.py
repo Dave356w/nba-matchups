@@ -17,6 +17,9 @@ Per player with history for the team, P(plays today) is
            Available or not listed (on the roster) -> 1
 where "on the roster" = listed on the team's previous box score (known
 before the game). Players not on the roster and not on the report -> 0.
+Only games the report covers (its matchup is on it and neither team is NOT
+YET SUBMITTED; player_availability.covers) are evaluated: elsewhere an
+empty report would read as "nobody is out".
 
 Walk-forward, games 10+: weights on WEIGHT_YEARS < Y; every logit and the
 q-arm play rates fitted on box seasons < Y. Reported per test season and
@@ -60,7 +63,7 @@ import ledger  # noqa: E402
 import market  # noqa: E402
 import nba_composite as nc  # noqa: E402
 from player_availability import (  # noqa: E402,F401  (moved; re-exported)
-    ET, REPORT_URL, STATUSES, SLOT_MINUTES, MAX_LOOKBACK_H, slot_names, floor_slot, ReportArchive, HEADER_CANON, PAIRS, PARSER_VERSION, header_columns, status_of, rows_from_words, _DATE, _TIME, _MATCHUP, _ROW, full_team_names, rows_from_text, _DUMPED, parse_report, CITIES, team_code, report_name_to_first_last, report_date, fetch_tips, game_statuses, play_rates, present_map)
+    ET, REPORT_URL, STATUSES, SLOT_MINUTES, MAX_LOOKBACK_H, slot_names, floor_slot, ReportArchive, HEADER_CANON, PAIRS, PARSER_VERSION, header_columns, status_of, rows_from_words, _DATE, _TIME, _MATCHUP, _ROW, full_team_names, rows_from_text, _DUMPED, parse_report, CITIES, team_code, report_name_to_first_last, report_date, fetch_tips, game_statuses, play_rates, present_map, NOT_SUBMITTED, report_coverage, covers)
 
 ARMS = ("od", "q")
 # Season-phase arms (research/calibration_shape.py): does delta*phase still
@@ -110,8 +113,13 @@ PHASE_ARMS = {"base_phase": list(nc.LOGIT_FEATURES) + ["d_phase"],
 
 
 # ------------------------------------------------------------ evaluation ---
-def arm_frame(box, value, present):
+def arm_frame(box, value, present, covered=None):
+    """Availability terms per game; with `covered` (game_ids the report
+    covers, player_availability.covers) only those games -- the rest have
+    no pregame report terms, as in production."""
     g = av.game_availability(box, value, present=present)
+    if covered is not None:
+        g = g[g["game_id"].isin(covered)]
     return g[["slate_date", "home", "away", "av_min", "av_bpm"]]
 
 
@@ -177,17 +185,18 @@ def main(argv=None):
                     help="use the last report at least this long before tip")
     a = ap.parse_args(argv)
     archive = ReportArchive()
-    box, value, statuses, hind = {}, {}, {}, {}
+    box, value, statuses, hind, covered = {}, {}, {}, {}, {}
     try:
         for t in a.box_seasons:
             box[t] = av.fetch_box(t)
             value[t], _, rate_min = av.player_values(box[t], av.load_bpm(t - 1))
             st, s = game_statuses(box[t], fetch_tips(t), archive, a.lead_minutes)
             archive.save()
-            statuses[t] = st
+            statuses[t], covered[t] = st, s["covered"]
             lag = np.median(s["lags"]) if s["lags"] else float("nan")
-            print(f"season {t}: {s['with_report']}/{s['games']} team-games with a "
-                  f"report (median {lag:.0f} min before tip); {s['reports_rows']}/"
+            print(f"season {t}: {s['with_report']}/{s['games']} games with a "
+                  f"report (median {lag:.0f} min before tip), {len(s['covered'])} "
+                  f"covered by it; {s['reports_rows']}/"
                   f"{s['reports']} reports parsed to rows; {s['listed']} report "
                   f"rows, {100 * s['matched'] / max(s['listed'], 1):.1f}% matched to "
                   f"box players; BPM covers {100 * rate_min:.1f}% of minutes; "
@@ -235,11 +244,10 @@ def main(argv=None):
             f = hind[t].rename(columns={"av_min": "hind_min", "av_bpm": "hind_bpm"})
             for arm in ARMS:
                 p = present_map(statuses[t], arm, rates)
-                f = f.merge(arm_frame(box[t], value[t], p).rename(
+                f = f.merge(arm_frame(box[t], value[t], p, covered[t]).rename(
                     columns={"av_min": f"{arm}_min", "av_bpm": f"{arm}_bpm"}),
                     on=["slate_date", "home", "away"])
-            frames[t] = cs.add_shape(season_frame(t, weights, f),
-                                     opening=pd.to_datetime(box[t]["date"]).min())
+            frames[t] = cs.add_shape(season_frame(t, weights, f))
         tr = pd.concat([frames[t] for t in tr_years], ignore_index=True)
         te = frames[y]
         base = nc.fit_logit(tr[nc.LOGIT_FEATURES].to_numpy(float), tr["win"],

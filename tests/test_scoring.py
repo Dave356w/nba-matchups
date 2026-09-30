@@ -47,3 +47,38 @@ def test_back_to_back_flag(weights, model):
 def test_season_for():
     assert build_site.season_for("2026-10-25") == 2027
     assert build_site.season_for("2027-04-10") == 2027
+
+
+def _real(name):
+    import json
+    import os
+    return json.load(open(os.path.join(os.path.dirname(nc.__file__), "model", name)))
+
+
+def test_every_shipped_model_feature_is_built_by_logit_inputs():
+    # The CLI once raised KeyError: 'd_phase' with model/logit.json.
+    vals = nc.logit_inputs(5.0, 0, 2, "2026-01-10", "2025-10-21")
+    avail = {"av_min", "av_bpm"}           # added by the availability terms
+    for name in ("logit.json", "logit_avail.json", "logit_early.json"):
+        missing = set(_real(name)["features"]) - set(vals) - avail
+        assert not missing, (name, missing)
+    assert vals["b2b_net"] == -1 and vals["phase"] == 81 / nc.SEASON_DAYS
+    assert vals["d_phase"] == 5.0 * vals["phase"]
+
+
+def test_cli_scorer_matches_site_scorer_on_the_checked_in_model():
+    weights, model = _real("weights.json"), _real("logit.json")
+    logs = {"A": make_log(60, seed=8, strength=1.0),
+            "B": make_log(60, seed=9, strength=-0.5),
+            "C": make_log(3, seed=10)}
+    date = logs["A"]["date"].iloc[45]
+    cli = nc.score_slate(2027, date, logs=logs, schedule=[("A", "B"), ("C", "A")],
+                         weights=weights, model=model)
+    site = build_site.score_game(logs, "A", "B", date, weights, model)
+    assert abs(cli["p_home"].iloc[0] - site["p_home"]) < 1e-5
+    assert abs(cli["delta"].iloc[0] - site["delta"]) < 1e-3
+    assert site["model_tag"] == build_site.MODEL_TAG_V4
+    assert np.isnan(cli["p_home"].iloc[1])            # game < 10: abstains
+    # phase counts from opening night: late-season p differs from phase 0
+    no_phase = nc.predict(model, [[site["delta"], 0, 0.0]])[0]
+    assert abs(site["p_home"] - no_phase) > 1e-4

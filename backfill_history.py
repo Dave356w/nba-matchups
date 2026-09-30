@@ -55,24 +55,42 @@ MODEL_COLUMNS = ["gp_home", "gp_away", "delta", "p_home", "lean", "p_lean",
                  "model_tag"]
 
 
+def training_years(years, y, walk_forward=False):
+    """Seasons a fit for test season y may use: every other season (leave one
+    season out), or only earlier ones (walk-forward)."""
+    return [t for t in years if (t < y if walk_forward else t != y)]
+
+
 def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
                        phase_years=PHASE_YEARS, report_years=REPORT_YEARS,
-                       terms=None):
-    """Leave-season-y-out v4 predictions for every qualifying game of season y.
+                       terms=None, walk_forward=False):
+    """v4 predictions, routed as in production, for every qualifying game of
+    season y: `route` is "early" (games 1-9, carryover), "avail" (games 10+
+    the injury report covers) or "base" (other games 10+).
 
-    `terms` ({season: player_availability.season_terms frame}) enables the
+    Every fit leaves season y out; with walk_forward=True it uses earlier
+    seasons only (research/walk_forward.py). `terms` ({season:
+    player_availability.season_terms frame, covered games only}) enables the
     availability arm for games 10+ of report seasons; None skips it."""
-    weights = nc.fit_weights([w for w in weight_years if w != y])
-    games = {t: nc.build_games(t, weights) for t in set(phase_years) | {y}}
-    train = pd.concat([games[t] for t in phase_years if t != y])
+    def use(years):
+        out = training_years(years, y, walk_forward)
+        if not out:
+            raise SystemExit(f"season {y}: no training seasons in {list(years)}")
+        return out
+    weights = nc.fit_weights(use(weight_years))
+    phase_train = use(phase_years)
+    games = {t: nc.build_games(t, weights) for t in set(phase_train) | {y}}
+    train = pd.concat([games[t] for t in phase_train])
     feats = nc.PHASE_FEATURES
     model = nc.fit_logit(train[feats].values, train["win"], feats)
     model["features"] = feats
     test = games[y].copy()
     test["p_home"] = nc.predict(model, test[feats].values)
     test["model_tag"] = build_site.MODEL_TAG_V4
+    test["route"] = "base"
     if terms and y in terms:
-        others = [t for t in report_years if t != y and t in terms]
+        others = [t for t in training_years(report_years, y, walk_forward)
+                  if t in terms]
         if others:
             tr = pd.concat([pav.with_terms(games[t] if t in games
                                            else nc.build_games(t, weights),
@@ -88,14 +106,16 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
             hit = tkey.isin(pmap)
             test.loc[hit, "p_home"] = tkey[hit].map(pmap)
             test.loc[hit, "model_tag"] = build_site.MODEL_TAG_V4_AVAIL
+            test.loc[hit, "route"] = "avail"
             print(f"season {y}: availability arm on {int(hit.sum())}/{len(test)} "
                   f"games 10+ (fit on {others}, n={len(tr)})", flush=True)
     # games 1-9: the v2 carryover model, its logit also fit without y.
-    early = cold_start.fit_early([t for t in game_years if t != y], weights)
+    early = cold_start.fit_early(use(game_years), weights)
     e = cold_start.early_games(y, weights, min_gp=1, window=nc.MIN_GAMES)
     if len(e):
         e["p_home"] = nc.predict(early, e[cold_start.FEATURES].values)
         e["model_tag"] = build_site.MODEL_TAG_V4
+        e["route"] = "early"
         test = pd.concat([test, e], ignore_index=True)
     return test, weights, model
 
@@ -190,7 +210,8 @@ def main(argv=None):
             for t in REPORT_YEARS:
                 terms[t], s = pav.season_terms(t, archive, a.cache)
                 print(f"report season {t}: {s['with_report']}/{s['games']} "
-                      "team-games with a report", flush=True)
+                      f"games with a report, {len(s['covered'])} covered",
+                      flush=True)
         finally:
             archive.save()
     if a.rescore:

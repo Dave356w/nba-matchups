@@ -67,8 +67,11 @@ Before a PR, run:
   same v2 values, and how often each status actually played. **Model v3/v4**
   (`player_availability.py`, `model/logit_avail.json`) ships its Out/Doubtful
   arm for games 10+: the build reads the latest NBA report and this season's
-  box scores (`data/nba_box_<season>.csv`, extended daily). Rows without a
-  report fall back to the base logit (v4 tag without "avail").
+  box scores (`data/nba_box_<season>.csv`, extended daily). Rows the report
+  does not cover (`player_availability.covers`: matchup on it, no team NOT
+  YET SUBMITTED; an empty or unparsed report covers nothing) fall back to
+  the base logit (v4 tag without "avail"), in the build, the fit and the
+  backfill alike.
   The daily build snapshots each game's ESPN injury list to
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does
@@ -92,7 +95,13 @@ Before a PR, run:
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
-  same games, plus a possession-based pace arm (games 10+). Research only.
+  same games, plus a possession-based pace arm (games 10+). Its `prod` arm
+  is the shipped v4 routing (`backfill_history.reconstruct_season(...,
+  walk_forward=True)`: early carryover, base v4, availability v4 on covered
+  games with `--avail`), split by route. Research only.
+- One feature builder: `nba_composite.logit_inputs` (delta, b2b_net, phase
+  from opening night, d_phase) serves build_games, the CLI scorer and
+  `build_site.score_game`; research scripts reuse the `phase` column.
 - Calibration shape: in-sample, the outcome's slope on the model logit is
   ~1 overall but ~1.4–1.9 in March–April (too flat) and ~0.8 before March.
   `research/calibration_shape.py` (workflow "Calibration shape") tests
