@@ -161,6 +161,10 @@ decomposition, not a stronger rating.
 - **No demonstrated edge.** v4 trails the close by about 0.016–0.022 log
   loss per game on the resolved samples. Native (pregame-locked) rows are
   the forward test; there are none yet.
+- **Only the open is close to break-even.** At the close the model adds
+  nothing to the price; at the open its disagreement is about the size a
+  value bet needs, and lines move toward it (CLAUDE.md, open vs close).
+  Part of that may be injury-report timing: `research/open_price.py`.
 - **Heavy favourites are too flat.** Market favourites of 80–90% won
   83–86%; the base + phase model's mean P was 77–78% (§6.2 runs).
 - **Reconstructed rows are hindsight**: priced at the close, with design
@@ -178,6 +182,7 @@ decomposition, not a stronger rating.
 | Reconstructed rows | Backfill history | `python backfill_history.py --seasons 2025 2026 --rescore` |
 | §6.1 | Walk-forward backtest | `python research/walk_forward.py --seasons 2025 2026 --avail` |
 | §6.2 phase | Calibration shape | `python research/calibration_shape.py --seasons 2025 2026` |
+| Open vs close, H1–H3 | Open vs close | `python research/open_price.py --seasons 2025 2026` |
 
 The 2026-09-30 refit and re-score after the coverage fix reproduced the
 committed `logit_avail.json` and reconstructed rows exactly (nothing to
