@@ -7,7 +7,7 @@ Pipeline
   1. download    Cache Basketball-Reference season pages and team game logs.
   2. fit-weights Ridge-fit 8 four-factor features to win% on team-season data.
   3. backtest    Fit logit on one season, score another (both directions).
-  4. fit-logit   Fit P(home win) on completed seasons (delta, plus back-to-back).
+  4. fit-logit   Fit P(home win) on completed seasons (delta, b2b; --phase adds delta*phase).
   5. score       Score a day's slate from decayed pre-game composites.
 
 Model
@@ -19,14 +19,18 @@ Model
   into possessions and rates. Never average per-game rates.
   delta = 100 * ((f_home - f_away) / sd) . w        (win%-points)
   b2b_net = (away team on a back-to-back) - (home team on a back-to-back)
-  P(home win) = sigmoid(a + b * delta + c * b2b_net)
+  phase = days since opening night / SEASON_DAYS, capped at 1
+  P(home win) = sigmoid(a + b * delta + c * b2b_net + e * delta * phase)   (v4)
   (3-in-4 / 4-in-6 flags were tested and added nothing beyond back-to-back.)
+  logit_inputs() builds these features for every path (fit, CLI, daily
+  build). Games 1-9 (cold_start.py) and the injury-report terms
+  (player_availability.py) are routed in build_site.score_game; see MODEL.md.
 
 Usage examples
   python nba_composite.py download --years 2015-2019 2021-2026
   python nba_composite.py fit-weights --years 2015-2019 2021-2024
   python nba_composite.py backtest --years 2023-2026 --train-years 2015-2019 2021-2022
-  python nba_composite.py fit-logit --years 2023-2026 --train-years 2015-2019 2021-2022
+  python nba_composite.py fit-logit --phase --years 2016-2019 2021-2026
   python nba_composite.py score --year 2026 --date 2026-03-15 --refresh
 
 Be polite to the site: requests are throttled (default 4 s) and cached to disk.
@@ -311,7 +315,7 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
 
 
 # ----------------------------------------------------------------------------
-# Logistic model: P(home win) = sigmoid(a + b * delta)
+# Logistic model: P(home win) = sigmoid(intercept + X . coef)
 # ----------------------------------------------------------------------------
 def fit_logit(X, win, features=None, l2=1e-3, iters=50):
     """Logistic regression via Newton-Raphson. X: (n, k) array (or 1-D for one feature)."""
