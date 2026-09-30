@@ -55,9 +55,9 @@ Before a PR, run:
 ## Open research questions (from the report §7–8)
 
 - Market benchmark: Brier/log loss vs the DK close, and native CLV.
-  Production v4, walk-forward (MODEL.md §6.1): trails the close by
-  +0.0163 ± 0.0106 (2024-25 ESPN BET) and +0.0216 ± 0.0114 (2025-26 DK) log
-  loss, games 10+; games 1–9 and the 107 early 2025-26 ESPN BET games are
+  Production v5, walk-forward (MODEL.md §6.1): trails the close by
+  +0.0163 ± 0.0099 (2024-25 ESPN BET) and +0.0194 ± 0.0112 (2025-26 DK) log
+  loss, games 10+ (v4: +0.0163 / +0.0216); games 1–9 and the 107 early 2025-26 ESPN BET games are
   unresolved. No demonstrated edge; native rows are the test.
 - Player availability (injury reports, minutes shares) is the main missing
   information. `research/availability.py` (workflow "Availability ceiling")
@@ -169,10 +169,21 @@ Before a PR, run:
     Unresolved per season, same sign and size in both.
   - **Model v5** (owner's decision, 2026-09-30): opponent luck + talent in
     both games-10+ logits (MODEL.md "v5"). Games whose v5 terms are missing
-    use the frozen v4 base logit (`model/logit_v4.json`, v4 tag). Activation
-    is gated: Walk-forward `--avail --v5` (prod vs prod_v4 on the same
-    games) first; refit (Fit model, Fit availability) and Backfill
-    `--rescore` only if v5 is not worse. Native rows are the forward test.
+    use the frozen v4 base logit (`model/logit_v4.json`, v4 tag).
+    **Active since 2026-09-30.** Gate (walk-forward `--avail --v5`, v5 − v4
+    on the same games, games 10+): −0.0001 ± 0.0086 (2024-25 ESPN BET),
+    −0.0022 ± 0.0068 (2025-26 DK), +0.0081 ± 0.0247 (2025-26 ESPN BET,
+    n = 107); v5 − close +0.0163 / +0.0194. Refit `d765264` (base: talent
+    0.058, luck 0.0125, delta 0.023 → 0.016; availability: talent 0.041,
+    luck 0.016), rescore `a3b5415` (2,418 rows re-tagged v5). Unresolved;
+    native rows are the forward test.
+  - Open: the availability logit scores every covered game but refits
+    talent/luck on four report seasons (talent 0.041 vs 0.058 in the base
+    fit), which may be why the gain is below the team-quality arms.
+    `prod_fixed` in the walk-forward (`player_availability.fit_fixed`: luck
+    and talent fixed at the base fit's coefficients as an offset, the other
+    terms refit) tests that against `prod` on the same games. Shipping it
+    would be a new fit protocol, so a new tag.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the

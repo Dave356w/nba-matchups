@@ -90,3 +90,7 @@ def test_report_compares_v5_with_v4_routing_on_the_same_games():
     txt = wf.report(m)
     assert "prod        vs prod_v4 n=  200" in txt
     assert "prod_v4     vs market  n=  200" in txt
+    m["p_prod_fixed"] = np.clip(q - .01, .05, .95)
+    txt = wf.report(m)
+    for other in ("prod   ", "prod_v4", "market "):
+        assert f"prod_fixed  vs {other} n=  200" in txt

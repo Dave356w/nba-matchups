@@ -76,11 +76,14 @@ def test_cli_scorer_matches_site_scorer_on_the_checked_in_model():
     date = logs["A"]["date"].iloc[45]
     cli = nc.score_slate(2027, date, logs=logs, schedule=[("A", "B"), ("C", "A")],
                          weights=weights, model=model)
-    site = build_site.score_game(logs, "A", "B", date, weights, model)
+    # No box scores here: a v5 model scores with the frozen v4 logit in both
+    # (the CLI always, the site through its fallback), tagged v4.
+    v4 = _real(build_site.FALLBACK_FILE)
+    site = build_site.score_game(logs, "A", "B", date, weights, model, fallback=v4)
     assert abs(cli["p_home"].iloc[0] - site["p_home"]) < 1e-5
     assert abs(cli["delta"].iloc[0] - site["delta"]) < 1e-3
     assert site["model_tag"] == build_site.MODEL_TAG_V4
     assert np.isnan(cli["p_home"].iloc[1])            # game < 10: abstains
     # phase counts from opening night: late-season p differs from phase 0
-    no_phase = nc.predict(model, [[site["delta"], 0, 0.0]])[0]
+    no_phase = nc.predict(v4, [[site["delta"], 0, 0.0]])[0]
     assert abs(site["p_home"] - no_phase) > 1e-4

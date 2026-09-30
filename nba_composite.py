@@ -397,17 +397,19 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
 # ----------------------------------------------------------------------------
 # Logistic model: P(home win) = sigmoid(intercept + X . coef)
 # ----------------------------------------------------------------------------
-def fit_logit(X, win, features=None, l2=1e-3, iters=50):
-    """Logistic regression via Newton-Raphson. X: (n, k) array (or 1-D for one feature)."""
+def fit_logit(X, win, features=None, l2=1e-3, iters=50, offset=None):
+    """Logistic regression via Newton-Raphson. X: (n, k) array (or 1-D for one feature).
+    offset: a fixed per-row logit added to the linear predictor (not fitted)."""
     X = np.asarray(X, float)
     if X.ndim == 1:
         X = X[:, None]
     X1 = np.column_stack([np.ones(len(X)), X])
     y = np.asarray(win, float)
+    off = np.zeros(len(X)) if offset is None else np.asarray(offset, float)
     beta = np.zeros(X1.shape[1])
     pen = np.diag([0.0] + [2 * l2] * X.shape[1])
     for _ in range(iters):
-        p = 1 / (1 + np.exp(-X1 @ beta))
+        p = 1 / (1 + np.exp(-(X1 @ beta + off)))
         g = X1.T @ (p - y) + pen @ beta
         H = X1.T @ (X1 * (p * (1 - p))[:, None]) + pen
         step = np.linalg.solve(H, g)

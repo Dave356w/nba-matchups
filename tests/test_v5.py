@@ -195,3 +195,73 @@ def test_opp_luck_and_build_games_accept_season_to_date(monkeypatch):
         __import__("pytest").approx(nc.opp_luck(t0, i, pct, WEIGHTS, None))
     monkeypatch.setattr(nc, "load_logs", lambda y, refresh=False: logs)
     assert np.isfinite(nc.build_games(2026, WEIGHTS, None)["luck_def"]).all()
+
+
+def test_fit_logit_offset_holds_a_coefficient_fixed():
+    rng = np.random.default_rng(12)
+    n = 4000
+    x1, x2 = rng.normal(0, 1, n), rng.normal(0, 1, n)
+    y = (rng.random(n) < 1 / (1 + np.exp(-(0.2 + 0.8 * x1 + 0.5 * x2)))).astype(int)
+    full = nc.fit_logit(np.column_stack([x1, x2]), y, ["x1", "x2"], l2=0.0)
+    # holding x2 at its full-fit coefficient reproduces the rest of that fit
+    part = nc.fit_logit(x1, y, ["x1"], l2=0.0, offset=full["coef"][1] * x2)
+    assert abs(part["coef"][0] - full["coef"][0]) < 1e-6
+    assert abs(part["intercept"] - full["intercept"]) < 1e-6
+
+
+def test_fit_fixed_takes_luck_and_talent_from_the_base_fit():
+    rng = np.random.default_rng(13)
+    n = 1500
+    G = pd.DataFrame({f: rng.normal(0, 1, n) for f in pav.FEATURES_V5})
+    G["win"] = (rng.random(n) < 1 / (1 + np.exp(-(0.3 + 0.5 * G["delta"]
+                                                  + 0.4 * G["talent_diff"])))).astype(int)
+    base = {"features": list(nc.V5_FEATURES), "intercept": 0.0,
+            "coef": [0.0, 0.0, 0.0, 0.07, 0.25]}
+    m = pav.fit_fixed(G, base)
+    c = dict(zip(m["features"], m["coef"]))
+    assert m["features"] == pav.FEATURES_V5
+    assert c["luck_def"] == 0.07 and c["talent_diff"] == 0.25
+    assert abs(c["delta"] - 0.5) < 0.2                   # the free terms are fitted
+    p = nc.predict(m, G[pav.FEATURES_V5].to_numpy(float))  # scores like any model
+    assert np.isfinite(p).all()
+
+
+def test_reconstruct_p_fixed_equals_p_home_off_the_avail_route(monkeypatch):
+    monkeypatch.setattr(nc, "fit_weights", lambda years: {})
+    monkeypatch.setattr(nc, "build_games",
+                        lambda y, w, talent=None: fake_v5_games(y))
+    monkeypatch.setattr(cold_start, "fit_early", lambda years, w: None)
+    monkeypatch.setattr(cold_start, "early_games", lambda *a, **k: pd.DataFrame())
+    test, _, _ = bf.reconstruct_season(2026, v5=True, walk_forward=True,
+                                       talent={t: None for t in range(2015, 2027)})
+    assert np.allclose(test["p_fixed"], test["p_home"])
+
+
+def test_reconstruct_fixed_arm_on_the_avail_route(monkeypatch):
+    monkeypatch.setattr(nc, "fit_weights", lambda years: {})
+    monkeypatch.setattr(nc, "build_games",
+                        lambda y, w, talent=None: fake_v5_games(y))
+    monkeypatch.setattr(cold_start, "fit_early", lambda years, w: None)
+    monkeypatch.setattr(cold_start, "early_games", lambda *a, **k: pd.DataFrame())
+    rng = np.random.default_rng(14)
+    terms = {}
+    for t in bf.REPORT_YEARS:
+        g = fake_v5_games(t).iloc[:150]
+        terms[t] = pd.DataFrame(dict(
+            slate_date=g["date"].dt.strftime("%Y-%m-%d"), home=g["home"],
+            away=g["away"], av_min=rng.normal(0, .1, 150), av_bpm=rng.normal(0, 1, 150)))
+    test, _, base5 = bf.reconstruct_season(2026, v5=True, walk_forward=True, terms=terms,
+                                           talent={t: None for t in range(2015, 2027)})
+    av = (test["route"] == "avail").to_numpy()
+    assert av.sum() == 140                        # 150 reported, 10 lack talent
+    assert np.allclose(test.loc[~av, "p_fixed"], test.loc[~av, "p_home"])
+    assert np.isfinite(test.loc[av, "p_fixed"]).all()
+    assert not np.allclose(test.loc[av, "p_fixed"], test.loc[av, "p_home"])
+    # by hand: fit_fixed on the earlier report seasons, base5's luck/talent
+    tr = pd.concat([pav.with_terms(fake_v5_games(t), terms[t])
+                    for t in bf.REPORT_YEARS if t < 2026])
+    tr = tr[np.isfinite(tr[pav.FEATURES_V5].to_numpy(float)).all(axis=1)]
+    fm = pav.fit_fixed(tr, base5)
+    te = pav.with_terms(test[test["route"] == "avail"], terms[2026])
+    want = nc.predict(fm, te[pav.FEATURES_V5].to_numpy(float))
+    assert np.allclose(np.sort(want), np.sort(test.loc[av, "p_fixed"]))

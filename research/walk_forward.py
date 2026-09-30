@@ -9,7 +9,9 @@ re-scores the same seasons as a bettor could have, then compares on the SAME
 games (matched to data/nba_reconstructed.csv for result and close):
 
   prod      (--v5: the v5 routing, beside prod_v4, the v4 routing on the
-            same games -- the gate for shipping v5)
+            same games -- the gate for shipping v5 -- and prod_fixed, the v5
+            routing with the availability logit's luck / talent coefficients
+            fixed from the v5 base fit instead of refit on the report seasons)
             the SHIPPED routing, walk-forward: backfill_history.
             reconstruct_season(walk_forward=True) -- games 1-9 carryover
             (GAME_YEARS < Y), games 10+ base v4 with delta*phase
@@ -167,9 +169,11 @@ def production(y, weight_years, game_years, phase_years=None, terms=None, v5=Fal
         phase_years=phase_years or bf.PHASE_YEARS, terms=terms, walk_forward=True,
         v5=v5)
     test["slate_date"] = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d")
-    cols = ["slate_date", "home", "away", "p_home", "route"] + (["p_v4"] if v5 else [])
+    cols = ["slate_date", "home", "away", "p_home", "route"] + \
+        (["p_v4", "p_fixed"] if v5 else [])
     return (test.drop_duplicates(["slate_date", "home", "away"])[cols]
-            .rename(columns={"p_home": "p_prod", "p_v4": "p_prod_v4"}))
+            .rename(columns={"p_home": "p_prod", "p_v4": "p_prod_v4",
+                             "p_fixed": "p_prod_fixed"}))
 
 
 def with_production(scored, prod):
@@ -224,6 +228,12 @@ def report(m):
                 ok4 = ok & np.isfinite(v4)
                 comps += [("prod", "prod_v4", prod, v4, ok4),
                           ("prod_v4", "market", v4, q, ok4)]
+                if "p_prod_fixed" in g and not early:
+                    fx = g["p_prod_fixed"].to_numpy(float)
+                    okf = ok4 & np.isfinite(fx)
+                    comps += [("prod_fixed", "prod", fx, prod, okf),
+                              ("prod_fixed", "prod_v4", fx, v4, okf),
+                              ("prod_fixed", "market", fx, q, okf)]
             if not early:
                 for route in ("base", "avail"):
                     r = ok & (g["route"] == route).to_numpy()

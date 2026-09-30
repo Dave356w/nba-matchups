@@ -81,7 +81,10 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
     {season: talent function}; default player_availability.season_talent,
     from the cached box scores). As in the daily build, a game whose v5 terms
     are missing keeps the v4 base prediction and tag. p_v4 always holds the
-    v4 routing's prediction for the same game (the v5 gate)."""
+    v4 routing's prediction for the same game (the v5 gate). With v5, p_fixed
+    is the v5 routing with the availability logit's luck_def / talent_diff
+    coefficients fixed from the v5 base fit (player_availability.fit_fixed);
+    research only."""
     def use(years):
         out = training_years(years, y, walk_forward)
         if not out:
@@ -122,6 +125,8 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
         test.loc[fin, "model_tag"] = build_site.MODEL_TAG_V5
         print(f"season {y}: v5 base on {int(fin.sum())}/{len(test)} games 10+ "
               f"(fit n={int(ok.sum())})", flush=True)
+    test["p_fixed"] = test["p_home"]
+    base5 = model
     if terms and y in terms:
         others = [t for t in training_years(report_years, y, walk_forward)
                   if t in terms]
@@ -149,12 +154,23 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
                 print(f"season {y}: availability arm ({'v5' if af is pav.FEATURES_V5 else 'v4'}) "
                       f"on {int(hit.sum())}/{len(test)} games 10+ (fit on {others}, "
                       f"n={int(ok.sum())})", flush=True)
+                if af is pav.FEATURES_V5:
+                    test.loc[hit, "p_fixed"] = test.loc[hit, "p_home"]
+                    fm = pav.fit_fixed(tr.loc[ok], base5)
+                    fx = dict(zip(key[fin], nc.predict(fm, te.loc[fin, af].values)))
+                    test.loc[hit, "p_fixed"] = tkey[hit].map(fx)
+                    print(f"season {y}: fixed-talent arm  " + "  ".join(
+                        f"{f}={c:+.4f}" for f, c in zip(fm["features"], fm["coef"]))
+                        + f"  (free fit: " + "  ".join(
+                        f"{f}={c:+.4f}" for f, c in zip(am["features"], am["coef"])
+                        if f in pav.FIXED_V5) + ")", flush=True)
     # games 1-9: the v2 carryover model, its logit also fit without y.
     early = cold_start.fit_early(use(game_years), weights)
     e = cold_start.early_games(y, weights, min_gp=1, window=nc.MIN_GAMES)
     if len(e):
         e["p_home"] = nc.predict(early, e[cold_start.FEATURES].values)
         e["p_v4"] = e["p_home"]
+        e["p_fixed"] = e["p_home"]
         e["model_tag"] = build_site.MODEL_TAG_V5 if v5 else build_site.MODEL_TAG_V4
         e["route"] = "early"
         test = pd.concat([test, e], ignore_index=True)
