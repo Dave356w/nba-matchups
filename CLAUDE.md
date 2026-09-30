@@ -93,3 +93,8 @@ Before a PR, run:
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
   same games, plus a possession-based pace arm (games 10+). Research only.
+- Calibration shape: in-sample, the outcome's slope on the model logit is
+  ~1 overall but ~1.4–1.9 in March–April (too flat) and ~0.8 before March.
+  `research/calibration_shape.py` (workflow "Calibration shape") tests
+  delta·|delta|, delta·phase and delta·[Mar+] arms walk-forward against the
+  close on the same games. Research only; shipping one needs a new MODEL_TAG.
