@@ -58,11 +58,14 @@ ARMS = {
 }
 
 
-def add_shape(games):
-    """Add the shape features to nc.build_games rows of ONE season."""
+def add_shape(games, opening=None):
+    """Add the shape features to nc.build_games rows of ONE season.
+
+    `opening` is the season's opening night; by default the earliest date in
+    `games` (for games 10+ that is ~3 weeks after opening night)."""
     g = games.copy()
     d = pd.to_datetime(g["date"])
-    opening = d.min()
+    opening = d.min() if opening is None else pd.Timestamp(opening)
     g["phase"] = np.clip((d - opening).dt.days / SEASON_DAYS, 0, 1)
     g["late"] = ((d.dt.month >= 3) & (d.dt.month <= 6)).astype(int)
     g["dsq"] = g["delta"] * g["delta"].abs() / 100
