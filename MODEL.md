@@ -250,15 +250,22 @@ coefficients in §2 and §4); (3) "Backfill history" `--rescore`
 out v5 − v4 −0.0009 ± 0.0074 (2024-25 ESPN BET, games 10+) and
 −0.0022 ± 0.0068 (2025-26 DK); games 1–9 unchanged.
 
-The gain is smaller than the team-quality arms (about −0.003 to −0.005).
-A likely reason, not yet tested: the report covered every games-10+ game, so the availability logit
-scored all of them, and it refits talent and luck on four report seasons
-(talent 0.041 there vs 0.058 in the base fit). The open test is
-`prod_fixed` in `research/walk_forward.py --avail --v5`: the availability
-logit with luck and talent fixed at the base fit's coefficients
-(`player_availability.fit_fixed`, an offset) and only its other terms refit.
-If it beats `prod` on the same games, the fit changes (a new tag, since the
-formula's coefficients come from a different protocol).
+The gain is smaller than the team-quality arms (about −0.003 to −0.005),
+which were measured against base v4 without the availability terms. v5 is
+measured against v4 *with* them, and both av_bpm (the BPM of players out
+relative to the rating window) and talent_diff are built from last season's
+BPM of the roster, so part of talent's gain was already in v4.
+
+Tested and rejected (walk-forward, 2026-09-30, `prod_fixed` in
+`research/walk_forward.py --avail --v5`): the availability logit with luck
+and talent fixed at the base fit's coefficients (`player_availability.
+fit_fixed`, an offset) and only its other terms refit. Against the shipped
+v5 on the same games, games 10+: +0.0008 ± 0.0006 (2024-25 ESPN BET),
++0.0016 ± 0.0018 (2025-26 DK), −0.0013 ± 0.0065 (2025-26 ESPN BET, n =
+107). Holding talent at 0.060 pulls d_phase from 0.021 to 0.013 and av_min
+from 0.14 to 0.07. The availability logit's lower talent coefficient (0.041
+vs 0.058) reflects the overlap with av_bpm, not a noisy estimate, so the
+free fit stays.
 
 ## Version rule
 

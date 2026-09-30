@@ -177,13 +177,15 @@ Before a PR, run:
     0.058, luck 0.0125, delta 0.023 → 0.016; availability: talent 0.041,
     luck 0.016), rescore `a3b5415` (2,418 rows re-tagged v5). Unresolved;
     native rows are the forward test.
-  - Open: the availability logit scores every covered game but refits
-    talent/luck on four report seasons (talent 0.041 vs 0.058 in the base
-    fit), which may be why the gain is below the team-quality arms.
-    `prod_fixed` in the walk-forward (`player_availability.fit_fixed`: luck
-    and talent fixed at the base fit's coefficients as an offset, the other
-    terms refit) tests that against `prod` on the same games. Shipping it
-    would be a new fit protocol, so a new tag.
+  - Tested and rejected: fixing talent/luck in the availability logit at
+    the base fit's coefficients (`prod_fixed`, `player_availability.
+    fit_fixed`, an offset) is worse than the shipped free fit on the same
+    games: +0.0008 ± 0.0006 (2024-25 ESPN BET), +0.0016 ± 0.0018 (2025-26
+    DK), −0.0013 ± 0.0065 (2025-26 ESPN BET, n = 107). The lower talent
+    coefficient there (0.041 vs 0.058) is its overlap with av_bpm (both
+    built from last-season BPM), which is also why v5's gain over v4 (which
+    already has av_bpm) is below the team-quality arms (measured vs base v4
+    without availability). The free fit stays.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
