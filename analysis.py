@@ -17,6 +17,31 @@ import market
 PROB_BINS = (0.0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0)
 
 
+def lean_is_home(g):
+    """The recorded lean (the `lean` column) as a home/away mask.
+
+    Every grade of "the lean" reads this one definition, so the record in the
+    tiles, the ROI tables, the accuracy and the ATS lean always agree (a game
+    at exactly p_home = 0.5 is the side the row recorded). Rows without a
+    recorded lean fall back to p_home >= 0.5.
+    """
+    lean = g["lean"].astype(str)
+    ph = pd.to_numeric(g["p_home"], errors="coerce")
+    home = (lean == g["home"].astype(str)).to_numpy()
+    known = (home | (lean == g["away"].astype(str)).to_numpy())
+    return np.where(known, home, (ph >= 0.5).to_numpy())
+
+
+def price_q_home(g, price):
+    """No-vig home probability at one price ("pre", "open" or "close")."""
+    col = f"{price}_q_home"
+    if col in g.columns:
+        return pd.to_numeric(g[col], errors="coerce")
+    return pd.Series([market.devig(h, a) for h, a in
+                      zip(g[f"{price}_home_ml"], g[f"{price}_away_ml"])],
+                     index=g.index, dtype=float)
+
+
 def with_close(g):
     """Graded rows with a usable close; adds q/ml/won for the lean side."""
     if not len(g):
@@ -27,7 +52,7 @@ def with_close(g):
     ok = q.between(0, 1, inclusive="neither") & hml.notna() & aml.notna() \
         & pd.to_numeric(g["p_home"], errors="coerce").notna()
     h = g.loc[ok].copy()
-    lean_home = (h["lean"].astype(str) == h["home"].astype(str)).to_numpy()
+    lean_home = lean_is_home(h)
     h["lean_home"] = lean_home
     h["lean_q"] = np.where(lean_home, h["close_q_home"], 1 - h["close_q_home"])
     h["lean_ml"] = np.where(lean_home, h["close_home_ml"], h["close_away_ml"])
@@ -118,6 +143,22 @@ def model_calibration(h, bins=PROB_BINS):
     return out
 
 
+def reliability(p, y, bins=PROB_BINS):
+    """Stated probability vs realised rate, binned on p. `se` is the spread
+    of the realised rate if p were right (market.excess_se), so a point more
+    than ~2 se off the diagonal is a calibration miss, not noise."""
+    p, y = np.asarray(p, float), np.asarray(y, float)
+    idx = np.clip(np.digitize(p, bins[1:-1]), 0, len(bins) - 2)
+    out = []
+    for j in range(len(bins) - 1):
+        m = idx == j
+        if m.any():
+            out.append(dict(lo=bins[j], hi=bins[j + 1], n=int(m.sum()),
+                            stated=float(p[m].mean()), actual=float(y[m].mean()),
+                            se=market.excess_se(p[m])))
+    return out
+
+
 def scoring(h):
     """Brier, log loss and accuracy for model and market on identical rows.
 
@@ -131,6 +172,7 @@ def scoring(h):
     q = h["close_q_home"].to_numpy(float)
     y = h["home_won"].to_numpy(float)
     n = len(y)
+    lean_home = lean_is_home(h)
     bm, bq = market.brier(p, y), market.brier(q, y)
     lm, lq = market.logloss(p, y), market.logloss(q, y)
 
@@ -139,7 +181,7 @@ def scoring(h):
     return dict(
         n=n,
         model=dict(brier=float(bm.mean()), logloss=float(lm.mean()),
-                   acc=float(((p >= 0.5) == (y == 1)).mean())),
+                   acc=float((lean_home == (y == 1)).mean())),
         market=dict(brier=float(bq.mean()), logloss=float(lq.mean()),
                     acc=float(((q >= 0.5) == (y == 1)).mean())),
         d_brier=float((bm - bq).mean()), d_brier_se=se(bm - bq),
@@ -195,6 +237,7 @@ EDGE_BINS = ((0.0, 0.02, "0–2 pp"), (0.02, 0.05, "2–5 pp"),
 def picks(g, price="close"):
     """One flat 1-unit bet per game per pick rule, graded at one price.
 
+    price="open": the opening pair (graded rows; q devigged from it).
     price="close": the closing pair (every basis; for reconstructed rows the
       value side is chosen against the close itself, i.e. with hindsight on
       the price). price="pre": the pregame snapshot pair -- the price that
@@ -207,7 +250,7 @@ def picks(g, price="close"):
         return pd.DataFrame()
     hml = pd.to_numeric(g[f"{price}_home_ml"], errors="coerce")
     aml = pd.to_numeric(g[f"{price}_away_ml"], errors="coerce")
-    qh = pd.to_numeric(g[f"{price}_q_home"], errors="coerce")
+    qh = price_q_home(g, price)
     ph = pd.to_numeric(g["p_home"], errors="coerce")
     won = pd.to_numeric(g["home_won"], errors="coerce")
     ok = (qh.between(0, 1, inclusive="neither") & hml.notna() & aml.notna()
@@ -215,12 +258,12 @@ def picks(g, price="close"):
     g, hml, aml, qh, ph, won = (x[ok] for x in (g, hml, aml, qh, ph, won))
     out = []
     for rule, _label in PICK_RULES:
-        home = (ph >= 0.5) if rule == "lean" else (ph > qh)
-        if rule == "value":
-            keep = (ph != qh).to_numpy()
-        else:
+        if rule == "lean":
+            home = lean_is_home(g)
             keep = np.ones(len(ph), bool)
-        home = home.to_numpy()
+        else:
+            home = (ph > qh).to_numpy()
+            keep = (ph != qh).to_numpy()
         ml = np.where(home, hml, aml)
         d = pd.DataFrame(dict(
             rule=rule, game_id=g["game_id"].to_numpy(),
@@ -255,6 +298,13 @@ def roi_row(label, d):
         roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float("nan"),
         roi_null=float(d["units_null"].mean()),
     )
+
+
+def z_vs_null(r):
+    """(ROI - ROI null) / SE; NaN when the SE is undefined."""
+    se = r.get("roi_se", float("nan"))
+    return ((r["roi"] - r["roi_null"]) / se if np.isfinite(se) and se > 0
+            else float("nan"))
 
 
 def roi_summary(g, price="close"):
@@ -305,11 +355,58 @@ def roi_by_band(g, price="close", tags=None):
             if r:
                 r["ev"] = r["actual"] - r["breakeven"]
                 r["ev_null"] = r["q"] - r["breakeven"]
-                r["z"] = ((r["roi"] - r["roi_null"]) / r["roi_se"]
-                          if r["roi_se"] > 0 else float("nan"))
+                r["z"] = z_vs_null(r)
                 rows.append(r)
         if rows:
             out.append((label, rows))
+    return out
+
+
+# Pre-registered forward hypotheses (CLAUDE.md, fixed 2026-09-30 before any
+# native rows). The thresholds are frozen: never tune them on native data.
+# `hindsight` is the price the reconstructed scan found them at; natives are
+# graded at the pregame snapshot, the price that could actually be bet.
+HYPOTHESES = (
+    dict(key="H1", rule="Games 1–9 · value side · model P − no-vig q ≥ 0.08",
+         early=True, favourite=False, min_edge=0.08, hindsight="close"),
+    dict(key="H2", rule="Games 10+ · value side that is the favourite",
+         early=False, favourite=True, min_edge=0.0, hindsight="open"),
+    dict(key="H3", rule="Games 10+ · value side · model P − no-vig q ≥ 0.12",
+         early=False, favourite=False, min_edge=0.12, hindsight="open"),
+)
+
+
+def hypothesis_picks(g, hyp, price):
+    """The value-side bets one pre-registered rule makes, graded at `price`.
+    The edge and "favourite" (q > 0.5) are read at that same price."""
+    p = picks(g, price)
+    if not len(p):
+        return p
+    d = p[(p["rule"] == "value") & (p["early"] == hyp["early"])
+          & (p["edge"] >= hyp["min_edge"])]
+    if hyp["favourite"]:
+        d = d[d["q"] > 0.5]
+    return d
+
+
+def hypothesis_rows(native, recon):
+    """[(hypothesis, hindsight roi row | None, native roi row | None)].
+
+    Hindsight: reconstructed rows at the price the scan used (pooled over
+    seasons and books, as pre-registered). Native: pregame-locked rows at
+    the pregame snapshot price. Never pooled with each other.
+    """
+    out = []
+    for hyp in HYPOTHESES:
+        rows = []
+        for g, price, label in ((recon, hyp["hindsight"], "hindsight"),
+                                (native, "pre", "native")):
+            r = roi_row(label, hypothesis_picks(g, hyp, price)) \
+                if g is not None and len(g) else None
+            if r:
+                r["z"] = z_vs_null(r)
+            rows.append(r)
+        out.append((hyp, *rows))
     return out
 
 
@@ -377,7 +474,7 @@ def ats_picks(g, sigma=ATS_SIGMA):
     res_home = np.array([market.ats_result(m, s) for m, s in zip(margin, line)])
     out = []
     for rule, _label in ATS_RULES:
-        home = (ph >= 0.5).to_numpy() if rule == "lean" else p_cover_home > 0.5
+        home = lean_is_home(g) if rule == "lean" else p_cover_home > 0.5
         keep = np.ones(len(ph), bool) if rule == "lean" else p_cover_home != 0.5
         d = pd.DataFrame(dict(
             rule=rule, game_id=g["game_id"].to_numpy(),

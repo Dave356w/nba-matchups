@@ -46,6 +46,12 @@ owner directs the product.
   is cancelled by the next hourly build) and retry their push. Tests gate
   PRs and are deliberately not wired into the daily build.
 - Do not hand-commit bot-generated `data/` changes or `public/`.
+- Pages: ± is 1 SE and labelled so; research scripts and the figures in
+  this file are ± 95%. One colour rule on the ledger and calibration pages
+  (`build_site.sig_cls`): colour marks a gap of ≥ 2 SE from its null (ROI
+  vs the ROI null, a forecast vs the diagonal, the model vs the close),
+  never sign alone. Sections split basis × closing book × season. The lean
+  is the recorded `lean` column everywhere (`analysis.lean_is_home`).
 
 Before a PR, run:
 
@@ -113,7 +119,12 @@ Before a PR, run:
   timing. `research/open_price.py` (workflow "Open vs close") re-scores
   without the report terms (`base`) to test that; if `base` loses them,
   they are retired. Report every hypothesis's native ROI beside its null,
-  win or lose, with n; one season is not a verdict.
+  win or lose, with n; one season is not a verdict. The ledger page's
+  scoreboard (`analysis.HYPOTHESES`, frozen) does this: native n and ROI at
+  the pregame price beside the hindsight rule at its scan price, recomputed
+  on the current reconstructed rows. On the v5 rows H1 is unchanged (+17.8%,
+  n = 115); H2 is +0.4% ± 4.3 (n = 978) and H3 +19.7% ± 17.1 (n = 262),
+  95%, vs the v4 figures above.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a
