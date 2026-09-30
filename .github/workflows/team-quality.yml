@@ -1,7 +1,8 @@
 name: Team quality
 
-# Research only: do 3-point luck regression (1a), schedule strength (1b) or
-# late-season incentives (2) explain the market's persistent team-level
+# Research only: do 3-point luck regression (1a), schedule strength (1b),
+# roster talent (1c), last-season carryover (1d) or late-season incentives
+# (2) explain the market's persistent team-level
 # correction and improve the model walk-forward, against the close on the
 # same games (research/team_quality.py)? Writes nothing to the repo; results
 # are the job summary and an artifact.
@@ -35,8 +36,15 @@ jobs:
           path: bbr_cache
           key: bbr-${{ github.run_id }}
           restore-keys: bbr-
+      # ESPN player box scores for the roster-talent arms (shared cache).
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      # 2020 is the prior season of 2021 (last-season carryover arm).
       - name: Download (cached pages are skipped)
-        run: python nba_composite.py download --years 2015-2019 2021-2026
+        run: python nba_composite.py download --years 2015-2026
       - name: Run team quality
         run: |
           set -o pipefail
