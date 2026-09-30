@@ -143,7 +143,7 @@ def test_report_has_every_arm_per_book():
     txt = tq.report(m)
     assert "DraftKings close · games 10+ (n=200)" in txt
     for arm in tq.ARMS:
-        assert f"  {arm:9s} logloss" in txt
+        assert f"  {arm:17s} logloss" in txt
 
 
 def test_base_features_match_production_build_games(monkeypatch):
@@ -154,3 +154,43 @@ def test_base_features_match_production_build_games(monkeypatch):
     assert len(prod) == len(mine) > 0
     for c in ("delta", "b2b_net", "phase", "d_phase", "win"):
         assert np.allclose(prod[c].astype(float), mine[c].astype(float)), c
+
+
+def test_prior_rating_is_last_seasons_final_composite():
+    prior = league(seed=9, rounds=20)
+    r = tq.prior_ratings(prior, WEIGHTS)
+    lg = prior["T0"]
+    want = nc.composite(nc.decayed_features(lg, len(lg)), WEIGHTS["sd"], WEIGHTS["w"])
+    assert abs(r["T0"] - want) < 1e-12 and tq.prior_ratings(None, WEIGHTS) == {}
+    g = tq.season_games(2026, WEIGHTS, logs=league(seed=10), prior_logs=prior)
+    row = g.iloc[0]
+    assert abs(row["prior_diff"] - (r[row["home"]] - r[row["away"]])) < 1e-12
+    assert abs(row["prior_early"] - row["prior_diff"] * (1 - row["phase"])) < 1e-12
+    assert tq.season_games(2026, WEIGHTS, logs=league(seed=10))["prior_diff"].isna().all()
+
+
+def test_talent_uses_the_previous_box_score_only():
+    box = pd.DataFrame(dict(
+        team=["T0"] * 5, date=pd.to_datetime(["2025-11-01", "2025-11-01", "2025-11-03",
+                                              "2025-11-03", "2025-11-05"]),
+        player_id=["a", "b", "a", "c", "b"], minutes=[30.0, 20.0, 36.0, 0.0, 40.0]))
+    value = {"a": 5.0, "b": 2.0, "c": 9.0}
+    f = tq.talent_fn(box, value, lambda pid, d: 0.5)
+    assert np.isnan(f("T0", "2025-11-01")) and np.isnan(f("T9", "2025-11-04"))
+    assert f("T0", "2025-11-03") == 0.5 * 5 + 0.5 * 2      # the 11-01 box
+    assert f("T0", "2025-11-05") == 0.5 * 5                # c played 0 minutes
+    assert f("T0", "2025-11-06") == 0.5 * 2                # the 11-05 box, not later
+
+
+def test_fit_arms_skips_rows_with_missing_features():
+    rng = np.random.default_rng(11)
+    n = 600
+    tr = pd.DataFrame({c: rng.normal(0, 1, n) for c in
+                       set(sum(map(list, tq.ARMS.values()), [])) |
+                       set(sum(map(list, tq.BOX_ARMS.values()), []))})
+    tr["win"] = (rng.random(n) < 0.6).astype(int)
+    tr.loc[:99, "talent_diff"] = np.nan
+    te = tr.iloc[:50].copy()
+    out, fits = tq.fit_arms(tr, te, tq.BOX_ARMS)
+    assert fits["talent"]["n"] == n - 100 and fits["base_box"]["n"] == n
+    assert out["p_talent"].isna().all() and out["p_base_box"].notna().all()

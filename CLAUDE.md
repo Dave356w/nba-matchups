@@ -133,7 +133,25 @@ Before a PR, run:
   parsed from the cached BBR logs, `nc.EXTRA_STATS`; the model's COLS are
   unchanged); (1b) strength of schedule; (2) late-season tank/top flags and
   delta·[April] (April favourites: z +2.35 beyond the model, +2.15 beyond
-  the market in the scan).
+  the market in the scan). **Results (2026-09-30, walk-forward, games 10+,
+  log loss vs base v4; 2024-25 ESPN BET n = 1,071 / 2025-26 DK n = 964):**
+  - (1a) luck: −0.0021 ± 0.0028 / −0.0023 ± 0.0033 (pooled ≈ −0.0022 ±
+    0.0021, ~2 SE; Brier agrees). Fitted noise share of **opponents' 3P%
+    0.71 / 0.78**, own 3P% −0.03 / +0.07 (skill): opponents' 3-point
+    shooting in the rating window is mostly luck the model counts as
+    defence. Closes ~8% of the gap to the close; v5 candidate (opponent
+    3P% regressed), not shipped yet.
+  - (1b) schedule: −0.0000 / −0.0002, coefficient +0.0035 per composite
+    point. Not what is missing; dropped.
+  - (2) late season: −0.0010 ± 0.0023 / −0.0003 ± 0.0025; signs stable
+    (tank −0.10 / −0.13, April top team −0.32 / −0.39 logit). Unresolved;
+    hold for more seasons.
+  - None moves the market's team-level correction (team share 0.24 →
+    0.20–0.24), so the persistent team disagreement is not luck, schedule
+    or incentives. Next: (1c) roster talent — minutes share × last-season
+    BPM over the previous box score (box seasons 2022-23 on, vs base fit on
+    the same seasons) and (1d) last-season carryover past game 10
+    (prior_diff, fading with phase); same script, v5 decided after both.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
