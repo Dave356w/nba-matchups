@@ -91,7 +91,7 @@ def test_roi_splits_early_games_when_present():
     df.loc[50:, ["gp_home", "gp_away"]] = 30
     labels = [r["label"] for r in dict(analysis.roi_summary(
         ledger.graded(df), "close"))[analysis.PICK_RULES[0][1]]]
-    assert labels[:3] == ["All picks", "Games 10+ (v1 model)", "Games 1–9 (carryover)"]
+    assert labels[:3] == ["All picks", "Games 10+", "Games 1–9 (carryover)"]
 
 
 def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
@@ -202,3 +202,12 @@ def test_roi_by_band_filters_model_tag_and_page_shows_current(tmp_path, monkeypa
     grades = (tmp_path / "grades.html").read_text()
     assert "ROI by price band" in grades and "EV null (pp)" in grades
     assert "Current model rows only" in grades and "z vs null" in grades
+
+
+def test_single_bet_band_shows_a_dash_not_nan(tmp_path, monkeypatch):
+    df = synth(200, 11)
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(df, ledger.empty(), "2026-11-19", model_ok=True)
+    grades = (tmp_path / "grades.html").read_text()
+    assert ">nan<" not in grades and "v1 model" not in grades
+    assert build_site.se_txt(float("nan")) == "—" and build_site.se_txt(0.023) == "2.3"

@@ -147,7 +147,7 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
                opening=None):
     """Pregame composite and P(home win) from games strictly before `date`.
 
-    From MIN_GAMES games on: the v1 model. Below that, when both teams have
+    From MIN_GAMES games on: the base logit. Below that, when both teams have
     played at least once and `early` (model/logit_early.json) and last
     season's logs are given: the carryover model (cold_start.py). Otherwise
     (game 0, or no early model) it abstains: delta/p NaN.
@@ -348,6 +348,11 @@ def pp(x, d=1, cls=True):
     if not cls:
         return s
     return f"<span class='{'pos' if x > 0 else 'neg' if x < 0 else ''}'>{s}</span>"
+
+
+def se_txt(x):
+    """A standard error in points, or a dash when undefined (n = 1)."""
+    return "—" if x is None or not np.isfinite(x) else f"{100 * x:.1f}"
 
 
 def ml_txt(x):
@@ -552,7 +557,7 @@ def _roi_table(sections):
               f"{r['units']:+.2f}u",
               f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
               f"{100 * r['roi']:+.1f}%</span>",
-              f"{100 * r['roi_se']:.1f}", f"{100 * r['roi_null']:+.1f}%"]
+              se_txt(r['roi_se']), f"{100 * r['roi_null']:+.1f}%"]
              for r in rows], left=(0,)))
     return "".join(out)
 
@@ -596,7 +601,7 @@ def _band_table(sections):
               f"{r['units']:+.2f}u",
               f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
               f"{100 * r['roi']:+.1f}%</span>",
-              f"{100 * r['roi_se']:.1f}", f"{100 * r['roi_null']:+.1f}%",
+              se_txt(r['roi_se']), f"{100 * r['roi_null']:+.1f}%",
               "—" if not np.isfinite(r["z"]) else f"{r['z']:+.1f}"]
              for r in rows], left=(0,)))
     return "".join(out)
@@ -652,7 +657,7 @@ def _ats_section(body, h):
               pct(r["actual"]), f"{r['units']:+.2f}u",
               f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
               f"{100 * r['roi']:+.1f}%</span>",
-              f"{100 * r['roi_se']:.1f}", f"{100 * r['roi_null']:+.1f}%"]
+              se_txt(r['roi_se']), f"{100 * r['roi_null']:+.1f}%"]
              for r in rows], left=(0,)))
     body.append("".join(out))
     body.append("<p class='note'>Only rows with a recorded closing spread "
