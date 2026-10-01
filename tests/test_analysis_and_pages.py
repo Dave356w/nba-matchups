@@ -102,10 +102,13 @@ def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
     cal = (tmp_path / "market-calibration.html").read_text()
     assert "Native (pregame-locked, forward)" in cal
     assert "Reconstructed (leave-one-season-out, hindsight)" in cal
-    assert "Null (pp)" in cal and "500 games (200 native, 300 reconstructed)" in cal
+    assert "500 games (200 native, 300 reconstructed;" in cal
+    assert "Actual win rate" in cal and "<svg" in cal      # reliability charts
+    assert "Bet grading by price band" in cal and "Null (pp)" not in cal
     grades = (tmp_path / "grades.html").read_text()
     assert "Closing-line value" in grades
-    assert "ROI — one unit on every pick" in grades and "ROI null" in grades
+    assert "ROI — one unit on every pick" in grades and "vs null (± 1 SE)" in grades
+    assert "Probabilities vs the close" in grades        # verdict strip
     assert "pregame snapshot price" in grades        # native bettable price
     assert "Value pick · P/L (1u)" in grades
     idx = (tmp_path / "index.html").read_text()
@@ -130,10 +133,10 @@ def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
     cal = (tmp_path / "market-calibration.html").read_text()
     grades = (tmp_path / "grades.html").read_text()
     for page_ in (cal, grades):
-        assert "Reconstructed (leave-one-season-out, hindsight) · DraftKings close" in page_
-        assert "Reconstructed (leave-one-season-out, hindsight) · ESPN BET close" in page_
-    assert "120 games (0 native, 120 reconstructed)" in cal
-    assert "80 games (0 native, 80 reconstructed)" in cal
+        assert "Reconstructed (leave-one-season-out, hindsight) · DraftKings close · 2026-27" in page_
+        assert "Reconstructed (leave-one-season-out, hindsight) · ESPN BET close · 2026-27" in page_
+    assert "120 games (0 native, 120 reconstructed;" in cal
+    assert "80 games (0 native, 80 reconstructed;" in cal
     assert "200 games" not in cal
     parts = dict(analysis.book_split(analysis.with_close(ledger.graded(recon))))
     assert len(parts["espnbet"]) == 120 and len(parts["dk"]) == 80
@@ -201,7 +204,7 @@ def test_roi_by_band_filters_model_tag_and_page_shows_current(tmp_path, monkeypa
                            model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "ROI by price band" in grades and "EV null (pp)" in grades
-    assert "Current model rows only" in grades and "z vs null" in grades
+    assert "Current model rows only" in grades and "<th class=''>z</th>" in grades
 
 
 def test_single_bet_band_shows_a_dash_not_nan(tmp_path, monkeypatch):
@@ -211,3 +214,93 @@ def test_single_bet_band_shows_a_dash_not_nan(tmp_path, monkeypatch):
     grades = (tmp_path / "grades.html").read_text()
     assert ">nan<" not in grades and "v1 model" not in grades
     assert build_site.se_txt(float("nan")) == "—" and build_site.se_txt(0.023) == "2.3"
+
+
+def test_seasons_get_separate_sections_never_pooled(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    recon = pd.concat([synth(120, 3, "reconstructed", book="espnbet").assign(season=2025),
+                       synth(50, 4, "reconstructed", book="espnbet")
+                       .assign(season=2026, game_id=lambda d: "s" + d["game_id"])],
+                      ignore_index=True)
+    build_site.write_pages(ledger.empty(), recon, "2026-11-19", model_ok=True)
+    grades = (tmp_path / "grades.html").read_text()
+    assert "ESPN BET close · 2024-25" in grades and "120 graded games" in grades
+    assert "ESPN BET close · 2025-26" in grades and "50 graded games" in grades
+    assert "170 graded games" not in grades
+
+
+def test_one_lean_definition_everywhere(tmp_path, monkeypatch):
+    """A row at exactly p_home = 0.5 is graded as the side it recorded, so the
+    lean record agrees across the tiles, ROI table, accuracy and ATS."""
+    df = synth(100, 12, "reconstructed")
+    df.loc[0, ["p_home", "p_lean", "lean"]] = [0.5, 0.5, "AWY"]
+    h = analysis.with_close(ledger.graded(df))
+    _, pooled = analysis.lean_by_price(h)
+    top = dict(analysis.roi_summary(h, "close"))[analysis.PICK_RULES[0][1]][0]
+    assert (top["w"], top["l"]) == (pooled["w"], pooled["l"])
+    assert abs(analysis.scoring(h)["model"]["acc"] - pooled["win"]) < 1e-12
+    lean = analysis.picks(h)
+    assert lean[(lean["rule"] == "lean") & (lean["game_id"] == df.loc[0, "game_id"])
+                ]["side"].iloc[0] == "AWY"
+
+
+def test_open_price_is_devigged_from_the_open_pair():
+    df = synth(60, 13)
+    df["open_home_ml"], df["open_away_ml"] = -150, 130
+    p = analysis.picks(ledger.graded(df), price="open")
+    lean = p[p["rule"] == "lean"]
+    q = market.devig(-150, 130)
+    assert np.allclose(np.where(lean["ml"] == -150, lean["q"], 1 - lean["q"]), q)
+
+
+def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path,
+                                                                        monkeypatch):
+    df = synth(300, 14)
+    df.loc[:99, ["gp_home", "gp_away"]] = 4
+    df.loc[100:, ["gp_home", "gp_away"]] = 30
+    g = ledger.graded(df)
+    h1, h2, h3 = analysis.HYPOTHESES
+    d1 = analysis.hypothesis_picks(g, h1, "pre")
+    assert d1["early"].all() and (d1["edge"] >= 0.08).all()
+    d2 = analysis.hypothesis_picks(g, h2, "pre")
+    assert (~d2["early"]).all() and (d2["q"] > 0.5).all() and (d2["edge"] > 0).all()
+    d3 = analysis.hypothesis_picks(g, h3, "pre")
+    assert (d3["edge"] >= 0.12).all()
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(df, synth(200, 15, "reconstructed"), "2026-11-19",
+                           model_ok=True)
+    grades = (tmp_path / "grades.html").read_text()
+    assert "Pre-registered hypotheses" in grades
+    for hyp in analysis.HYPOTHESES:
+        assert f"<b>{hyp['key']}</b>" in grades
+    assert "left one hypothesis to test forward" not in grades   # retired band
+    assert "retired" in grades
+
+
+def test_colour_marks_only_two_se_gaps():
+    assert build_site.sig_cls(1.99) == "" and build_site.sig_cls(-1.5) == ""
+    assert build_site.sig_cls(2.0) == "pos" and build_site.sig_cls(-2.4) == "neg"
+    assert build_site.sig_cls(float("nan")) == ""
+    r = dict(roi=-0.026, roi_null=-0.041, roi_se=0.023)   # negative ROI above null
+    cells = build_site._roi_cells(r)
+    assert "class=''" in cells[0] and "-2.6%" in cells[0]
+    assert build_site.season_txt(2026) == "2025-26"
+
+
+def test_native_empty_state_counts_pending_rows(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    nat = synth(5, 16)
+    nat[["home_won", "home_pts", "away_pts", "close_home_ml", "close_away_ml",
+         "close_q_home"]] = np.nan
+    build_site.write_pages(nat, synth(50, 17, "reconstructed"), "2026-11-19",
+                           model_ok=True)
+    assert "5 pregame rows recorded, 5 waiting" in (tmp_path / "grades.html").read_text()
+
+
+def test_one_graded_game_renders_dashes_not_nan(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(synth(1, 18), synth(1, 19, "reconstructed"),
+                           "2026-11-19", model_ok=True)
+    for f in ("grades.html", "market-calibration.html"):
+        s = (tmp_path / f).read_text()
+        assert ">nan" not in s and "± nan" not in s and "nan (1 SE)" not in s

@@ -337,29 +337,62 @@ def score_slate(today, weights, model, now=None):
 # ------------------------------------------------------------- rendering ---
 CSS = """
 :root{--bg:#f7f7f5;--fg:#1c1c1e;--mut:#6b6b70;--card:#fff;--line:#e3e3e0;
---pos:#1f7a4d;--neg:#b3362f;--acc:#1d4ed8;--chip:#eef2ff}
+--pos:#1f7a4d;--neg:#b3362f;--acc:#1d4ed8;--chip:#eef2ff;--s1:#2a78d6;--s2:#eb6834;
+--grid:#ecebe8;--pos-bg:#e8f4ee;--neg-bg:#fbeceb}
 @media (prefers-color-scheme:dark){:root{--bg:#121214;--fg:#ececef;--mut:#9a9aa2;
---card:#1b1b1f;--line:#2c2c31;--pos:#4ec38a;--neg:#f07b72;--acc:#8ab4ff;--chip:#23263a}}
+--card:#1b1b1f;--line:#2c2c31;--pos:#4ec38a;--neg:#f07b72;--acc:#8ab4ff;--chip:#23263a;
+--s1:#3987e5;--s2:#d95926;--grid:#26262b;--pos-bg:#16271f;--neg-bg:#2c1a19}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);
 font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
 nav{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px}nav a{color:var(--acc);text-decoration:none}
 nav a.on{font-weight:600;color:var(--fg)}
-h1{font-size:26px;margin:8px 0 4px}h2{font-size:19px;margin:32px 0 6px}
+nav.jump{gap:6px;margin:10px 0 4px;font-size:13px}
+nav.jump a{border:1px solid var(--line);border-radius:999px;padding:1px 10px;background:var(--card)}
+h1{font-size:26px;margin:8px 0 4px}h2{font-size:19px;margin:36px 0 6px;scroll-margin-top:8px}
+h3{font-size:15px;margin:16px 0 4px}
 .lead,.note{color:var(--mut);max-width:78ch}.note{font-size:13.5px}
+.note code{overflow-wrap:anywhere}
 .stamp{font-variant-numeric:tabular-nums}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:14px 0}
+.key{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+font-size:13.5px;max-width:78ch;margin:10px 0}
+.key summary{cursor:pointer;color:var(--acc);margin-top:4px}
+.key dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:8px 0 2px}
+.key dt{font-weight:600}.key dd{margin:0;color:var(--mut)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .tile .l{color:var(--mut);font-size:12.5px}.tile .v{font-size:22px;font-weight:600}
 .tile .s{color:var(--mut);font-size:12.5px}
+.tile.pos{background:var(--pos-bg)}.tile.neg{background:var(--neg-bg)}
+.tile.pos .v{color:var(--pos)}.tile.neg .v{color:var(--neg)}
 .wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 th{font-size:12px;color:var(--mut);font-weight:600;background:var(--card);position:sticky;top:0}
 td.l,th.l{text-align:left}tr:last-child td{border-bottom:0}
+th.k,td.k{background:var(--chip)}
 .pos{color:var(--pos)}.neg{color:var(--neg)}.mut{color:var(--mut)}
 .chip{display:inline-block;background:var(--chip);border-radius:6px;padding:0 6px;font-weight:600}
 .basis{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:0 6px;color:var(--mut)}
+.badge{display:inline-block;font-size:12px;font-weight:600;border-radius:6px;padding:1px 7px;
+vertical-align:middle;margin-right:6px;border:1px solid var(--line)}
+.badge.native{background:var(--pos-bg);color:var(--pos);border-color:transparent}
+.badge.recon{background:var(--chip);color:var(--mut)}
+details.more{margin:12px 0}details.more>summary{cursor:pointer;font-weight:600;font-size:15px;padding:4px 0}
+details.more>summary .mut{font-weight:400;font-size:13px}
+.charts{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin:12px 0}
+.chart{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+width:100%;max-width:440px}
+.chart svg{display:block;width:100%;height:auto}
+.chart .t{font-weight:600;font-size:14px}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--mut);margin:2px 0 4px}
+.legend svg{display:inline-block;vertical-align:-2px;width:auto}
+.charts .note{flex:1;min-width:240px;margin:0}
+.ax{fill:var(--mut);font-size:11px}.gl{stroke:var(--grid);stroke-width:1}
+.diag{stroke:var(--mut);stroke-width:1;stroke-dasharray:4 4}
+.eb{stroke-width:2;stroke-linecap:round;opacity:.55}
+.s1{fill:var(--s1);stroke:var(--s1)}.s2{fill:var(--s2);stroke:var(--s2)}
+.mk{stroke:var(--card);stroke-width:2}
 """
 
 
@@ -409,17 +442,19 @@ def ml_txt(x):
     return f"{v:+d}"
 
 
-def tile(label, value, sub=""):
-    return (f"<div class='tile'><div class='l'>{label}</div>"
+def tile(label, value, sub="", cls=""):
+    return (f"<div class='tile {cls}'><div class='l'>{label}</div>"
             f"<div class='v'>{value}</div><div class='s'>{sub}</div></div>")
 
 
-def table(heads, rows, left=(0,)):
-    th = "".join(f"<th class='{'l' if i in left else ''}'>{h}</th>"
-                 for i, h in enumerate(heads))
+def table(heads, rows, left=(0,), key=()):
+    """`key` marks the columns a reader should look at first (shaded)."""
+    def c(i):
+        return " ".join(x for x, on in (("l", i in left), ("k", i in key)) if on)
+    th = "".join(f"<th class='{c(i)}'>{h}</th>" for i, h in enumerate(heads))
     body = "".join(
-        "<tr>" + "".join(f"<td class='{'l' if i in left else ''}'>{c}</td>"
-                         for i, c in enumerate(r)) + "</tr>" for r in rows)
+        "<tr>" + "".join(f"<td class='{c(i)}'>{v}</td>" for i, v in enumerate(r))
+        + "</tr>" for r in rows)
     return f"<div class='wrap'><table><thead><tr>{th}</tr></thead><tbody>{body}</tbody></table></div>"
 
 
@@ -433,6 +468,46 @@ def book_tag(book):
     if pd.isna(book) or book in ("", "dk"):
         return ""
     return f" <span class='basis'>{esc(market.BOOK_NAMES.get(book, book))}</span>"
+
+
+# One colour rule for every summary figure on the ledger and calibration
+# pages: colour marks a gap of at least SIG standard errors from the null
+# (green above, red below); anything smaller stays plain. Sign alone never
+# colours a figure.
+SIG = 2.0
+
+
+def sig_cls(z):
+    if z is None or not np.isfinite(z) or abs(z) < SIG:
+        return ""
+    return "pos" if z > 0 else "neg"
+
+
+def z_txt(z):
+    return "—" if z is None or not np.isfinite(z) else f"{z:+.1f}"
+
+
+def season_txt(season):
+    """Ledger season (the year it ends) -> '2025-26'."""
+    try:
+        y = int(float(season))
+    except (TypeError, ValueError):
+        return "season ?"
+    return f"{y - 1}-{y % 100:02d}"
+
+
+def se4(x):
+    """A score-difference SE to 4 dp, or a dash when undefined (n = 1)."""
+    return "—" if x is None or not np.isfinite(x) else f"{x:.4f}"
+
+
+def resolved_txt(z, better, worse):
+    """Plain words for a gap already expressed in SEs."""
+    if z is None or not np.isfinite(z):
+        return "not enough games"
+    if abs(z) < SIG:
+        return f"not resolved (z = {z:+.1f})"
+    return f"{better if z > 0 else worse} by {abs(z):.1f} SE"
 
 
 def render_index(led, today, built, model_ok):
@@ -524,100 +599,234 @@ def render_index(led, today, built, model_ok):
                 head + table(heads, rows, left=(1, 6)) + note, built)
 
 
-def _basis_split(native, recon):
-    """[(label, rows)]: one section per basis x closing book, never pooled."""
+# ------------------------------------------------ ledger + calibration ---
+BASIS_LABELS = {"native": "Native (pregame-locked, forward)",
+                "reconstructed": "Reconstructed (leave-one-season-out, hindsight)"}
+BASIS_BADGES = {"native": "<span class='badge native'>Native · forward</span>",
+                "reconstructed": "<span class='badge recon'>Reconstructed · hindsight</span>"}
+
+READ_KEY = (
+    "<div class='key'><b>How to read.</b> Judge every ROI against its "
+    "<b>null</b>: the ROI if the market's no-vig prices were exactly right. "
+    "That is about −4% (the bookmaker's hold), not zero. <b>±</b> is one "
+    "standard error (1 SE). Colour marks only gaps of at least "
+    f"{SIG:g} SE from the null: <span class='pos'>green</span> above, "
+    "<span class='neg'>red</span> below; everything else is left plain. "
+    "Shaded columns are the ones to read first."
+    "<details><summary>Glossary</summary><dl>"
+    "<dt>Lean</dt><dd>The side the model gives ≥ 50% (as recorded on the row).</dd>"
+    "<dt>Value side</dt><dd>The side where the model's probability beats the "
+    "market's no-vig probability.</dd>"
+    "<dt>Model %</dt><dd>The picked side's mean model win probability.</dd>"
+    "<dt>Market %</dt><dd>The picked side's mean no-vig market probability "
+    "(q): the price with the bookmaker's margin removed.</dd>"
+    "<dt>Win %</dt><dd>How often the picked side actually won.</dd>"
+    "<dt>Break-even</dt><dd>The win rate the posted price needs to pay back; "
+    "above q by about the hold.</dd>"
+    "<dt>ROI</dt><dd>Profit per 1-unit bet.</dd>"
+    "<dt>Null</dt><dd>The ROI expected if the market is right (q × payout − 1). "
+    "<b>vs null</b> = ROI − null.</dd>"
+    "<dt>z</dt><dd>(ROI − null) ÷ SE. Across many cells, about one in twenty "
+    "shows |z| ≥ 2 by chance.</dd>"
+    "<dt>EV</dt><dd>Win % − break-even; its null is q − break-even.</dd>"
+    "<dt>Log loss, Brier</dt><dd>Proper scores of the probabilities; lower is "
+    "better. Compared with the close on the same games.</dd>"
+    "<dt>Native</dt><dd>Written before tip and frozen: the forward test.</dd>"
+    "<dt>Reconstructed</dt><dd>Scored afterwards with that season left out of "
+    "the fit and graded at the close: hindsight, never forward evidence.</dd>"
+    "</dl></details></div>")
+
+
+def _slug(*parts):
+    return "-".join(str(p).lower().replace(" ", "") for p in parts)
+
+
+def _sections(native, recon):
+    """One section per basis x closing book x season: never pooled.
+
+    Each: basis, book, season, label (plain text), title (html), id, jump
+    (short chip text) and h (graded rows with a close, analysis.with_close).
+    """
     out = []
-    for label, df in (("Native (pregame-locked, forward)", native),
-                      ("Reconstructed (leave-one-season-out, hindsight)", recon)):
+    for basis, df in (("native", native), ("reconstructed", recon)):
         h = analysis.with_close(ledger.graded(df))
-        parts = analysis.book_split(h)
+        parts = []
+        for book, hb in analysis.book_split(h):
+            for season in sorted(hb["season"].dropna().unique(), reverse=True):
+                parts.append((book, season, hb[hb["season"] == season]))
         if not parts:
-            out.append((label, h))
-        for book, hb in parts:
-            out.append((f"{label} · {market.BOOK_NAMES[book]} close", hb))
+            out.append(dict(basis=basis, book=None, season=None, h=h,
+                            label=BASIS_LABELS[basis], id=basis,
+                            title=BASIS_BADGES[basis], jump=basis.capitalize()))
+            continue
+        for book, season, hb in parts:
+            bname, stxt = market.BOOK_NAMES[book], season_txt(season)
+            out.append(dict(
+                basis=basis, book=book, season=season, h=hb,
+                label=f"{BASIS_LABELS[basis]} · {bname} close · {stxt}",
+                id=_slug(basis, book, stxt),
+                title=f"{BASIS_BADGES[basis]}{esc(bname)} close · {stxt}",
+                jump=f"{'Native' if basis == 'native' else 'Recon'} · {bname} {stxt}"))
     return out
 
 
-def render_grades(native, recon, built):
-    body = ["<h1>Ledger</h1><p class='lead'>The model's lean (the side it "
-            "gives ≥ 50%) graded against final scores. Native rows were "
-            "recorded before tip; reconstructed rows were scored after the "
-            "fact with the season held out of the fit and are shown "
-            "separately — never pooled.</p>"]
-    for label, h in _basis_split(native, recon):
-        body.append(f"<h2>{esc(label)}</h2>")
-        if not len(h):
-            body.append("<p class='note'>No graded rows with a closing line yet.</p>")
-            continue
-        _, pooled = analysis.lean_by_price(h)
-        tiles = [
-            tile("Lean record", f"{pooled['w']}–{pooled['l']}",
-                 f"{pct(pooled['win'])} · n={pooled['n']} · "
-                 f"{h['slate_date'].nunique()} slates"),
-            tile("vs no-vig close", f"{100 * pooled['excess']:+.1f} pp",
-                 f"± {100 * pooled['se']:.1f} (1 SE)"),
-            tile("Flat units @ close", f"{pooled['units']:+.2f}u",
-                 f"ROI {100 * pooled['roi']:+.1f}%"),
-        ]
-        if label.startswith("Native"):
-            c = analysis.clv(h)
-            if c:
-                tiles.append(tile("Closing-line value", f"{100 * c['mean']:+.2f} pp",
-                                  f"± {100 * c['se']:.2f} · beat close "
-                                  f"{pct(c['beat'], 0)} · n={c['n']}"))
-        body.append("<div class='tiles'>" + "".join(tiles) + "</div>")
-        _roi_section(body, h, label.startswith("Native"))
-        recent = h.sort_values(["slate_date", "tip_utc"], ascending=False).head(60)
-        val = analysis.picks(recent)
-        val = val[val["rule"] == "value"].set_index("game_id") if len(val) else val
-        rows = []
-        for _, r in recent.iterrows():
-            won = int(r["lean_won"]) == 1
-            lean_u = market.unit_profit(r["lean_ml"], won)
-            v = val.loc[r["game_id"]] if len(val) and r["game_id"] in val.index else None
-            vtxt = ("—" if v is None else
-                    f"{esc(v['side'])} {ml_txt(v['ml'])} "
-                    f"<span class='{'pos' if v['units'] > 0 else 'neg'}'>"
-                    f"{v['units']:+.2f}u</span>")
-            rows.append([
-                esc(r["slate_date"]), f"{esc(r['away'])} @ {esc(r['home'])}",
-                f"<span class='chip'>{esc(r['lean'])}</span>", pct(r["lean_p"]),
-                pct(r["lean_q"]), ml_txt(r["lean_ml"]),
-                f"{int(r['away_pts'])}–{int(r['home_pts'])}",
-                f"<span class='{'pos' if won else 'neg'}'>{'W' if won else 'L'}</span>",
-                f"<span class='{'pos' if lean_u > 0 else 'neg'}'>{lean_u:+.2f}u</span>",
-                vtxt,
-            ])
-        body.append(table(["Date", "Away @ Home", "Lean", "Model WP", "Market WP (no-vig)",
-                           "Close ML", "Final", "Result", "Lean P/L (1u)",
-                           "Value pick · P/L (1u)"], rows, left=(0, 1, 2, 9)))
-        if len(h) > 60:
-            body.append(f"<p class='note'>Latest 60 of {len(h)} rows; the full "
-                        "record is in the CSV under <code>data/</code>.</p>")
-    return page("NBA ledger", "grades.html", "".join(body), built)
+def _jump(items):
+    return ("<nav class='jump' aria-label='Sections'>"
+            + "".join(f"<a href='#{i}'>{esc(t)}</a>" for i, t in items) + "</nav>")
+
+
+def _native_empty(native):
+    n = len(native)
+    if not n:
+        return ("<p class='note'>No native rows yet. The daily build writes "
+                "one before each tip, starting with the first regular-season "
+                "slate; this section fills in as those games are graded.</p>")
+    pending = int(pd.to_numeric(native["home_won"], errors="coerce").isna().sum())
+    return (f"<p class='note'>{n} pregame row{'s' if n != 1 else ''} recorded, "
+            f"{pending} waiting for a final score and closing line. Graded "
+            "rows appear here, with the same verdicts and tables as the "
+            "reconstructed seasons below.</p>")
+
+
+def _roi_cells(r):
+    """ROI, null and ROI − null (± 1 SE), coloured by one rule (sig_cls)."""
+    z = analysis.z_vs_null(r)
+    c = sig_cls(z)
+    return [f"<span class='{c}'>{100 * r['roi']:+.1f}%</span>",
+            f"{100 * r['roi_null']:+.1f}%",
+            f"<span class='{c}'>{100 * (r['roi'] - r['roi_null']):+.1f}</span>"
+            f" <span class='mut'>± {se_txt(r['roi_se'])}</span>"]
+
+
+ROI_HEADS = ["n", "W–L", "ROI", "Null", "vs null (± 1 SE)", "Win %",
+             "Break-even", "Model %", "Market %"]
 
 
 def _roi_table(sections):
     out = []
     for rule_label, rows in sections:
-        out.append(f"<h3 style='font-size:15px;margin:14px 0 4px'>{esc(rule_label)}</h3>")
+        out.append(f"<h3>{esc(rule_label)}</h3>")
         out.append(table(
-            ["Picks", "n", "W–L", "Model WP", "Market WP (no-vig)", "Break-even",
-             "Actual", "Units (1u flat)", "ROI", "± SE", "ROI null"],
-            [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}", pct(r["model_p"]),
-              pct(r["q"]), pct(r["breakeven"]), pct(r["actual"]),
-              f"{r['units']:+.2f}u",
-              f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
-              f"{100 * r['roi']:+.1f}%</span>",
-              se_txt(r['roi_se']), f"{100 * r['roi_null']:+.1f}%"]
-             for r in rows], left=(0,)))
+            ["Picks"] + ROI_HEADS,
+            [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}", *_roi_cells(r),
+              pct(r["actual"]), pct(r["breakeven"]), pct(r["model_p"]), pct(r["q"])]
+             for r in rows], left=(0,), key=(3, 5)))
     return "".join(out)
+
+
+def _bet_tile(label, r, badge=""):
+    if not r:
+        return tile(label, "—", "no bets")
+    z = analysis.z_vs_null(r)
+    return tile(
+        f"{label}{badge}", f"{100 * r['roi']:+.1f}% ROI",
+        f"vs null ({100 * r['roi_null']:+.1f}%): "
+        f"{100 * (r['roi'] - r['roi_null']):+.1f} ± {se_txt(r['roi_se'])} — "
+        f"{resolved_txt(z, 'above', 'below')}<br>"
+        f"{r['w']}–{r['l']} · won {pct(r['actual'])}, break-even "
+        f"{pct(r['breakeven'])}", sig_cls(z))
+
+
+def _score_tile(s):
+    """Model vs the close on log loss (negative Δ = model better)."""
+    se = s["d_logloss_se"]
+    z = -s["d_logloss"] / se if np.isfinite(se) and se > 0 else float("nan")
+    words = resolved_txt(z, "Model better", "Market better")
+    head, _, by = words.partition(" by ")
+    if not by:
+        head, by = "Not resolved", words.replace("not resolved ", "")
+    else:
+        by = f"by {by}"
+    return tile("Probabilities vs the close (log loss)", head.capitalize(),
+                f"{by} · model − market {s['d_logloss']:+.4f} ± {se4(se)} (1 SE)"
+                f"<br>{s['model']['logloss']:.4f} vs {s['market']['logloss']:.4f}"
+                f" · n={s['n']}", sig_cls(z))
+
+
+def _verdicts(sec):
+    """The section's three questions, answered in plain words."""
+    h, native = sec["h"], sec["basis"] == "native"
+    price = "pre" if native and analysis.roi_summary(h, "pre") else "close"
+    summ = {label: rows[0] for label, rows in analysis.roi_summary(h, price)}
+    lean = summ.get(analysis.PICK_RULES[0][1])
+    val = summ.get(analysis.PICK_RULES[1][1])
+    at = "pregame price" if price == "pre" else "close"
+    hind = ("" if native else
+            " <span class='basis' title='The value side is chosen against the "
+            "close itself, which no bettor knew in advance.'>hindsight price</span>")
+    tiles = [_score_tile(analysis.scoring(h)),
+             _bet_tile(f"Lean bets · 1u at the {at}", lean),
+             _bet_tile(f"Value bets · 1u at the {at}", val, hind)]
+    if native:
+        c = analysis.clv(h)
+        if c:
+            z = c["mean"] / c["se"] if np.isfinite(c["se"]) and c["se"] > 0 else float("nan")
+            tiles.append(tile("Closing-line value (lean)", f"{100 * c['mean']:+.2f} pp",
+                              f"± {se_txt(c['se'])} (1 SE) · "
+                              f"{resolved_txt(z, 'beat the close', 'lost to the close')}"
+                              f"<br>beat the close on {pct(c['beat'], 0)} · n={c['n']}",
+                              sig_cls(z)))
+    return "<div class='tiles'>" + "".join(tiles) + "</div>"
+
+
+def _hypotheses(native, recon):
+    rows = []
+    for hyp, hind, nat in analysis.hypothesis_rows(native, recon):
+        def cell(r):
+            if not r:
+                return ["0", "—", "—", "—"]
+            return [str(r["n"]), *_roi_cells(r)]
+        h = cell(hind)
+        h[0] = f"{h[0]} <span class='mut'>at the {hyp['hindsight']}</span>"
+        rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *cell(nat), *h])
+    return (
+        "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
+        "<p class='note'>Fixed on 2026-09-30, before any native rows; the "
+        "thresholds are frozen and every result is reported here, win or lose. "
+        "<b>Native</b> bets are graded at the pregame snapshot price (what "
+        "could have been bet). <b>Hindsight</b> is the same rule on the "
+        "reconstructed rows at the price the scan found it (pooled over both "
+        "seasons and books, as registered), recomputed on the current "
+        "reconstructed model; one season of native rows is not a verdict.</p>"
+        + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
+                 "Hindsight n", "ROI", "Null", "vs null (± 1 SE)"],
+                rows, left=(0, 1), key=(3, 5)))
+
+
+def render_grades(native, recon, built):
+    secs = _sections(native, recon)
+    body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, "
+            "graded against the final score and the betting market. Each "
+            "section answers three questions: are the model's probabilities "
+            "better than the market's, and do its leans and its value picks "
+            "beat the bookmaker's hold? Native and reconstructed rows, and "
+            "each book and season, are shown separately — never pooled.</p>",
+            READ_KEY,
+            _jump([("hypotheses", "Hypotheses")] + [(s["id"], s["jump"]) for s in secs]),
+            _hypotheses(native, recon)]
+    for sec in secs:
+        h, is_native = sec["h"], sec["basis"] == "native"
+        body.append(f"<h2 id='{sec['id']}' aria-label='{esc(sec['label'])}'>"
+                    f"{sec['title']}</h2>")
+        if not len(h):
+            body.append(_native_empty(native) if is_native else
+                        "<p class='note'>No graded rows with a closing line yet.</p>")
+            continue
+        how = ("Written before tip and frozen after" if is_native else
+               "Scored afterwards with this season left out of the fit")
+        body.append(f"<p class='note'>{how} · {len(h)} graded games on "
+                    f"{h['slate_date'].nunique()} slates.</p>")
+        body.append(_verdicts(sec))
+        _roi_section(body, h, is_native)
+        _band_section(body, h, is_native)
+        _ats_section(body, h)
+        _recent_section(body, h, is_native)
+    return page("NBA ledger", "grades.html", "".join(body), built)
 
 
 def _roi_section(body, h, native):
     """1u flat-bet ROI for each pick rule: model WP, market WP, actual."""
-    body.append("<h3 style='font-size:16px;margin:18px 0 4px'>ROI — one unit "
-                "on every pick</h3>")
+    body.append("<h3 style='font-size:16px'>ROI — one unit on every pick</h3>")
     if native:
         pre = _roi_table(analysis.roi_summary(h, price="pre"))
         if pre:
@@ -627,35 +836,23 @@ def _roi_section(body, h, native):
                 + ("" if native else ": the value side is picked against the "
                    "close itself, which a bettor would not have known — "
                    "hindsight on price as well as on the model")
-                + ".</p>" + _roi_table(analysis.roi_summary(h, price="close")))
-    body.append("<p class='note'><b>Model WP</b> and <b>market WP</b> are the "
-                "picked side's mean model probability and no-vig market "
-                "probability; <b>break-even</b> is the win rate the posted "
-                "price needs. <b>ROI null</b> is the ROI expected if the market "
-                "is right (about minus the hold, ~−4%): an ROI is judged against "
-                "it, and against its ± SE, not against zero. Edge bins are "
-                "descriptive, not a filter to bet.</p>")
-    _band_section(body, h, native)
-    _ats_section(body, h)
+                + ". Edge bins are descriptive, not a filter to bet.</p>"
+                + _roi_table(analysis.roi_summary(h, price="close")))
 
 
 def _band_table(sections):
     out = []
     for rule_label, rows in sections:
-        out.append(f"<h3 style='font-size:15px;margin:14px 0 4px'>{esc(rule_label)}</h3>")
+        out.append(f"<h3>{esc(rule_label)}</h3>")
         out.append(table(
-            ["Picked price", "n", "W–L", "Model WP", "Market WP (no-vig)",
-             "Break-even", "Actual", "EV (pp)", "EV null (pp)", "Units (1u flat)",
-             "ROI", "± SE", "ROI null", "z vs null"],
-            [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}", pct(r["model_p"]),
-              pct(r["q"]), pct(r["breakeven"]), pct(r["actual"]),
-              pp(r["ev"], cls=False), f"{100 * r['ev_null']:+.1f}",
-              f"{r['units']:+.2f}u",
-              f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
-              f"{100 * r['roi']:+.1f}%</span>",
-              se_txt(r['roi_se']), f"{100 * r['roi_null']:+.1f}%",
-              "—" if not np.isfinite(r["z"]) else f"{r['z']:+.1f}"]
-             for r in rows], left=(0,)))
+            ["Picked price"] + ROI_HEADS[:5] + ["z", "Win %", "Break-even",
+                                                "EV (pp)", "EV null (pp)",
+                                                "Model %", "Market %"],
+            [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}", *_roi_cells(r),
+              z_txt(r["z"]), pct(r["actual"]), pct(r["breakeven"]),
+              f"<span class='{sig_cls(r['z'])}'>{pp(r['ev'], cls=False)}</span>",
+              f"{100 * r['ev_null']:+.1f}", pct(r["model_p"]), pct(r["q"])]
+             for r in rows], left=(0,), key=(3, 5)))
     return "".join(out)
 
 
@@ -674,21 +871,22 @@ def _band_section(body, h, native):
     parts = [(t, s) for t, s in parts if s]
     if not parts:
         return
-    body.append("<h3 style='font-size:16px;margin:18px 0 4px'>ROI by price "
-                "band — one unit on every pick</h3>")
+    body.append("<details class='more'><summary>ROI by price band "
+                "<span class='mut'>— one unit on every pick, by the picked "
+                "side's moneyline</span></summary>")
     body.append("<p class='note'>Graded at the <b>"
                 + ("pregame snapshot price" if native else "closing price")
-                + "</b>, banded by the picked side's moneyline. <b>EV</b> = "
-                "actual − break-even; its <b>null</b> is q − break-even (about "
-                "minus the hold), not zero. <b>z vs null</b> = (ROI − ROI null) "
-                "÷ SE; with ~16 cells per table, one |z| near 2 is expected by "
-                "chance. Bands are descriptive monitoring dimensions, not a "
-                "filter. The hindsight rows left one hypothesis to test "
-                "forward: DraftKings leans at −249 to −130.</p>")
+                + "</b>. With 16 cells per section, a |z| near 2 somewhere is "
+                "expected by chance. Bands are descriptive monitoring "
+                "dimensions, not a filter: a band that looks good here is a "
+                "hypothesis to test forward, and the hypotheses under test are "
+                "the pre-registered ones at the top of this page (the earlier "
+                "DraftKings −249 to −130 lean band is retired).</p>")
     for title, sections in parts:
         if len(parts) > 1:
             body.append(f"<p class='note'><b>{title}</b></p>")
         body.append(_band_table(sections))
+    body.append("</details>")
 
 
 def _ats_section(body, h):
@@ -696,47 +894,140 @@ def _ats_section(body, h):
     sections = analysis.ats_summary(h)
     if not sections:
         return
-    body.append("<h3 style='font-size:16px;margin:18px 0 4px'>Against the "
-                "spread — one unit on every pick at the closing spread</h3>")
+    body.append("<details class='more'><summary>Against the spread "
+                "<span class='mut'>— one unit on every pick at the closing "
+                "spread</span></summary>")
     out = []
     for rule_label, rows in sections:
-        out.append(f"<h3 style='font-size:15px;margin:14px 0 4px'>{esc(rule_label)}</h3>")
+        out.append(f"<h3>{esc(rule_label)}</h3>")
         out.append(table(
-            ["Picks", "n", "W–L–P", "Model cover P", "Market cover P (no-vig)",
-             "Break-even", "Actual", "Units (1u flat)", "ROI", "± SE", "ROI null"],
+            ["Picks", "n", "W–L–P", "ROI", "Null", "vs null (± 1 SE)", "Cover %",
+             "Break-even", "Model cover %", "Market cover %"],
             [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}–{r['push']}",
-              pct(r["model_p"]), pct(r["q"]), pct(r["breakeven"]),
-              pct(r["actual"]), f"{r['units']:+.2f}u",
-              f"<span class='{'pos' if r['roi'] > r['roi_null'] else 'neg'}'>"
-              f"{100 * r['roi']:+.1f}%</span>",
-              se_txt(r['roi_se']), f"{100 * r['roi_null']:+.1f}%"]
-             for r in rows], left=(0,)))
+              *_roi_cells(r), pct(r["actual"]), pct(r["breakeven"]),
+              pct(r["model_p"]), pct(r["q"])]
+             for r in rows], left=(0,), key=(3, 5)))
     body.append("".join(out))
     body.append("<p class='note'>Only rows with a recorded closing spread "
-                "(same book as the moneyline close). <b>Model cover P</b> maps "
+                "(same book as the moneyline close). <b>Model cover %</b> maps "
                 "the model's win probability to a margin with σ = "
                 f"{analysis.ATS_SIGMA:g} pts; it is a display mapping, not a "
-                "new prediction. <b>Actual</b> is covers ÷ (covers + misses); "
-                "pushes refund. Judge the ROI against the <b>ROI null</b> "
-                "(minus the spread hold) and its ± SE, not zero.</p>")
+                "new prediction. <b>Cover %</b> is covers ÷ (covers + misses); "
+                "pushes refund. The null is minus the spread hold.</p>")
+    body.append("</details>")
+
+
+def _recent_section(body, h, native, n=60):
+    recent = h.sort_values(["slate_date", "tip_utc"], ascending=False).head(n)
+    val = analysis.picks(recent)
+    val = val[val["rule"] == "value"].set_index("game_id") if len(val) else val
+    rows = []
+    for _, r in recent.iterrows():
+        won = int(r["lean_won"]) == 1
+        lean_u = market.unit_profit(r["lean_ml"], won)
+        v = val.loc[r["game_id"]] if len(val) and r["game_id"] in val.index else None
+        vtxt = ("—" if v is None else
+                f"{esc(v['side'])} {ml_txt(v['ml'])} "
+                f"<span class='{'pos' if v['units'] > 0 else 'neg'}'>"
+                f"{v['units']:+.2f}u</span>")
+        rows.append([
+            esc(r["slate_date"]), f"{esc(r['away'])} @ {esc(r['home'])}",
+            f"<span class='chip'>{esc(r['lean'])}</span>", pct(r["lean_p"]),
+            pct(r["lean_q"]), ml_txt(r["lean_ml"]),
+            f"{int(r['away_pts'])}–{int(r['home_pts'])}",
+            f"<span class='{'pos' if won else 'neg'}'>{'W' if won else 'L'} "
+            f"{lean_u:+.2f}u</span>",
+            vtxt,
+        ])
+    more = (f"latest {n} of {len(h)}" if len(h) > n else f"all {len(h)}")
+    body.append(f"<details class='more'{' open' if native else ''}><summary>"
+                f"Game by game <span class='mut'>— {more}, newest first</span>"
+                "</summary>")
+    body.append(table(["Date", "Away @ Home", "Lean", "Model %", "Market %",
+                       "Close ML", "Final (away–home)", "Lean · P/L (1u)",
+                       "Value pick · P/L (1u)"], rows, left=(0, 1, 2, 8)))
+    if len(h) > n:
+        body.append("<p class='note'>The full record is in the CSV under "
+                    "<code>data/</code>.</p>")
+    body.append("</details>")
+
+
+# ------------------------------------------------------------ calibration ---
+def reliability_svg(series, title):
+    """Stated vs actual probability, ±2 SE bars, dashed diagonal = calibrated.
+
+    series: [(name, css class, analysis.reliability points)]. The first
+    series is drawn as circles, the second as diamonds, so identity never
+    rests on colour alone; each point has a hover title with its numbers.
+    """
+    W, H, L, R, T, B = 360, 300, 56, 20, 10, 38
+    pw, ph = W - L - R, H - T - B
+
+    def X(v):
+        return L + pw * min(max(v, 0.0), 1.0)
+
+    def Y(v):
+        return T + ph * (1 - min(max(v, 0.0), 1.0))
+    g = []
+    for k in range(6):
+        v = k / 5
+        g.append(f"<line class='gl' x1='{X(v):.1f}' y1='{T}' x2='{X(v):.1f}' y2='{T + ph}'/>"
+                 f"<line class='gl' x1='{L}' y1='{Y(v):.1f}' x2='{L + pw}' y2='{Y(v):.1f}'/>"
+                 f"<text class='ax' x='{X(v):.1f}' y='{T + ph + 14}' text-anchor='middle'>{100 * v:.0f}%</text>"
+                 f"<text class='ax' x='{L - 6}' y='{Y(v) + 4:.1f}' text-anchor='end'>{100 * v:.0f}%</text>")
+    g.append(f"<line class='diag' x1='{X(0)}' y1='{Y(0)}' x2='{X(1)}' y2='{Y(1)}'/>")
+    g.append(f"<text class='ax' x='{L + pw / 2}' y='{H - 4}' text-anchor='middle'>"
+             "Stated probability</text>"
+             f"<text class='ax' transform='translate(12 {T + ph / 2}) rotate(-90)' "
+             "text-anchor='middle'>Actual win rate</text>")
+    legend = []
+    for i, (name, cls, pts) in enumerate(series):
+        dx = (i - (len(series) - 1) / 2) * 6.0     # nudge overlapping series apart
+        for p in pts:
+            x, y = X(p["stated"]) + dx, Y(p["actual"])
+            lo, hi = Y(p["actual"] - 2 * p["se"]), Y(p["actual"] + 2 * p["se"])
+            tip = (f"{name}, {p['lo']:.1f}–{p['hi']:.1f}: stated {pct(p['stated'])}, "
+                   f"actual {pct(p['actual'])} (n={p['n']}, ±2 SE {200 * p['se']:.1f} pp)")
+            mark = (f"<circle class='{cls} mk' cx='{x:.1f}' cy='{y:.1f}' r='4'/>"
+                    if i == 0 else
+                    f"<rect class='{cls} mk' x='{x - 4.2:.1f}' y='{y - 4.2:.1f}' "
+                    f"width='8.4' height='8.4' transform='rotate(45 {x:.1f} {y:.1f})'/>")
+            g.append(f"<g><title>{esc(tip)}</title>"
+                     f"<line class='{cls} eb' x1='{x:.1f}' y1='{hi:.1f}' x2='{x:.1f}' y2='{lo:.1f}'/>"
+                     f"{mark}<circle cx='{x:.1f}' cy='{y:.1f}' r='10' fill='transparent'/></g>")
+        key = ("<circle class='{c} mk' cx='7' cy='7' r='4.5'/>" if i == 0 else
+               "<rect class='{c} mk' x='2.8' y='2.8' width='8.4' height='8.4' "
+               "transform='rotate(45 7 7)'/>").format(c=cls)
+        legend.append(f"<span><svg width='14' height='14' viewBox='0 0 14 14' "
+                      f"aria-hidden='true'>{key}</svg> {esc(name)}</span>")
+    return (f"<div class='chart'><div class='t'>{esc(title)}</div>"
+            f"<div class='legend'>{''.join(legend)}</div>"
+            f"<svg viewBox='0 0 {W} {H}' role='img' aria-label='{esc(title)}: "
+            "stated probability against actual win rate'>" + "".join(g)
+            + "</svg></div>")
+
+
+CHART_NOTE_SHORT = ("Dashed diagonal = calibrated; bars are ±2 SE. Hover a "
+                    "point for its numbers.")
+CHART_NOTE = ("Each point is one probability bin: across the x-axis what was "
+              "stated, up the y-axis how often it happened. On the dashed "
+              "diagonal = calibrated. The bar is ±2 SE, where a correct "
+              "forecast would usually land; a bar that misses the diagonal is "
+              "a real miss, not noise. Hover a point for its numbers; the "
+              "table below has them all.")
 
 
 def _calib_cell(a):
     if not a:
         return "<span class='mut'>—</span>"
+    z = a["diff"] / a["se"] if a["se"] > 0 else float("nan")
     return (f"{pct(a['actual'])} <span class='mut'>vs {pct(a['implied'])}</span> "
-            f"{pp(a['diff'])} <span class='mut'>±{100 * a['se']:.1f} · n={a['n']}</span>")
+            f"<span class='{sig_cls(z)}'>{pp(a['diff'], cls=False)}</span> "
+            f"<span class='mut'>± {100 * a['se']:.1f} · n={a['n']}</span>")
 
 
-def render_calibration(native, recon, built):
-    body = ["<h1>Calibration</h1><p class='lead'>Implied versus actual. "
-            "First the <b>market</b> itself (devigged close vs results, one "
-            "section per sportsbook), "
-            "then the <b>model</b>: its probabilities against results with the "
-            "market's probability on the same games, proper scores against the "
-            "close, and its leans graded at the closing price.</p>"]
-
-    # 1. Market calibration: model-independent, so one pool of distinct games.
+def _market_games(native, recon):
+    """Distinct graded games (native first) for the model-free market view."""
     allg = pd.concat([d for d in (native, recon) if len(d)], ignore_index=True) \
         if (len(native) or len(recon)) else ledger.empty()
     g = ledger.graded(allg)
@@ -744,89 +1035,131 @@ def render_calibration(native, recon, built):
         g = g.assign(_nat=(g["basis"] == "native")).sort_values(
             "_nat", ascending=False).drop_duplicates("game_id")
         g = g.assign(p_home=g["p_home"].fillna(0.5))   # market view needs no model
-    hm_all = analysis.with_close(g)
-    parts = analysis.book_split(hm_all)
+    return analysis.with_close(g)
+
+
+def render_calibration(native, recon, built):
+    parts = analysis.book_split(_market_games(native, recon))
+    secs = _sections(native, recon)
+    jumps = [(_slug("market", b), f"Market · {market.BOOK_NAMES[b]}") for b, _ in parts]
+    jumps += [(s["id"], "Model · " + s["jump"]) for s in secs]
+    body = ["<h1>Calibration</h1><p class='lead'>When a forecast says 70%, "
+            "does it happen 70% of the time? First the <b>market</b> itself "
+            "(the no-vig close against results, one section per sportsbook), "
+            "then the <b>model</b>, with the market's own forecast on the same "
+            "games beside it and both scored against the results.</p>",
+            READ_KEY.replace("Judge every ROI against its <b>null</b>: the ROI "
+                             "if the market's no-vig prices were exactly right. "
+                             "That is about −4% (the bookmaker's hold), not "
+                             "zero. ",
+                             "Here the null is the diagonal: stated = actual. "),
+            _jump(jumps)]
     if not parts:
-        body.append("<h2>Market: devigged close vs actual</h2>")
-        body.append("<p class='note'>No graded games with a closing line yet.</p>")
+        body.append("<h2>Market: no-vig close vs actual</h2>"
+                    "<p class='note'>No graded games with a closing line yet.</p>")
     for book, hm in parts:
-        body.append("<h2>Market: devigged close vs actual — "
-                    f"<span class='basis'>{esc(market.BOOK_NAMES[book])}</span></h2>")
-        _market_section(body, hm)
-    _model_sections(body, native, recon)
+        body.append(f"<h2 id='{_slug('market', book)}'>Market: no-vig close vs "
+                    f"actual — <span class='basis'>{esc(market.BOOK_NAMES[book])}"
+                    "</span></h2>")
+        _market_section(body, hm, first=book == parts[0][0])
+    _model_sections(body, secs)
+    body.append("<p class='note'>Bet grading by price band (ROI, EV and their "
+                "nulls) is on the <a href='grades.html'>Ledger</a>.</p>")
     return page("NBA calibration", "market-calibration.html", "".join(body), built)
 
 
-def _market_section(body, hm):
+def _market_section(body, hm, first=True):
     rows_, totals = analysis.market_calibration(hm)
-    if rows_:
-        nn = int((hm["basis"] == "native").sum())
-        tiles = [tile(lab, pct(t["actual"]),
-                      f"vs {pct(t['implied'])} implied ({100 * t['diff']:+.1f} ± "
-                      f"{100 * t['se']:.1f}) · n={t['n']}")
-                 for key, lab in (("favourite", "Favourites"), ("home", "Home sides"))
-                 if (t := totals.get(key))]
-        body.append("<div class='tiles'>" + "".join(tiles) + "</div>")
-        body.append(table(["Price rung", "Home side", "Away side", "Both sides"],
-                          [[esc(r["rung"]), _calib_cell(r["home"]),
-                            _calib_cell(r["away"]), _calib_cell(r["all"])]
-                           for r in rows_]))
-        body.append(f"<p class='note'>{len(hm)} games ({nn} native, "
-                    f"{len(hm) - nn} reconstructed). Two observations per game, "
-                    "one per side; ± is one SE under correct prices, so a gap "
-                    "under ~2± is indistinguishable from fair. No both-sides "
-                    "total: the sides sum to 1 and one wins, so it is 50% by "
-                    "construction. Favourites asks once per game.</p>")
-    else:
+    if not rows_:
         body.append("<p class='note'>No graded games with a closing line yet.</p>")
+        return
+    nn = int((hm["basis"] == "native").sum())
+    seasons = ", ".join(season_txt(s) for s in sorted(hm["season"].dropna().unique()))
+    tiles = []
+    for key, lab in (("favourite", "Favourites won"), ("home", "Home sides won")):
+        t = totals.get(key)
+        if t:
+            z = t["diff"] / t["se"] if t["se"] > 0 else float("nan")
+            tiles.append(tile(lab, pct(t["actual"]),
+                              f"vs {pct(t['implied'])} implied: {pp(t['diff'], cls=False)} "
+                              f"± {100 * t['se']:.1f} (1 SE) — "
+                              f"{resolved_txt(z, 'above', 'below')} · n={t['n']}",
+                              sig_cls(z)))
+    body.append("<div class='tiles'>" + "".join(tiles) + "</div>")
+    q = np.r_[hm["close_q_home"].to_numpy(float), 1 - hm["close_q_home"].to_numpy(float)]
+    y = np.r_[hm["home_won"].to_numpy(float), 1 - hm["home_won"].to_numpy(float)]
+    body.append("<div class='charts'>"
+                + reliability_svg([("Market (no-vig close)", "s1",
+                                    analysis.reliability(q, y))],
+                                  "Market calibration, both sides of every game")
+                + f"<p class='note'>{CHART_NOTE if first else CHART_NOTE_SHORT}</p></div>")
+    body.append("<details class='more'><summary>By price rung and side "
+                "<span class='mut'>— actual vs implied, gap ± 1 SE</span></summary>")
+    body.append(table(["Price rung", "Home side", "Away side", "Both sides"],
+                      [[esc(r["rung"]), _calib_cell(r["home"]),
+                        _calib_cell(r["away"]), _calib_cell(r["all"])]
+                       for r in rows_]))
+    body.append("</details>")
+    body.append(f"<p class='note'>{len(hm)} games ({nn} native, "
+                f"{len(hm) - nn} reconstructed; seasons {seasons}). Two "
+                "observations per game, one per side; ± is one SE under correct "
+                "prices, so a gap under ~2± is indistinguishable from fair. No "
+                "both-sides total: the sides sum to 1 and one wins, so it is 50% "
+                "by construction. Favourites asks once per game.</p>")
 
 
-def _model_sections(body, native, recon):
-    """Model vs market, one basis x closing book at a time."""
-    for label, h in _basis_split(native, recon):
-        body.append(f"<h2>Model — <span class='basis'>{esc(label)}</span></h2>")
+def _model_sections(body, secs):
+    """Model vs market, one basis x closing book x season at a time."""
+    first = True
+    for sec in secs:
+        h = sec["h"]
+        body.append(f"<h2 id='{sec['id']}' aria-label='Model — {esc(sec['label'])}'>"
+                    f"Model — {sec['title']}</h2>")
         if not len(h):
             body.append("<p class='note'>No graded model rows with a close yet.</p>")
             continue
         s = analysis.scoring(h)
+        zb = (-s["d_brier"] / s["d_brier_se"]
+              if np.isfinite(s["d_brier_se"]) and s["d_brier_se"] > 0 else float("nan"))
         body.append("<div class='tiles'>" + "".join([
+            _score_tile(s),
             tile("Brier (model / market)",
                  f"{s['model']['brier']:.4f} / {s['market']['brier']:.4f}",
-                 f"Δ {s['d_brier']:+.4f} ± {s['d_brier_se']:.4f} · n={s['n']}"),
-            tile("Log loss (model / market)",
-                 f"{s['model']['logloss']:.4f} / {s['market']['logloss']:.4f}",
-                 f"Δ {s['d_logloss']:+.4f} ± {s['d_logloss_se']:.4f}"),
-            tile("Accuracy (model / market fav)",
+                 f"model − market {s['d_brier']:+.4f} ± {se4(s['d_brier_se'])} "
+                 f"(1 SE) · {resolved_txt(zb, 'model better', 'market better')}",
+                 sig_cls(zb)),
+            tile("Picked the winner (model lean / market favourite)",
                  f"{pct(s['model']['acc'])} / {pct(s['market']['acc'])}",
-                 "same games"),
+                 "same games · accuracy is not calibration"),
         ]) + "</div>")
-        body.append("<p class='note'>Δ = model − market per game (negative = "
-                    "model scored better). An interval spanning 0 means this "
-                    "sample has not separated them.</p>")
+        p = h["p_home"].to_numpy(float)
+        q = h["close_q_home"].to_numpy(float)
+        y = h["home_won"].to_numpy(float)
+        body.append("<div class='charts'>"
+                    + reliability_svg([("Model", "s1", analysis.reliability(p, y)),
+                                       ("Market (no-vig close)", "s2",
+                                        analysis.reliability(q, y))],
+                                      "Model vs market calibration, P(home win)")
+                    + f"<p class='note'>{CHART_NOTE if first else CHART_NOTE_SHORT}"
+                    " Both forecasts are for the same games; each is binned "
+                    "on its own probability. Negative model − market on the "
+                    "scores means the model did better; an interval spanning "
+                    "0 has not separated them.</p></div>")
+        first = False
         cal = analysis.model_calibration(h)
+        body.append("<details class='more'><summary>Model bins in numbers "
+                    "<span class='mut'>— with the market's mean on the same "
+                    "games</span></summary>")
         body.append(table(
             ["Model P(home)", "n", "Model mean", "Market mean (same games)",
-             "Actual", "Actual − model"],
+             "Actual", "Actual − model (± 1 SE)"],
             [[f"{c['lo']:.1f}–{c['hi']:.1f}", c["n"], pct(c["model"]),
               pct(c["market"]), pct(c["actual"]),
-              f"{pp(c['actual'] - c['model'])} <span class='mut'>±{100 * c['se']:.1f}</span>"]
-             for c in cal]))
-        bands, pooled = analysis.lean_by_price(h)
-        body.append("<p class='note' style='margin-top:14px'>Leans by the lean "
-                    "side's closing moneyline. <b>Excess</b> = win% − mean no-vig "
-                    "q. <b>EV</b> = win% − mean break-even at the posted price; "
-                    "its <b>null</b> (market correct) is q − break-even, i.e. "
-                    "minus the hold — not zero. Bands are descriptive monitoring "
-                    "dimensions, not a filter.</p>")
-        body.append(table(
-            ["Close ML band", "n", "W–L", "Win %", "Model p", "Mean q",
-             "Excess (pp)", "± SE", "EV (pp)", "Null (pp)", "Units", "ROI"],
-            [[esc(b["band"]) if b["band"] != "Pooled" else "<b>Pooled</b>",
-              b["n"], f"{b['w']}–{b['l']}", pct(b["win"]), pct(b["model_p"]),
-              f"{b['q']:.3f}", pp(b["excess"]), f"{100 * b['se']:.1f}",
-              pp(b["ev"]), f"{100 * b['ev_null']:+.1f}",
-              f"{b['units']:+.2f}", f"{100 * b['roi']:+.1f}%"]
-             for b in bands + [pooled]]))
+              f"<span class='{sig_cls((c['actual'] - c['model']) / c['se'] if c['se'] > 0 else float('nan'))}'>"
+              f"{pp(c['actual'] - c['model'], cls=False)}</span> "
+              f"<span class='mut'>± {100 * c['se']:.1f}</span>"]
+             for c in cal], key=(4, 5)))
+        body.append("</details>")
 
 
 def snapshot_injuries(rows):
