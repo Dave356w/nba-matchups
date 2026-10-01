@@ -48,6 +48,17 @@ def test_build_games_carries_v5_terms(monkeypatch):
     assert nc.build_games(2026, WEIGHTS)["talent_diff"].isna().all()
 
 
+def test_build_games_records_games_played_before_the_date(monkeypatch):
+    logs = league(seed=3, rounds=24)
+    monkeypatch.setattr(nc, "load_logs", lambda y, refresh=False: logs)
+    g = nc.build_games(2026, WEIGHTS)
+    assert len(g) and g[["gp_home", "gp_away"]].notna().all().all()
+    for _, r in g.iterrows():
+        for side in ("home", "away"):
+            want = int((logs[r[side]]["date"] < r["date"]).sum())
+            assert r[f"gp_{side}"] == want >= nc.MIN_GAMES
+
+
 def test_model_tags_and_active_tags():
     assert build_site.model_tag(v5_model()) == build_site.MODEL_TAG_V5
     assert build_site.model_tag(v5_model(True), avail=True) == build_site.MODEL_TAG_V5_AVAIL

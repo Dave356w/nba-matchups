@@ -55,12 +55,15 @@ def test_rescore_keeps_prices_and_results():
     test = pd.DataFrame(dict(
         date=pd.to_datetime(["2026-01-01", "2026-01-02"]), home="HOM",
         away="AWY", delta=[-5.0, 7.0], p_home=[0.4, 0.7],
+        gp_home=[10, 11], gp_away=[12, 13],
         model_tag=[build_site.MODEL_TAG_V4, build_site.MODEL_TAG_V4_AVAIL]))
     out, n = bf.rescore(recon, test)
     assert n == 2
     assert list(out["p_home"]) == [0.4, 0.7, 0.6]
     assert list(out["lean"]) == ["AWY", "HOM", "HOM"]
     assert list(out["p_lean"]) == [0.6, 0.7, 0.6]
+    assert list(out["gp_home"][:2]) == [10, 11] and list(out["gp_away"][:2]) == [12, 13]
+    assert out[["gp_home", "gp_away"]].iloc[2].isna().all()
     assert list(out["model_tag"]) == [build_site.MODEL_TAG_V4,
                                       build_site.MODEL_TAG_V4_AVAIL,
                                       build_site.MODEL_TAG]
