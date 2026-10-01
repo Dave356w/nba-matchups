@@ -11,7 +11,7 @@ Site (once Pages is enabled): **<https://dave356w.github.io/nba-matchups/>**
 | Page | Shows |
 |---|---|
 | `index.html` — Today | Composite Δ, the model's P(win) (games 1–9 tagged *early · carryover*), the moneyline with the no-vig probability, the lean, **model − market** (pp) and the model's EV estimate at the posted price |
-| `grades.html` — Ledger | The pre-registered hypotheses (H1–H3: native ROI beside the hindsight rule, each beside its null), then one section per basis × book × season: a verdict strip (log loss vs the close, lean ROI and value ROI each vs the market-correct null ± 1 SE, native CLV), **ROI of 1u flat bets** on the lean and value side (model %, market %, break-even, win %, ROI, null) by early/later games and model edge; collapsed: ROI by price band (EV beside its null, z), against the spread, game by game |
+| `grades.html` — Ledger | The pre-registered hypotheses (H1–H4: native ROI at the pregame or first-snapshot price beside the hindsight rule, each beside its null), then one section per basis × book × season: a verdict strip (log loss vs the close, lean ROI and value ROI each vs the market-correct null ± 1 SE, native CLV), **ROI of 1u flat bets** on the lean and value side (model %, market %, break-even, win %, ROI, null) by early/later games and model edge; collapsed: ROI by price band (EV beside its null, z), against the spread, game by game |
 | `market-calibration.html` — Calibration | Reliability charts (stated vs actual, ±2 SE): the market's no-vig close per book, then the model and the market on the same games per section, with Brier/log loss model vs market; the numbers in collapsed tables |
 
 Native (pregame-locked) and reconstructed (leave-one-season-out, hindsight)

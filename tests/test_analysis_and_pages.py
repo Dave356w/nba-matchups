@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import pandas as pd
 
 import analysis
@@ -259,7 +260,9 @@ def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path
     df.loc[:99, ["gp_home", "gp_away"]] = 4
     df.loc[100:, ["gp_home", "gp_away"]] = 30
     g = ledger.graded(df)
-    h1, h2, h3 = analysis.HYPOTHESES
+    h1, h2, h3, h4 = analysis.HYPOTHESES
+    assert h4["native"] == "first" and h4["min_edge"] == h3["min_edge"]
+    assert [h["native"] for h in (h1, h2, h3)] == ["pre"] * 3
     d1 = analysis.hypothesis_picks(g, h1, "pre")
     assert d1["early"].all() and (d1["edge"] >= 0.08).all()
     d2 = analysis.hypothesis_picks(g, h2, "pre")
@@ -304,3 +307,51 @@ def test_one_graded_game_renders_dashes_not_nan(tmp_path, monkeypatch):
     for f in ("grades.html", "market-calibration.html"):
         s = (tmp_path / f).read_text()
         assert ">nan" not in s and "± nan" not in s and "nan (1 SE)" not in s
+
+
+def with_first(df, p_shift=0.0, ml_shift=0):
+    """First-snapshot columns: an earlier price and model P than the latest."""
+    df = df.copy()
+    df["first_snapshot_utc"] = "2026-11-19T10:00:00Z"
+    df["first_model_tag"] = "t"
+    df["first_book"] = df["pre_book"]
+    df["first_p_home"] = np.clip(df["p_home"] + p_shift, 0.05, 0.95)
+    df["first_home_ml"] = df["pre_home_ml"] + ml_shift
+    df["first_away_ml"] = df["pre_away_ml"]
+    df["first_q_home"] = [market.devig(h, a) for h, a in
+                          zip(df["first_home_ml"], df["first_away_ml"])]
+    return df
+
+
+def test_first_price_grades_the_early_p_at_the_early_price():
+    df = with_first(synth(200, 20), p_shift=0.1, ml_shift=-15)
+    g = ledger.graded(df)
+    p = analysis.picks(g, price="first")
+    val = p[p["rule"] == "value"].set_index("game_id")
+    for gid, r in val.head(20).iterrows():
+        src = df.set_index("game_id").loc[gid]
+        home = r["side"] == "HOM"
+        assert r["model_p"] == pytest.approx(src["first_p_home"] if home
+                                             else 1 - src["first_p_home"])
+        assert r["ml"] == (src["first_home_ml"] if home else src["first_away_ml"])
+    lean = p[p["rule"] == "lean"]
+    assert (lean["model_p"] >= 0.5).all()          # lean = the early P's side
+    assert analysis.picks(ledger.graded(synth(30, 21)), price="first").empty
+
+
+def test_h4_graded_at_the_first_snapshot_on_the_page(tmp_path, monkeypatch):
+    df = synth(300, 22)
+    df[["gp_home", "gp_away"]] = 30
+    df = with_first(df, p_shift=0.15)               # early P disagrees more
+    g = ledger.graded(df)
+    h3, h4 = analysis.HYPOTHESES[2], analysis.HYPOTHESES[3]
+    d3 = analysis.hypothesis_picks(g, h3, "pre")
+    d4 = analysis.hypothesis_picks(g, h4, "first")
+    assert len(d4) > len(d3)                        # different P, different bets
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(df, synth(200, 23, "reconstructed"), "2026-11-19",
+                           model_ok=True)
+    grades = (tmp_path / "grades.html").read_text()
+    assert "<b>H4</b>" in grades and "at the first snapshot" in grades
+    assert f"{len(d4)} <span class='mut'>at the first snapshot</span>" in grades
+    assert "At the <b>first snapshot</b>" in grades

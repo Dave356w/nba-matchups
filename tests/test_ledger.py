@@ -149,3 +149,73 @@ def test_failed_injury_fetch_keeps_previous_snapshot(tmp_path):
     back = ledger.load_injuries(str(p))
     assert list(back.columns) == ledger.INJURY_COLUMNS and len(back) == 2
     assert back.iloc[0]["player_id"] in ("7", "")
+
+
+# ---------------------------------------------------- first snapshot (H4)
+MIDDAY = datetime(2026, 11, 19, 20, 0, tzinfo=timezone.utc)
+
+
+def test_first_snapshot_written_once_and_never_replaced():
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    r = led.iloc[0]
+    assert r["first_snapshot_utc"] == r["snapshot_utc"] == "2026-11-19T18:00:00Z"
+    assert (r["first_p_home"], r["first_home_ml"], r["first_away_ml"],
+            r["first_q_home"], r["first_book"], r["first_model_tag"]) == \
+        (0.62, -150, 130, 0.585, "dk", "t")
+    # a later snapshot refreshes the pregame columns, never the first ones
+    led, acc, _ = ledger.upsert_pregame(
+        led, [row(p_home=0.70, pre_home_ml=-200, pre_away_ml=170, pre_q_home=0.65,
+                  pre_book="dk", model_tag="t2")], now=LATER_BEFORE)
+    r = led.iloc[0]
+    assert acc and r["p_home"] == 0.70 and r["pre_home_ml"] == -200
+    assert r["first_p_home"] == 0.62 and r["first_home_ml"] == -150
+    assert r["first_snapshot_utc"] == "2026-11-19T18:00:00Z"
+    assert r["first_model_tag"] == "t" and r["model_tag"] == "t2"
+
+
+def test_first_snapshot_waits_for_a_model_p_and_a_price():
+    led, _, _ = ledger.upsert_pregame(
+        ledger.empty(), [row(pre_home_ml=np.nan, pre_away_ml=np.nan,
+                             pre_q_home=np.nan)], now=BEFORE)
+    assert pd.isna(led.iloc[0]["first_snapshot_utc"])       # no price yet
+    led, _, _ = ledger.upsert_pregame(led, [row(p_home=np.nan, pre_book="dk")],
+                                      now=MIDDAY)
+    assert pd.isna(led.iloc[0]["first_snapshot_utc"])       # model abstained
+    led, _, _ = ledger.upsert_pregame(led, [row(pre_book="dk")], now=LATER_BEFORE)
+    assert led.iloc[0]["first_snapshot_utc"] == "2026-11-19T23:00:00Z"
+    assert led.iloc[0]["first_q_home"] == 0.585
+
+
+def test_first_snapshot_frozen_after_tip_and_untouched_by_grading():
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    before = led[ledger.FIRST_COLUMNS].copy()
+    led, acc, _ = ledger.upsert_pregame(led, [row(p_home=0.9)], now=AFTER)
+    assert not acc
+    odds = dict(close_home_ml=-160, close_away_ml=135, open_home_ml=-140,
+                open_away_ml=120, book="dk")
+    assert ledger.apply_result(led, "401", dict(completed=True, home_pts=110,
+                                                away_pts=104), odds)
+    pd.testing.assert_frame_equal(led[ledger.FIRST_COLUMNS], before)
+    assert not set(ledger.FIRST_COLUMNS) & set(ledger.GRADE_COLUMNS)
+    assert not set(ledger.FIRST_COLUMNS) & set(ledger.PREGAME_COLUMNS)
+
+
+def test_pre_first_file_loads_with_blank_first_columns(tmp_path):
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    p = tmp_path / "old.csv"
+    led[ledger.PRE_FIRST_COLUMNS].to_csv(p, index=False)
+    back = ledger.load(str(p))
+    assert list(back.columns) == ledger.COLUMNS
+    assert back[ledger.FIRST_COLUMNS].isna().all().all()
+    assert back.iloc[0]["pre_book"] == "dk"
+
+
+def test_validator_flags_a_first_snapshot_at_or_after_tip(tmp_path):
+    import validate_data_files as v
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    p = tmp_path / "ok.csv"
+    ledger.save(led, str(p))
+    assert v.check(str(p)) == []
+    led.loc[0, "first_snapshot_utc"] = "2026-11-20T01:00:00Z"     # after tip
+    ledger.save(led, str(p))
+    assert any("not before tip" in e for e in v.check(str(p)))

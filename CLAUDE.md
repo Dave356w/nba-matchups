@@ -52,6 +52,10 @@ owner directs the product.
   vs the ROI null, a forecast vs the diagonal, the model vs the close),
   never sign alone. Sections split basis × closing book × season. The lean
   is the recorded `lean` column everywhere (`analysis.lean_is_home`).
+- First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
+  pregame snapshot with a model P and a price, never by a refresh or by
+  grading, frozen at tip. `analysis.picks(price="first")` grades it with
+  `first_p_home`. The reconstructed rows leave it blank.
 
 Before a PR, run:
 
@@ -125,6 +129,21 @@ Before a PR, run:
   on the current reconstructed rows. On the v5 rows H1 is unchanged (+17.8%,
   n = 115); H2 is +0.4% ± 4.3 (n = 978) and H3 +19.7% ± 17.1 (n = 262),
   95%, vs the v4 figures above.
+  - **H4** (fixed 2026-10-01, still before any native rows): H3's rule
+    (games 10+, value side, P − q ≥ 0.12) graded at the **first
+    snapshot**: the `first_*` ledger columns, the earliest pregame snapshot
+    with a model P and a price (usually the 10:07 ET build on game day),
+    written once and frozen; the model P is the one written then, from the
+    injury report available then. Why: the build refreshes the pregame row
+    hourly until tip, so the `pre` price ends near the close, where no
+    threshold beats the null in hindsight (games 10+: −12.5% at edge ≥ 0
+    to −2.5% at ≥ 0.12, 2025-26 DK); H2/H3 at `pre` may fail for that
+    reason alone. Hindsight proxy: H3 at the open, +19.7% ± 17.1 (n = 262,
+    v5 rows), rising with the edge in both seasons (≥ 0.12: +23.4% ± 13.8
+    2024-25 ESPN BET, +15.1% ± 12.0 2025-26 DK, 1 SE); above 0.15 the
+    samples collapse (n 15–17, signs flip), so the threshold stays 0.12.
+    The first snapshot is later than the open and uses the morning report,
+    so it is the bettable version of the open test, not a replica.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a
