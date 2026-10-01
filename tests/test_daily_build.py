@@ -52,7 +52,6 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert list(snap["game_id"]) == ["9001", "9001"]    # preseason game skipped
     assert set(snap["status"]) == {"Out", "NONE"}
     assert (snap["snapshot_utc"] < snap["tip_utc"].str.replace("Z", ":00Z")).all()
-    frozen = snap.copy()
     # decision-time record: written with the first snapshot, once
     assert r["first_route"] in ("base", "avail", "v4")
     assert r["seen_utc"] == r["first_snapshot_utc"] and pd.isna(r["seen_note"])
@@ -60,6 +59,9 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert build_site.main(["--date", day1]) == 0         # a second run
     pd.testing.assert_frame_equal(
         ledger.load(ledger.NATIVE_PATH)[ledger.WRITE_ONCE_COLUMNS], once)
+    # the second run (before tip) may refresh the injury snapshot; what must
+    # hold is that grading after tip leaves the latest one untouched
+    frozen = ledger.load_injuries().copy()
 
     state["completed"] = True
     assert build_site.main(["--date", "2027-01-11"]) == 0
