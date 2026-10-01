@@ -283,6 +283,24 @@ Before a PR, run:
   adds nothing to last-season BPM and cannot replace it; dropped. An
   in-season box-score rating (full ESPN box lines) is the untested
   sharper variant.
+- Minutes weight in talent_diff (owner's question, 2026-10-01): v5 weights
+  each player by mean minutes / 48 over every game played (injury exits,
+  blowouts, OT included; no decay; previous box not held to 240).
+  `research/team_quality.py` arms swap only that weight inside v5_base:
+  `v5_med` (median), `v5_cap` (each game capped at 38 min), `v5_dec`
+  (decayed, half-life 25 of his games), `v5_240` (mean, roster scaled to
+  240). Players averaging 30+ min average 32.8–33.5 and exceed 38 in
+  12–16% of their games (2016–2026). **Results (run 36934441687, games
+  10+, log loss vs v5_base, ± 95%; 2024-25 ESPN BET n = 1,071 / 2025-26
+  DK n = 964 / 2025-26 ESPN BET n = 107):** med, cap and dec correlate
+  +1.000 with talent_diff (sd of the difference 0.10–0.24 against sd
+  ~7): med +0.0002 ± 0.0003 / +0.0001 ± 0.0003 / +0.0012 ± 0.0011; cap
+  −0.0001 ± 0.0002 / +0.0000 ± 0.0002 / +0.0004 ± 0.0006; dec −0.0001 ±
+  0.0002 / +0.0001 ± 0.0002 / +0.0002 ± 0.0002. `v5_240` (r = +0.98) is
+  worse: +0.0005 ± 0.0021 / +0.0036 ± 0.0022 / +0.0048 ± 0.0052 (the
+  previous box's head count, inflated by garbage time, dilutes it).
+  Coefficients and the gap to the close unchanged. The averaging rule is
+  not what is missing; the mean stays.
 - Home-court drift (2026-10-01, reconstructed rows, mean home P, ± 95%):
   none. Games 10+: model − market +0.26 ± 0.46 pp (2024-25) / +0.26 ±
   0.49 pp (2025-26), logit +0.016 ± 0.023 / +0.014 ± 0.024; model and
