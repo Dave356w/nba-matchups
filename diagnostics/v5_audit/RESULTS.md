@@ -362,6 +362,44 @@ across folds and has the sign the market residual predicts.
 - D.4 (split-half factor reliability) was not run; it is optional.
 
 
+### D.6: v6 gate (v5 + own FT%), 2026-10-01
+
+Run: "Walk-forward backtest" `--avail --v6`, run 36940663654, branch
+`claude/v6-ft-gate` (#43). This is the same protocol as the v5 gate:
+every fit on earlier seasons only, production routing, v6 against v5 on
+the same games. Log loss, **± 95%**:
+
+| Rows | n | v6 | v5 | v6 − v5 | v6 − close |
+|---|---:|---:|---:|---:|---:|
+| 2024-25 ESPN BET, games 10+ | 1,071 | 0.5936 | 0.5939 | −0.0003 ± 0.0008 | +0.0160 ± 0.0098 |
+| 2025-26 DK, games 10+ | 964 | 0.5885 | 0.5896 | −0.0010 ± 0.0011 | +0.0184 ± 0.0110 |
+| 2025-26 ESPN BET, games 10+ | 107 | 0.5463 | 0.5481 | −0.0018 ± 0.0042 | −0.0089 ± 0.0332 |
+| games 1–9 (both seasons) | 138 + 138 | = v5 | | 0 | |
+
+- **Reproduction.** The gate's v5 arm reproduces MODEL.md §6.1 exactly
+  (0.5939, 0.5896, 0.5481).
+- **Routing.** Every games-10+ game was report-covered (availability
+  route). Games 1–9 are unchanged by construction.
+- **Coefficient.** Base-logit ft_diff is +0.0130 (fit through 2024) and
+  +0.0129 (through 2025) logit per FT% point. A 10-point FT% gap is worth
+  about 0.13 logit, roughly 3 percentage points near a pick'em.
+- **Brier** agrees in sign: −0.0001 ± 0.0003 and −0.0004 ± 0.0005.
+
+**Gate verdict: passes v5's shipping criterion** (not worse than v5 on the
+two large books). It is better in all three cells, but no cell resolves
+at 95% (2025-26 DK is −0.0010 ± 0.0011, about 1.8 SE). The gap to the
+close narrows by 0.0003 / 0.0010 and remains +0.016 / +0.018: no
+demonstrated edge.
+
+**David decides on activation.** The order would follow v5's:
+
+1. "Fit model" refit with the v6 features, plus a new `MODEL_TAG` (v6 and
+   v6-avail).
+2. Live scoring: `build_site.score_game` computes ft_diff from the logs it
+   already has. No new data source is needed.
+3. "Backfill history" `--rescore` (reconstructed rows re-tagged).
+4. MODEL.md and CLAUDE.md entries.
+
 ## Task E: stale talent in the availability logit
 
 `newly_out` counts players on the previous box score who are Out or
