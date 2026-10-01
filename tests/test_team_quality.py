@@ -252,3 +252,28 @@ def test_assist_rates_use_earlier_games_and_are_nan_without_assists():
 def test_v5_ast_is_scored_against_the_v5_base_logit():
     assert tq.REF["v5_ast"] == "v5_base" and tq.REF["ast"] == "base"
     assert tq.BOX_ARMS["v5_base"] == list(nc.V5_FEATURES)
+
+
+def test_onoff_is_season_to_date_shrunk_and_uses_only_earlier_games():
+    d = pd.to_datetime(["2025-11-01", "2025-11-03", "2025-11-05"])
+    box = pd.DataFrame(dict(
+        team=["T0"] * 6, date=np.repeat(d, 2), player_id=["a", "b"] * 3,
+        minutes=[36.0, 12.0] * 3, pm=[10.0, -2.0, 6.0, 0.0, -40.0, -40.0],
+        margin=[8.0, 8.0, 6.0, 6.0, -40.0, -40.0]))
+    f = tq.onoff_fn(box, lambda pid, date: 0.5, shrink=0.0)
+    assert np.isnan(f("T0", "2025-11-01")) and np.isnan(f("T9", "2025-11-04"))
+    # before 11-05: a on +16 in 72 min, off (8-10)+(6-6) = -2 in 24 min
+    ra = 48 * (16 / 72 - (-2) / 24)
+    rb = 48 * (-2 / 24 - (8 + 2 + 6 - 0) / 72)
+    assert abs(f("T0", "2025-11-05") - 0.5 * (ra + rb)) < 1e-9   # 11-05 unused
+    only_a = lambda pid, date: 1.0 if pid == "a" else 0.0        # noqa: E731
+    raw = tq.onoff_fn(box, only_a, shrink=0.0)("T0", "2025-11-05")
+    shrunk = tq.onoff_fn(box, only_a)("T0", "2025-11-05")
+    assert abs(raw - ra) < 1e-9
+    assert abs(shrunk - ra * 72 / (72 + tq.OO_SHRINK)) < 1e-9
+
+
+def test_onoff_arms_are_scored_against_v5_base():
+    assert tq.REF["v5_oo"] == tq.REF["oo_luck"] == "v5_base"
+    assert "talent_diff" not in tq.BOX_ARMS["oo_luck"]
+    assert tq.BOX_ARMS["v5_oo"] == list(nc.V5_FEATURES) + ["onoff_diff"]

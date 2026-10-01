@@ -255,7 +255,23 @@ Before a PR, run:
   own and opponents' assist rate, 100 × AST / FG, decayed, home − away; vs
   base) and `v5_ast` (v5 base logit + the same; vs `v5_base` on the box
   seasons). Assists are parsed as a research-only extra stat
-  (`nc.EXTRA_STATS`); COLS unchanged. Not yet run.
+  (`nc.EXTRA_STATS`); COLS unchanged. **Results (2026-10-01, run
+  36815424997, assists for all test games; log loss, ± 95%; 2024-25 ESPN
+  BET n = 1,071 / 2025-26 DK n = 964):** `ast` vs base +0.0006 ± 0.0008 /
+  +0.0005 ± 0.0005; `v5_ast` vs v5_base +0.0003 ± 0.0008 / +0.0001 ±
+  0.0006 (2025-26 ESPN BET, n = 107: −0.0003 ± 0.0015 / +0.0006 ± 0.0021).
+  Coefficients tiny (own +0.003 to +0.005 logit per assist-rate point) and
+  the defensive term flips sign between arms; gap to the close and the
+  team share of the market's correction unchanged. Assists add nothing
+  beyond the four factors and BPM; dropped.
+- In-season player values (owner's choice, 2026-10-01): talent_diff is
+  last season's BPM, frozen, with unmatched players (rookies) at
+  replacement. `research/team_quality.py` adds `onoff_diff`: minutes share
+  × each player's season-to-date on/off from box plus-minus and the final
+  margin (games before the date), shrunk by minutes / (minutes + 1000).
+  Arms `v5_oo` (v5 base + onoff_diff; the fitted weights are the shrinkage
+  of last season's value toward this season's) and `oo_luck` (luck +
+  onoff_diff, no last-season value), both vs `v5_base`. Not yet run.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
