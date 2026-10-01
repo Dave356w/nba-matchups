@@ -18,7 +18,14 @@ Invariants (tests/test_ledger.py pins each one):
     also kept (`first_*`, FIRST_COLUMNS): written once, before tip, and never
     replaced by a later snapshot or touched by grading. It is the price and
     probability an early bettor had (the open-price hypothesis, H4); the
-    refreshed columns end near the close.
+    refreshed columns end near the close. The first snapshot also records
+    the injury-report edition the build read then (`first_report_utc`) and
+    the route that scored it (`first_route`): what news its P could contain.
+  * The row's very first snapshot (`seen_utc`, SEEN_COLUMNS) is written once
+    when the row is created, with `seen_note` saying why `first_*` was not
+    filled then (no price yet, odds fetch failed, model abstained; blank when
+    it was). Never refreshed or graded, so a first snapshot that came later
+    than the row is visible, with its reason.
   * Grading fills ONLY result and open/close market columns (moneyline and
     closing spread). It never touches
     a model or pregame-market column.
@@ -61,19 +68,40 @@ COLUMNS = [
     # first pregame snapshot with a model P and a price: written once, frozen
     "first_snapshot_utc", "first_model_tag", "first_p_home", "first_book",
     "first_home_ml", "first_away_ml", "first_q_home",
+    # the injury-report edition (UTC) the first snapshot's build read, and the
+    # route that scored it (early / avail / base / v4)
+    "first_report_utc", "first_route",
+    # the row's earliest pregame snapshot, written once at creation: when,
+    # and why first_* was not filled then (blank when it was)
+    "seen_utc", "seen_note",
 ]
-FIRST_COLUMNS = COLUMNS[COLUMNS.index("first_snapshot_utc"):]
-# The pregame column each first_* column copies.
+SEEN_COLUMNS = ["seen_utc", "seen_note"]
+FIRST_COLUMNS = COLUMNS[COLUMNS.index("first_snapshot_utc"):
+                        COLUMNS.index("seen_utc")]
+# Where each first_* column comes from: a pregame column, or (report, route)
+# a key of the scored row that is not itself a ledger column.
 FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_tag",
                 "first_p_home": "p_home", "first_book": "pre_book",
                 "first_home_ml": "pre_home_ml", "first_away_ml": "pre_away_ml",
-                "first_q_home": "pre_q_home"}
+                "first_q_home": "pre_q_home", "first_report_utc": "report_utc",
+                "first_route": "route"}
+# Columns written once and never refreshed or graded.
+WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS
+# String-valued columns (kept as object dtype).
+TEXT_COLUMNS = ("pre_book", "close_book", "first_book", "first_model_tag",
+                "first_snapshot_utc", "first_report_utc", "first_route",
+                "seen_utc", "seen_note")
 SPREAD_COLUMNS = ["close_spread", "close_home_spread_odds",
                   "close_away_spread_odds"]
+# Schema before the report / route / seen columns: `load` reads it with them
+# blank and the next save writes the current schema. (The native ledger was
+# empty when they were added, 2026-10-01.)
+PRE_SEEN_COLUMNS = [c for c in COLUMNS if c not in
+                    ("first_report_utc", "first_route", *SEEN_COLUMNS)]
 # Schema before the first-snapshot columns: `load` reads it with them blank
 # and the next save writes the current schema. (The native ledger was empty
 # when they were added, 2026-10-01, so no row's first snapshot is unknown.)
-PRE_FIRST_COLUMNS = [c for c in COLUMNS if c not in FIRST_COLUMNS]
+PRE_FIRST_COLUMNS = [c for c in COLUMNS if c not in WRITE_ONCE_COLUMNS]
 # Schema before the spread columns: `load` reads it with the spreads blank
 # and the next save writes the current schema.
 PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
@@ -83,7 +111,7 @@ LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = [c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
 GRADE_COLUMNS = [c for c in COLUMNS
-                 if c not in PREGAME_COLUMNS and c not in FIRST_COLUMNS]
+                 if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS]
 
 
 # Pregame injury snapshots: one row per listed player (or one "NONE" row per
@@ -125,8 +153,7 @@ def load(path):
     for c in COLUMNS:
         if c not in df.columns:
             df[c] = np.nan
-    for c in ("pre_book", "close_book", "first_book", "first_model_tag",
-              "first_snapshot_utc"):
+    for c in TEXT_COLUMNS:
         df[c] = df[c].astype(object)
     if legacy:
         df.loc[df["pre_q_home"].notna(), "pre_book"] = "dk"
@@ -153,6 +180,8 @@ def upsert_pregame(led, rows, now=None):
     replaced only while its game is still before tip AND ungraded, so once a
     game starts its pregame record is frozen for good. The first snapshot
     with a model P and a price fills `first_*` once; later ones never do.
+    A new row also gets `seen_*` once. Optional keys of a row: `report_utc`
+    and `route` (copied to first_*), `price_note` (why it has no price).
     """
     now = now or utc_now()
     led = led.copy()
@@ -167,10 +196,13 @@ def upsert_pregame(led, rows, now=None):
         rec["game_id"] = gid
         rec["snapshot_utc"] = fmt_utc(now)
         rec["basis"] = "native"
-        for c in FIRST_COLUMNS:
+        for c in WRITE_ONCE_COLUMNS:
             rec[c] = np.nan
-        usable = (pd.notna(pd.to_numeric(rec["p_home"], errors="coerce"))
-                  and pd.notna(pd.to_numeric(rec["pre_q_home"], errors="coerce")))
+        src = {**rec, "report_utc": r.get("report_utc", np.nan),
+               "route": r.get("route", np.nan)}
+        has_p = pd.notna(pd.to_numeric(rec["p_home"], errors="coerce"))
+        has_q = pd.notna(pd.to_numeric(rec["pre_q_home"], errors="coerce"))
+        usable = has_p and has_q
         hit = led.index[led["game_id"].astype(str) == gid]
         if len(hit):
             old = led.loc[hit[0]]
@@ -185,11 +217,18 @@ def upsert_pregame(led, rows, now=None):
                 for c in FIRST_COLUMNS:
                     if led[c].dtype != object:
                         led[c] = led[c].astype(object)
-                    led.at[hit[0], c] = rec[FIRST_SOURCE[c]]
+                    led.at[hit[0], c] = src[FIRST_SOURCE[c]]
         else:
             if usable:
                 for c in FIRST_COLUMNS:
-                    rec[c] = rec[FIRST_SOURCE[c]]
+                    rec[c] = src[FIRST_SOURCE[c]]
+            rec["seen_utc"] = rec["snapshot_utc"]
+            rec["seen_note"] = "" if usable else "; ".join(
+                n for n in ((None if has_p else "no model P"),
+                            (None if has_q else
+                             "no price" + (f" ({r['price_note']})"
+                                           if r.get("price_note") else "")))
+                if n)
             led = pd.concat([led, pd.DataFrame([rec])[COLUMNS]],
                             ignore_index=True) if len(led) else \
                 pd.DataFrame([rec])[COLUMNS]

@@ -24,13 +24,16 @@ def check(path):
     elif list(df.columns) == ledger.PRE_SPREAD_COLUMNS:
         print(f"note {path}: pre-spread schema; spread columns added on the "
               "next bot write")
+    elif list(df.columns) == ledger.PRE_SEEN_COLUMNS:
+        print(f"note {path}: pre-decision-time schema; first_report_utc, "
+              "first_route and seen_* added (blank) on the next bot write")
     elif list(df.columns) == ledger.PRE_FIRST_COLUMNS:
         print(f"note {path}: pre-first-snapshot schema; first_* columns added "
               "(blank) on the next bot write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_FIRST_COLUMNS,
-                            ledger.PRE_SPREAD_COLUMNS):
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_SEEN_COLUMNS,
+                            ledger.PRE_FIRST_COLUMNS, ledger.PRE_SPREAD_COLUMNS):
         books = {b for _, b in market.BOOKS}
         for col, q in (("pre_book", "pre_q_home"), ("close_book", "close_q_home")):
             priced = pd.to_numeric(df[q], errors="coerce").notna()
@@ -53,6 +56,13 @@ def check(path):
         books = {b for _, b in market.BOOKS}
         if not df.loc[has, "first_book"].isin(books).all():
             errs.append(f"{path}: first_book missing or unknown on a first snapshot")
+        if "seen_utc" in df.columns:
+            seen = pd.to_datetime(df["seen_utc"], utc=True, errors="coerce")
+            hs = df["seen_utc"].notna()
+            if (hs & (seen.isna() | ~(seen < tip))).any():
+                errs.append(f"{path}: seen_utc missing a time or not before tip")
+            if (hs & has & (seen > first)).any():
+                errs.append(f"{path}: first snapshot earlier than the row's first sight")
     if df["game_id"].duplicated().any():
         errs.append(f"{path}: duplicate game_id")
     won = pd.to_numeric(df["home_won"], errors="coerce").dropna()

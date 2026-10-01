@@ -87,3 +87,14 @@ def test_cli_scorer_matches_site_scorer_on_the_checked_in_model():
     # phase counts from opening night: late-season p differs from phase 0
     no_phase = nc.predict(v4, [[site["delta"], 0, 0.0]])[0]
     assert abs(site["p_home"] - no_phase) > 1e-4
+
+
+def test_route_names_the_formula_without_changing_it():
+    v5 = {"features": ["delta", "b2b_net", "d_phase", "luck_def", "talent_diff"]}
+    tag = build_site.model_tag(v5)
+    r = dict(p_home=0.6, gp_home=12, gp_away=15)
+    assert build_site.route({**r, "model_tag": tag}, v5) == "base"
+    assert build_site.route({**r, "model_tag": build_site.MODEL_TAG_V5_AVAIL}, v5) == "avail"
+    assert build_site.route({**r, "model_tag": build_site.MODEL_TAG_V4}, v5) == "v4"
+    assert build_site.route({**r, "gp_away": 3, "model_tag": tag}, v5) == "early"
+    assert build_site.route({**r, "p_home": float("nan"), "model_tag": tag}, v5) == "abstain"

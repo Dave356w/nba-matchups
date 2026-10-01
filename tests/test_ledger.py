@@ -219,3 +219,62 @@ def test_validator_flags_a_first_snapshot_at_or_after_tip(tmp_path):
     led.loc[0, "first_snapshot_utc"] = "2026-11-20T01:00:00Z"     # after tip
     ledger.save(led, str(p))
     assert any("not before tip" in e for e in v.check(str(p)))
+
+
+# ------------------------------------------- decision-time record (audit A)
+def test_report_and_route_written_once_with_the_first_snapshot():
+    led, _, _ = ledger.upsert_pregame(
+        ledger.empty(), [row(pre_book="dk", report_utc="2026-11-19T17:30:00Z",
+                             route="avail")], now=BEFORE)
+    r = led.iloc[0]
+    assert (r["first_report_utc"], r["first_route"]) == ("2026-11-19T17:30:00Z", "avail")
+    assert r["seen_utc"] == r["first_snapshot_utc"] and r["seen_note"] == ""
+    once = led[ledger.WRITE_ONCE_COLUMNS].copy()
+    # a second run (newer report, new route) refreshes nothing write-once
+    led, acc, _ = ledger.upsert_pregame(
+        led, [row(pre_book="dk", p_home=0.7, report_utc="2026-11-19T22:30:00Z",
+                  route="base")], now=LATER_BEFORE)
+    assert acc and led.iloc[0]["p_home"] == 0.7
+    pd.testing.assert_frame_equal(led[ledger.WRITE_ONCE_COLUMNS], once)
+    # grading writes only result and open/close columns
+    odds = dict(close_home_ml=-160, close_away_ml=135, open_home_ml=-140,
+                open_away_ml=120, book="dk")
+    pre = led[[c for c in ledger.COLUMNS if c not in ledger.GRADE_COLUMNS]].copy()
+    assert ledger.apply_result(led, "401", dict(completed=True, home_pts=110,
+                                                away_pts=104), odds)
+    pd.testing.assert_frame_equal(
+        led[[c for c in ledger.COLUMNS if c not in ledger.GRADE_COLUMNS]], pre)
+    assert not set(ledger.WRITE_ONCE_COLUMNS) & set(ledger.GRADE_COLUMNS)
+    assert not set(ledger.WRITE_ONCE_COLUMNS) & set(ledger.PREGAME_COLUMNS)
+
+
+def test_seen_note_records_why_the_first_snapshot_waited():
+    led, _, _ = ledger.upsert_pregame(
+        ledger.empty(), [row(pre_home_ml=np.nan, pre_away_ml=np.nan,
+                             pre_q_home=np.nan, price_note="odds fetch failed: URLError",
+                             route="avail")], now=BEFORE)
+    r = led.iloc[0]
+    assert r["seen_utc"] == "2026-11-19T18:00:00Z"
+    assert r["seen_note"] == "no price (odds fetch failed: URLError)"
+    assert pd.isna(r["first_snapshot_utc"]) and pd.isna(r["first_route"])
+    # the first snapshot fills later (H4's definition); seen_* stays as written
+    led, _, _ = ledger.upsert_pregame(led, [row(pre_book="dk", route="avail")],
+                                      now=LATER_BEFORE)
+    r = led.iloc[0]
+    assert r["first_snapshot_utc"] == "2026-11-19T23:00:00Z" and r["first_route"] == "avail"
+    assert r["seen_utc"] == "2026-11-19T18:00:00Z"
+    assert r["seen_note"] == "no price (odds fetch failed: URLError)"
+    led2, _, _ = ledger.upsert_pregame(ledger.empty(), [row(p_home=np.nan)], now=BEFORE)
+    assert led2.iloc[0]["seen_note"] == "no model P"
+
+
+def test_pre_seen_file_loads_and_validates(tmp_path):
+    import validate_data_files as v
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    p = tmp_path / "old.csv"
+    led[ledger.PRE_SEEN_COLUMNS].to_csv(p, index=False)
+    assert v.check(str(p)) == []
+    back = ledger.load(str(p))
+    assert list(back.columns) == ledger.COLUMNS
+    assert back[["first_report_utc", "first_route", *ledger.SEEN_COLUMNS]].isna().all().all()
+    assert back.iloc[0]["first_p_home"] == 0.62
