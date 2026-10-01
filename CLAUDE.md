@@ -264,6 +264,14 @@ Before a PR, run:
   the defensive term flips sign between arms; gap to the close and the
   team share of the market's correction unchanged. Assists add nothing
   beyond the four factors and BPM; dropped.
+- In-season player values (owner's choice, 2026-10-01): talent_diff is
+  last season's BPM, frozen, with unmatched players (rookies) at
+  replacement. `research/team_quality.py` adds `onoff_diff`: minutes share
+  × each player's season-to-date on/off from box plus-minus and the final
+  margin (games before the date), shrunk by minutes / (minutes + 1000).
+  Arms `v5_oo` (v5 base + onoff_diff; the fitted weights are the shrinkage
+  of last season's value toward this season's) and `oo_luck` (luck +
+  onoff_diff, no last-season value), both vs `v5_base`. Not yet run.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
