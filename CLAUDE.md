@@ -101,9 +101,29 @@ Before a PR, run:
   a PG's to PG/SG) instead of in proportion to minutes, on the same base.
   `x_list_role` is the owner's DK Showdown notebook rule: G/W/B roles,
   ranked by minutes; the next man up in the Out player's role takes his
-  slot, and so on down the chart (no spill across roles). Walk-forward vs v5 and the close on the same covered games. It
-  prints how often report Out players are on the box listing (the check
-  that the listing is the roster, not who dressed). Not yet run.
+  slot, and so on down the chart (no spill across roles). Walk-forward
+  vs v5 and the close on the same covered games. **Results (2026-10-01,
+  games 10+, log loss vs v5, ± 95%; 2024-25 ESPN BET n = 1,071 / 2025-26
+  DK n = 964):**
+  - The box listing is not the roster: only 6–12% of report Out players
+    are on it, and 11–28% of Questionable players are missing (late
+    scratches). Every `x_list_*` arm and v5_x therefore carries hindsight
+    and is not a pregame candidate; `x_prev_od` is the only clean arm.
+  - `x_prev_od`: −0.0005 ± 0.0063 / +0.0059 ± 0.0066 (worse, ~1.8 SE).
+    Replacing v5's three terms with the one lineup term does not help.
+  - Hindsight ceiling `x_hind` (who played): −0.0028 ± 0.0078 / +0.0014 ±
+    0.0079. Even perfect participation adds little over v5's terms.
+  - Position (`x_list_pos`) and role depth chart (`x_list_role`) vs
+    proportional (`x_list_od`): within 0.0007 in both seasons, coefficients
+    unchanged; the term moves by sd 0.23–0.38 points/48 against an sd of
+    ~6.5. Where an Out player's minutes go is not what is missing.
+  - The term duplicates talent_diff (r = +0.90 / +0.92); in v5_x the
+    talent coefficient falls to 0.016 / 0.004. v5_x: −0.0023 ± 0.0049 /
+    −0.0028 ± 0.0045, but it uses the listing. Gap to the close unchanged
+    (+0.014 to +0.025 in every arm). 2025-26 ESPN BET (n = 107)
+    unresolved. Not pursued; a truly pregame roster (e.g. the
+    `data/nba_injuries.csv` snapshots) is the only open variant, with
+    little upside per the hindsight ceiling.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains
