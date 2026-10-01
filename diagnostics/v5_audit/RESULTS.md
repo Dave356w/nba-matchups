@@ -113,8 +113,8 @@ under contradictions below.
 
 ## Task A: decision-time price (status)
 
-**Implemented in PR #41** (`claude/v5-audit-decision-price`), awaiting
-David's review. The pipeline already had a live price source (ESPN core
+**Merged in PR #41** (2026-10-01), live from the next build, before
+the first native row. The pipeline already had a live price source (ESPN core
 odds `current`, same book order as the grader), and `first_*` already
 stores the book, UTC time, both American prices and no-vig q (devigged
 with `market.devig`, as the grader does).
