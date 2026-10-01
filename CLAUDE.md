@@ -271,7 +271,18 @@ Before a PR, run:
   margin (games before the date), shrunk by minutes / (minutes + 1000).
   Arms `v5_oo` (v5 base + onoff_diff; the fitted weights are the shrinkage
   of last season's value toward this season's) and `oo_luck` (luck +
-  onoff_diff, no last-season value), both vs `v5_base`. Not yet run.
+  onoff_diff, no last-season value), both vs `v5_base`. **Results
+  (2026-10-01, run 36816566421, on/off for all test games; log loss vs
+  v5_base, ± 95%; 2024-25 ESPN BET n = 1,071 / 2025-26 DK n = 964):**
+  `v5_oo` +0.0004 ± 0.0022 / −0.0003 ± 0.0015 (onoff_diff +0.011 / +0.010
+  logit per point; talent 0.064 → 0.060 / 0.060 → 0.056, so the fitted
+  shrinkage stays almost entirely on last season's value); `oo_luck`
+  +0.0025 ± 0.0089 / +0.0015 ± 0.0078 (2025-26 ESPN BET, n = 107: +0.0031
+  ± 0.0037 / +0.0101 ± 0.0215). corr(onoff_diff, talent_diff) +0.50
+  (2025-26). Gap to the close and team share unchanged. In-season on/off
+  adds nothing to last-season BPM and cannot replace it; dropped. An
+  in-season box-score rating (full ESPN box lines) is the untested
+  sharper variant.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
