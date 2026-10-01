@@ -21,7 +21,9 @@ This tests a single replacement term, xtal (home - away), per team-game k:
             inactive), a proxy for the roster known before tip (trades and
             signings are announced before the game). The script prints how
             often report Out players appear in that listing: if they do,
-            the listing is the roster and does not reveal who sits.
+            the listing is the roster and does not reveal who sits. They
+            do not (6-12%, 2023-2026): the listing is who dressed, so the
+            list_* variants carry hindsight (CLAUDE.md, results).
   expected  P(plays): `od` Out/Doubtful -> 0, else 1; `q` Out -> 0,
             Doubtful/Questionable/Probable -> their play rates in the
             TRAINING seasons; `hind` = who actually played (hindsight
