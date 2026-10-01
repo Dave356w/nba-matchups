@@ -1,0 +1,66 @@
+name: Roster minutes
+
+# Research only: replaces v5's talent_diff and av_bpm with one lineup term
+# (pregame roster x expected participation x expected minutes scaled to 240)
+# and compares it with v5 and the close on the same games, walk-forward
+# (research/roster_minutes.py). Writes nothing to the repo; results are the
+# job summary and an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Test seasons (BBR years; 2026 = 2025-26)'
+        default: '2025 2026'
+      box_seasons:
+        description: 'Box-score / report seasons (training uses those before each test season)'
+        default: '2023 2024 2025 2026'
+      lead_minutes:
+        description: 'Use the last injury report at least this many minutes before tip'
+        default: '30'
+
+permissions:
+  contents: read
+
+jobs:
+  roster-minutes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pdfplumber
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2019 2021-2026
+      - name: Run roster minutes
+        run: |
+          set -o pipefail
+          python research/roster_minutes.py --seasons ${{ inputs.seasons }} --box-seasons ${{ inputs.box_seasons }} --lead-minutes ${{ inputs.lead_minutes }} | tee roster_minutes.txt
+          { echo '```'; cat roster_minutes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: roster-minutes
+          path: |
+            roster_minutes.txt
+            research/output/roster_minutes.csv

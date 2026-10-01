@@ -90,6 +90,15 @@ Before a PR, run:
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does
   not read it yet.
+  `research/roster_minutes.py` (workflow "Roster minutes", 2026-10-01
+  audit) tests one lineup term in place of v5's talent_diff + av_bpm +
+  av_min, so nothing is counted twice: pregame roster (previous box, or
+  game k's box listing as the roster known before tip) x report
+  participation (od, or q play rates) x expected minutes scaled to 240
+  (cap 42) x last-season BPM value; plus a hindsight ceiling and v5 + the
+  term. Walk-forward vs v5 and the close on the same covered games. It
+  prints how often report Out players are on the box listing (the check
+  that the listing is the roster, not who dressed). Not yet run.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains
