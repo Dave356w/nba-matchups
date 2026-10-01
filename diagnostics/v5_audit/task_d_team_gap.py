@@ -184,7 +184,35 @@ def main():
             dc, sc = c.paired(gg["p_factors"], gg["close_q_home"], gg["win"])
             rows.append(dict(rows_=lab, n=len(gg), d_vs_v5=d, se=se, d_vs_close=dc,
                              se_close=sc, lambdas=""))
-    out += ["### D.5 factor-gap logit - v5 log loss (walk-forward, paired SE, 1 SE)\n",
+    # D.5b: the replicated term outside the eight factors, own FT% gap
+    # (FTM/FTA, decayed, home - away), added to both v5 logits; fit on outcomes
+    def with_ft(extra):
+        def fitter(train, feats, route):
+            fs = feats + extra
+            tr = train[c.finite(train, fs)]
+            m = c.fit(tr[fs].to_numpy(float), tr["win"].to_numpy(float))
+            fitter.coefs.append((route, round(float(m["coef"][len(feats)]), 4)))
+            return lambda d: c.predict(m, np.nan_to_num(d[fs].to_numpy(float)))
+        fitter.coefs = []
+        return fitter
+    for Y, f in sorted(folds.items()):
+        if Y not in (2025, 2026):
+            continue
+        for col, lab in (("ftp_gap", "v5 + own FT%"), ("ftmfga_gap", "v5 + own FTM/FGA")):
+            ft = with_ft([col])
+            f.test["p_ft"] = f.routed(ft)
+            g = f.test[f.test["p_v5"].notna()]
+            d, se = c.paired(g["p_ft"], g["p_v5"], g["win"])
+            rows.append(dict(rows_=f"{lab}: {Y - 1}-{str(Y)[2:]} all games 10+", n=len(g),
+                             d_vs_v5=d, se=se, d_vs_close=np.nan, se_close=np.nan,
+                             lambdas=f"coef {ft.coefs}"))
+            for lb, gg in c.books(c.with_market(g)):
+                d, se = c.paired(gg["p_ft"], gg["p_v5"], gg["win"])
+                dc, sc = c.paired(gg["p_ft"], gg["close_q_home"], gg["win"])
+                rows.append(dict(rows_=f"{lab}: {lb}", n=len(gg), d_vs_v5=d, se=se,
+                                 d_vs_close=dc, se_close=sc, lambdas=""))
+    out += ["### D.5 factor-gap logit (and v5 + own FT% / FTM/FGA, D.5b) - v5 log loss "
+            "(walk-forward, paired SE, 1 SE)\n",
             c.table(pd.DataFrame(rows), 4), "",
             "v6 candidate only if a coefficient replicates above; otherwise diagnostic.", ""]
     text = "\n".join(out)
