@@ -250,6 +250,12 @@ Before a PR, run:
     built from last-season BPM), which is also why v5's gain over v4 (which
     already has av_bpm) is below the team-quality arms (measured vs base v4
     without availability). The free fit stays.
+- Assists: the four factors read none; they reach the model only through
+  BPM (talent_diff, av_bpm). `research/team_quality.py` arms `ast` (base +
+  own and opponents' assist rate, 100 × AST / FG, decayed, home − away; vs
+  base) and `v5_ast` (v5 base logit + the same; vs `v5_base` on the box
+  seasons). Assists are parsed as a research-only extra stat
+  (`nc.EXTRA_STATS`); COLS unchanged. Not yet run.
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the

@@ -75,9 +75,10 @@ SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
 STATS = ["FG", "FGA", "3P", "FT", "FTA", "ORB", "DRB", "TOV"]
 COLS = ["T" + s for s in STATS] + ["O" + s for s in STATS]   # 16 raw totals
-# Parsed when the log has them (T3PA / O3PA) for research/team_quality.py; the
-# model reads only COLS, so these change no prediction.
-EXTRA_STATS = ["3PA"]
+# Parsed when the log has them (T3PA / O3PA, TAST / OAST) for
+# research/team_quality.py; the model reads only COLS, so these change no
+# prediction.
+EXTRA_STATS = ["3PA", "AST"]
 X3 = ["T3PA", "O3PA"]
 FEATURES = ["off eFG%", "-off TOV", "off ORB", "off FTA/FGA",
             "-opp eFG%", "opp TOV forced", "-opp ORB", "-opp FTA/FGA"]
