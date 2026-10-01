@@ -353,7 +353,9 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
                 talent=None):
     """Games 10+ of season y: v4 features (logit_inputs) plus the v5 terms
     luck_def (home - away opp_luck) and talent_diff (talent(team, date), home
-    - away; NaN without a talent function). Games before the date only."""
+    - away; NaN without a talent function), with each team's games played
+    before the date (gp_home / gp_away, as in score and cold_start). Games
+    before the date only."""
     logs = load_logs(y, refresh)
     sd, w = weights["sd"], weights["w"]
     opening = season_opening(logs)
@@ -387,6 +389,7 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
             tal = (talent(tm, r["date"]) - talent(opp, r["date"])) if talent \
                 else float("nan")
             rows.append({"year": y, "date": r["date"], "home": tm, "away": opp,
+                         "gp_home": i, "gp_away": j,
                          "h_b2b": int(rh == 0), "a_b2b": int(ra == 0),
                          **logit_inputs(delta, rh, ra, r["date"], opening),
                          "luck_def": luck, "talent_diff": tal,
