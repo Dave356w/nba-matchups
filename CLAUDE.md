@@ -96,7 +96,9 @@ Before a PR, run:
   game k's box listing as the roster known before tip) x report
   participation (od, or q play rates) x expected minutes scaled to 240
   (cap 42) x last-season BPM value; plus a hindsight ceiling and v5 + the
-  term. Walk-forward vs v5 and the close on the same covered games. It
+  term. `x_list_pos` sends an Out player's minutes by position (last
+  season's BBR Pos, PG=1..C=5, weight max(0, 1 − |Δpos|/2): a C's to C/PF,
+  a PG's to PG/SG) instead of in proportion to minutes, on the same base. Walk-forward vs v5 and the close on the same covered games. It
   prints how often report Out players are on the box listing (the check
   that the listing is the roster, not who dressed). Not yet run.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's

@@ -33,6 +33,17 @@ This tests a single replacement term, xtal (home - away), per team-game k:
             the team's expected minutes sum to 240, no player above CAP.
   xtal      sum of expected minutes/48 x value (last-season BPM above
             replacement, shrunk; unmatched players = replacement, 0).
+  position  `list_od_pos`: the listed roster is first allocated 240 as if
+            everyone played (the same base as list_od). Each Out/Doubtful
+            player's allocated minutes then go to the available players in
+            proportion to their minutes x max(0, 1 - |pos - pos_out| / 2)
+            instead of in proportion to minutes alone (list_od), on
+            PG=1 SG=2 SF=3 PF=4 C=5
+            (hybrids average: PF-C = 4.5). So a C's minutes go to C and PF
+            (weight 1, 0.5), a PG's to PG and SG, an SF's to SF, SG and PF.
+            Positions are last season's BBR Pos (no lookahead); a player
+            without one gets weight 0.5 as a teammate and spreads like
+            list_od when missing. If no teammate is near, proportional.
 
 Arms (each a games-10+ logit; the same covered games, fit on the same
 training rows; every feature uses games strictly before the date and the
@@ -42,6 +53,7 @@ report at least --lead-minutes before tip, except `hind`):
   x_prev_od   delta, b2b_net, d_phase, luck_def, xtal (prev roster, od)
   x_list_od   same, listed roster
   x_list_q    same, listed roster, q participation
+  x_list_pos  same as x_list_od, minutes redistributed by position
   x_hind      same, who played (hindsight ceiling)
   v5_x        FEATURES_V5 + xtal (listed, od): does xtal add beyond v5?
 The x_* arms drop talent_diff, av_bpm and av_min, so no adjustment is
@@ -56,7 +68,9 @@ MODEL_TAG. Per-game output in research/output/roster_minutes.csv.
 from __future__ import annotations
 
 import argparse
+import io
 import os
+import re
 import sys
 
 import numpy as np
@@ -74,7 +88,10 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output",
                    "roster_minutes.csv")
 TEAM_MINUTES = 240.0     # regulation: 5 players x 48
 CAP = 42.0               # most minutes one player is expected to play
-VARIANTS = ("prev_od", "list_od", "list_q", "hind")
+VARIANTS = ("prev_od", "list_od", "list_q", "list_od_pos", "hind")
+POSITIONS = {"PG": 1.0, "SG": 2.0, "SF": 3.0, "PF": 4.0, "C": 5.0,
+             "G": 1.5, "F": 3.5}
+UNKNOWN_POS_WEIGHT = 0.5
 X_BASE = ["delta", "b2b_net", "d_phase", "luck_def"]
 ARMS = {
     "v4": list(pav.FEATURES_V4),
@@ -82,6 +99,7 @@ ARMS = {
     "x_prev_od": X_BASE + ["x_prev_od"],
     "x_list_od": X_BASE + ["x_list_od"],
     "x_list_q": X_BASE + ["x_list_q"],
+    "x_list_pos": X_BASE + ["x_list_od_pos"],
     "x_hind": X_BASE + ["x_hind"],
     "v5_x": list(pav.FEATURES_V5) + ["x_list_od"],
 }
@@ -110,14 +128,76 @@ def allocate(e, total=TEAM_MINUTES, cap=CAP):
     return m
 
 
-def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE):
+def pos_number(s):
+    """BBR Pos -> PG=1 .. C=5; hybrids ('PF-C', 'SG-PG') average; else NaN."""
+    vals = [POSITIONS[t] for t in re.split(r"[-/ ,]+", str(s).strip().upper())
+            if t in POSITIONS]
+    return float(np.mean(vals)) if vals else float("nan")
+
+
+def parse_positions(html):
+    """BBR NBA_{y}_advanced.html -> {norm name: position number}, the row
+    with the most minutes (multi-team total) as in parse_advanced."""
+    m = re.search(r'<table[^>]*id="advanced(?:_stats)?".*?</table>',
+                  nc.uncomment(html), re.S)
+    if not m:
+        return {}
+    df = pd.read_html(io.StringIO(m.group(0)))[0]
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[-1] for c in df.columns]
+    if "Pos" not in df:
+        return {}
+    df = df[df["Player"].notna() & (df["Player"] != "Player")].copy()
+    df["MP"] = pd.to_numeric(df["MP"], errors="coerce").fillna(0)
+    df["key"] = df["Player"].map(pav.norm_name)
+    df = df.sort_values("MP", ascending=False).drop_duplicates("key")
+    out = {k: pos_number(p) for k, p in zip(df["key"], df["Pos"])}
+    return {k: v for k, v in out.items() if np.isfinite(v)}
+
+
+def load_positions(y):
+    """Season y's positions (use y - 1 for season y's games)."""
+    html = nc.fetch(f"{nc.BASE}/leagues/NBA_{y}_advanced.html",
+                    nc.CACHE / f"advanced_{y}.html")
+    return parse_positions(html)
+
+
+def positional_fill(e, miss, pos, total=TEAM_MINUTES, cap=CAP):
+    """Minutes e of the available players plus the minutes `miss` of the
+    missing ones (e + miss: the team allocated as if everyone played).
+    Each missing player's minutes go to the available players in
+    proportion to e x max(0, 1 - |pos - pos_missing| / 2)
+    (UNKNOWN_POS_WEIGHT for a teammate without a position; in proportion
+    to e when the missing player has none or nobody is near). Then scaled
+    to `total` and capped as in allocate."""
+    e, miss, pos = (np.asarray(x, float) for x in (e, miss, pos))
+    if miss.sum() <= 0 or e.sum() <= 0:
+        return allocate(e, total, cap)
+    add = np.zeros_like(e)
+    for i in np.where(miss > 0)[0]:
+        if np.isfinite(pos[i]):
+            with np.errstate(invalid="ignore"):
+                k = np.where(np.isfinite(pos),
+                             np.clip(1 - np.abs(pos - pos[i]) / 2, 0, None),
+                             UNKNOWN_POS_WEIGHT)
+            wgt = e * k
+        else:
+            wgt = e
+        if wgt.sum() <= 0:
+            wgt = e
+        add += miss[i] * wgt / wgt.sum()
+    return allocate(e + add, total, cap)
+
+
+def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE,
+                 pos=None):
     """One team-season of box rows -> {game_id: {variant: xtal}}.
 
     presence: {"od": {(game_id, player_id): P}, "q": {...}} from the injury
     report (player_availability.present_map); a rostered player not on the
     report plays (1). Game k's own minutes are read only by `hind`; the
     `list_*` variants read game k's listing (who is on the roster), never
-    its minutes."""
+    its minutes. pos: {player_id: position number} for list_od_pos."""
     games = (tg[["game_id", "date"]].drop_duplicates("game_id")
              .sort_values(["date", "game_id"]).reset_index(drop=True))
     order = {g: k for k, g in enumerate(games["game_id"])}
@@ -131,6 +211,7 @@ def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE):
         M[k, j] = r.minutes
         L[k, j] = True
     v = np.array([value.get(p, 0.0) for p in players])
+    pn = np.array([(pos or {}).get(p, np.nan) for p in players], float)
     out = {}
     for k in range(1, n):
         gid, date = games.at[k, "game_id"], games.at[k, "date"]
@@ -152,20 +233,25 @@ def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE):
             if var == "hind":
                 p = (M[k] > 0).astype(float)
             else:
-                ro, arm = var.split("_")
+                ro, arm = var.split("_")[:2]
                 p = rost[ro] * p_of(arm)
-            m = allocate(raw * p)
+            if var.endswith("_pos"):
+                full = allocate(raw * rost[ro])      # as if everyone played
+                m = positional_fill(full * p, full * (1 - p), pn)
+            else:
+                m = allocate(raw * p)
             res[var] = float((m / 48.0 * v).sum()) if m.sum() > 0 else np.nan
         out[gid] = res
     return out
 
 
-def game_lineups(box, value, arrival_role, presence):
+def game_lineups(box, value, arrival_role, presence, pos=None):
     """Box rows -> one row per game: slate_date, home, away, x_<variant>
     (home - away)."""
     feats = {}
     for tm, tg in box.groupby("team"):
-        for gid, r in team_lineups(tg, value, arrival_role, presence).items():
+        for gid, r in team_lineups(tg, value, arrival_role, presence,
+                                     pos=pos).items():
             feats[(gid, tm)] = r
     g = box[box["home"]].drop_duplicates("game_id")[["game_id", "date", "team", "opp"]]
     rows = []
@@ -198,17 +284,24 @@ def season(t, archive, lead_minutes, cache_dir=pav.DEFAULT_CACHE):
     bpm = pav.load_bpm(t - 1)
     value, hit, hit_min = pav.player_values(box, bpm)
     role = pav.arrival_roles(box, bpm)
+    names = box.drop_duplicates("player_id").set_index("player_id")["name"]
+    pmap = load_positions(t - 1)
+    pos = {pid: pmap[pav.norm_name(nm)] for pid, nm in names.items()
+           if pav.norm_name(nm) in pmap}
+    mins = box.groupby("player_id")["minutes"].sum()
+    pos_min = float(mins[mins.index.isin(list(pos))].sum() / max(mins.sum(), 1.0))
     st, s = pav.game_statuses(box, pav.fetch_tips(t, cache_dir), archive, lead_minutes)
     archive.save()
     av = pav.game_availability(box, value, present=pav.present_map(st, "od"))
     av = av[av["game_id"].isin(s["covered"])]
     print(f"season {t}: {len(s['covered'])}/{s['games']} games covered by the "
           f"report; BPM matches {100 * hit:.0f}% of players, {100 * hit_min:.0f}% "
-          f"of minutes", flush=True)
+          f"of minutes; last-season position for {100 * pos_min:.0f}% of minutes",
+          flush=True)
     chk = listing_check(st, box)
     print("  on that game's box listing: " + ", ".join(
         f"{k} {100 * v[0]:.0f}% (n={v[1]})" for k, v in sorted(chk.items())), flush=True)
-    return dict(box=box, value=value, role=role, st=st, covered=s["covered"],
+    return dict(box=box, value=value, role=role, st=st, pos=pos, covered=s["covered"],
                 av=av[["game_id", "slate_date", "home", "away", "av_min", "av_bpm"]],
                 talent=pav.talent_fn(box, value, role))
 
@@ -217,7 +310,7 @@ def season_frame(t, S, weights, rates):
     """Games 10+ of season t covered by the report, with every arm's terms."""
     presence = {"od": pav.present_map(S["st"], "od"),
                 "q": pav.present_map(S["st"], "q", rates)}
-    x = game_lineups(S["box"], S["value"], S["role"], presence)
+    x = game_lineups(S["box"], S["value"], S["role"], presence, S.get("pos"))
     g = nc.build_games(t, weights, talent=S["talent"])
     g["slate_date"] = pd.to_datetime(g["date"]).dt.strftime("%Y-%m-%d")
     g = g.merge(S["av"], on=["slate_date", "home", "away"], how="inner")
@@ -307,6 +400,9 @@ def main(argv=None):
               f"; corr(x_list_od, talent_diff) "
               f"{te['x_list_od'].corr(te['talent_diff']):+.2f}, "
               f"corr(x_list_od, av_bpm) {te['x_list_od'].corr(te['av_bpm']):+.2f}")
+        dpos = te["x_list_od_pos"] - te["x_list_od"]
+        print(f"  position vs proportional: sd of the difference {dpos.std():.3f}, "
+              f"{100 * (dpos.abs() > 0.05).mean():.0f}% of games move > 0.05 point")
         m = te.merge(recon, on=["slate_date", "home", "away"], how="inner")
         print(f"  matched to reconstructed rows with a close: {len(m)}")
         allm.append(m)

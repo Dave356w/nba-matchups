@@ -122,3 +122,62 @@ def test_season_frame_and_report_run_end_to_end(monkeypatch):
     assert f"DraftKings close · games 10+, report-covered (n={len(f)})" in txt
     for arm in rm.ARMS:
         assert f"  {arm:10s} logloss" in txt
+
+
+def test_pos_number_reads_bbr_positions():
+    assert rm.pos_number("C") == 5 and rm.pos_number("PF-C") == 4.5
+    assert rm.pos_number("SG-PG") == 1.5 and np.isnan(rm.pos_number(""))
+
+
+def test_parse_positions_keeps_the_most_minutes_row():
+    html = ('<table id="advanced"><thead><tr><th>Player</th><th>Pos</th><th>MP</th>'
+            '</tr></thead><tbody><tr><td>Nikola Jokić</td><td>C</td><td>2700</td></tr>'
+            '<tr><td>Dual Guy</td><td>SG</td><td>300</td></tr>'
+            '<tr><td>Dual Guy</td><td>SF</td><td>900</td></tr></tbody></table>')
+    assert rm.parse_positions(html) == {"nikola jokic": 5.0, "dual guy": 3.0}
+
+
+def test_centre_minutes_go_to_bigs_point_guard_minutes_to_guards():
+    #               PG  SG  SF  PF  C   bigC bigPG
+    pos = np.array([1, 2, 3, 4, 5, 5, 1], float)
+    full = np.array([36, 34, 34, 32, 34, 34, 36], float)    # 240
+    out_c = np.array([1, 1, 1, 1, 0, 1, 1], float)
+    m = rm.positional_fill(full * out_c, full * (1 - out_c), pos, cap=240)
+    assert abs(m.sum() - 240) < 1e-9
+    gain = m - full * out_c
+    assert gain[5] > gain[3] > 0                           # C -> C, then PF
+    assert gain[0] == gain[1] == gain[2] == gain[6] == 0   # guards, SF: nothing
+    prop = rm.allocate(full * out_c, cap=240)
+    assert m[5] > prop[5] and m[6] < prop[6]
+    capped = rm.positional_fill(full * out_c, full * (1 - out_c), pos)
+    assert capped.max() <= rm.CAP + 1e-9 and abs(capped.sum() - 240) < 1e-9
+    out_pg = np.array([0, 1, 1, 1, 1, 1, 1], float)
+    g = rm.positional_fill(full * out_pg, full * (1 - out_pg), pos,
+                           cap=240) - full * out_pg
+    assert g[6] > g[1] > 0 and g[2] == g[3] == g[4] == g[5] == 0
+
+
+def test_positional_fill_falls_back_without_positions_or_neighbours():
+    e = np.array([40, 40, 40, 40, 40, 0], float)          # 6th (40 min) is out
+    nan = np.full(6, np.nan)
+    miss = np.array([0, 0, 0, 0, 0, 40], float)
+    assert np.allclose(rm.positional_fill(e, miss, nan), rm.allocate(e))
+    far = np.array([1, 1, 1, 1, 1, 5], float)                # nobody near a C
+    assert np.allclose(rm.positional_fill(e, miss, far), rm.allocate(e))
+
+
+def test_team_lineups_position_variant_moves_value_to_the_backup_big():
+    rows = []
+    roster = [("pg", 34, 1), ("sg", 32, 2), ("sf", 32, 3), ("pf", 30, 4),
+              ("c", 34, 5), ("bc", 14, 5), ("bg", 14, 1)]
+    for k in range(4):
+        for p, mins, _ in roster:
+            rows.append(dict(game_id=f"g{k}", date=pd.Timestamp("2026-01-01")
+                             + pd.Timedelta(days=k), team="T", player_id=p,
+                             minutes=float(mins)))
+    tg = pd.DataFrame(rows)
+    pos = {p: float(x) for p, _, x in roster}
+    value = {"bc": 4.0}                                      # only the backup C counts
+    r = rm.team_lineups(tg, value, lambda p, d: 0.0, {"od": {("g3", "c"): 0.0}},
+                        pos=pos)["g3"]
+    assert r["list_od_pos"] > r["list_od"] > 0
