@@ -138,8 +138,8 @@ native row.
 
 ## Run and reproduction check
 
-The "v5 audit" workflow ran on run 36939293871 (B, C and E) and on the
-D.5b rerun, both on branch `claude/v5-audit-research`.
+The "v5 audit" workflow ran on runs 36939293871 and 36939891686 (the
+second adds D.5b), both on branch `claude/v5-audit-research`.
 
 - **Fast builder vs `nc.build_games`.** On 2025-26 with the production
   weights, Δ, luck_def, talent_diff, d_phase and b2b_net match to
@@ -288,7 +288,79 @@ On C.4:
 **David decides:** whether H2–H4 should *report* by price band. The data
 do not show H3's edges concentrating on big underdogs.
 
-<!-- TASK D -->
+## Task D: what the persistent team-level gap is made of
+
+r = logit(no-vig close) − logit(v5 walk-forward P), home side, games 10+.
+2025-26 ESPN BET (n = 107) is skipped (< 300).
+
+**D.2: r on the eight factor gaps.** Coefficients are per sample SD of
+the gap, with week block-bootstrap SEs (1,000 draws). Only terms with
+|t| > 2 in at least one season are shown.
+
+| Term | 2024-25 ESPN BET | 2025-26 DK |
+|---|---:|---:|
+| off eFG | −0.034 ± 0.027 | **−0.085 ± 0.010** |
+| −opp eFG | +0.030 ± 0.022 | **+0.120 ± 0.019** |
+| opp TOV forced | **+0.058 ± 0.022** | −0.006 ± 0.014 |
+| −opp ORB | **+0.031 ± 0.013** | **+0.045 ± 0.012** |
+| −opp FTA/FGA | **−0.029 ± 0.013** | +0.001 ± 0.016 |
+| off FTA/FGA | −0.001 ± 0.012 | **+0.040 ± 0.017** |
+| *+ own FT% (FTM/FTA)* | **+0.042 ± 0.014** (t 3.0) | **+0.095 ± 0.010** (t 9.7) |
+| R²: 8 factors / + FT% | 0.089 / 0.098 | 0.135 / 0.180 |
+
+- Positive means the market rates the team above the model as that gap
+  grows.
+- The own FTM/FGA variant (+0.12 / +0.34) mostly re-expresses FT%: off
+  FTA/FGA flips to −0.11 / −0.29 beside it.
+- Replicated in both seasons (same sign, |t| > 2): **own FT%** and
+  **−opp ORB**.
+- Offensive eFG and opponents' eFG pull in opposite directions in 2025-26
+  (t −8 and +6). The market discounts shooting-driven offence and credits
+  shooting-driven defence beyond the model, after luck_def. This does not
+  replicate in 2024-25.
+
+**D.3: team persistence.** Each team's mean signed r, first half of the
+season vs second half, across 30 teams.
+
+| Rows | Split-half corr, raw | After the fit | Split-half cov, raw → after | Share explained |
+|---|---:|---:|---:|---:|
+| 2024-25 ESPN BET | 0.33 | 0.16 | 0.0072 → 0.0027 | **63%** |
+| 2025-26 DK | 0.30 | 0.25 | 0.0103 → 0.0055 | **46%** |
+
+The eight factor gaps plus own FT% explain about half of the persistent
+team-level disagreement with the market (46–63%). The rest is not in the
+box-score factors.
+
+**D.5: candidates fit on outcomes, walk-forward, production routing.**
+± 1 SE.
+
+| Candidate | 2024-25 ESPN BET | 2025-26 DK | 2025-26 ESPN BET (107) |
+|---|---:|---:|---:|
+| 8 factor gaps + gap × phase in place of Δ, Δ·phase (ridge λ = 30 by training LOSO) | +0.0004 ± 0.0019 | +0.0001 ± 0.0019 | −0.0009 ± 0.0099 |
+| **v5 + own FT% gap** (D.5b) | **−0.0003 ± 0.0004** | **−0.0010 ± 0.0006** | −0.0018 ± 0.0022 |
+| v5 + own FTM/FGA gap | +0.0003 ± 0.0007 | −0.0007 ± 0.0008 | −0.0027 ± 0.0031 |
+
+On all games 10+, v5 + FT% is −0.0003 ± 0.0004 (2024-25) and
+−0.0011 ± 0.0005 (2025-26). Its gap to the close moves from +0.0163 to
++0.0160 and from +0.0194 to +0.0184. The availability-logit coefficient is
++0.89 / +1.04 per unit FT% (about 0.01 logit per FT% point). It is stable
+across folds and has the sign the market residual predicts.
+
+**Verdict.**
+
+- **v5 + own FT% is a (small) v6 candidate.** It is better in both
+  seasons and in the same direction as the replicated residual term.
+  Resolved in 2025-26 (~2 SE), not in 2024-25. Its size, about −0.001, is
+  far from the 0.008 tripwire. Next step: the v5 gate protocol
+  (`research/walk_forward.py --avail --v5` with the term), then a
+  decision. FT% is not a market-fit term: it is fit on outcomes, and the
+  residual regression only pointed at it. **David decides.**
+- **Replacing Δ with the eight free factor coefficients: no change.** The
+  ridge refit adds nothing (±0.0019). The composite already uses the
+  factors about as well as outcomes can identify them. The persistent
+  market view is FT% plus something outside the box score.
+- D.4 (split-half factor reliability) was not run; it is optional.
+
 
 ## Task E: stale talent in the availability logit
 
@@ -345,7 +417,7 @@ covered games, ± 1 SE.**
 ## Leakage tripwire
 
 No candidate beats the close, and none improves on v5 by more than 0.008
-in a season.
+in a season. The largest gain is −0.0011 (v5 + own FT%, 2025-26).
 
 
 ## Contradictions with the handoff
@@ -358,5 +430,8 @@ in a season.
    and report from one snapshot, never mixed), and the new `seen_utc` /
    `seen_note` record the earlier no-price snapshot with its reason.
 2. **Opening night (0h)** is not in the repo's data; see above.
-3. **E.4** asks for a decayed "usual share" if it isn't decayed. It already
+3. **D.5** builds its candidate from the eight factors only, but the
+   strongest replicated residual term (own FT%) is not one of them. D.5b
+   adds it as an extra arm, fit on outcomes.
+4. **E.4** asks for a decayed "usual share" if it isn't decayed. It already
    is (0d), so nothing was tested.
