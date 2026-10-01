@@ -271,7 +271,31 @@ Before a PR, run:
   margin (games before the date), shrunk by minutes / (minutes + 1000).
   Arms `v5_oo` (v5 base + onoff_diff; the fitted weights are the shrinkage
   of last season's value toward this season's) and `oo_luck` (luck +
-  onoff_diff, no last-season value), both vs `v5_base`. Not yet run.
+  onoff_diff, no last-season value), both vs `v5_base`. **Results
+  (2026-10-01, run 36816566421, on/off for all test games; log loss vs
+  v5_base, ± 95%; 2024-25 ESPN BET n = 1,071 / 2025-26 DK n = 964):**
+  `v5_oo` +0.0004 ± 0.0022 / −0.0003 ± 0.0015 (onoff_diff +0.011 / +0.010
+  logit per point; talent 0.064 → 0.060 / 0.060 → 0.056, so the fitted
+  shrinkage stays almost entirely on last season's value); `oo_luck`
+  +0.0025 ± 0.0089 / +0.0015 ± 0.0078 (2025-26 ESPN BET, n = 107: +0.0031
+  ± 0.0037 / +0.0101 ± 0.0215). corr(onoff_diff, talent_diff) +0.50
+  (2025-26). Gap to the close and team share unchanged. In-season on/off
+  adds nothing to last-season BPM and cannot replace it; dropped. An
+  in-season box-score rating (full ESPN box lines) is the untested
+  sharper variant.
+- Home-court drift (2026-10-01, reconstructed rows, mean home P, ± 95%):
+  none. Games 10+: model − market +0.26 ± 0.46 pp (2024-25) / +0.26 ±
+  0.49 pp (2025-26), logit +0.016 ± 0.023 / +0.014 ± 0.024; model and
+  market within ~1 pp of the actual home rate (± 2.7). The intercept fit
+  on 2016–2024 still matches the current home edge; no recency weighting.
+  Games 1–9 (carryover): the model leans home +2.5 ± 1.6 / +3.2 ± 1.9 pp
+  beyond the market (logit +0.12 ± 0.07 / +0.14 ± 0.08), but home teams
+  won 58.7% of those 276 games (model 58.1 / 58.4%, market 55.6 / 55.2%,
+  ± 7.7); shifting early logits toward the market worsens log loss
+  (0.5940 → 0.5945–0.5964). Unresolved; a lean to watch, not a fix. H1's
+  hindsight picks are 80 home / 35 away (n = 115), so H1 is partly an
+  early-season home lean: report native H1 split home / away (the rule
+  itself stays frozen).
 - Walk-forward: `research/walk_forward.py` (workflow "Walk-forward
   backtest") re-scores reconstructed seasons with every fit on earlier
   seasons only, beside the leave-one-season-out rows and the close on the
