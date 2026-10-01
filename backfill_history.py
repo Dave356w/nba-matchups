@@ -12,7 +12,10 @@ else ESPN BET; `close_book` says which -- see market.pick_close):
   * logit:             fit on game logs from GAME_YEARS with Y removed;
   * features:          decayed pregame totals, games strictly before each date.
 
-Model v5 (default; --v4 for v4): v4 below plus luck_def and talent_diff in
+Model v6 (default; --v5 for v5, --v4 for v4): v5 plus ft_diff, the own FT%
+gap (nba_composite.V6_FEATURES), in both games-10+ logits.
+
+Model v5: v4 below plus luck_def and talent_diff in
 both games-10+ logits (nba_composite.V5_FEATURES; talent from the cached box
 scores); games whose v5 terms are missing keep the v4 base prediction.
 
@@ -87,10 +90,10 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
     coefficients fixed from the v5 base fit (player_availability.fit_fixed);
     research only.
 
-    v6=True (research only; implies v5): the v6 candidate, v5 plus ft_diff
-    (own FT% gap) in both games-10+ logits, as p_home; p_v5 holds the v5
-    routing's prediction for the same game (the v6 gate). model_tag and
-    route keep their v5 values: no v6 tag exists until it ships."""
+    v6=True (implies v5): model v6, v5 plus ft_diff (own FT% gap) in both
+    games-10+ logits, as p_home with the v6 tags; p_v5 holds the v5
+    routing's prediction for the same game (the v6 gate). Games whose v6
+    terms are missing keep the v4 fallback, as in the daily build."""
     v5 = v5 or v6
 
     def use(years):
@@ -142,6 +145,8 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
         m6 = nc.fit_logit(train.loc[ok, f6].values, train.loc[ok, "win"], f6)
         fin = np.isfinite(test[f6].to_numpy(float)).all(axis=1)
         test.loc[fin, "p_home"] = nc.predict(m6, test.loc[fin, f6].values)
+        test.loc[fin, "model_tag"] = build_site.MODEL_TAG_V6
+        model = m6
         print(f"season {y}: v6 candidate base on {int(fin.sum())}/{len(test)} games "
               f"10+ (fit n={int(ok.sum())}; ft_diff {m6['coef'][-1]:+.4f})", flush=True)
     if terms and y in terms:
@@ -158,7 +163,7 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
                     (pav.FEATURES_V5, build_site.MODEL_TAG_V5_AVAIL,
                      "p_v5" if v6 else "p_home")]
             if v6:
-                arms.append((pav.FEATURES_V6, build_site.MODEL_TAG_V5_AVAIL, "p_home"))
+                arms.append((pav.FEATURES_V6, build_site.MODEL_TAG_V6_AVAIL, "p_home"))
             for af, tag, col in arms:
                 if af is pav.FEATURES_V5 and not v5:
                     continue
@@ -195,7 +200,8 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
         e["p_v4"] = e["p_home"]
         e["p_fixed"] = e["p_home"]
         e["p_v5"] = e["p_home"]
-        e["model_tag"] = build_site.MODEL_TAG_V5 if v5 else build_site.MODEL_TAG_V4
+        e["model_tag"] = (build_site.MODEL_TAG_V6 if v6 else
+                          build_site.MODEL_TAG_V5 if v5 else build_site.MODEL_TAG_V4)
         e["route"] = "early"
         test = pd.concat([test, e], ignore_index=True)
     if not v6:
@@ -286,6 +292,8 @@ def main(argv=None):
     ap.add_argument("--cache", default=pav.DEFAULT_CACHE)
     ap.add_argument("--v4", action="store_true",
                     help="score with the v4 routing (no luck_def / talent_diff)")
+    ap.add_argument("--v5", action="store_true",
+                    help="score with the v5 routing (no ft_diff)")
     a = ap.parse_args(argv)
     terms = None
     if not a.no_avail:
@@ -302,7 +310,8 @@ def main(argv=None):
     if a.rescore:
         df = ledger.load(ledger.RECON_PATH)
         for y in a.seasons:
-            test, _, model = reconstruct_season(y, terms=terms, v5=not a.v4)
+            test, _, model = reconstruct_season(y, terms=terms, v5=not a.v4,
+                                                v6=not (a.v4 or a.v5))
             print(f"season {y}: {len(test)} games scored; logit {model}", flush=True)
             df, n = rescore(df, test)
             print(f"season {y}: rescored {n} reconstructed rows; tags "
@@ -312,7 +321,8 @@ def main(argv=None):
         return 0
     out = [ledger.load(ledger.RECON_PATH)]
     for y in a.seasons:
-        test, _, model = reconstruct_season(y, terms=terms, v5=not a.v4)
+        test, _, model = reconstruct_season(y, terms=terms, v5=not a.v4,
+                                                v6=not (a.v4 or a.v5))
         print(f"season {y}: {len(test)} games scored; logit {model}", flush=True)
         rec = attach_espn(test)
         by_book = rec["close_book"].value_counts().to_dict()

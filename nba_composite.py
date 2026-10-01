@@ -70,9 +70,9 @@ PHASE_FEATURES = ["delta", "b2b_net", "d_phase"]
 # last-season BPM over each team's previous box score
 # (player_availability.talent_fn).
 V5_FEATURES = PHASE_FEATURES + ["luck_def", "talent_diff"]
-# v6 CANDIDATE (not shipped; diagnostics/v5_audit Task D): + ft_diff, own
-# decayed FT% (FTM/FTA, percentage points), home - away. The four factors read
-# free throws only as FTA/FGA, so a team's free-throw skill is missing.
+# v6 (diagnostics/v5_audit Task D, gate D.6): + ft_diff, own decayed FT%
+# (FTM/FTA, percentage points), home - away. The four factors read free
+# throws only as FTA/FGA, so a team's free-throw skill was missing.
 V6_FEATURES = V5_FEATURES + ["ft_diff"]
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
@@ -545,6 +545,8 @@ def main():
         s.add_argument("--v5", action="store_true",
                        help="fit-logit: v5 features (v4 + luck_def + talent_diff; "
                             "needs player box scores, player_availability.season_talent)")
+        s.add_argument("--v6", action="store_true",
+                       help="fit-logit: v6 features (v5 + ft_diff, own FT%% gap)")
         s.add_argument("--box-cache", default=None,
                        help="--v5: directory of box_<season>.csv (default research/output)")
     a = ap.parse_args()
@@ -592,19 +594,19 @@ def main():
         weights = load_json("weights.json") if (MODEL_DIR / "weights.json").exists() \
             else fit_weights(parse_years(a.train_years))
         save_json(weights, "weights.json")
-        if a.v5:
+        if a.v5 or a.v6:
             import player_availability as pav   # lazy: it imports this module
             G = pd.concat([build_games(y, weights, a.half_life,
                                        talent=pav.season_talent(y, a.box_cache))
                            for y in parse_years(a.years)])
-            feats = V5_FEATURES
+            feats = V6_FEATURES if a.v6 else V5_FEATURES
             G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
         else:
             G = pd.concat([build_games(y, weights, a.half_life) for y in parse_years(a.years)])
             feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
         m = fit_logit(G[feats].values, G["win"], feats)
         m.update({"half_life": a.half_life, "n_games": int(len(G)), "years": parse_years(a.years)})
-        if a.phase or a.v5:
+        if a.phase or a.v5 or a.v6:
             m["season_days"] = SEASON_DAYS
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))

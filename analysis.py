@@ -368,7 +368,7 @@ def roi_by_band(g, price="close", tags=None):
 
 
 # Pre-registered forward hypotheses (CLAUDE.md; H1-H3 fixed 2026-09-30, H4
-# 2026-10-01, all before any native rows). The thresholds are frozen: never
+# 2026-10-01, amendment A1 (H2-first) 2026-10-01, all before any native rows). The thresholds are frozen: never
 # tune them on native data. `hindsight` is the price the reconstructed scan
 # found them at; `native` is the price natives are graded at: the latest
 # pregame snapshot ("pre", near the close) or the first one ("first", the
@@ -385,6 +385,12 @@ HYPOTHESES = (
          native="pre"),
     dict(key="H4", rule="Games 10+ · value side · model P − no-vig q ≥ 0.12",
          early=False, favourite=False, min_edge=0.12, hindsight="open",
+         native="first"),
+    # Amendment A1 (v5 audit Task A): H2-H4 also scored at the decision-time
+    # (first-snapshot) price. H3 there is H4; H2 there is this row. H2 and H3
+    # themselves are unchanged.
+    dict(key="H2·F", rule="Games 10+ · value side that is the favourite",
+         early=False, favourite=True, min_edge=0.0, hindsight="open",
          native="first"),
 )
 PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",

@@ -1,6 +1,6 @@
-"""v6 candidate (not shipped): v5 + own FT% gap. The feature uses only games
-before the date, and the walk-forward gate keeps v5 beside it on the same
-games without changing any v5 prediction or tag."""
+"""Model v6: v5 + own FT% gap. The feature uses only games before the date,
+the walk-forward gate keeps v5 beside it on the same games, and the daily
+build scores and tags v6 from the model files."""
 import numpy as np
 import pandas as pd
 
@@ -60,10 +60,37 @@ def test_reconstruct_v6_keeps_v5_beside_it(monkeypatch):
                                      talent=tal)
     assert np.allclose(v6["p_v5"], v5["p_home"])            # the gate's v5 arm
     assert (v6["route"] == v5["route"]).all()
-    assert (v6["model_tag"] == v5["model_tag"]).all()       # no v6 tag yet
+    tag = {build_site.MODEL_TAG_V5: build_site.MODEL_TAG_V6,
+           build_site.MODEL_TAG_V5_AVAIL: build_site.MODEL_TAG_V6_AVAIL,
+           build_site.MODEL_TAG_V4: build_site.MODEL_TAG_V4}
+    assert (v6["model_tag"] == v5["model_tag"].map(tag)).all()   # v6 tags
     assert np.allclose(v5["p_v5"], v5["p_home"])
     new = v6["model_tag"] != build_site.MODEL_TAG_V4        # v4 fallback unchanged
     assert not np.allclose(v6.loc[new, "p_home"], v5.loc[new, "p_home"])
     assert np.allclose(v6.loc[~new, "p_home"], v5.loc[~new, "p_home"])
     assert set(v6["route"]) == {"avail", "base"}
     assert pav.FEATURES_V6[-1] == nc.V6_FEATURES[-1] == "ft_diff"
+
+
+def test_score_game_v6_uses_ft_diff_and_tags_v6():
+    logs = league(seed=4, rounds=30)
+    date = sorted({d for lg in logs.values() for d in lg["date"]})[-1]
+    home, away = "T0", "T1"
+    v6 = {"features": list(nc.V6_FEATURES), "intercept": 0.3,
+          "coef": [0.02, 0.3, 0.02, 0.01, 0.05, 0.05], "half_life": 25.0}
+    v5 = dict(v6, features=list(nc.V5_FEATURES), coef=v6["coef"][:-1])
+    talent = lambda tm, d: 1.0 if tm == home else 0.0   # noqa: E731
+    r6 = build_site.score_game(logs, home, away, date, WEIGHTS, v6, talent=talent)
+    r5 = build_site.score_game(logs, home, away, date, WEIGHTS, v5, talent=talent)
+    assert r6["model_tag"] == build_site.MODEL_TAG_V6
+    lh, la = logs[home], logs[away]
+    ih, ia = int((lh["date"] < date).sum()), int((la["date"] < date).sum())
+    ft = nc.own_ft_pct(lh, ih) - nc.own_ft_pct(la, ia)
+    lo = lambda p: np.log(p / (1 - p))                  # noqa: E731
+    assert np.isclose(lo(r6["p_home"]) - lo(r5["p_home"]), 0.05 * ft, atol=1e-3)
+    assert build_site.model_tag(v6, avail=True) == build_site.MODEL_TAG_V6_AVAIL
+    assert build_site.MODEL_TAG_V6_AVAIL in build_site.AVAIL_TAGS
+    assert build_site.route({"p_home": 0.6, "gp_home": 20, "gp_away": 20,
+                             "model_tag": build_site.MODEL_TAG_V6}, v6) == "base"
+    assert build_site.route({"p_home": 0.6, "gp_home": 20, "gp_away": 20,
+                             "model_tag": build_site.MODEL_TAG_V4}, v6) == "v4"
