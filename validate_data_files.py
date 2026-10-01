@@ -24,9 +24,13 @@ def check(path):
     elif list(df.columns) == ledger.PRE_SPREAD_COLUMNS:
         print(f"note {path}: pre-spread schema; spread columns added on the "
               "next bot write")
+    elif list(df.columns) == ledger.PRE_FIRST_COLUMNS:
+        print(f"note {path}: pre-first-snapshot schema; first_* columns added "
+              "(blank) on the next bot write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_SPREAD_COLUMNS):
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_FIRST_COLUMNS,
+                            ledger.PRE_SPREAD_COLUMNS):
         books = {b for _, b in market.BOOKS}
         for col, q in (("pre_book", "pre_q_home"), ("close_book", "close_q_home")):
             priced = pd.to_numeric(df[q], errors="coerce").notna()
@@ -37,6 +41,18 @@ def check(path):
         if (spread.notna() & pd.to_numeric(df["close_q_home"],
                                            errors="coerce").isna()).any():
             errs.append(f"{path}: close_spread on a row without a moneyline close")
+    if "first_snapshot_utc" in df.columns:
+        first = pd.to_datetime(df["first_snapshot_utc"], utc=True, errors="coerce")
+        tip = pd.to_datetime(df["tip_utc"], utc=True, errors="coerce")
+        snap = pd.to_datetime(df["snapshot_utc"], utc=True, errors="coerce")
+        has = df["first_snapshot_utc"].notna()
+        if (has & (first.isna() | ~(first < tip))).any():
+            errs.append(f"{path}: first snapshot missing a time or not before tip")
+        if (has & snap.notna() & (first > snap)).any():
+            errs.append(f"{path}: first snapshot later than the latest snapshot")
+        books = {b for _, b in market.BOOKS}
+        if not df.loc[has, "first_book"].isin(books).all():
+            errs.append(f"{path}: first_book missing or unknown on a first snapshot")
     if df["game_id"].duplicated().any():
         errs.append(f"{path}: duplicate game_id")
     won = pd.to_numeric(df["home_won"], errors="coerce").dropna()

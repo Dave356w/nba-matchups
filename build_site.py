@@ -776,15 +776,22 @@ def _hypotheses(native, recon):
             if not r:
                 return ["0", "—", "—", "—"]
             return [str(r["n"]), *_roi_cells(r)]
-        h = cell(hind)
-        h[0] = f"{h[0]} <span class='mut'>at the {hyp['hindsight']}</span>"
-        rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *cell(nat), *h])
+        h, n = cell(hind), cell(nat)
+        h[0] = (f"{h[0]} <span class='mut'>at the "
+                f"{analysis.PRICE_NAMES[hyp['hindsight']]}</span>")
+        n[0] = (f"{n[0]} <span class='mut'>at the "
+                f"{analysis.PRICE_NAMES[hyp['native']]}</span>")
+        rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *n, *h])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
-        "<p class='note'>Fixed on 2026-09-30, before any native rows; the "
-        "thresholds are frozen and every result is reported here, win or lose. "
-        "<b>Native</b> bets are graded at the pregame snapshot price (what "
-        "could have been bet). <b>Hindsight</b> is the same rule on the "
+        "<p class='note'>H1–H3 fixed on 2026-09-30 and H4 on 2026-10-01, "
+        "before any native rows; the thresholds are frozen and every result "
+        "is reported here, win or lose. <b>Native</b> bets are graded at a "
+        "price that could have been bet: the <b>pregame</b> snapshot is the "
+        "last one before tip (near the close); the <b>first snapshot</b> is "
+        "the earliest priced one, with the model probability written then "
+        "(H4 is H3's rule at the early price, where the hindsight edge "
+        "appeared). <b>Hindsight</b> is the same rule on the "
         "reconstructed rows at the price the scan found it (pooled over both "
         "seasons and books, as registered), recomputed on the current "
         "reconstructed model; one season of native rows is not a verdict.</p>"
@@ -828,10 +835,15 @@ def _roi_section(body, h, native):
     """1u flat-bet ROI for each pick rule: model WP, market WP, actual."""
     body.append("<h3 style='font-size:16px'>ROI — one unit on every pick</h3>")
     if native:
+        first = _roi_table(analysis.roi_summary(h, price="first"))
+        if first:
+            body.append("<p class='note'>At the <b>first snapshot</b> — the "
+                        "earliest priced snapshot, with the model probability "
+                        "written then: what an early bettor had.</p>" + first)
         pre = _roi_table(analysis.roi_summary(h, price="pre"))
         if pre:
             body.append("<p class='note'>At the <b>pregame snapshot price</b> — "
-                        "what could have been bet when the row was written.</p>" + pre)
+                        "the last snapshot before tip, near the close.</p>" + pre)
     body.append("<p class='note'>At the <b>closing price</b>"
                 + ("" if native else ": the value side is picked against the "
                    "close itself, which a bettor would not have known — "

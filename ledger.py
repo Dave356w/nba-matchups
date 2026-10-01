@@ -14,6 +14,11 @@ Invariants (tests/test_ledger.py pins each one):
   * A row is accepted only while now < tip. After tip it can never be created.
   * Before tip a newer pregame snapshot replaces an older one (injury news and
     line moves arrive during the day); after tip the pregame fields freeze.
+  * The FIRST snapshot with both a model probability and a priced pair is
+    also kept (`first_*`, FIRST_COLUMNS): written once, before tip, and never
+    replaced by a later snapshot or touched by grading. It is the price and
+    probability an early bettor had (the open-price hypothesis, H4); the
+    refreshed columns end near the close.
   * Grading fills ONLY result and open/close market columns (moneyline and
     closing spread). It never touches
     a model or pregame-market column.
@@ -53,18 +58,32 @@ COLUMNS = [
     # closing spread from the same book as the closing moneyline: the home
     # line (-5.5 = home gives 5.5) and each side's price at that line
     "close_spread", "close_home_spread_odds", "close_away_spread_odds",
+    # first pregame snapshot with a model P and a price: written once, frozen
+    "first_snapshot_utc", "first_model_tag", "first_p_home", "first_book",
+    "first_home_ml", "first_away_ml", "first_q_home",
 ]
+FIRST_COLUMNS = COLUMNS[COLUMNS.index("first_snapshot_utc"):]
+# The pregame column each first_* column copies.
+FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_tag",
+                "first_p_home": "p_home", "first_book": "pre_book",
+                "first_home_ml": "pre_home_ml", "first_away_ml": "pre_away_ml",
+                "first_q_home": "pre_q_home"}
 SPREAD_COLUMNS = ["close_spread", "close_home_spread_odds",
                   "close_away_spread_odds"]
+# Schema before the first-snapshot columns: `load` reads it with them blank
+# and the next save writes the current schema. (The native ledger was empty
+# when they were added, 2026-10-01, so no row's first snapshot is unknown.)
+PRE_FIRST_COLUMNS = [c for c in COLUMNS if c not in FIRST_COLUMNS]
 # Schema before the spread columns: `load` reads it with the spreads blank
 # and the next save writes the current schema.
-PRE_SPREAD_COLUMNS = [c for c in COLUMNS if c not in SPREAD_COLUMNS]
+PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
 # Schema before the book columns. Every price in such a file is DraftKings
 # (the parser read nothing else), so `load` labels it "dk".
 LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = [c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
-GRADE_COLUMNS = [c for c in COLUMNS if c not in PREGAME_COLUMNS]
+GRADE_COLUMNS = [c for c in COLUMNS
+                 if c not in PREGAME_COLUMNS and c not in FIRST_COLUMNS]
 
 
 # Pregame injury snapshots: one row per listed player (or one "NONE" row per
@@ -106,8 +125,9 @@ def load(path):
     for c in COLUMNS:
         if c not in df.columns:
             df[c] = np.nan
-    df["pre_book"] = df["pre_book"].astype(object)
-    df["close_book"] = df["close_book"].astype(object)
+    for c in ("pre_book", "close_book", "first_book", "first_model_tag",
+              "first_snapshot_utc"):
+        df[c] = df[c].astype(object)
     if legacy:
         df.loc[df["pre_q_home"].notna(), "pre_book"] = "dk"
         df.loc[df["close_q_home"].notna(), "close_book"] = "dk"
@@ -131,7 +151,8 @@ def upsert_pregame(led, rows, now=None):
 
     A row is written only if `now` is before its tip. An existing row is
     replaced only while its game is still before tip AND ungraded, so once a
-    game starts its pregame record is frozen for good.
+    game starts its pregame record is frozen for good. The first snapshot
+    with a model P and a price fills `first_*` once; later ones never do.
     """
     now = now or utc_now()
     led = led.copy()
@@ -146,6 +167,10 @@ def upsert_pregame(led, rows, now=None):
         rec["game_id"] = gid
         rec["snapshot_utc"] = fmt_utc(now)
         rec["basis"] = "native"
+        for c in FIRST_COLUMNS:
+            rec[c] = np.nan
+        usable = (pd.notna(pd.to_numeric(rec["p_home"], errors="coerce"))
+                  and pd.notna(pd.to_numeric(rec["pre_q_home"], errors="coerce")))
         hit = led.index[led["game_id"].astype(str) == gid]
         if len(hit):
             old = led.loc[hit[0]]
@@ -153,8 +178,18 @@ def upsert_pregame(led, rows, now=None):
                 rejected.append((gid, "already graded"))
                 continue
             for c in PREGAME_COLUMNS:
+                if isinstance(rec[c], str) and led[c].dtype != object:
+                    led[c] = led[c].astype(object)
                 led.at[hit[0], c] = rec[c]
+            if usable and pd.isna(old["first_snapshot_utc"]):
+                for c in FIRST_COLUMNS:
+                    if led[c].dtype != object:
+                        led[c] = led[c].astype(object)
+                    led.at[hit[0], c] = rec[FIRST_SOURCE[c]]
         else:
+            if usable:
+                for c in FIRST_COLUMNS:
+                    rec[c] = rec[FIRST_SOURCE[c]]
             led = pd.concat([led, pd.DataFrame([rec])[COLUMNS]],
                             ignore_index=True) if len(led) else \
                 pd.DataFrame([rec])[COLUMNS]

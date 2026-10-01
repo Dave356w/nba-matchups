@@ -238,6 +238,9 @@ def picks(g, price="close"):
     """One flat 1-unit bet per game per pick rule, graded at one price.
 
     price="open": the opening pair (graded rows; q devigged from it).
+    price="first": the first pregame snapshot with a model P and a price
+      (native rows, `first_*`), with the model P written at that snapshot:
+      what an early bettor had. Its lean is that P's side.
     price="close": the closing pair (every basis; for reconstructed rows the
       value side is chosen against the close itself, i.e. with hindsight on
       the price). price="pre": the pregame snapshot pair -- the price that
@@ -251,7 +254,8 @@ def picks(g, price="close"):
     hml = pd.to_numeric(g[f"{price}_home_ml"], errors="coerce")
     aml = pd.to_numeric(g[f"{price}_away_ml"], errors="coerce")
     qh = price_q_home(g, price)
-    ph = pd.to_numeric(g["p_home"], errors="coerce")
+    ph = pd.to_numeric(g["first_p_home" if price == "first" else "p_home"],
+                       errors="coerce")
     won = pd.to_numeric(g["home_won"], errors="coerce")
     ok = (qh.between(0, 1, inclusive="neither") & hml.notna() & aml.notna()
           & ph.notna() & won.isin([0, 1])).to_numpy()
@@ -259,7 +263,7 @@ def picks(g, price="close"):
     out = []
     for rule, _label in PICK_RULES:
         if rule == "lean":
-            home = lean_is_home(g)
+            home = (ph >= 0.5).to_numpy() if price == "first" else lean_is_home(g)
             keep = np.ones(len(ph), bool)
         else:
             home = (ph > qh).to_numpy()
@@ -273,7 +277,8 @@ def picks(g, price="close"):
             side=np.where(home, g["home"], g["away"]),
             model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
             ml=ml, won=np.where(home, won, 1 - won),
-            model_tag=g["model_tag"].astype(str).to_numpy()))
+            model_tag=g["first_model_tag" if price == "first"
+                        else "model_tag"].astype(str).to_numpy()))
         d = d[keep]
         d["breakeven"] = market.breakeven_prob(d["ml"])
         d["units"] = [market.unit_profit(m, w) for m, w in zip(d["ml"], d["won"])]
@@ -362,18 +367,28 @@ def roi_by_band(g, price="close", tags=None):
     return out
 
 
-# Pre-registered forward hypotheses (CLAUDE.md, fixed 2026-09-30 before any
-# native rows). The thresholds are frozen: never tune them on native data.
-# `hindsight` is the price the reconstructed scan found them at; natives are
-# graded at the pregame snapshot, the price that could actually be bet.
+# Pre-registered forward hypotheses (CLAUDE.md; H1-H3 fixed 2026-09-30, H4
+# 2026-10-01, all before any native rows). The thresholds are frozen: never
+# tune them on native data. `hindsight` is the price the reconstructed scan
+# found them at; `native` is the price natives are graded at: the latest
+# pregame snapshot ("pre", near the close) or the first one ("first", the
+# early price, with the model P written then).
 HYPOTHESES = (
     dict(key="H1", rule="Games 1–9 · value side · model P − no-vig q ≥ 0.08",
-         early=True, favourite=False, min_edge=0.08, hindsight="close"),
+         early=True, favourite=False, min_edge=0.08, hindsight="close",
+         native="pre"),
     dict(key="H2", rule="Games 10+ · value side that is the favourite",
-         early=False, favourite=True, min_edge=0.0, hindsight="open"),
+         early=False, favourite=True, min_edge=0.0, hindsight="open",
+         native="pre"),
     dict(key="H3", rule="Games 10+ · value side · model P − no-vig q ≥ 0.12",
-         early=False, favourite=False, min_edge=0.12, hindsight="open"),
+         early=False, favourite=False, min_edge=0.12, hindsight="open",
+         native="pre"),
+    dict(key="H4", rule="Games 10+ · value side · model P − no-vig q ≥ 0.12",
+         early=False, favourite=False, min_edge=0.12, hindsight="open",
+         native="first"),
 )
+PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
+               "close": "close"}
 
 
 def hypothesis_picks(g, hyp, price):
@@ -394,13 +409,13 @@ def hypothesis_rows(native, recon):
 
     Hindsight: reconstructed rows at the price the scan used (pooled over
     seasons and books, as pre-registered). Native: pregame-locked rows at
-    the pregame snapshot price. Never pooled with each other.
+    the hypothesis's native price. Never pooled with each other.
     """
     out = []
     for hyp in HYPOTHESES:
         rows = []
         for g, price, label in ((recon, hyp["hindsight"], "hindsight"),
-                                (native, "pre", "native")):
+                                (native, hyp["native"], "native")):
             r = roi_row(label, hypothesis_picks(g, hyp, price)) \
                 if g is not None and len(g) else None
             if r:
