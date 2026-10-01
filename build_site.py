@@ -67,8 +67,15 @@ MODEL_TAG_V4_AVAIL = "fourfactors_hl25_b2b_carry25_phase_avail_v4"
 # base logit (model/logit_v4.json) and keeps the v4 tag.
 MODEL_TAG_V5 = "fourfactors_hl25_b2b_carry25_phase_luck_talent_v5"
 MODEL_TAG_V5_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_avail_v5"
+# v6 = v5 plus the own free-throw percentage gap (ft_diff: decayed FTM/FTA,
+# percentage points, home - away; nba_composite.V6_FEATURES) in both games-10+
+# logits (diagnostics/v5_audit, Task D and the D.6 gate). The four factors read
+# free throws only as FTA/FGA. Same v4 fallback as v5.
+MODEL_TAG_V6 = "fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6"
+MODEL_TAG_V6_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6"
 FALLBACK_FILE = "logit_v4.json"
-AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL)
+AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
+              MODEL_TAG_V6_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -126,15 +133,22 @@ def has_phase(model):
 
 
 def is_v5(model):
+    """v5 or later (v6 keeps every v5 term)."""
     return model is not None and "talent_diff" in (model.get("features") or [])
+
+
+def is_v6(model):
+    return model is not None and "ft_diff" in (model.get("features") or [])
 
 
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
     if avail:
-        return (MODEL_TAG_V5_AVAIL if is_v5(model) else
+        return (MODEL_TAG_V6_AVAIL if is_v6(model) else
+                MODEL_TAG_V5_AVAIL if is_v5(model) else
                 MODEL_TAG_V4_AVAIL if has_phase(model) else MODEL_TAG_V3)
-    return (MODEL_TAG_V5 if is_v5(model) else
+    return (MODEL_TAG_V6 if is_v6(model) else
+            MODEL_TAG_V5 if is_v5(model) else
             MODEL_TAG_V4 if has_phase(model) else MODEL_TAG)
 
 
@@ -191,6 +205,10 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
     talent(team, date) (player_availability.talent_fn), home - away. When a
     term is missing the game is scored by `fallback` (the frozen v4 base
     logit) and tagged v4; without a fallback it abstains.
+
+    v6: models whose features include ft_diff also get the own FT% gap
+    (nba_composite.own_ft_pct over each team's games before `date`), home -
+    away; same fallback.
     """
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
@@ -230,6 +248,8 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
     if "talent_diff" in feats:
         vals["talent_diff"] = (talent(home, date) - talent(away, date)) if talent \
             else float("nan")
+    if "ft_diff" in feats:
+        vals["ft_diff"] = nc.own_ft_pct(lh, ih, hl) - nc.own_ft_pct(la, ia, hl)
     if not all(np.isfinite(vals.get(f, np.nan)) for f in feats):
         if fallback is None:
             return out
@@ -615,13 +635,16 @@ def render_index(led, today, built, model_ok):
             + ("<b>v4</b>: a given composite gap counts for more as the "
                "season goes on (× days since opening night, about double by "
                "April), fitted on earlier seasons. "
-               if MODEL_TAG_V4 in ACTIVE_TAGS or MODEL_TAG_V5 in ACTIVE_TAGS
+               if {MODEL_TAG_V4, MODEL_TAG_V5, MODEL_TAG_V6} & set(ACTIVE_TAGS)
                else "") +
             ("<b>v5</b>: the rating discounts the 3-point shooting of a team's "
              "opponents (mostly luck) and adds roster talent: minutes share × "
              "last season's BPM over the players in each team's last game, so "
              "trades and returns count at once. "
-             if MODEL_TAG_V5 in ACTIVE_TAGS else "") +
+             if {MODEL_TAG_V5, MODEL_TAG_V6} & set(ACTIVE_TAGS) else "") +
+            ("<b>v6</b>: each team's own free-throw percentage (same decay), "
+             "which the four factors read only as attempts. "
+             if MODEL_TAG_V6 in ACTIVE_TAGS else "") +
             "Prices are the moneyline at the snapshot time in the ledger "
             "(DraftKings unless tagged ESPN BET), "
             "refreshed each build until tip and frozen after. A game abstains "
@@ -816,7 +839,8 @@ def _hypotheses(native, recon):
         rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *n, *h])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
-        "<p class='note'>H1–H3 fixed on 2026-09-30 and H4 on 2026-10-01, "
+        "<p class='note'>H1–H3 fixed on 2026-09-30, H4 and amendment A1 "
+        "(H2·F: H2's rule at the first snapshot) on 2026-10-01, all "
         "before any native rows; the thresholds are frozen and every result "
         "is reported here, win or lose. <b>Native</b> bets are graded at a "
         "price that could have been bet: the <b>pregame</b> snapshot is the "

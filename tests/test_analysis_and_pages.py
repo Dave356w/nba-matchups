@@ -260,8 +260,12 @@ def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path
     df.loc[:99, ["gp_home", "gp_away"]] = 4
     df.loc[100:, ["gp_home", "gp_away"]] = 30
     g = ledger.graded(df)
-    h1, h2, h3, h4 = analysis.HYPOTHESES
+    h1, h2, h3, h4, a1 = analysis.HYPOTHESES
     assert h4["native"] == "first" and h4["min_edge"] == h3["min_edge"]
+    # amendment A1: H2's frozen rule, graded at the first snapshot
+    assert a1["native"] == "first" and {k: v for k, v in a1.items()
+                                        if k not in ("key", "native")} == \
+        {k: v for k, v in h2.items() if k not in ("key", "native")}
     assert [h["native"] for h in (h1, h2, h3)] == ["pre"] * 3
     d1 = analysis.hypothesis_picks(g, h1, "pre")
     assert d1["early"].all() and (d1["edge"] >= 0.08).all()

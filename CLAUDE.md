@@ -178,6 +178,12 @@ Before a PR, run:
     samples collapse (n 15–17, signs flip), so the threshold stays 0.12.
     The first snapshot is later than the open and uses the morning report,
     so it is the bettable version of the open test, not a replica.
+  - **A1** (amendment, owner's decision 2026-10-01, still before any native
+    rows; v5 audit Task A): H2–H4 are also scored at the decision-time price,
+    the first snapshot (`first_*`, which also records the injury-report
+    edition and route behind its P: `first_report_utc`, `first_route`).
+    H3 there is H4; H2 there is **H2·F** (`analysis.HYPOTHESES`). H2 and H3
+    at `pre` are unchanged; no threshold moved.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a
@@ -250,6 +256,21 @@ Before a PR, run:
     built from last-season BPM), which is also why v5's gain over v4 (which
     already has av_bpm) is below the team-quality arms (measured vs base v4
     without availability). The free fit stays.
+- **Model v6** (owner's decision, 2026-10-01): v5 + ft_diff, the own FT%
+  gap (decayed FTM/FTA, home − away), in both games-10+ logits. The four
+  factors read free throws only as FTA/FGA. Source: v5 audit Task D
+  (`diagnostics/v5_audit/RESULTS.md`): the market's correction loads on own
+  FT% in both seasons (t 3.0 / 9.7). Gate (walk-forward `--avail --v6`, v6
+  − v5, games 10+, ± 95%): −0.0003 ± 0.0008 (2024-25 ESPN BET), −0.0010 ±
+  0.0011 (2025-26 DK), −0.0018 ± 0.0042 (2025-26 ESPN BET, n = 107); v6 −
+  close +0.0160 / +0.0184. Unresolved per season; native rows are the
+  forward test. Active once the "Fit model" refit writes v6 files; the
+  reconstructed rows are re-scored by "Backfill history" `--rescore`.
+- v5 audit (`HANDOFF_v5_audit.md`, results in `diagnostics/v5_audit/`,
+  workflow "v5 audit"), 2026-10-01: home-court drift +1.56 ± 0.79 pts
+  pooled over the last 3 seasons (rule not met; no change); v5 is not flat
+  against outcomes (slope 1.02, 0.91–1.13), probit rejected; stale talent:
+  newly-out players ≈ −1× the talent coefficient, gain unresolved.
 - Assists: the four factors read none; they reach the model only through
   BPM (talent_diff, av_bpm). `research/team_quality.py` arms `ast` (base +
   own and opponents' assist rate, 100 × AST / FG, decayed, home − away; vs
