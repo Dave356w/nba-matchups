@@ -70,6 +70,10 @@ PHASE_FEATURES = ["delta", "b2b_net", "d_phase"]
 # last-season BPM over each team's previous box score
 # (player_availability.talent_fn).
 V5_FEATURES = PHASE_FEATURES + ["luck_def", "talent_diff"]
+# v6 CANDIDATE (not shipped; diagnostics/v5_audit Task D): + ft_diff, own
+# decayed FT% (FTM/FTA, percentage points), home - away. The four factors read
+# free throws only as FTA/FGA, so a team's free-throw skill is missing.
+V6_FEATURES = V5_FEATURES + ["ft_diff"]
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
@@ -350,6 +354,18 @@ def opp_luck(log, i, lg_pct, weights, half_life=HALF_LIFE):
     return comp(regress_3p(t, "O", lg_pct)) - comp(t)
 
 
+def own_ft_pct(log, i, half_life=HALF_LIFE):
+    """A team's own FT% (100 x FTM / FTA) over its first i games, decayed like
+    the rating window; NaN before its first game or without attempts."""
+    if i <= 0:
+        return float("nan")
+    A = log[["TFT", "TFTA"]].to_numpy(float)[:i]
+    w = (np.ones(i) if half_life is None
+         else 0.5 ** (np.arange(i)[::-1] / half_life))
+    ftm, fta = (A * w[:, None]).sum(0)
+    return float(100.0 * ftm / fta) if fta > 0 else float("nan")
+
+
 def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=False,
                 talent=None):
     """Games 10+ of season y: v4 features (logit_inputs) plus the v5 terms
@@ -394,6 +410,8 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
                          "h_b2b": int(rh == 0), "a_b2b": int(ra == 0),
                          **logit_inputs(delta, rh, ra, r["date"], opening),
                          "luck_def": luck, "talent_diff": tal,
+                         "ft_diff": own_ft_pct(c, i, half_life)
+                         - own_ft_pct(c2, j, half_life),
                          "win": int(r["pts"] > r["opp_pts"])})
     return pd.DataFrame(rows)
 

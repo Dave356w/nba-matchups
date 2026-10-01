@@ -67,7 +67,8 @@ def training_years(years, y, walk_forward=False):
 
 def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
                        phase_years=PHASE_YEARS, report_years=REPORT_YEARS,
-                       terms=None, walk_forward=False, v5=False, talent=None):
+                       terms=None, walk_forward=False, v5=False, talent=None,
+                       v6=False):
     """Predictions, routed as in production, for every qualifying game of
     season y: `route` is "early" (games 1-9, carryover), "avail" (games 10+
     the injury report covers) or "base" (other games 10+).
@@ -84,7 +85,14 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
     v4 routing's prediction for the same game (the v5 gate). With v5, p_fixed
     is the v5 routing with the availability logit's luck_def / talent_diff
     coefficients fixed from the v5 base fit (player_availability.fit_fixed);
-    research only."""
+    research only.
+
+    v6=True (research only; implies v5): the v6 candidate, v5 plus ft_diff
+    (own FT% gap) in both games-10+ logits, as p_home; p_v5 holds the v5
+    routing's prediction for the same game (the v6 gate). model_tag and
+    route keep their v5 values: no v6 tag exists until it ships."""
+    v5 = v5 or v6
+
     def use(years):
         out = training_years(years, y, walk_forward)
         if not out:
@@ -127,6 +135,15 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
               f"(fit n={int(ok.sum())})", flush=True)
     test["p_fixed"] = test["p_home"]
     base5 = model
+    test["p_v5"] = test["p_home"]
+    if v6:
+        f6 = nc.V6_FEATURES
+        ok = np.isfinite(train[f6].to_numpy(float)).all(axis=1)
+        m6 = nc.fit_logit(train.loc[ok, f6].values, train.loc[ok, "win"], f6)
+        fin = np.isfinite(test[f6].to_numpy(float)).all(axis=1)
+        test.loc[fin, "p_home"] = nc.predict(m6, test.loc[fin, f6].values)
+        print(f"season {y}: v6 candidate base on {int(fin.sum())}/{len(test)} games "
+              f"10+ (fit n={int(ok.sum())}; ft_diff {m6['coef'][-1]:+.4f})", flush=True)
     if terms and y in terms:
         others = [t for t in training_years(report_years, y, walk_forward)
                   if t in terms]
@@ -137,8 +154,12 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
             tkey = (pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d")
                     + test["home"] + test["away"])
             key = te["slate_date"] + te["home"] + te["away"]
-            for af, tag, col in ((pav.FEATURES_V4, build_site.MODEL_TAG_V4_AVAIL, "p_v4"),
-                                 (pav.FEATURES_V5, build_site.MODEL_TAG_V5_AVAIL, "p_home")):
+            arms = [(pav.FEATURES_V4, build_site.MODEL_TAG_V4_AVAIL, "p_v4"),
+                    (pav.FEATURES_V5, build_site.MODEL_TAG_V5_AVAIL,
+                     "p_v5" if v6 else "p_home")]
+            if v6:
+                arms.append((pav.FEATURES_V6, build_site.MODEL_TAG_V5_AVAIL, "p_home"))
+            for af, tag, col in arms:
                 if af is pav.FEATURES_V5 and not v5:
                     continue
                 ok = np.isfinite(tr[af].to_numpy(float)).all(axis=1)
@@ -147,11 +168,13 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
                 pmap = dict(zip(key[fin], nc.predict(am, te.loc[fin, af].values)))
                 hit = tkey.isin(pmap)
                 test.loc[hit, col] = tkey[hit].map(pmap)
+                if col == "p_v5":                 # the v6 gate's v5 arm
+                    test.loc[hit, "route"] = "avail"
                 if col == "p_home" or not v5:
                     test.loc[hit, "p_home"] = tkey[hit].map(pmap)
                     test.loc[hit, "model_tag"] = tag
                     test.loc[hit, "route"] = "avail"
-                print(f"season {y}: availability arm ({'v5' if af is pav.FEATURES_V5 else 'v4'}) "
+                print(f"season {y}: availability arm ({'v6' if af is pav.FEATURES_V6 else 'v5' if af is pav.FEATURES_V5 else 'v4'}) "
                       f"on {int(hit.sum())}/{len(test)} games 10+ (fit on {others}, "
                       f"n={int(ok.sum())})", flush=True)
                 if af is pav.FEATURES_V5:
@@ -171,9 +194,12 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
         e["p_home"] = nc.predict(early, e[cold_start.FEATURES].values)
         e["p_v4"] = e["p_home"]
         e["p_fixed"] = e["p_home"]
+        e["p_v5"] = e["p_home"]
         e["model_tag"] = build_site.MODEL_TAG_V5 if v5 else build_site.MODEL_TAG_V4
         e["route"] = "early"
         test = pd.concat([test, e], ignore_index=True)
+    if not v6:
+        test["p_v5"] = test["p_home"]
     return test, weights, model
 
 

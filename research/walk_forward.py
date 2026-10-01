@@ -18,6 +18,8 @@ games (matched to data/nba_reconstructed.csv for result and close):
             (PHASE_YEARS < Y), and with --avail the v4 availability logit
             (report seasons < Y) on games the injury report covers, base v4
             elsewhere. Split by route: early / base / avail.
+            (--v6: the v6 candidate, v5 + own FT% gap, as prod, beside
+            prod_v5 on the same games -- the gate for v6)
   wf        the pre-v4 base (delta, b2b_net; no phase, no availability):
             weights on WEIGHT_YEARS < Y; logit on GAME_YEARS < Y;
             games 1-9 from the carryover model fitted on GAME_YEARS < Y
@@ -159,21 +161,23 @@ def walk_forward(y, weight_years, game_years, pace=True):
     return out, fits, dict(weight_years=wy, game_years=gy)
 
 
-def production(y, weight_years, game_years, phase_years=None, terms=None, v5=False):
+def production(y, weight_years, game_years, phase_years=None, terms=None, v5=False,
+               v6=False):
     """p_prod / route: the production routing for season y, every fit on
     earlier seasons only (backfill_history.reconstruct_season); v5=True
     routes v5 and also returns the v4 routing's p_prod_v4 on the same games
-    (the v5 gate)."""
+    (the v5 gate); v6=True routes the v6 candidate and also returns the v5
+    routing's p_prod_v5 (the v6 gate)."""
     test, _, _ = bf.reconstruct_season(
         y, game_years=game_years, weight_years=weight_years,
         phase_years=phase_years or bf.PHASE_YEARS, terms=terms, walk_forward=True,
-        v5=v5)
+        v5=v5, v6=v6)
     test["slate_date"] = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d")
     cols = ["slate_date", "home", "away", "p_home", "route"] + \
-        (["p_v4", "p_fixed"] if v5 else [])
+        (["p_v4", "p_fixed"] if v5 or v6 else []) + (["p_v5"] if v6 else [])
     return (test.drop_duplicates(["slate_date", "home", "away"])[cols]
             .rename(columns={"p_home": "p_prod", "p_v4": "p_prod_v4",
-                             "p_fixed": "p_prod_fixed"}))
+                             "p_fixed": "p_prod_fixed", "p_v5": "p_prod_v5"}))
 
 
 def with_production(scored, prod):
@@ -234,6 +238,15 @@ def report(m):
                     comps += [("prod_fixed", "prod", fx, prod, okf),
                               ("prod_fixed", "prod_v4", fx, v4, okf),
                               ("prod_fixed", "market", fx, q, okf)]
+            if "p_prod_v5" in g:
+                v5p = g["p_prod_v5"].to_numpy(float)
+                ok5 = ok & np.isfinite(v5p)
+                comps += [("prod", "prod_v5", prod, v5p, ok5),
+                          ("prod_v5", "market", v5p, q, ok5)]
+                if not early:
+                    for route in ("base", "avail"):
+                        r = ok5 & (g["route"] == route).to_numpy()
+                        comps += [(f"prod[{route}]", "prod_v5", prod, v5p, r)]
             if not early:
                 for route in ("base", "avail"):
                     r = ok & (g["route"] == route).to_numpy()
@@ -276,6 +289,9 @@ def main(argv=None):
     ap.add_argument("--cache", default=pav.DEFAULT_CACHE)
     ap.add_argument("--v5", action="store_true",
                     help="prod arm: v5 routing, compared with v4 on the same games")
+    ap.add_argument("--v6", action="store_true",
+                    help="prod arm: the v6 candidate (v5 + own FT%%), compared "
+                         "with v5 on the same games")
     a = ap.parse_args(argv)
     game_years = nc.parse_years(a.game_years) if a.game_years else bf.GAME_YEARS
     recon = ledger.load(ledger.RECON_PATH)
@@ -296,7 +312,7 @@ def main(argv=None):
                                           pace=not a.no_pace)
         if not a.no_prod:
             scored = with_production(scored, production(
-                y, bf.WEIGHT_YEARS, game_years, terms=terms, v5=a.v5))
+                y, bf.WEIGHT_YEARS, game_years, terms=terms, v5=a.v5, v6=a.v6))
             print(f"  prod routes: {scored['route'].value_counts().to_dict()}",
                   flush=True)
         m = attach_rows(scored, recon)
