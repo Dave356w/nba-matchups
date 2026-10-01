@@ -1,0 +1,82 @@
+name: v5 audit
+
+# Research only (HANDOFF_v5_audit.md, Tasks B-E): walk-forward folds with the
+# production v5 routing, then home-court drift, calibration / price bands,
+# the team-level market gap and stale talent (diagnostics/v5_audit/).
+# Writes nothing to the repo; results are the job summary and an artifact.
+# The push trigger runs it from the audit branch before it exists on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Walk-forward test seasons (BBR years; 2026 = 2025-26)'
+        default: '2017 2018 2019 2021 2022 2023 2024 2025 2026'
+  push:
+    branches: [claude/v5-audit-research]
+    paths:
+      - 'diagnostics/v5_audit/**'
+      - '.github/workflows/v5-audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v5-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SEASONS: ${{ inputs.seasons || '2017 2018 2019 2021 2022 2023 2024 2025 2026' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2019 2021-2026
+      - name: Folds (walk-forward, production routing)
+        run: |
+          set -o pipefail
+          python diagnostics/v5_audit/folds.py --seasons $SEASONS | tee folds.txt
+      - name: Tasks B-E
+        run: |
+          set -o pipefail
+          for t in task_b_home task_c_calibration task_d_team_gap task_e_stale_talent; do
+            python diagnostics/v5_audit/$t.py | tee -a tasks.txt
+          done
+      - name: Summary
+        if: always()
+        run: |
+          { echo '```'; tail -n 40 folds.txt 2>/dev/null; echo '```';
+            cat diagnostics/v5_audit/output/task_*.md 2>/dev/null; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v5-audit
+          path: |
+            folds.txt
+            tasks.txt
+            diagnostics/v5_audit/output/*.md
