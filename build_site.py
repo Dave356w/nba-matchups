@@ -270,6 +270,31 @@ def grade(led, today):
     return led, n
 
 
+def report_utc(report_time):
+    """The NBA injury report's edition time (naive ET) as a UTC string, or
+    NaN when the build read no report."""
+    if report_time is None or pd.isna(report_time):
+        return np.nan
+    return ledger.fmt_utc(pd.Timestamp(report_time).tz_localize(ET).to_pydatetime())
+
+
+def route(row, model):
+    """Which formula scored a score_game row: early (games 1-9, carryover),
+    avail (availability logit), base (base logit), v4 (the frozen v4
+    fallback of a v5 model), or abstain (no P). Reads the row; changes no
+    routing."""
+    if not np.isfinite(pd.to_numeric(row.get("p_home"), errors="coerce")):
+        return "abstain"
+    if min(row.get("gp_home", 0), row.get("gp_away", 0)) < nc.MIN_GAMES:
+        return "early"
+    tag = row.get("model_tag")
+    if tag in AVAIL_TAGS:
+        return "avail"
+    if is_v5(model) and tag != model_tag(model):
+        return "v4"
+    return "base"
+
+
 def score_slate(today, weights, model, now=None):
     games = [g for g in market.scoreboard(today)
              if g["season_type"] == market.REGULAR_SEASON
@@ -320,11 +345,18 @@ def score_slate(today, weights, model, now=None):
                             avail=None if terms is None else
                             {k: terms[k] for k in ("av_min", "av_bpm")},
                             opening=opening, talent=talent, fallback=fallback))
+        # decision-time record (ledger first_report_utc / first_route): the
+        # report edition this build read, whether or not it covered the game
+        r["report_utc"] = report_utc(getattr(live, "report_time", None))
+        r["route"] = route(r, model)
         try:
             odds = market.pick_pregame(market.book_odds(g["game_id"]))
+            if not odds:
+                r["price_note"] = "no DraftKings or ESPN BET moneyline pair"
         except Exception as e:  # noqa: BLE001
             log(f"odds {g['game_id']}: {e!r}")
             odds = {}
+            r["price_note"] = f"odds fetch failed: {type(e).__name__}"
         r["pre_book"] = odds.get("book")
         r["pre_home_ml"] = odds.get("cur_home_ml")
         r["pre_away_ml"] = odds.get("cur_away_ml")

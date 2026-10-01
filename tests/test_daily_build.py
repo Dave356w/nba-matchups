@@ -53,6 +53,13 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert set(snap["status"]) == {"Out", "NONE"}
     assert (snap["snapshot_utc"] < snap["tip_utc"].str.replace("Z", ":00Z")).all()
     frozen = snap.copy()
+    # decision-time record: written with the first snapshot, once
+    assert r["first_route"] in ("base", "avail", "v4")
+    assert r["seen_utc"] == r["first_snapshot_utc"] and pd.isna(r["seen_note"])
+    once = led[ledger.WRITE_ONCE_COLUMNS].copy()
+    assert build_site.main(["--date", day1]) == 0         # a second run
+    pd.testing.assert_frame_equal(
+        ledger.load(ledger.NATIVE_PATH)[ledger.WRITE_ONCE_COLUMNS], once)
 
     state["completed"] = True
     assert build_site.main(["--date", "2027-01-11"]) == 0
@@ -60,6 +67,8 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert r["home_won"] == 1 and r["close_home_ml"] == -200
     assert r["pre_home_ml"] == -180                    # pregame price untouched
     pd.testing.assert_frame_equal(ledger.load_injuries(), frozen)
+    pd.testing.assert_frame_equal(
+        ledger.load(ledger.NATIVE_PATH)[ledger.WRITE_ONCE_COLUMNS], once)
     assert "1–0" in (tmp_path / "public" / "grades.html").read_text() or \
         "0–1" in (tmp_path / "public" / "grades.html").read_text()
 
@@ -99,4 +108,14 @@ def test_build_tags_v3_with_availability_and_falls_back(tmp_path, monkeypatch, w
     led = ledger.load(ledger.NATIVE_PATH).set_index("game_id")
     assert led.loc["9101", "model_tag"] == build_site.MODEL_TAG_V3
     assert led.loc["9102", "model_tag"] == build_site.MODEL_TAG      # no terms: v2
+    # no price: no first snapshot, and the reason is on the row; the report
+    # edition (17:30 ET = 22:30 UTC) and route are kept for the first snapshot
+    assert led.loc["9101", "seen_note"] == \
+        "no price (no DraftKings or ESPN BET moneyline pair)"
+    assert led["first_snapshot_utc"].isna().all()
+    assert build_site.report_utc("2027-01-10 17:30") == "2027-01-10T22:30:00Z"
+    rows = build_site.score_slate("2027-01-10", weights, model)
+    by = {r["game_id"]: r for r in rows}
+    assert by["9101"]["route"] == "avail" and by["9102"]["route"] == "base"
+    assert by["9101"]["report_utc"] == by["9102"]["report_utc"] == "2027-01-10T22:30:00Z"
     assert "injury report" in (tmp_path / "public" / "index.html").read_text()
