@@ -65,6 +65,19 @@ last season's value toward this season's, fitted on earlier seasons:
   v5_oo     v5_base + onoff_diff                                (vs v5_base)
   oo_luck   base + luck_def + onoff_diff: this season only      (vs v5_base)
 
+Minutes weight (owner's question, 2026-10-01): talent_diff weights each
+player by his mean minutes / 48 over every game he played this season, so
+injury exits, blowouts and overtime pull it, it reacts slowly to a rotation
+change, and the previous box's roster is not held to 240 minutes. Each arm
+replaces talent_diff in v5_base with one variant (same roster, same values,
+same fallback to last season's MP / G before a player's first game):
+  v5_med    median minutes per game played
+  v5_cap    each game's minutes capped at MIN_CAP (38) before the mean
+  v5_dec    decayed mean, half-life 25 of his own games played
+  v5_240    the mean, scaled so the roster's minutes sum to 240
+All vs v5_base. A uniform rescale is absorbed by the fitted coefficient;
+only differences between players' weights can move the result.
+
 Every feature uses games strictly before the date. Reported per test season
 and closing book on identical games: log loss and Brier of each arm vs base
 and vs the close (paired ± 95%), each arm's fitted terms, and how much of
@@ -117,9 +130,13 @@ BOX_ARMS = {
     "v5_oo": list(nc.V5_FEATURES) + ["onoff_diff"],
     "oo_luck": BASE + ["luck_def", "onoff_diff"],
 }
+MIN_VARIANTS = ["med", "cap", "dec", "240"]
+for _v in MIN_VARIANTS:
+    BOX_ARMS[f"v5_{_v}"] = [f"talent_{_v}" if f == "talent_diff" else f
+                            for f in nc.V5_FEATURES]
 REF = {**{a: "base" for a in ARMS}, **{a: "base_box" for a in BOX_ARMS},
        "v5_base": "v5_base", "v5_ast": "v5_base", "v5_oo": "v5_base",
-       "oo_luck": "v5_base"}
+       "oo_luck": "v5_base", **{f"v5_{v}": "v5_base" for v in MIN_VARIANTS}}
 BOX_YEARS = [2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026]
 SOS_MIN_GAMES = 5
 TANK_WPCT, TOP_WPCT, TANK_MIN_GP = 0.35, 0.65, 40
@@ -149,6 +166,74 @@ def prior_ratings(prior_logs, weights, half_life=nc.HALF_LIFE):
 
 talent_fn = pav.talent_fn           # shared with production (model v5)
 OO_SHRINK = 1000.0                  # on-court minutes for half weight on on/off
+
+
+MIN_CAP = 38.0                      # minutes cap per game (arm v5_cap)
+
+
+def minutes_roles(box, fallback, half_life=nc.HALF_LIFE, cap=MIN_CAP):
+    """{variant: (player_id, date) -> minutes / 48} over the games he played
+    (minutes > 0, any team) strictly before `date`: 'med' the median, 'cap'
+    the mean of min(minutes, cap), 'dec' the mean decayed by half_life of his
+    own games. Before his first game, fallback(player_id, date)
+    (pav.arrival_roles: last season's MP / G). The '240' variant is the plain
+    mean, scaled per roster in talent_scaled_fn."""
+    hist = {}
+    for pid, g in box[box["minutes"] > 0].groupby("player_id"):
+        g = g.groupby("date")["minutes"].sum().sort_index()
+        hist[pid] = (g.index.to_numpy(), g.to_numpy(float))
+
+    def make(stat):
+        memo = {}
+
+        def role(pid, date):
+            key = (pid, pd.Timestamp(date))
+            if key not in memo:
+                h = hist.get(pid)
+                k = (int(np.searchsorted(h[0], np.datetime64(key[1]), "left"))
+                     if h is not None else 0)
+                memo[key] = (float(stat(h[1][:k]) / 48.0) if k
+                             else fallback(pid, date))
+            return memo[key]
+        return role
+
+    def dec(m):
+        w = 0.5 ** (np.arange(len(m))[::-1] / half_life)
+        return (w * m).sum() / w.sum()
+    return {"med": make(np.median),
+            "cap": make(lambda m: np.minimum(m, cap).mean()),
+            "dec": make(dec)}
+
+
+def talent_scaled_fn(box, value, role, total=240.0):
+    """talent_fn with the previous box's roles scaled so their minutes sum to
+    `total` (arm v5_240). NaN before the team's first game."""
+    b = box[box["minutes"] > 0]
+    by_team = {tm: g.sort_values("date") for tm, g in b.groupby("team")}
+
+    def f(tm, date):
+        g = by_team.get(tm)
+        if g is None:
+            return float("nan")
+        prev = g[g["date"] < pd.Timestamp(date)]
+        if not len(prev):
+            return float("nan")
+        pids = prev.loc[prev["date"] == prev["date"].max(), "player_id"]
+        r = np.array([role(pid, date) for pid in pids])
+        v = np.array([value.get(pid, 0.0) for pid in pids])
+        s = r.sum()
+        return float((r * v).sum() * (total / 48.0) / s) if s > 0 else 0.0
+    return f
+
+
+def heavy_minutes(box, regular=30.0, cap=MIN_CAP):
+    """(share of player-games over `cap` minutes among players averaging
+    `regular`+, their mean minutes per game): how often the cap binds."""
+    b = box[box["minutes"] > 0]
+    avg = b.groupby("player_id")["minutes"].transform("mean")
+    r = b[avg >= regular]
+    return (float((r["minutes"] > cap).mean()) if len(r) else np.nan,
+            float(r["minutes"].mean()) if len(r) else np.nan)
 
 
 def onoff_fn(box, role, shrink=OO_SHRINK):
@@ -191,11 +276,13 @@ def onoff_fn(box, role, shrink=OO_SHRINK):
 
 def season_games(y, weights, logs=None, half_life=nc.HALF_LIFE,
                  min_games=nc.MIN_GAMES, prior_logs=None, talent=None,
-                 onoff=None):
+                 onoff=None, talent_x=None):
     """Games 10+ of season y with base v4 features plus luck_off, luck_def,
     sos_diff, tank_diff, top_diff, d_apr, prior_diff, prior_early and
     talent_diff (all from games before the date; prior_* from last season's
-    log, NaN without it; talent_diff NaN without a talent function)."""
+    log, NaN without it; talent_diff NaN without a talent function) and
+    one column per talent_x entry {column: (team, date) -> talent}."""
+    talent_x = talent_x or {}
     logs = nc.load_logs(y) if logs is None else logs
     prior = prior_ratings(prior_logs, weights, half_life)
     missing = [tm for tm, lg in logs.items() if not set(X3) <= set(lg.columns)
@@ -296,10 +383,11 @@ def season_games(y, weights, logs=None, half_life=nc.HALF_LIFE,
                 tdiff = (talent(h, date) - talent(a, date)) if talent else np.nan
                 odiff = (onoff(h, date) - onoff(a, date)) if onoff else np.nan
                 ah, aa = assists(h, i), assists(a, j)
+                xt = {c: fn(h, date) - fn(a, date) for c, fn in talent_x.items()}
                 rows.append({
                     "year": y, "date": date, "home": h, "away": a, **vals,
                     "prior_diff": pdiff, "prior_early": pdiff * (1 - vals["phase"]),
-                    "talent_diff": tdiff, "onoff_diff": odiff,
+                    "talent_diff": tdiff, "onoff_diff": odiff, **xt,
                     "luck_off": (ch[1] - ch[0]) - (ca[1] - ca[0]),
                     "luck_def": (ch[2] - ch[0]) - (ca[2] - ca[0]),
                     "sos_diff": sos(h) - sos(a),
@@ -424,7 +512,7 @@ def main(argv=None):
     recon = ledger.graded(ledger.load(ledger.RECON_PATH))
     recon = recon[["slate_date", "home", "away", "close_q_home", "close_book",
                    "home_won"]]
-    talent, onoff = {}, {}
+    talent, onoff, talent_x = {}, {}, {}
     if not a.no_talent:
         for t in nc.parse_years(a.box_seasons) if a.box_seasons else BOX_YEARS:
             if t > max(a.seasons):
@@ -440,8 +528,15 @@ def main(argv=None):
                 role = pav.arrival_roles(box, bpm)
                 talent[t] = talent_fn(box, value, role)
                 onoff[t] = onoff_fn(box, role)
+                mr = minutes_roles(box, role)
+                talent_x[t] = {**{f"talent_{v}": talent_fn(box, value, mr[v])
+                                  for v in mr},
+                               "talent_240": talent_scaled_fn(box, value, role)}
+                share, mins = heavy_minutes(box)
                 print(f"box season {t}: last-season BPM covers {100 * cov_min:.0f}% "
-                      "of minutes", flush=True)
+                      f"of minutes; players averaging 30+ min: {mins:.1f} min/game, "
+                      f"{100 * share:.1f}% of their games over {MIN_CAP:.0f}",
+                      flush=True)
             except Exception as e:  # noqa: BLE001
                 print(f"box season {t}: talent unavailable ({e!r})", flush=True)
     logs, games = {}, {}
@@ -461,7 +556,8 @@ def main(argv=None):
         gy = bf.training_years(phase_years, y, walk_forward=True)
         weights = nc.fit_weights(wy)
         g = {t: season_games(t, weights, logs=load(t), prior_logs=load(t - 1),
-                             talent=talent.get(t), onoff=onoff.get(t))
+                             talent=talent.get(t), onoff=onoff.get(t),
+                             talent_x=talent_x.get(t))
              for t in gy + [y]}
         tr = pd.concat([g[t] for t in gy], ignore_index=True)
         te, fits = fit_arms(tr, g[y])
@@ -480,6 +576,12 @@ def main(argv=None):
               f"{int(te['onoff_diff'].notna().sum())}; corr(onoff_diff, "
               f"talent_diff) {te['onoff_diff'].corr(te['talent_diff']):+.2f}",
               flush=True)
+        for v in MIN_VARIANTS:
+            c = f"talent_{v}"
+            if c in te and te[c].notna().any():
+                print(f"  {c}: corr with talent_diff {te[c].corr(te['talent_diff']):+.3f}, "
+                      f"sd {te[c].std():.3f} vs {te['talent_diff'].std():.3f}, "
+                      f"sd of the difference {(te[c] - te['talent_diff']).std():.3f}")
         print("\n".join(coef_lines(fits)))
         allm.append(m)
     m = pd.concat(allm, ignore_index=True)

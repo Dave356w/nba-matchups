@@ -277,3 +277,35 @@ def test_onoff_arms_are_scored_against_v5_base():
     assert tq.REF["v5_oo"] == tq.REF["oo_luck"] == "v5_base"
     assert "talent_diff" not in tq.BOX_ARMS["oo_luck"]
     assert tq.BOX_ARMS["v5_oo"] == list(nc.V5_FEATURES) + ["onoff_diff"]
+
+
+def test_minutes_roles_use_only_earlier_games_and_fall_back():
+    d = pd.to_datetime(["2025-11-01", "2025-11-03", "2025-11-05", "2025-11-07"])
+    box = pd.DataFrame(dict(team=["T0"] * 4, date=d, player_id=["a"] * 4,
+                            minutes=[30.0, 44.0, 12.0, 48.0]))
+    r = tq.minutes_roles(box, lambda pid, date: 0.25, half_life=1.0)
+    assert r["med"]("a", "2025-11-01") == 0.25 == r["cap"]("z", "2025-11-09")
+    assert r["med"]("a", "2025-11-07") == 30.0 / 48            # 11-07 unused
+    assert abs(r["cap"]("a", "2025-11-07") - (30 + 38 + 12) / 3 / 48) < 1e-12
+    w = np.array([0.25, 0.5, 1.0])
+    assert abs(r["dec"]("a", "2025-11-07")
+               - (w @ [30.0, 44.0, 12.0]) / w.sum() / 48) < 1e-12
+
+
+def test_talent_scaled_holds_the_previous_roster_to_240_minutes():
+    box = pd.DataFrame(dict(
+        team=["T0"] * 3, date=pd.to_datetime(["2025-11-01"] * 3),
+        player_id=["a", "b", "c"], minutes=[40.0, 30.0, 10.0]))
+    value = {"a": 6.0, "b": 2.0}
+    role = {"a": 0.75, "b": 0.5, "c": 0.25}
+    f = tq.talent_scaled_fn(box, value, lambda pid, date: role[pid])
+    assert np.isnan(f("T0", "2025-11-01"))
+    assert abs(f("T0", "2025-11-02") - (0.75 * 6 + 0.5 * 2) * 5 / 1.5) < 1e-12
+
+
+def test_minutes_arms_swap_only_talent_and_score_against_v5_base():
+    for v in tq.MIN_VARIANTS:
+        feats = tq.BOX_ARMS[f"v5_{v}"]
+        assert tq.REF[f"v5_{v}"] == "v5_base"
+        assert feats == [f"talent_{v}" if f == "talent_diff" else f
+                         for f in nc.V5_FEATURES]
