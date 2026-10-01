@@ -224,3 +224,31 @@ def test_season_dates_cover_the_delayed_seasons():
     assert pav.season_dates(2021)[-1] == pd.Timestamp("2021-05-20")
     assert pav.season_dates(2016)[-1] == pd.Timestamp("2016-04-20")
     assert pav.season_dates(2021)[0] == pd.Timestamp("2020-10-15")
+
+
+def test_assist_rates_use_earlier_games_and_are_nan_without_assists():
+    logs = league(seed=12, rounds=20)
+    rng = np.random.default_rng(12)
+    for tm, lg in logs.items():
+        rate = 0.75 if tm == "T0" else 0.55          # T0 assists on more of its makes
+        lg["TAST"] = np.round(lg["TFG"] * rate + rng.normal(0, 1, len(lg)))
+        lg["OAST"] = np.round(lg["OFG"] * 0.6)
+    g = tq.season_games(2026, WEIGHTS, logs=logs)
+    assert np.isfinite(g[["ast_off", "ast_def"]].to_numpy(float)).all()
+    t0 = pd.concat([g.loc[g["home"] == "T0", "ast_off"],
+                    -g.loc[g["away"] == "T0", "ast_off"]])
+    assert t0.min() > 10                             # ~75 vs ~55 per 100 makes
+    later = {tm: lg.copy() for tm, lg in logs.items()}
+    d = sorted(g["date"])[len(g) // 2]
+    for lg in later.values():
+        lg.loc[lg["date"] >= d, ["TAST", "OAST"]] = 0  # games on/after the date
+    g2 = tq.season_games(2026, WEIGHTS, logs=later)
+    same = g["date"] <= d
+    assert np.allclose(g.loc[same, "ast_off"], g2.loc[same, "ast_off"])
+    assert tq.season_games(2026, WEIGHTS, logs=league(seed=12, rounds=20))[
+        ["ast_off", "ast_def"]].isna().all().all()
+
+
+def test_v5_ast_is_scored_against_the_v5_base_logit():
+    assert tq.REF["v5_ast"] == "v5_base" and tq.REF["ast"] == "base"
+    assert tq.BOX_ARMS["v5_base"] == list(nc.V5_FEATURES)

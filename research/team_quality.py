@@ -45,6 +45,14 @@ fitted on the same seasons:
   talent_prior       base + talent + prior
   talent_prior_luck  base + talent + prior + luck_def
 
+Assists (owner's question, 2026-10-01): the four factors read no assists;
+they reach the model only through BPM. ast_off = the team's own assist rate
+(100 x AST / FG, decayed like the rating), ast_def = the assist rate its
+opponents shot with (lower = better defence), each home - away:
+  ast       base + d10*ast_off + d11*ast_def                       (vs base)
+  v5_base   base + luck_def + talent_diff: the shipped v5 base logit
+  v5_ast    v5_base + ast_off + ast_def                         (vs v5_base)
+
 Every feature uses games strictly before the date. Reported per test season
 and closing book on identical games: log loss and Brier of each arm vs base
 and vs the close (paired ± 95%), each arm's fitted terms, and how much of
@@ -81,6 +89,7 @@ ARMS = {
     "all": BASE + ["luck_off", "luck_def", "sos_diff", "tank_diff", "top_diff",
                    "d_apr"],
     "prior": BASE + ["prior_diff", "prior_early"],
+    "ast": BASE + ["ast_off", "ast_def"],
 }
 # Fitted only on seasons with player box scores (--box-seasons that are cached
 # or fetchable; research/box_history.py builds 2015-16 on), and compared with
@@ -91,12 +100,16 @@ BOX_ARMS = {
     "talent_prior": BASE + ["talent_diff", "prior_diff", "prior_early"],
     "talent_prior_luck": BASE + ["talent_diff", "prior_diff", "prior_early",
                                  "luck_def"],
+    "v5_base": list(nc.V5_FEATURES),
+    "v5_ast": list(nc.V5_FEATURES) + ["ast_off", "ast_def"],
 }
-REF = {**{a: "base" for a in ARMS}, **{a: "base_box" for a in BOX_ARMS}}
+REF = {**{a: "base" for a in ARMS}, **{a: "base_box" for a in BOX_ARMS},
+       "v5_base": "v5_base", "v5_ast": "v5_base"}
 BOX_YEARS = [2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026]
 SOS_MIN_GAMES = 5
 TANK_WPCT, TOP_WPCT, TANK_MIN_GP = 0.35, 0.65, 40
 X3 = ["T3PA", "O3PA"]
+XA = ["TAST", "OAST", "TFG", "OFG"]
 
 
 regress_3p = nc.regress_3p          # shared with production (model v5)
@@ -148,6 +161,23 @@ def season_games(y, weights, logs=None, half_life=nc.HALF_LIFE,
             t = dict(zip(nc.COLS + X3, (A * wt[:, None]).sum(0)))
             cache[(tm, i)] = (t, nc.composite(nc.features_from_totals(totals_vec(t)), sd, w))
         return cache[(tm, i)]
+
+    acache = {}
+
+    def assists(tm, i):
+        """(own, opponents') decayed assist rate, 100 x AST / FG, over tm's
+        first i games; NaN when the log has no assists."""
+        if (tm, i) not in acache:
+            lg = logs[tm]
+            if not set(XA) <= set(lg.columns) or i <= 0:
+                acache[(tm, i)] = (np.nan, np.nan)
+            else:
+                A = lg[XA].to_numpy(float)[:i]
+                wt = 0.5 ** (np.arange(i)[::-1] / half_life)
+                ta, oa, tf, of = (A * wt[:, None]).sum(0)
+                acache[(tm, i)] = (100 * ta / tf if tf > 0 else np.nan,
+                                   100 * oa / of if of > 0 else np.nan)
+        return acache[(tm, i)]
 
     def team(tm, i, date):
         """(raw, own-3P%-regressed, opponents'-3P%-regressed) composite, with
@@ -209,6 +239,7 @@ def season_games(y, weights, logs=None, half_life=nc.HALF_LIFE,
                 vals = nc.logit_inputs(delta, rh, ra, date, opening)
                 pdiff = prior.get(h, np.nan) - prior.get(a, np.nan)
                 tdiff = (talent(h, date) - talent(a, date)) if talent else np.nan
+                ah, aa = assists(h, i), assists(a, j)
                 rows.append({
                     "year": y, "date": date, "home": h, "away": a, **vals,
                     "prior_diff": pdiff, "prior_early": pdiff * (1 - vals["phase"]),
@@ -218,6 +249,7 @@ def season_games(y, weights, logs=None, half_life=nc.HALF_LIFE,
                     "sos_diff": sos(h) - sos(a),
                     "tank_diff": tank[0] - tank[1], "top_diff": top[0] - top[1],
                     "d_apr": delta * april,
+                    "ast_off": ah[0] - aa[0], "ast_def": ah[1] - aa[1],
                     "win": int(r["pts"] > r["opp_pts"])})
         for h, a, _, _ in todays:                  # after the date's games
             for tm, opp in ((h, a), (a, h)):
@@ -305,6 +337,10 @@ def coef_lines(fits):
         if "luck_off" in c:
             extra = (f"  | noise share of 3P%: own {c['luck_off'] / c['delta']:+.2f}, "
                      f"opponents' {c['luck_def'] / c['delta']:+.2f}")
+        if "ast_off" in c:
+            extra += (f"  | per assist-rate point, in composite points: own "
+                      f"{c['ast_off'] / c['delta']:+.2f}, opponents' "
+                      f"{c['ast_def'] / c['delta']:+.2f}")
         if "prior_diff" in c:
             extra += (f"  | last season's weight vs this season's: {c['prior_diff'] / c['delta']:+.2f}"
                       f" late, {(c['prior_diff'] + c['prior_early']) / c['delta']:+.2f} at opening")
@@ -380,7 +416,8 @@ def main(argv=None):
         print(f"\n=== season {y}: weights {wy}, logits {gy} (n={len(tr)}); box "
               f"seasons {by}; test games 10+ {len(te)}, matched {len(m)}; prior "
               f"ratings for {int(te['prior_diff'].notna().sum())}, talent for "
-              f"{int(te['talent_diff'].notna().sum())}", flush=True)
+              f"{int(te['talent_diff'].notna().sum())}, assists for "
+              f"{int(te['ast_off'].notna().sum())}", flush=True)
         print("\n".join(coef_lines(fits)))
         allm.append(m)
     m = pd.concat(allm, ignore_index=True)

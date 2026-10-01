@@ -1,8 +1,8 @@
 name: Team quality
 
 # Research only: do 3-point luck regression (1a), schedule strength (1b),
-# roster talent (1c), last-season carryover (1d) or late-season incentives
-# (2) explain the market's persistent team-level
+# roster talent (1c), last-season carryover (1d), late-season incentives
+# (2) or team assist rates (ast, v5_ast) explain the market's persistent team-level
 # correction and improve the model walk-forward, against the close on the
 # same games (research/team_quality.py)? Writes nothing to the repo; results
 # are the job summary and an artifact.
