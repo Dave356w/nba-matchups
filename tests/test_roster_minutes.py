@@ -134,7 +134,7 @@ def test_parse_positions_keeps_the_most_minutes_row():
             '</tr></thead><tbody><tr><td>Nikola Jokić</td><td>C</td><td>2700</td></tr>'
             '<tr><td>Dual Guy</td><td>SG</td><td>300</td></tr>'
             '<tr><td>Dual Guy</td><td>SF</td><td>900</td></tr></tbody></table>')
-    assert rm.parse_positions(html) == {"nikola jokic": 5.0, "dual guy": 3.0}
+    assert rm.parse_positions(html) == {"nikola jokic": (5.0, "B"), "dual guy": (3.0, "W")}
 
 
 def test_centre_minutes_go_to_bigs_point_guard_minutes_to_guards():
@@ -176,8 +176,32 @@ def test_team_lineups_position_variant_moves_value_to_the_backup_big():
                              + pd.Timedelta(days=k), team="T", player_id=p,
                              minutes=float(mins)))
     tg = pd.DataFrame(rows)
-    pos = {p: float(x) for p, _, x in roster}
+    pos = {p: (float(x), {1: "G", 2: "G", 3: "W", 4: "W", 5: "B"}[x])
+           for p, _, x in roster}
     value = {"bc": 4.0}                                      # only the backup C counts
     r = rm.team_lineups(tg, value, lambda p, d: 0.0, {"od": {("g3", "c"): 0.0}},
                         pos=pos)["g3"]
     assert r["list_od_pos"] > r["list_od"] > 0
+    assert r["list_od_role"] >= r["list_od_pos"]             # C's minutes to bc (cap 42)
+
+
+def test_pos_role_follows_the_notebook_map():
+    assert [rm.pos_role(x) for x in ("PG", "SG", "PG-SG", "PG-SF", "SG-SF", "SF",
+                                     "SF-PF", "PF", "PF-C", "C", "")] == \
+        ["G", "G", "G", "G", "W", "W", "W", "W", "B", "B", ""]
+    assert rm.pos_role("SG-PF") == "W" and rm.pos_role("SF-C") == "B"   # heaviest
+
+
+def test_depth_fill_moves_minutes_down_the_role_chart():
+    #                 G1  G2  G3  W1  W2  B1  B2
+    roles = np.array(["G", "G", "G", "W", "W", "B", "B"], object)
+    full = np.array([36, 26, 12, 36, 30, 34, 20], float)        # 194 (cap off below)
+    p = np.array([0, 1, 1, 1, 1, 1, 1], float)                  # G1 out
+    m = rm.depth_fill(full, p, roles, total=full.sum(), cap=240)
+    # G2 takes G1's 36, G3 takes G2's 26; G's 12-minute slot is empty;
+    # the team total is restored in proportion
+    pre = np.array([0, 36, 26, 36, 30, 34, 20], float)
+    assert np.allclose(m, pre * full.sum() / pre.sum())
+    nobody = rm.depth_fill(full, np.array([1, 1, 1, 1, 1, 0, 0.0]), roles,
+                           total=full.sum(), cap=240)
+    assert nobody[5] == nobody[6] == 0 and abs(nobody.sum() - full.sum()) < 1e-9

@@ -44,6 +44,15 @@ This tests a single replacement term, xtal (home - away), per team-game k:
             Positions are last season's BBR Pos (no lookahead); a player
             without one gets weight 0.5 as a teammate and spreads like
             list_od when missing. If no teammate is near, proportional.
+  role      `list_od_role`, the rule of the owner's DK Showdown projection
+            notebook (G = PG, SG, PG/SG, PG/SF; W = SG/SF, SF, SF/PF, PF;
+            B = PF/C, C; other hybrids take their heaviest position): on
+            the same full-roster base, each role's players are ranked by
+            minutes; with players Out, the available ones move up the
+            chart and take the minutes of their new rank (the role's
+            deepest slots are left empty), so vacated minutes stay in the
+            role and go to the next man up. A role with nobody available,
+            and players without a position, fall back to proportional.
 
 Arms (each a games-10+ logit; the same covered games, fit on the same
 training rows; every feature uses games strictly before the date and the
@@ -54,6 +63,8 @@ report at least --lead-minutes before tip, except `hind`):
   x_list_od   same, listed roster
   x_list_q    same, listed roster, q participation
   x_list_pos  same as x_list_od, minutes redistributed by position
+  x_list_role same, minutes moved down the depth chart of the Out
+              player's role (G / W / B, below)
   x_hind      same, who played (hindsight ceiling)
   v5_x        FEATURES_V5 + xtal (listed, od): does xtal add beyond v5?
 The x_* arms drop talent_diff, av_bpm and av_min, so no adjustment is
@@ -88,7 +99,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output",
                    "roster_minutes.csv")
 TEAM_MINUTES = 240.0     # regulation: 5 players x 48
 CAP = 42.0               # most minutes one player is expected to play
-VARIANTS = ("prev_od", "list_od", "list_q", "list_od_pos", "hind")
+VARIANTS = ("prev_od", "list_od", "list_q", "list_od_pos", "list_od_role", "hind")
 POSITIONS = {"PG": 1.0, "SG": 2.0, "SF": 3.0, "PF": 4.0, "C": 5.0,
              "G": 1.5, "F": 3.5}
 UNKNOWN_POS_WEIGHT = 0.5
@@ -100,6 +111,7 @@ ARMS = {
     "x_list_od": X_BASE + ["x_list_od"],
     "x_list_q": X_BASE + ["x_list_q"],
     "x_list_pos": X_BASE + ["x_list_od_pos"],
+    "x_list_role": X_BASE + ["x_list_od_role"],
     "x_hind": X_BASE + ["x_hind"],
     "v5_x": list(pav.FEATURES_V5) + ["x_list_od"],
 }
@@ -128,6 +140,24 @@ def allocate(e, total=TEAM_MINUTES, cap=CAP):
     return m
 
 
+ROLE_OF_TAGS = {("PG",): "G", ("SG",): "G", ("PG", "SG"): "G", ("PG", "SF"): "G",
+                ("SF", "SG"): "W", ("SF",): "W", ("PF", "SF"): "W", ("PF",): "W",
+                ("C", "PF"): "B", ("C",): "B"}
+HEAVINESS = {"PG": 0, "SG": 1, "SF": 2, "PF": 3, "C": 4}
+
+
+def pos_role(s):
+    """BBR Pos -> G / W / B (the notebook's map; other hybrids by their
+    heaviest position); '' when unknown."""
+    tags = tuple(sorted({t for t in re.split(r"[-/ ,]+", str(s).strip().upper())
+                         if t in HEAVINESS}))
+    if not tags:
+        return ""
+    if tags in ROLE_OF_TAGS:
+        return ROLE_OF_TAGS[tags]
+    return ROLE_OF_TAGS[(max(tags, key=HEAVINESS.get),)]
+
+
 def pos_number(s):
     """BBR Pos -> PG=1 .. C=5; hybrids ('PF-C', 'SG-PG') average; else NaN."""
     vals = [POSITIONS[t] for t in re.split(r"[-/ ,]+", str(s).strip().upper())
@@ -136,7 +166,7 @@ def pos_number(s):
 
 
 def parse_positions(html):
-    """BBR NBA_{y}_advanced.html -> {norm name: position number}, the row
+    """BBR NBA_{y}_advanced.html -> {norm name: (position number, role)}, the row
     with the most minutes (multi-team total) as in parse_advanced."""
     m = re.search(r'<table[^>]*id="advanced(?:_stats)?".*?</table>',
                   nc.uncomment(html), re.S)
@@ -151,8 +181,8 @@ def parse_positions(html):
     df["MP"] = pd.to_numeric(df["MP"], errors="coerce").fillna(0)
     df["key"] = df["Player"].map(pav.norm_name)
     df = df.sort_values("MP", ascending=False).drop_duplicates("key")
-    out = {k: pos_number(p) for k, p in zip(df["key"], df["Pos"])}
-    return {k: v for k, v in out.items() if np.isfinite(v)}
+    out = {k: (pos_number(p), pos_role(p)) for k, p in zip(df["key"], df["Pos"])}
+    return {k: v for k, v in out.items() if np.isfinite(v[0])}
 
 
 def load_positions(y):
@@ -189,6 +219,29 @@ def positional_fill(e, miss, pos, total=TEAM_MINUTES, cap=CAP):
     return allocate(e + add, total, cap)
 
 
+def depth_fill(full, p, roles, total=TEAM_MINUTES, cap=CAP):
+    """`full`: minutes with everyone playing; p: 1 plays / 0 out; roles:
+    G / W / B / '' per player. Within each role, ranked by `full`, the
+    available players take the role's slot minutes in rank order (the
+    next man up takes an Out starter's minutes, and so on down); the
+    deepest slots go unfilled. Players without a role keep `full`; a role
+    with nobody available loses its minutes. Then scaled to `total` and
+    capped as in allocate (the lost minutes spread in proportion)."""
+    full, p = np.asarray(full, float), np.asarray(p, float)
+    roles = np.asarray(roles, object)
+    m = full * (p > 0)
+    for r in ("G", "W", "B"):
+        idx = np.where((roles == r) & (full > 0))[0]
+        if not len(idx):
+            continue
+        idx = idx[np.argsort(-full[idx], kind="mergesort")]
+        slots = full[idx]
+        avail = idx[p[idx] > 0]
+        m[idx] = 0.0
+        m[avail] = slots[:len(avail)]
+    return allocate(m, total, cap)
+
+
 def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE,
                  pos=None):
     """One team-season of box rows -> {game_id: {variant: xtal}}.
@@ -197,7 +250,8 @@ def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE,
     report (player_availability.present_map); a rostered player not on the
     report plays (1). Game k's own minutes are read only by `hind`; the
     `list_*` variants read game k's listing (who is on the roster), never
-    its minutes. pos: {player_id: position number} for list_od_pos."""
+    its minutes. pos: {player_id: (position number, role)} for list_od_pos
+    and list_od_role."""
     games = (tg[["game_id", "date"]].drop_duplicates("game_id")
              .sort_values(["date", "game_id"]).reset_index(drop=True))
     order = {g: k for k, g in enumerate(games["game_id"])}
@@ -211,7 +265,9 @@ def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE,
         M[k, j] = r.minutes
         L[k, j] = True
     v = np.array([value.get(p, 0.0) for p in players])
-    pn = np.array([(pos or {}).get(p, np.nan) for p in players], float)
+    pos = pos or {}
+    pn = np.array([pos.get(p, (np.nan, ""))[0] for p in players], float)
+    pr = np.array([pos.get(p, (np.nan, ""))[1] for p in players], object)
     out = {}
     for k in range(1, n):
         gid, date = games.at[k, "game_id"], games.at[k, "date"]
@@ -235,9 +291,10 @@ def team_lineups(tg, value, arrival_role, presence, half_life=nc.HALF_LIFE,
             else:
                 ro, arm = var.split("_")[:2]
                 p = rost[ro] * p_of(arm)
-            if var.endswith("_pos"):
+            if var.endswith("_pos") or var.endswith("_role"):
                 full = allocate(raw * rost[ro])      # as if everyone played
-                m = positional_fill(full * p, full * (1 - p), pn)
+                m = (positional_fill(full * p, full * (1 - p), pn)
+                     if var.endswith("_pos") else depth_fill(full, p, pr))
             else:
                 m = allocate(raw * p)
             res[var] = float((m / 48.0 * v).sum()) if m.sum() > 0 else np.nan
@@ -400,9 +457,10 @@ def main(argv=None):
               f"; corr(x_list_od, talent_diff) "
               f"{te['x_list_od'].corr(te['talent_diff']):+.2f}, "
               f"corr(x_list_od, av_bpm) {te['x_list_od'].corr(te['av_bpm']):+.2f}")
-        dpos = te["x_list_od_pos"] - te["x_list_od"]
-        print(f"  position vs proportional: sd of the difference {dpos.std():.3f}, "
-              f"{100 * (dpos.abs() > 0.05).mean():.0f}% of games move > 0.05 point")
+        for var, name in (("list_od_pos", "position"), ("list_od_role", "role depth")):
+            dd = te[f"x_{var}"] - te["x_list_od"]
+            print(f"  {name} vs proportional: sd of the difference {dd.std():.3f}, "
+                  f"{100 * (dd.abs() > 0.05).mean():.0f}% of games move > 0.05 point")
         m = te.merge(recon, on=["slate_date", "home", "away"], how="inner")
         print(f"  matched to reconstructed rows with a close: {len(m)}")
         allm.append(m)

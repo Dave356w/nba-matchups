@@ -98,7 +98,10 @@ Before a PR, run:
   (cap 42) x last-season BPM value; plus a hindsight ceiling and v5 + the
   term. `x_list_pos` sends an Out player's minutes by position (last
   season's BBR Pos, PG=1..C=5, weight max(0, 1 − |Δpos|/2): a C's to C/PF,
-  a PG's to PG/SG) instead of in proportion to minutes, on the same base. Walk-forward vs v5 and the close on the same covered games. It
+  a PG's to PG/SG) instead of in proportion to minutes, on the same base.
+  `x_list_role` is the owner's DK Showdown notebook rule: G/W/B roles,
+  ranked by minutes; the next man up in the Out player's role takes his
+  slot, and so on down the chart (no spill across roles). Walk-forward vs v5 and the close on the same covered games. It
   prints how often report Out players are on the box listing (the check
   that the listing is the roster, not who dressed). Not yet run.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
