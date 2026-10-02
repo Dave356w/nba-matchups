@@ -1,8 +1,7 @@
 # Model v6
 
-Activated 2026-10-01 (owner's decision after the gate, "v6" below). The
-daily build scores v6 as soon as the "Fit model" refit writes v6 model files;
-until then it keeps scoring v5. Tags:
+Active since 2026-10-01 (owner's decision after the gate, "v6" below;
+refit `f299ac6`, from which the daily build scores v6). Tags:
 `fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6` (games 10+ with
 a covering injury report) and
 `fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6` (all other scored
@@ -63,21 +62,20 @@ the same rule. In 2022-23 to 2025-26, 4,922 of 4,923 games were covered.
   share (mean minutes / 48 this season before D, else last season's) ×
   last-season BPM value above replacement, summed over the players on the
   team's previous box score. Trades and returns count at once.
-- **P(home)** = σ(a + b·Δ + c·b2b_net + e·Δ·phase + l·luck_def + t·talent_diff).
-  Committed fit (2016–19, 2021–26, games with every term, n = 10,192):
-  a = 0.297, b = 0.0160, c = 0.315, e = 0.0212, l = 0.0125, t = 0.0578.
-  Talent takes about a third of Δ's weight (v4: b = 0.0228). The effective
+- **ft_diff** (v6) = home − away own FT% (100 × FTM / FTA), each team's
+  free throws over its games before D, decayed like the rating window
+  (`nba_composite.own_ft_pct`). The four factors read free throws only as
+  FTA/FGA, so free-throw skill was missing.
+- **P(home)** = σ(a + b·Δ + c·b2b_net + e·Δ·phase + l·luck_def +
+  t·talent_diff + f·ft_diff). Committed v6 fit (refit `f299ac6`; 2016–19,
+  2021–26, games with every term, n = 10,192): a = 0.297, b = 0.0161,
+  c = 0.315, e = 0.0212, l = 0.0126, t = 0.0559, f = 0.0151 (a 10-point FT%
+  gap ≈ 0.15 logit). The other terms barely move from v5 (t 0.0578 →
+  0.0559). Talent takes about a third of Δ's weight (v4: b = 0.0228). The effective
   slope on Δ still roughly doubles from opening night to April.
 - **Fallback** `model/logit_v4.json` (frozen, not refitted): σ(a + b·Δ +
   c·b2b_net + e·Δ·phase), n = 10,582: a = 0.291, b = 0.0228, c = 0.306,
   e = 0.0274.
-
-- **ft_diff** (v6) = home − away own FT% (100 × FTM / FTA), each team's
-  free throws over its games before D, decayed like the rating window
-  (`nba_composite.own_ft_pct`). The four factors read free throws only as
-  FTA/FGA, so free-throw skill was missing. In both logits; coefficients
-  in `model/logit.json` / `model/logit_avail.json` from the v6 refit
-  (walk-forward fits: about +0.013 logit per FT% point).
 
 ## 3. Early season (games 1–9)
 
@@ -97,10 +95,11 @@ Doubtful, else 1 if he was on the team's previous box score, else 0.
 
 - av_min = Σ role·(p − a), av_bpm = Σ role·value·(p − a), home − away.
 - **P(home)** = σ(a + b·Δ + c·b2b_net + d1·av_min + d2·av_bpm + e·Δ·phase
-  + l·luck_def + t·talent_diff), luck_def and talent_diff as in §2.
-  Committed fit (report seasons 2022-23 to 2025-26, last report ≥ 30 min
-  before tip, covered games 10+, n = 4,289): a = 0.247, b = 0.0199,
-  c = 0.277, d1 = 0.136, d2 = 0.0366, e = 0.0211, l = 0.0162, t = 0.0415.
+  + l·luck_def + t·talent_diff + f·ft_diff), luck_def, talent_diff and
+  ft_diff as in §2. Committed v6 fit (refit `f299ac6`; report seasons
+  2022-23 to 2025-26, last report ≥ 30 min before tip, covered games 10+,
+  n = 4,289): a = 0.247, b = 0.0199, c = 0.278, d1 = 0.135, d2 = 0.0382,
+  e = 0.0212, l = 0.0159, t = 0.0398, f = 0.0175.
   Every term is refit on the four report seasons, so talent is estimated on
   less than half of §2's games (t = 0.041 vs 0.058); see "v5" below.
 
