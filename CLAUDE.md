@@ -264,8 +264,9 @@ Before a PR, run:
   − v5, games 10+, ± 95%): −0.0003 ± 0.0008 (2024-25 ESPN BET), −0.0010 ±
   0.0011 (2025-26 DK), −0.0018 ± 0.0042 (2025-26 ESPN BET, n = 107); v6 −
   close +0.0160 / +0.0184. Unresolved per season; native rows are the
-  forward test. Active once the "Fit model" refit writes v6 files; the
-  reconstructed rows are re-scored by "Backfill history" `--rescore`.
+  forward test. **Active:** refit `f299ac6` (ft_diff 0.0151 base, 0.0175
+  availability), rescore `f85e3ff` (2,418 rows re-tagged v6; leave-one-
+  season-out v6 − v5 −0.0002 ± 0.0016 / −0.0010 ± 0.0011).
 - v5 audit (`HANDOFF_v5_audit.md`, results in `diagnostics/v5_audit/`,
   workflow "v5 audit"), 2026-10-01: home-court drift +1.56 ± 0.79 pts
   pooled over the last 3 seasons (rule not met; no change); v5 is not flat
