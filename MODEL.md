@@ -1,7 +1,8 @@
 # Model v6
 
 Active since 2026-10-01 (owner's decision after the gate, "v6" below;
-refit `f299ac6`, from which the daily build scores v6). Tags:
+refit `f299ac6`, from which the daily build scores v6; reconstructed rows
+re-scored `f85e3ff`). Tags:
 `fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6` (games 10+ with
 a covering injury report) and
 `fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6` (all other scored
@@ -297,9 +298,14 @@ ESPN BET, n = 1,071), −0.0010 ± 0.0011 (2025-26 DK, n = 964), −0.0018 ±
 book (the shipping criterion); better in all three, resolved in none. v6 −
 close +0.0160 / +0.0184: no demonstrated edge. Games 1–9 unchanged.
 
-Activation order (as v5): (1) the gate; (2) "Fit model" refit
-(`fit-logit --v6`, `player_availability.py fit` default v6); (3) "Backfill
-history" `--rescore` (default v6). The build follows the model files.
+Activation (2026-10-01/02, as v5): (1) the gate above; (2) "Fit model"
+refit `f299ac6` (§2, §4: ft_diff 0.0151 base, 0.0175 availability; other
+terms within 0.002 of v5); (3) "Backfill history" `--rescore` `f85e3ff`:
+all 2,418 reconstructed rows re-tagged v6 (2,142 availability, 276 early).
+Leave-one-season-out v6 − v5 on the same rows, games 10+, ± 95%:
+−0.0002 ± 0.0016 (2024-25 ESPN BET, n = 1,071), −0.0010 ± 0.0011 (2025-26
+DK, n = 964), −0.0018 ± 0.0042 (2025-26 ESPN BET, n = 107); v6 − close
++0.0143 / +0.0184; games 1–9 unchanged. The build follows the model files.
 
 ## Version rule
 
