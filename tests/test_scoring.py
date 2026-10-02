@@ -60,7 +60,9 @@ def test_every_shipped_model_feature_is_built_by_logit_inputs():
     vals = nc.logit_inputs(5.0, 0, 2, "2026-01-10", "2025-10-21")
     avail = {"av_min", "av_bpm"}           # added by the availability terms
     avail |= {"luck_def", "talent_diff"}   # v5: added by build_site.score_game
+    avail |= {"ft_diff"}                   # v6: added by build_site.score_game
     assert set(nc.V5_FEATURES) - set(vals) == {"luck_def", "talent_diff"}
+    assert set(nc.V6_FEATURES) - set(vals) == {"luck_def", "talent_diff", "ft_diff"}
     for name in ("logit.json", "logit_avail.json", "logit_early.json"):
         missing = set(_real(name)["features"]) - set(vals) - avail
         assert not missing, (name, missing)
