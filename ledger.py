@@ -313,7 +313,10 @@ def apply_result(led, game_id, game, odds):
                   "close_away_ml"):
             if odds.get(c) is not None:
                 led.at[i, c] = odds[c]
-        q = market.devig(odds.get("close_home_ml"), odds.get("close_away_ml"))
+        # an exchange supplies its own q (kalshi.mid_q); a book is devigged
+        q = odds.get("close_q_home")
+        if q is None or not np.isfinite(q):
+            q = market.devig(odds.get("close_home_ml"), odds.get("close_away_ml"))
         if np.isfinite(q):
             led.at[i, "close_q_home"] = round(q, 5)
             if led["close_book"].dtype != object:

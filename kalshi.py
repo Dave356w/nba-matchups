@@ -7,8 +7,9 @@ if it wins). research/kalshi_probe.py printed the payloads this reads.
 
 A side's price is the cost of buying its YES at the ask, Kalshi's taker fee
 included (market.kalshi_cost), written as an American price, so the ledger's
-break-even, ROI and null arithmetic is unchanged; q is the two costs
-normalised (market.devig). Book label "kalshi".
+break-even, ROI and null arithmetic is unchanged. q (the market's P) is the
+bid/ask midpoints normalised (mid_q), since preseason books can be wide;
+without a bid, the two costs normalised. Book label "kalshi".
 
   pregame  : the live asks, read by the hourly build while before tip
              (one request per build for every open game).
@@ -116,24 +117,43 @@ def open_games():
     return out
 
 
-def odds_from_asks(home_ask, away_ask, kind):
-    """{f'{kind}_home_ml', f'{kind}_away_ml'} from YES asks (fee included), or
-    {} when either side has no ask."""
-    h = market.american_from_prob(market.kalshi_cost(home_ask))
-    a = market.american_from_prob(market.kalshi_cost(away_ask))
+def mid_q(home, away):
+    """Market P(home) from each side's (bid, ask) midpoint, normalised; NaN
+    unless both sides have a bid and an ask. Preseason books can be wide
+    (18c / 76c), where normalised asks say little about the market's view."""
+    try:
+        mh, ma = (sum(home) / 2, sum(away) / 2)
+    except TypeError:                        # a None bid or ask
+        return float("nan")
+    return mh / (mh + ma) if mh > 0 and ma > 0 else float("nan")
+
+
+def odds_from_quotes(home, away, kind):
+    """(bid, ask) per side -> {f'{kind}_home_ml', f'{kind}_away_ml'} (the YES
+    asks with the taker fee: the bettable prices) and f'{kind}_q_home'
+    (mid_q; when a bid is missing, the two costs normalised). {} when either
+    side has no ask."""
+    h = market.american_from_prob(market.kalshi_cost(home[1]))
+    a = market.american_from_prob(market.kalshi_cost(away[1]))
     if h is None or a is None:
         return {}
-    return {f"{kind}_home_ml": h, f"{kind}_away_ml": a}
+    q = mid_q(home, away)
+    if not q == q:                           # NaN
+        q = market.devig(h, a)
+    return {f"{kind}_home_ml": h, f"{kind}_away_ml": a,
+            f"{kind}_q_home": round(q, 5)}
 
 
 def pregame_odds(games, date, home, away):
     """The live pair for one game from open_games(): {'book', 'cur_home_ml',
-    'cur_away_ml', 'tickers'} or {} when Kalshi has no two-sided ask."""
+    'cur_away_ml', 'cur_q_home', 'tickers'} or {} when Kalshi has no
+    two-sided ask."""
     sides = games.get((date_code(date), frozenset((home, away))))
     if not sides:
         return {}
-    o = odds_from_asks(_dollars(sides[home], "yes_ask"),
-                       _dollars(sides[away], "yes_ask"), "cur")
+    o = odds_from_quotes(
+        (_dollars(sides[home], "yes_bid"), _dollars(sides[home], "yes_ask")),
+        (_dollars(sides[away], "yes_bid"), _dollars(sides[away], "yes_ask")), "cur")
     if not o:
         return {}
     return {"book": BOOK, **o,
@@ -148,27 +168,33 @@ def market_ticker(date, team_bbr, home, away):
     return f"{SERIES}-{date_code(date)}{code[away]}{code[home]}-{code[team_bbr]}"
 
 
-def ask_at(ticker, tip_ts):
-    """The YES ask (dollars) of the last 1-minute candle ending at or before
-    `tip_ts` (unix seconds) within CLOSE_WINDOW, or None."""
+def _close(c, key):
+    """A candle's closing quote (dollars) for `key` (yes_ask / yes_bid)."""
+    q = c.get(key) or {}
+    v = q.get("close_dollars")
+    if v is None and q.get("close") is not None:
+        v = float(q["close"]) / 100.0       # older payloads: cents
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return v if 0 < v < 1 else None
+
+
+def quote_at(ticker, tip_ts):
+    """(bid, ask) of the last 1-minute candle ending at or before `tip_ts`
+    (unix seconds) within CLOSE_WINDOW that has an ask; (None, None) when
+    there is none. Candles ending after tip are never read."""
     js = get(f"/series/{SERIES}/markets/{ticker}/candlesticks",
              start_ts=int(tip_ts - CLOSE_WINDOW), end_ts=int(tip_ts),
              period_interval=1)
     best = None
     for c in js.get("candlesticks", []):
-        end = c.get("end_period_ts")
-        ask = c.get("yes_ask") or {}
-        v = ask.get("close_dollars")
-        if v is None and ask.get("close") is not None:
-            v = float(ask["close"]) / 100.0
-        try:
-            v = float(v)
-        except (TypeError, ValueError):
-            continue
-        if end is not None and end <= tip_ts and 0 < v < 1 \
+        end, ask = c.get("end_period_ts"), _close(c, "yes_ask")
+        if end is not None and end <= tip_ts and ask is not None \
                 and (best is None or end > best[0]):
-            best = (end, v)
-    return None if best is None else best[1]
+            best = (end, _close(c, "yes_bid"), ask)
+    return (None, None) if best is None else best[1:]
 
 
 def close_odds(date, home, away, tip_utc):
@@ -180,12 +206,14 @@ def close_odds(date, home, away, tip_utc):
     tip_ts = parse_utc(tip_utc).timestamp()
     for h_, a_ in ((home, away), (away, home)):
         try:
-            h = ask_at(market_ticker(date, home, h_, a_), tip_ts)
-            a = ask_at(market_ticker(date, away, h_, a_), tip_ts)
+            h = quote_at(market_ticker(date, home, h_, a_), tip_ts)
+            a = quote_at(market_ticker(date, away, h_, a_), tip_ts)
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 continue
             raise
-        o = odds_from_asks(h, a, "close")
+        if h == (None, None) and a == (None, None):
+            continue                         # unknown ticker answered empty
+        o = odds_from_quotes(h, a, "close")
         return {"book": BOOK, **o} if o else {}
     return {}

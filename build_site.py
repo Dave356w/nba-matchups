@@ -484,8 +484,7 @@ def score_preseason(today, weights, now=None):
         r["pre_book"] = odds.get("book")
         r["pre_home_ml"] = odds.get("cur_home_ml")
         r["pre_away_ml"] = odds.get("cur_away_ml")
-        q = market.devig(r["pre_home_ml"], r["pre_away_ml"])
-        r["pre_q_home"] = round(q, 5) if np.isfinite(q) else np.nan
+        r["pre_q_home"] = odds.get("cur_q_home", np.nan)       # kalshi.mid_q
         rows.append(r)
     return rows
 
@@ -1408,7 +1407,8 @@ def render_preseason(pre, built):
     body.append("</details><p class='note'>q is the no-vig market probability. "
                 "Prices are refreshed each build until tip and frozen after; "
                 "prices are Kalshi's YES asks with the taker fee included "
-                "(as American odds; q = the two normalised), and the close is "
+                "(as American odds: what a bet costs); q is the bid/ask "
+                "midpoints normalised (the market's view), and the close is "
                 "the last 1-minute Kalshi candle before tip. b2b_net is read "
                 "from the previous day's scoreboard.</p>")
     return page("NBA preseason", "preseason.html", "".join(body), built)

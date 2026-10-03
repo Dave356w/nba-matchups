@@ -37,12 +37,22 @@ def test_one_sided_book_is_unpriced():
     assert kalshi.pregame_odds(kalshi.parse_events(js), "2026-10-03", "TOR", "MIA") == {}
 
 
-def test_ask_at_ignores_candles_after_tip(monkeypatch):
+def test_quote_at_ignores_candles_after_tip(monkeypatch):
     def get(path, **p):
         assert p["end_ts"] == 1000 and p["period_interval"] == 1
         return {"candlesticks": [
             {"end_period_ts": 940, "yes_ask": {"close_dollars": "0.6000"}},
-            {"end_period_ts": 1000, "yes_ask": {"close": 63}},          # cents
+            {"end_period_ts": 1000, "yes_ask": {"close": 63},           # cents
+             "yes_bid": {"close": 61}},
             {"end_period_ts": 1060, "yes_ask": {"close_dollars": "0.9900"}}]}
     monkeypatch.setattr(kalshi, "get", get)
-    assert kalshi.ask_at("T", 1000) == 0.63
+    assert kalshi.quote_at("T", 1000) == (0.61, 0.63)
+
+
+def test_q_from_midpoints_not_wide_asks():
+    # GSW @ POR as the probe saw it: 18/76 and 24/82 -> asks sum to 1.58
+    o = kalshi.odds_from_quotes((0.24, 0.82), (0.18, 0.76), "cur")
+    assert abs(o["cur_q_home"] - 0.53 / (0.53 + 0.47)) < 1e-5
+    # no bid on a side: fall back to the two costs normalised
+    o = kalshi.odds_from_quotes((None, 0.62), (0.30, 0.41), "cur")
+    assert abs(o["cur_q_home"] - market.devig(o["cur_home_ml"], o["cur_away_ml"])) < 1e-5

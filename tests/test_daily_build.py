@@ -159,7 +159,8 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
         ask = 0.66 if path.split("/")[-2].endswith("BOS") else 0.37
         return {"candlesticks": [
             {"end_period_ts": int(tip_ts) - 120, "yes_ask": {"close_dollars": "0.5000"}},
-            {"end_period_ts": int(tip_ts) - 60, "yes_ask": {"close_dollars": f"{ask}"}},
+            {"end_period_ts": int(tip_ts) - 60, "yes_ask": {"close_dollars": f"{ask}"},
+             "yes_bid": {"close_dollars": f"{ask - 0.02:.2f}"}},
             {"end_period_ts": int(tip_ts) + 60, "yes_ask": {"close_dollars": "0.9900"}}]}
 
     prior = {"BOS": make_log(82, start="2025-10-22", seed=3, strength=1.0),
@@ -185,6 +186,7 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
     # Kalshi asks with the taker fee: BOS 0.62 -> 0.6365 -> -175; LAL 0.41 -> +134
     assert r["pre_book"] == "kalshi" and r["first_book"] == "kalshi"
     assert r["pre_home_ml"] == -175 and r["pre_away_ml"] == 134
+    assert abs(r["pre_q_home"] - 0.46 / (0.46 + 0.355)) < 1e-4    # midpoints
     assert pd.isna(r["close_home_ml"])
     page = (tmp_path / "public" / "preseason.html").read_text()
     assert "LAL @ BOS" in page and "pending" in page
@@ -196,6 +198,7 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
     assert r["home_won"] == 1 and r["close_book"] == "kalshi"
     assert r["close_home_ml"] == market.american_from_prob(market.kalshi_cost(0.66))
     assert r["close_away_ml"] == market.american_from_prob(market.kalshi_cost(0.37))
+    assert abs(r["close_q_home"] - 0.65 / (0.65 + 0.36)) < 1e-4  # close midpoints
     assert r["pre_home_ml"] == -175                        # pregame untouched
     assert not len(ledger.load(ledger.NATIVE_PATH))
     page = (tmp_path / "public" / "preseason.html").read_text()
