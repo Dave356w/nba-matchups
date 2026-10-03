@@ -49,6 +49,10 @@ import market
 
 NATIVE_PATH = os.path.join("data", "nba_ledger.csv")
 RECON_PATH = os.path.join("data", "nba_reconstructed.csv")
+# PRESEASON rows (exhibitions, basis "preseason"): same schema and pregame
+# lock as the native ledger, written by build_site.score_preseason. Never
+# read by the ledger or calibration pages, the hypotheses or any fit.
+PRESEASON_PATH = os.path.join("data", "nba_preseason.csv")
 
 COLUMNS = [
     # identity
@@ -173,7 +177,7 @@ def save(df, path):
     os.replace(tmp, path)
 
 
-def upsert_pregame(led, rows, now=None):
+def upsert_pregame(led, rows, now=None, basis="native"):
     """Add or refresh pregame rows. Returns (ledger, accepted, rejected).
 
     A row is written only if `now` is before its tip. An existing row is
@@ -182,6 +186,7 @@ def upsert_pregame(led, rows, now=None):
     with a model P and a price fills `first_*` once; later ones never do.
     A new row also gets `seen_*` once. Optional keys of a row: `report_utc`
     and `route` (copied to first_*), `price_note` (why it has no price).
+    `basis` labels the rows ("native"; "preseason" for PRESEASON_PATH).
     """
     now = now or utc_now()
     led = led.copy()
@@ -195,7 +200,7 @@ def upsert_pregame(led, rows, now=None):
         rec = {c: r.get(c, np.nan) for c in COLUMNS}
         rec["game_id"] = gid
         rec["snapshot_utc"] = fmt_utc(now)
-        rec["basis"] = "native"
+        rec["basis"] = basis
         for c in WRITE_ONCE_COLUMNS:
             rec[c] = np.nan
         src = {**rec, "report_utc": r.get("report_utc", np.nan),

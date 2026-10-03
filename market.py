@@ -55,6 +55,7 @@ BBR_TEAMS = frozenset((
     "NOP NYK OKC ORL PHI PHO POR SAC SAS TOR UTA WAS").split())
 
 # ESPN season.type: 1 preseason, 2 regular season, 3 postseason, 5 play-in.
+PRESEASON = 1
 REGULAR_SEASON = 2
 
 ODDS_LADDER = (

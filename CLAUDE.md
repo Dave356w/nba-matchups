@@ -14,6 +14,13 @@ owner directs the product.
 - `data/nba_ledger.csv`: **native** rows, pregame-locked (snapshot < tip).
 - `data/nba_reconstructed.csv`: **reconstructed** rows (leave-one-season-out,
   closing price). This is hindsight and is not forward evidence.
+- `data/nba_preseason.csv`: **preseason** rows (basis "preseason"):
+  exhibitions, same schema and pregame lock as native, scored by the
+  carryover logit on last season's games only (`build_site.PRESEASON_TAG`,
+  route "preseason"). Shown only on `preseason.html`; never pooled with
+  native or reconstructed rows, the hypotheses or any fit. Starters rest,
+  so these rows say how far the offseason view travels, not regular-season
+  skill.
 
 ## Evidence rules
 

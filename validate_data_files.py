@@ -97,6 +97,15 @@ def check_injuries(path=ledger.INJURY_PATH):
 
 def main():
     errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
+    errs += check(ledger.PRESEASON_PATH)
+    if os.path.exists(ledger.PRESEASON_PATH):
+        b = pd.read_csv(ledger.PRESEASON_PATH, dtype={"game_id": str})["basis"]
+        if not b.eq("preseason").all():
+            errs.append(f"{ledger.PRESEASON_PATH}: basis other than preseason")
+    if os.path.exists(ledger.PRESEASON_PATH) and os.path.exists(ledger.NATIVE_PATH):
+        ids = set(pd.read_csv(ledger.PRESEASON_PATH, dtype={"game_id": str})["game_id"])
+        if ids & set(pd.read_csv(ledger.NATIVE_PATH, dtype={"game_id": str})["game_id"]):
+            errs.append("a preseason game_id is also in the native ledger")
     for e in errs:
         print("ERROR", e)
     print("data files OK" if not errs else f"{len(errs)} problem(s)")
