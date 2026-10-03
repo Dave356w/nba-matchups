@@ -144,12 +144,24 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
                      home="BOS", state="pre", completed=False,
                      away_pts=None, home_pts=None)]   # non-NBA club: skipped
 
-    def odds(gid):
-        done = state["completed"]
-        return {"dk": dict(book="dk", cur_home_ml=-150, cur_away_ml=125,
-                           open_home_ml=-140, open_away_ml=120,
-                           close_home_ml=-160 if done else None,
-                           close_away_ml=135 if done else None)}
+    def odds(gid):                      # sportsbooks: never read for preseason
+        raise AssertionError("ESPN odds read for a preseason game")
+
+    tip_ts = ledger.parse_utc(tip).timestamp()
+
+    def kget(path, **params):
+        if path == "/events":
+            mk = lambda t, ask: {"ticker": f"KXNBAGAME-26OCT08LALBOS-{t}",
+                                 "yes_ask_dollars": ask, "yes_bid_dollars": "0.30"}
+            return {"events": [{"event_ticker": "KXNBAGAME-26OCT08LALBOS",
+                                "markets": [mk("LAL", "0.4100"), mk("BOS", "0.6200")]}]}
+        assert path.endswith("/candlesticks") and params["end_ts"] <= tip_ts
+        ask = 0.66 if path.split("/")[-2].endswith("BOS") else 0.37
+        return {"candlesticks": [
+            {"end_period_ts": int(tip_ts) - 120, "yes_ask": {"close_dollars": "0.5000"}},
+            {"end_period_ts": int(tip_ts) - 60, "yes_ask": {"close_dollars": f"{ask}"},
+             "yes_bid": {"close_dollars": f"{ask - 0.02:.2f}"}},
+            {"end_period_ts": int(tip_ts) + 60, "yes_ask": {"close_dollars": "0.9900"}}]}
 
     prior = {"BOS": make_log(82, start="2025-10-22", seed=3, strength=1.0),
              "LAL": make_log(82, start="2025-10-22", seed=4, strength=-1.0)}
@@ -160,6 +172,7 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
     monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
     monkeypatch.setattr(build_site, "load_early", lambda: early)
     monkeypatch.setattr(build_site.nc, "load_logs", lambda y: prior)
+    monkeypatch.setattr(build_site.kalshi, "get", kget)
 
     assert build_site.main(["--date", day1]) == 0
     assert not len(ledger.load(ledger.NATIVE_PATH))        # never native
@@ -170,15 +183,23 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
     assert r["first_route"] == "preseason" and r["gp_home"] == 0
     assert r["away_b2b"] == 1 and r["home_b2b"] == 0
     assert r["delta"] > 0 and r["lean"] == "BOS" and 0.5 < r["p_home"] < 1
-    assert r["pre_home_ml"] == -150 and pd.isna(r["close_home_ml"])
+    # Kalshi asks with the taker fee: BOS 0.62 -> 0.6365 -> -175; LAL 0.41 -> +134
+    assert r["pre_book"] == "kalshi" and r["first_book"] == "kalshi"
+    assert r["pre_home_ml"] == -175 and r["pre_away_ml"] == 134
+    assert abs(r["pre_q_home"] - 0.46 / (0.46 + 0.355)) < 1e-4    # midpoints
+    assert pd.isna(r["close_home_ml"])
     page = (tmp_path / "public" / "preseason.html").read_text()
     assert "LAL @ BOS" in page and "pending" in page
 
     state["completed"] = True
     assert build_site.main(["--date", "2026-10-09"]) == 0
     r = ledger.load(ledger.PRESEASON_PATH).iloc[0]
-    assert r["home_won"] == 1 and r["close_home_ml"] == -160
-    assert r["pre_home_ml"] == -150                        # pregame untouched
+    # close = the last candle ending at or before tip (0.66 / 0.37), never after
+    assert r["home_won"] == 1 and r["close_book"] == "kalshi"
+    assert r["close_home_ml"] == market.american_from_prob(market.kalshi_cost(0.66))
+    assert r["close_away_ml"] == market.american_from_prob(market.kalshi_cost(0.37))
+    assert abs(r["close_q_home"] - 0.65 / (0.65 + 0.36)) < 1e-4  # close midpoints
+    assert r["pre_home_ml"] == -175                        # pregame untouched
     assert not len(ledger.load(ledger.NATIVE_PATH))
     page = (tmp_path / "public" / "preseason.html").read_text()
     assert "Preseason · exhibition" in page and "105" in page

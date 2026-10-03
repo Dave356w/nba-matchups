@@ -39,7 +39,12 @@ ESPNBET_PROVIDER_ID = "58"
 # Books we read, in preference order: (ESPN provider id, label). Anything not
 # listed here (notably 59, ESPN BET live/in-game odds) is ignored.
 BOOKS = ((DK_PROVIDER_ID, "dk"), (ESPNBET_PROVIDER_ID, "espnbet"))
-BOOK_NAMES = {"dk": "DraftKings", "espnbet": "ESPN BET"}
+BOOK_NAMES = {"dk": "DraftKings", "espnbet": "ESPN BET", "kalshi": "Kalshi"}
+# Exchanges priced outside ESPN (kalshi.py). Only the preseason ledger reads
+# them; pick_pregame / pick_close never do, so no regular-season row can.
+EXCHANGES = ("kalshi",)
+# Kalshi's taker fee per contract, as a share of p(1 - p) (kalshi_cost).
+KALSHI_FEE = 0.07
 SCOREBOARD = ("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/"
               "scoreboard?dates={ds}&limit=100")
 ODDS = ("https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/"
@@ -319,6 +324,33 @@ def unit_profit(ml, won):
     if not won:
         return -1.0
     return ml / 100.0 if ml > 0 else 100.0 / -ml
+
+
+def american_from_prob(p):
+    """American price paying 1/p per unit staked (fair odds at cost p); None
+    outside (0, 1). Rounded to the nearest int, the ledger's price unit."""
+    try:
+        p = float(p)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(p) or not 0 < p < 1:
+        return None
+    return -int(round(100 * p / (1 - p))) if p >= 0.5 \
+        else int(round(100 * (1 - p) / p))
+
+
+def kalshi_cost(ask):
+    """Cost per $1 contract of buying YES at `ask` dollars, taker fee
+    included: ask + KALSHI_FEE * ask * (1 - ask) (Kalshi rounds each order's
+    total fee up to the cent; per contract this is the large-order limit).
+    NaN outside (0, 1)."""
+    try:
+        a = float(ask)
+    except (TypeError, ValueError):
+        return float("nan")
+    if not np.isfinite(a) or not 0 < a < 1:
+        return float("nan")
+    return a + KALSHI_FEE * a * (1 - a)
 
 
 def ats_result(home_margin, home_spread):

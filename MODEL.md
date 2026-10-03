@@ -38,7 +38,9 @@ For a game on date D, with g = min(games played before D by either team):
 Preseason (exhibition) games are not regular-season rows: they are scored
 separately to `data/nba_preseason.csv` (tag `..._carry25_preseason_g0`) by
 the §3 logit on last season's games alone, with b2b_net from the previous
-day's scoreboard, and shown only on the Preseason page. No new fit; the
+day's scoreboard, priced from Kalshi (YES asks with the taker fee; close
+= the last 1-minute candle at or before tip; `kalshi.py`), and shown only
+on the Preseason page. No new fit; the
 logit was trained on regular-season games, so those rows measure how far
 the offseason view travels, not regular-season skill.
 

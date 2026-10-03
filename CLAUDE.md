@@ -17,7 +17,10 @@ owner directs the product.
 - `data/nba_preseason.csv`: **preseason** rows (basis "preseason"):
   exhibitions, same schema and pregame lock as native, scored by the
   carryover logit on last season's games only (`build_site.PRESEASON_TAG`,
-  route "preseason"). Shown only on `preseason.html`; never pooled with
+  route "preseason"), priced from **Kalshi** (`kalshi.py`, book "kalshi":
+  YES asks with the taker fee as American odds; close = the last 1-minute
+  candle ending at or before tip), never a sportsbook. Exchange prices are
+  allowed only in this file. Shown only on `preseason.html`; never pooled with
   native or reconstructed rows, the hypotheses or any fit. Starters rest,
   so these rows say how far the offseason view travels, not regular-season
   skill.

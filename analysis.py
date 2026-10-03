@@ -65,7 +65,8 @@ def book_split(h):
     """[(book label, rows)] by closing book, in market.BOOKS order."""
     if h is None or not len(h):
         return []
-    return [(b, h[h["close_book"] == b]) for _, b in market.BOOKS
+    labels = [b for _, b in market.BOOKS] + list(market.EXCHANGES)
+    return [(b, h[h["close_book"] == b]) for b in labels
             if (h["close_book"] == b).any()]
 
 
