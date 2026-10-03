@@ -15,7 +15,10 @@ Steps
      written to data/nba_ledger.csv only while before tip. Each game's ESPN
      injury list is snapshotted alongside to data/nba_injuries.csv under the
      same pregame lock (research input; the model does not read it).
-  3. Render public/index.html, grades.html and market-calibration.html.
+     Preseason games go to data/nba_preseason.csv instead (score_preseason),
+     graded the same way and never mixed with the native ledger.
+  3. Render public/index.html, grades.html, market-calibration.html and
+     preseason.html.
 
 The model is nba_composite.py, unchanged. This file only feeds it pregame game
 logs (games strictly before the slate date) and records what it said.
@@ -73,6 +76,9 @@ MODEL_TAG_V5_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_avail_v5"
 # free throws only as FTA/FGA. Same v4 fallback as v5.
 MODEL_TAG_V6 = "fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6"
 MODEL_TAG_V6_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6"
+# Exhibition rows (data/nba_preseason.csv, score_preseason): the v2 carryover
+# logit on last season's games alone (regular-season game 0 abstains).
+PRESEASON_TAG = "fourfactors_hl25_b2b_carry25_preseason_g0"
 FALLBACK_FILE = "logit_v4.json"
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
               MODEL_TAG_V6_AVAIL)
@@ -369,19 +375,84 @@ def score_slate(today, weights, model, now=None):
         # report edition this build read, whether or not it covered the game
         r["report_utc"] = report_utc(getattr(live, "report_time", None))
         r["route"] = route(r, model)
-        try:
-            odds = market.pick_pregame(market.book_odds(g["game_id"]))
-            if not odds:
-                r["price_note"] = "no DraftKings or ESPN BET moneyline pair"
-        except Exception as e:  # noqa: BLE001
-            log(f"odds {g['game_id']}: {e!r}")
-            odds = {}
-            r["price_note"] = f"odds fetch failed: {type(e).__name__}"
-        r["pre_book"] = odds.get("book")
-        r["pre_home_ml"] = odds.get("cur_home_ml")
-        r["pre_away_ml"] = odds.get("cur_away_ml")
-        q = market.devig(r["pre_home_ml"], r["pre_away_ml"])
-        r["pre_q_home"] = round(q, 5) if np.isfinite(q) else np.nan
+        add_pregame_price(r)
+        rows.append(r)
+    return rows
+
+
+def add_pregame_price(r):
+    """The current moneyline pair of the first book in market.BOOKS, in place
+    (pre_book, pre_home_ml, pre_away_ml, pre_q_home; price_note when none)."""
+    try:
+        odds = market.pick_pregame(market.book_odds(r["game_id"]))
+        if not odds:
+            r["price_note"] = "no DraftKings or ESPN BET moneyline pair"
+    except Exception as e:  # noqa: BLE001
+        log(f"odds {r['game_id']}: {e!r}")
+        odds = {}
+        r["price_note"] = f"odds fetch failed: {type(e).__name__}"
+    r["pre_book"] = odds.get("book")
+    r["pre_home_ml"] = odds.get("cur_home_ml")
+    r["pre_away_ml"] = odds.get("cur_away_ml")
+    q = market.devig(r["pre_home_ml"], r["pre_away_ml"])
+    r["pre_q_home"] = round(q, 5) if np.isfinite(q) else np.nan
+
+
+def score_preseason(today, weights, now=None):
+    """Exhibition tracking (data/nba_preseason.csv): every NBA-vs-NBA
+    preseason game on today's scoreboard that has not tipped, scored by the
+    early-season carryover logit (model/logit_early.json) on LAST SEASON's
+    games only, i.e. the game-0 case the regular-season card abstains on.
+
+    No new fit: the delta and logit are the shipped carryover ones (the
+    offseason discount rho cancels when every row is last season's). b2b_net
+    comes from yesterday's scoreboard (any game, any season type); when that
+    fetch fails it is 0. The logit was fitted on regular-season games, and
+    preseason rotations are not, so this measures how far the model's
+    offseason view travels, not the model's regular-season skill. Rows are
+    tagged PRESEASON_TAG with route "preseason".
+    """
+    games = [g for g in market.scoreboard(today)
+             if g["season_type"] == market.PRESEASON
+             and g["home"] in market.BBR_TEAMS and g["away"] in market.BBR_TEAMS]
+    if not games:
+        return []
+    now = now or ledger.utc_now()
+    pre = [g for g in games
+           if g["state"] == "pre" and ledger.parse_utc(g["tip_utc"]) > now]
+    early = load_early()
+    if not pre or early is None:
+        if pre:
+            log("preseason: no early model (model/logit_early.json); skipped")
+        return []
+    prior = nc.load_logs(season_for(today) - 1)        # cached; completed season
+    yday = (pd.Timestamp(today) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    try:
+        played = {t for g in market.scoreboard(yday) for t in (g["home"], g["away"])}
+    except Exception as e:  # noqa: BLE001
+        log(f"preseason: yesterday's scoreboard failed ({e!r}); b2b_net = 0")
+        played = set()
+    hl = early.get("half_life", nc.HALF_LIFE)
+    rows = []
+    for g in pre:
+        home, away = g["home"], g["away"]
+        r = dict(game_id=g["game_id"], slate_date=today, season=season_for(today),
+                 tip_utc=g["tip_utc"], model_tag=PRESEASON_TAG, home=home,
+                 away=away, gp_home=0, gp_away=0, route="preseason")
+        d = cold_start.carry_delta(None, 0, prior.get(home), None, 0,
+                                   prior.get(away), weights,
+                                   rho=early.get("rho", cold_start.RHO),
+                                   half_life=hl) \
+            if home in prior and away in prior else None
+        if d is not None:
+            hb, ab = int(home in played), int(away in played)
+            vals = {"delta": d, "b2b_net": ab - hb}
+            p = float(nc.predict(early, [[vals[f] for f in early["features"]]])[0])
+            lean_home = p >= 0.5
+            r.update(home_b2b=hb, away_b2b=ab, delta=round(d, 3),
+                     p_home=round(p, 5), lean=home if lean_home else away,
+                     p_lean=round(p if lean_home else 1 - p, 5))
+        add_pregame_price(r)
         rows.append(r)
     return rows
 
@@ -454,7 +525,8 @@ def esc(s):
 
 def page(title, active, body, built):
     links = [("index.html", "Today"), ("grades.html", "Ledger"),
-             ("market-calibration.html", "Calibration")]
+             ("market-calibration.html", "Calibration"),
+             ("preseason.html", "Preseason")]
     nav = "".join(f"<a href='{h}' class='{'on' if h == active else ''}'>{t}</a>"
                   for h, t in links)
     return (f"<!doctype html><html lang='en'><head><meta charset='utf-8'>"
@@ -580,7 +652,9 @@ def render_index(led, today, built, model_ok):
     if not len(day):
         return page("NBA composite", "index.html", head +
                     "<p class='note'>No regular-season games scored for this "
-                    "date (off day, preseason, or the build ran after tip).</p>",
+                    "date (off day, preseason, or the build ran after tip). "
+                    "Exhibition games are tracked separately on the "
+                    "<a href='preseason.html'>Preseason</a> page.</p>",
                     built)
     rows = []
     for _, r in day.sort_values("tip_utc").iterrows():
@@ -1230,6 +1304,81 @@ def _model_sections(body, secs):
         body.append("</details>")
 
 
+# ------------------------------------------------------------- preseason ---
+def render_preseason(pre, built):
+    """Exhibition rows (data/nba_preseason.csv) on their own page: model vs
+    the close on the same games, one closing book x season at a time, then
+    the flat-bet record at the pregame price and every row. Nothing here is
+    pooled with the native or reconstructed ledgers."""
+    body = ["<h1>Preseason</h1><p class='lead'>Exhibition games, tracked "
+            "apart from everything else. The regular-season card abstains "
+            "until both teams have played; here each game is scored by the "
+            "early-season carryover model on <b>last season's games only</b> "
+            f"(tag <code>{esc(PRESEASON_TAG)}</code>). Starters rest and "
+            "rotations are experiments, so these rows measure how far the "
+            "model's offseason view travels, not its regular-season skill. "
+            "They never enter the Ledger, Calibration, hypotheses or any "
+            "fit.</p>",
+            READ_KEY.replace("Native</dt><dd>Written before tip and frozen: "
+                             "the forward test.",
+                             "Preseason</dt><dd>Written before tip and "
+                             "frozen, like native rows, but exhibitions.")]
+    if not len(pre):
+        body.append("<p class='note'>No preseason games recorded yet. The "
+                    "daily build writes them from the first preseason slate "
+                    "it sees.</p>")
+        return page("NBA preseason", "preseason.html", "".join(body), built)
+    g = ledger.graded(pre)
+    h = analysis.with_close(g)
+    scored = pd.to_numeric(pre["p_home"], errors="coerce").notna()
+    priced = pd.to_numeric(pre["pre_q_home"], errors="coerce").notna()
+    body.append(f"<p class='note'>{len(pre)} games recorded: {int(scored.sum())} "
+                f"with a model P, {int(priced.sum())} with a pregame price, "
+                f"{len(g)} graded, {len(h)} graded with a model P and a "
+                "close.</p>")
+    secs = []
+    for book, hb in analysis.book_split(h):
+        bname = market.BOOK_NAMES[book]
+        for season in sorted(hb["season"].dropna().unique()):
+            stxt = season_txt(season)
+            secs.append(dict(h=hb[hb["season"] == season], id=_slug("pre", book, stxt),
+                             label=f"Preseason · {bname} close · {stxt}",
+                             title=f"<span class='badge recon'>Preseason · exhibition</span>"
+                                   f"{esc(bname)} close · {stxt}"))
+    if not secs:
+        body.append("<p class='note'>No graded games with a model P and a "
+                    "close yet.</p>")
+    _model_sections(body, secs)
+    for sec in secs:
+        roi = analysis.roi_summary(sec["h"], price="pre")
+        if roi:
+            body.append(f"<h3>Flat 1u bets at the pregame price — "
+                        f"{esc(sec['label'])}</h3>")
+            body.append(_roi_table(roi))
+    rows = []
+    for _, r in pre.sort_values(["slate_date", "tip_utc"], ascending=False).iterrows():
+        won = pd.to_numeric(r["home_won"], errors="coerce")
+        final = ("pending" if not np.isfinite(won) else
+                 f"{int(r['away_pts'])}–{int(r['home_pts'])}")
+        rows.append([esc(r["slate_date"]), f"{esc(r['away'])} @ {esc(r['home'])}",
+                     pct(pd.to_numeric(r["p_home"], errors="coerce")),
+                     pct(pd.to_numeric(r["pre_q_home"], errors="coerce"))
+                     + book_tag(r["pre_book"]),
+                     pct(pd.to_numeric(r["close_q_home"], errors="coerce"))
+                     + book_tag(r["close_book"]),
+                     final])
+    body.append("<details class='more' open><summary>Game by game <span "
+                "class='mut'>— newest first</span></summary>")
+    body.append(table(["Date", "Away @ Home", "Model P(home)",
+                       "Pregame q(home)", "Close q(home)", "Final (away–home)"],
+                      rows, left=(0, 1), key=(2,)))
+    body.append("</details><p class='note'>q is the no-vig market probability. "
+                "Prices are refreshed each build until tip and frozen after; "
+                "the close comes from the same book when it has one. b2b_net "
+                "is read from the previous day's scoreboard.</p>")
+    return page("NBA preseason", "preseason.html", "".join(body), built)
+
+
 def snapshot_injuries(rows):
     """Pregame injury lists for today's accepted rows -> data/nba_injuries.csv.
 
@@ -1251,13 +1400,15 @@ def snapshot_injuries(rows):
     log(f"injury snapshots: {len(acc)} written, {len(rej)} skipped {rej}")
 
 
-def write_pages(native, recon, today, model_ok):
+def write_pages(native, recon, today, model_ok, pre=None):
     OUT_DIR.mkdir(exist_ok=True)
     built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     (OUT_DIR / "index.html").write_text(render_index(native, today, built, model_ok))
     (OUT_DIR / "grades.html").write_text(render_grades(native, recon, built))
     (OUT_DIR / "market-calibration.html").write_text(
         render_calibration(native, recon, built))
+    (OUT_DIR / "preseason.html").write_text(
+        render_preseason(ledger.empty() if pre is None else pre, built))
     (OUT_DIR / ".nojekyll").write_text("")
 
 
@@ -1270,6 +1421,7 @@ def main(argv=None):
     today = a.date or et_today()
     native = ledger.load(ledger.NATIVE_PATH)
     recon = ledger.load(ledger.RECON_PATH)
+    pre = ledger.load(ledger.PRESEASON_PATH)
     weights, model = load_model()
     model_ok = weights is not None and model is not None
     global ACTIVE_TAGS
@@ -1291,8 +1443,23 @@ def main(argv=None):
         else:
             log("no fitted model in model/ -- skipping slate scoring")
         ledger.save(native, ledger.NATIVE_PATH)
-    write_pages(native, recon, today, model_ok)
-    log(f"wrote {OUT_DIR}/index.html, grades.html, market-calibration.html")
+        # exhibitions: their own file, graded and scored the same way
+        pre, n = grade(pre, today)
+        rows = []
+        if model_ok:
+            try:
+                rows = score_preseason(today, weights)
+            except Exception as e:  # noqa: BLE001
+                log(f"preseason scoring failed ({e!r})")
+        pre, acc, rej = ledger.upsert_pregame(pre, rows, basis="preseason")
+        if n or acc:
+            log(f"preseason: graded {n}, {len(acc)} rows written, "
+                f"{len(rej)} rejected {rej}")
+        if len(pre):
+            ledger.save(pre, ledger.PRESEASON_PATH)
+    write_pages(native, recon, today, model_ok, pre)
+    log(f"wrote {OUT_DIR}/index.html, grades.html, market-calibration.html, "
+        "preseason.html")
     return 0
 
 

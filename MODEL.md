@@ -35,6 +35,13 @@ For a game on date D, with g = min(games played before D by either team):
 | g ≥ 10, otherwise | base logit (§2) | `model/logit.json` | `..._luck_talent_ft_v6` |
 | g ≥ 10, a v6 term missing (no box score, no 3PA) | frozen v4 base logit | `model/logit_v4.json` | `..._phase_v4` |
 
+Preseason (exhibition) games are not regular-season rows: they are scored
+separately to `data/nba_preseason.csv` (tag `..._carry25_preseason_g0`) by
+the §3 logit on last season's games alone, with b2b_net from the previous
+day's scoreboard, and shown only on the Preseason page. No new fit; the
+logit was trained on regular-season games, so those rows measure how far
+the offseason view travels, not regular-season skill.
+
 The CLI `score` has no box scores, so it always uses `model/logit_v4.json`.
 
 **Report coverage** (`player_availability.covers`): the latest NBA injury

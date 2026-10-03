@@ -121,3 +121,64 @@ def test_build_tags_v3_with_availability_and_falls_back(tmp_path, monkeypatch, w
     assert by["9101"]["route"] == "avail" and by["9102"]["route"] == "base"
     assert by["9101"]["report_utc"] == by["9102"]["report_utc"] == "2027-01-10T22:30:00Z"
     assert "injury report" in (tmp_path / "public" / "index.html").read_text()
+
+
+def test_preseason_track(tmp_path, monkeypatch, weights, model):
+    """Exhibitions go to data/nba_preseason.csv only: scored from last season's
+    games by the early logit, priced, locked at tip, graded with a close."""
+    monkeypatch.chdir(tmp_path)
+    tip = (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%MZ")
+    day1 = "2026-10-08"
+    state = {"completed": False}
+
+    def scoreboard(date):
+        if date != day1:                       # yesterday: LAL played
+            return [dict(game_id="8000", tip_utc=tip, season_type=1, away="LAL",
+                         home="PHO", state="post", completed=True,
+                         away_pts=99, home_pts=100)]
+        done = state["completed"]
+        return [dict(game_id="9201", tip_utc=tip, season_type=1, away="LAL",
+                     home="BOS", state="post" if done else "pre", completed=done,
+                     away_pts=98 if done else None, home_pts=105 if done else None),
+                dict(game_id="9202", tip_utc=tip, season_type=1, away="XYZ",
+                     home="BOS", state="pre", completed=False,
+                     away_pts=None, home_pts=None)]   # non-NBA club: skipped
+
+    def odds(gid):
+        done = state["completed"]
+        return {"dk": dict(book="dk", cur_home_ml=-150, cur_away_ml=125,
+                           open_home_ml=-140, open_away_ml=120,
+                           close_home_ml=-160 if done else None,
+                           close_away_ml=135 if done else None)}
+
+    prior = {"BOS": make_log(82, start="2025-10-22", seed=3, strength=1.0),
+             "LAL": make_log(82, start="2025-10-22", seed=4, strength=-1.0)}
+    early = {"features": ["delta", "b2b_net"], "intercept": 0.39,
+             "coef": [0.035, 0.31], "rho": 0.25, "half_life": 25.0}
+    monkeypatch.setattr(market, "scoreboard", scoreboard)
+    monkeypatch.setattr(market, "book_odds", odds)
+    monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
+    monkeypatch.setattr(build_site, "load_early", lambda: early)
+    monkeypatch.setattr(build_site.nc, "load_logs", lambda y: prior)
+
+    assert build_site.main(["--date", day1]) == 0
+    assert not len(ledger.load(ledger.NATIVE_PATH))        # never native
+    pre = ledger.load(ledger.PRESEASON_PATH)
+    assert list(pre["game_id"]) == ["9201"]
+    r = pre.iloc[0]
+    assert r["basis"] == "preseason" and r["model_tag"] == build_site.PRESEASON_TAG
+    assert r["first_route"] == "preseason" and r["gp_home"] == 0
+    assert r["away_b2b"] == 1 and r["home_b2b"] == 0
+    assert r["delta"] > 0 and r["lean"] == "BOS" and 0.5 < r["p_home"] < 1
+    assert r["pre_home_ml"] == -150 and pd.isna(r["close_home_ml"])
+    page = (tmp_path / "public" / "preseason.html").read_text()
+    assert "LAL @ BOS" in page and "pending" in page
+
+    state["completed"] = True
+    assert build_site.main(["--date", "2026-10-09"]) == 0
+    r = ledger.load(ledger.PRESEASON_PATH).iloc[0]
+    assert r["home_won"] == 1 and r["close_home_ml"] == -160
+    assert r["pre_home_ml"] == -150                        # pregame untouched
+    assert not len(ledger.load(ledger.NATIVE_PATH))
+    page = (tmp_path / "public" / "preseason.html").read_text()
+    assert "Preseason · exhibition" in page and "105" in page
