@@ -13,7 +13,7 @@ Site (once Pages is enabled): **<https://dave356w.github.io/nba-matchups/>**
 | `index.html` — Today | Composite Δ, the model's P(win) (games 1–9 tagged *early · carryover*), the moneyline with the no-vig probability, the lean, **model − market** (pp) and the model's EV estimate at the posted price |
 | `grades.html` — Ledger | The pre-registered hypotheses (H1–H4: native ROI at the pregame or first-snapshot price beside the hindsight rule, each beside its null), then one section per basis × book × season: a verdict strip (log loss vs the close, lean ROI and value ROI each vs the market-correct null ± 1 SE, native CLV), **ROI of 1u flat bets** on the lean and value side (model %, market %, break-even, win %, ROI, null) by early/later games and model edge; collapsed: ROI by price band (EV beside its null, z), against the spread, game by game |
 | `market-calibration.html` — Calibration | Reliability charts (stated vs actual, ±2 SE): the market's no-vig close per book, then the model and the market on the same games per section, with Brier/log loss model vs market; the numbers in collapsed tables |
-| `preseason.html` — Preseason | Exhibition games only (`data/nba_preseason.csv`): each scored by the early carryover logit on last season's games alone, priced and graded like native rows; model vs the close (Brier/log loss ± 1 SE, reliability), flat-bet ROI at the pregame price beside its null, game by game. Never pooled with the other pages |
+| `preseason.html` — Preseason | Exhibition games only (`data/nba_preseason.csv`): each scored by the early carryover logit on last season's games alone, priced from Kalshi (YES asks with the taker fee; close = the last 1-minute candle before tip) and graded like native rows; model vs the close (Brier/log loss ± 1 SE, reliability), flat-bet ROI at the pregame price beside its null, game by game. Never pooled with the other pages |
 
 Native (pregame-locked) and reconstructed (leave-one-season-out, hindsight)
 rows are stored in separate files and shown in separate sections. They are
@@ -25,6 +25,7 @@ never pooled into one record.
 | `cold_start.py` / `player_availability.py` | Games 1–9 carryover; NBA injury-report availability terms and report coverage (games 10+). |
 | `build_site.py` | Daily pipeline: grade → score today's slate → write ledger → render pages. |
 | `market.py` | ESPN scoreboard + sportsbook odds (DraftKings, else ESPN BET; each price labelled with its book), devig, break-even, EV null, SEs, price ladder. The single home for price arithmetic. |
+| `kalshi.py` | Kalshi exchange prices for preseason rows only: live asks per build, the close from the last pregame 1-minute candle. |
 | `ledger.py` | Ledger schema, pregame-lock ingest, and grading rules. |
 | `analysis.py` | Calibration and same-row model-vs-market statistics. |
 | `backfill_history.py` | Reconstruction of completed seasons with the production routing (leave-one-season-out, or walk-forward), with historical closes. |

@@ -39,6 +39,7 @@ import pandas as pd
 
 import analysis
 import cold_start
+import kalshi
 import ledger
 import market
 import nba_composite as nc
@@ -271,7 +272,22 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
 
 
 # ------------------------------------------------------------- pipeline ----
-def grade(led, today):
+def espn_close(row):
+    """One ESPN book's open/close for a graded row (its pregame book first)."""
+    pre_book = row["pre_book"]
+    return market.pick_close(market.book_odds(str(row["game_id"])),
+                             prefer=pre_book if pd.notna(pre_book) else None)
+
+
+def kalshi_close(row):
+    """Kalshi's last pregame-minute pair for a graded preseason row."""
+    return kalshi.close_odds(str(row["slate_date"]), row["home"], row["away"],
+                             row["tip_utc"])
+
+
+def grade(led, today, close=espn_close):
+    """Final scores for finished games from earlier slates, with the closing
+    pair from `close(row)` (ESPN books; kalshi_close for preseason rows)."""
     todo = ledger.pending(led, today)
     if not len(todo):
         return led, 0
@@ -282,13 +298,13 @@ def grade(led, today):
         except Exception as e:  # noqa: BLE001
             log(f"grade {date}: scoreboard failed ({e!r}); retry next run")
             continue
-        for gid, pre_book in zip(rows["game_id"].astype(str), rows["pre_book"]):
+        for _, row in rows.iterrows():
+            gid = str(row["game_id"])
             g = games.get(gid)
             if not g or not g["completed"]:
                 continue
             try:
-                odds = market.pick_close(market.book_odds(gid),
-                                         prefer=pre_book if pd.notna(pre_book) else None)
+                odds = close(row)
             except Exception as e:  # noqa: BLE001
                 log(f"grade {gid}: odds failed ({e!r}); graded without close")
                 odds = None
@@ -411,6 +427,10 @@ def score_preseason(today, weights, now=None):
     preseason rotations are not, so this measures how far the model's
     offseason view travels, not the model's regular-season skill. Rows are
     tagged PRESEASON_TAG with route "preseason".
+
+    Prices come from Kalshi (kalshi.py, book "kalshi"), not a sportsbook:
+    the YES asks with the taker fee, one request per build; the close is
+    the last 1-minute candle before tip, read at grading (kalshi_close).
     """
     games = [g for g in market.scoreboard(today)
              if g["season_type"] == market.PRESEASON
@@ -432,6 +452,12 @@ def score_preseason(today, weights, now=None):
     except Exception as e:  # noqa: BLE001
         log(f"preseason: yesterday's scoreboard failed ({e!r}); b2b_net = 0")
         played = set()
+    try:
+        book = kalshi.open_games()
+        note = None
+    except Exception as e:  # noqa: BLE001
+        log(f"preseason: Kalshi fetch failed ({e!r}); rows unpriced")
+        book, note = {}, f"Kalshi fetch failed: {type(e).__name__}"
     hl = early.get("half_life", nc.HALF_LIFE)
     rows = []
     for g in pre:
@@ -452,7 +478,14 @@ def score_preseason(today, weights, now=None):
             r.update(home_b2b=hb, away_b2b=ab, delta=round(d, 3),
                      p_home=round(p, 5), lean=home if lean_home else away,
                      p_lean=round(p if lean_home else 1 - p, 5))
-        add_pregame_price(r)
+        odds = kalshi.pregame_odds(book, today, home, away)
+        if not odds:
+            r["price_note"] = note or "no Kalshi market with asks on both sides"
+        r["pre_book"] = odds.get("book")
+        r["pre_home_ml"] = odds.get("cur_home_ml")
+        r["pre_away_ml"] = odds.get("cur_away_ml")
+        q = market.devig(r["pre_home_ml"], r["pre_away_ml"])
+        r["pre_q_home"] = round(q, 5) if np.isfinite(q) else np.nan
         rows.append(r)
     return rows
 
@@ -1374,8 +1407,10 @@ def render_preseason(pre, built):
                       rows, left=(0, 1), key=(2,)))
     body.append("</details><p class='note'>q is the no-vig market probability. "
                 "Prices are refreshed each build until tip and frozen after; "
-                "the close comes from the same book when it has one. b2b_net "
-                "is read from the previous day's scoreboard.</p>")
+                "prices are Kalshi's YES asks with the taker fee included "
+                "(as American odds; q = the two normalised), and the close is "
+                "the last 1-minute Kalshi candle before tip. b2b_net is read "
+                "from the previous day's scoreboard.</p>")
     return page("NBA preseason", "preseason.html", "".join(body), built)
 
 
@@ -1444,7 +1479,7 @@ def main(argv=None):
             log("no fitted model in model/ -- skipping slate scoring")
         ledger.save(native, ledger.NATIVE_PATH)
         # exhibitions: their own file, graded and scored the same way
-        pre, n = grade(pre, today)
+        pre, n = grade(pre, today, close=kalshi_close)
         rows = []
         if model_ok:
             try:

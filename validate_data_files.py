@@ -34,7 +34,7 @@ def check(path):
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
     if list(df.columns) in (ledger.COLUMNS, ledger.PRE_SEEN_COLUMNS,
                             ledger.PRE_FIRST_COLUMNS, ledger.PRE_SPREAD_COLUMNS):
-        books = {b for _, b in market.BOOKS}
+        books = {b for _, b in market.BOOKS} | set(market.EXCHANGES)
         for col, q in (("pre_book", "pre_q_home"), ("close_book", "close_q_home")):
             priced = pd.to_numeric(df[q], errors="coerce").notna()
             if not df.loc[priced, col].isin(books).all():
@@ -53,7 +53,7 @@ def check(path):
             errs.append(f"{path}: first snapshot missing a time or not before tip")
         if (has & snap.notna() & (first > snap)).any():
             errs.append(f"{path}: first snapshot later than the latest snapshot")
-        books = {b for _, b in market.BOOKS}
+        books = {b for _, b in market.BOOKS} | set(market.EXCHANGES)
         if not df.loc[has, "first_book"].isin(books).all():
             errs.append(f"{path}: first_book missing or unknown on a first snapshot")
         if "seen_utc" in df.columns:
@@ -98,6 +98,12 @@ def check_injuries(path=ledger.INJURY_PATH):
 def main():
     errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
     errs += check(ledger.PRESEASON_PATH)
+    for path in (ledger.NATIVE_PATH, ledger.RECON_PATH):     # exchanges: preseason only
+        if os.path.exists(path):
+            df = pd.read_csv(path, dtype={"game_id": str})
+            cols = [c for c in ("pre_book", "close_book", "first_book") if c in df]
+            if df[cols].isin(market.EXCHANGES).any().any():
+                errs.append(f"{path}: an exchange price outside the preseason ledger")
     if os.path.exists(ledger.PRESEASON_PATH):
         b = pd.read_csv(ledger.PRESEASON_PATH, dtype={"game_id": str})["basis"]
         if not b.eq("preseason").all():
