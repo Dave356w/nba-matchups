@@ -30,6 +30,19 @@ def test_parse_events_maps_codes_and_dates():
         "KXNBAGAME-26OCT06BKNCHA-BKN"
 
 
+def test_market_ticker_uses_kalshi_codes():
+    # live tickers (2026-10-04/05): GSW and NYK, not GS / NY
+    assert kalshi.market_ticker("2026-10-04", "GSW", "LAC", "GSW") == \
+        "KXNBAGAME-26OCT04GSWLAC-GSW"
+    assert kalshi.market_ticker("2026-10-05", "PHI", "PHI", "NYK") == \
+        "KXNBAGAME-26OCT05NYKPHI-PHI"
+    assert kalshi.market_ticker("2026-10-05", "PHO", "DET", "PHO") == \
+        "KXNBAGAME-26OCT05PHXDET-PHX"
+    for bbr in market.BBR_TEAMS:                     # every code round-trips
+        code = kalshi.market_ticker("2026-10-05", bbr, bbr, "ATL").rsplit("-", 1)[-1]
+        assert kalshi.team(code) == bbr
+
+
 def test_one_sided_book_is_unpriced():
     js = {"events": [{"event_ticker": "KXNBAGAME-26OCT03MIATOR", "markets": [
         {"ticker": "KXNBAGAME-26OCT03MIATOR-MIA", "yes_ask_dollars": "0.3600"},

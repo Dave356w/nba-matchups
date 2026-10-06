@@ -337,6 +337,24 @@ def pending(led, today):
     return led[led["home_won"].isna() & (led["slate_date"].astype(str) < today)]
 
 
+CLOSE_RETRY_DAYS = 7   # graded rows with no close are re-asked this long
+
+
+def missing_close(led, today, days=CLOSE_RETRY_DAYS):
+    """Graded rows with no closing pair from the last `days` slates before
+    `today`: grading found the result but no close (a failed or empty odds
+    fetch), so the next builds ask again. Finished games only, so a close is
+    still never written to a pending row."""
+    if not len(led):
+        return led
+    d = pd.to_datetime(led["slate_date"].astype(str), errors="coerce")
+    t = pd.Timestamp(today)
+    won = pd.to_numeric(led["home_won"], errors="coerce").isin([0, 1])
+    no_close = (pd.to_numeric(led["close_home_ml"], errors="coerce").isna()
+                | pd.to_numeric(led["close_away_ml"], errors="coerce").isna())
+    return led[won & no_close & (d < t) & (d >= t - pd.Timedelta(days=days))]
+
+
 def graded(df):
     """Rows with a final result, as floats where numeric."""
     if not len(df):
