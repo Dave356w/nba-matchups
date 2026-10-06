@@ -22,11 +22,27 @@ owner directs the product.
   carryover logit on last season's games only (`build_site.PRESEASON_TAG`,
   route "preseason"), priced from **Kalshi** (`kalshi.py`, book "kalshi":
   YES asks with the taker fee as American odds; close = the last 1-minute
-  candle ending at or before tip), never a sportsbook. Exchange prices are
-  allowed only in this file. Shown only on `preseason.html`; never pooled with
+  candle ending at or before tip), never a sportsbook. Shown only on
+  `preseason.html`; never pooled with
   native or reconstructed rows, the hypotheses or any fit. Starters rest,
   so these rows say how far the offseason view travels, not regular-season
   skill.
+
+- **Kalshi is the pages' market** (owner's decision, 2026-10-06, after
+  `research/kalshi_benchmark.py`; results in
+  `diagnostics/kalshi_benchmark/`). Native and reconstructed rows carry
+  Kalshi's prices beside the sportsbook's (`ledger.KALSHI_COLUMNS`:
+  `kalshi_pre_*` under the pregame lock, `kalshi_first_*` written once with
+  `first_*`, `kalshi_open/close_*` by grading; seasons from
+  `ledger.KALSHI_FROM_SEASON` = 2025-26, the first Kalshi lists).
+  `analysis.market_view` prices a row by Kalshi when it is graded with a
+  Kalshi close (or pending with a Kalshi pregame price), else by its
+  sportsbook; the Ledger, Calibration, Model and Today pages and the report
+  read that view, so 2024-25 stays on ESPN BET. The sportsbook columns are
+  kept. The pre-registered hypotheses read the raw rows: they stay on the
+  sportsbook prices they were registered on. Reconstructed Kalshi prices
+  are filled by "Backfill history" with `kalshi` checked
+  (`backfill_history.py --kalshi`), never by hand.
 
 ## Evidence rules
 
@@ -34,8 +50,9 @@ owner directs the product.
    with separate labels and counts; never pool them silently.
 2. Compare the model with the market on the **same rows** using proper
    scores (Brier, log loss) and calibration. Accuracy or ROI alone does not
-   show calibration. Each row's close comes from one book (`close_book`:
-   DraftKings, or ESPN BET before late Nov 2025); report books separately.
+   show calibration. Each row's close comes from one market (`close_book`
+   in `analysis.market_view`: Kalshi from 2025-26, else DraftKings, or ESPN
+   BET before late Nov 2025); report markets separately.
    ESPN provider 59 (live odds) is in-game and never read. Every flat-ROI
    figure also carries the same-row market-favourite baseline (`fav_roi`,
    1u on the favourite of the same games at the same price).

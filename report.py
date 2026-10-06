@@ -205,9 +205,13 @@ def report_text(native, recon, pre=None, tags=()):
              "of the same games at the same price (same-row baseline).",
              "Bases, books and seasons are never pooled. Price bands are "
              "descriptive, not filters.",
+             "Market: Kalshi (last pre-tip minute; fee in the price) wherever a row "
+             "has it, from 2025-26; earlier rows keep their sportsbook close. The "
+             "hypotheses stay on the sportsbook prices they were registered on.",
              ""]
-    for block in (native_block(native), hypotheses_block(native, recon),
-                  reconstructed_block(recon), preseason_block(pre)):
+    nv, rv = analysis.market_view(native), analysis.market_view(recon)
+    for block in (native_block(nv), hypotheses_block(native, recon),
+                  reconstructed_block(rv), preseason_block(pre)):
         lines += block + [""]
     return "\n".join(lines)
 

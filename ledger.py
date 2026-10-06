@@ -79,16 +79,34 @@ COLUMNS = [
     # and why first_* was not filled then (blank when it was)
     "seen_utc", "seen_note",
 ]
+# Kalshi (exchange) prices beside the sportsbook's, from 2025-26 on (Kalshi
+# lists NBA games from the 2025 play-in). Same locks as their book twins:
+# kalshi_pre_* is refreshed with the pregame snapshot until tip; kalshi_first_*
+# is written once with first_* (same snapshot and model P); kalshi_open/close
+# are written by grading (open = first quoted hour; close = the last 1-minute
+# candle ending at or before tip; q = bid/ask midpoints, kalshi.mid_q). The
+# pages grade against these where a row has a Kalshi close
+# (analysis.market_view); the sportsbook columns are kept.
+KALSHI_PRE_COLUMNS = ["kalshi_pre_home_ml", "kalshi_pre_away_ml", "kalshi_pre_q_home"]
+KALSHI_FIRST_COLUMNS = ["kalshi_first_home_ml", "kalshi_first_away_ml",
+                        "kalshi_first_q_home"]
+KALSHI_GRADE_COLUMNS = ["kalshi_open_home_ml", "kalshi_open_away_ml",
+                        "kalshi_close_home_ml", "kalshi_close_away_ml",
+                        "kalshi_close_q_home"]
+KALSHI_COLUMNS = KALSHI_PRE_COLUMNS + KALSHI_FIRST_COLUMNS + KALSHI_GRADE_COLUMNS
+COLUMNS = COLUMNS + KALSHI_COLUMNS
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
 FIRST_COLUMNS = COLUMNS[COLUMNS.index("first_snapshot_utc"):
-                        COLUMNS.index("seen_utc")]
+                        COLUMNS.index("seen_utc")] + KALSHI_FIRST_COLUMNS
 # Where each first_* column comes from: a pregame column, or (report, route)
 # a key of the scored row that is not itself a ledger column.
 FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_tag",
                 "first_p_home": "p_home", "first_book": "pre_book",
                 "first_home_ml": "pre_home_ml", "first_away_ml": "pre_away_ml",
                 "first_q_home": "pre_q_home", "first_report_utc": "report_utc",
-                "first_route": "route"}
+                "first_route": "route",
+                **{f"kalshi_first_{k}": f"kalshi_pre_{k}"
+                   for k in ("home_ml", "away_ml", "q_home")}}
 # Columns written once and never refreshed or graded.
 WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS
 # String-valued columns (kept as object dtype).
@@ -97,15 +115,18 @@ TEXT_COLUMNS = ("pre_book", "close_book", "first_book", "first_model_tag",
                 "seen_utc", "seen_note")
 SPREAD_COLUMNS = ["close_spread", "close_home_spread_odds",
                   "close_away_spread_odds"]
+# Schema before the Kalshi columns: `load` reads it with them blank and the
+# next save writes the current schema (2026-10-06; the native ledger was empty).
+PRE_KALSHI_COLUMNS = [c for c in COLUMNS if c not in KALSHI_COLUMNS]
 # Schema before the report / route / seen columns: `load` reads it with them
 # blank and the next save writes the current schema. (The native ledger was
 # empty when they were added, 2026-10-01.)
-PRE_SEEN_COLUMNS = [c for c in COLUMNS if c not in
+PRE_SEEN_COLUMNS = [c for c in PRE_KALSHI_COLUMNS if c not in
                     ("first_report_utc", "first_route", *SEEN_COLUMNS)]
 # Schema before the first-snapshot columns: `load` reads it with them blank
 # and the next save writes the current schema. (The native ledger was empty
 # when they were added, 2026-10-01, so no row's first snapshot is unknown.)
-PRE_FIRST_COLUMNS = [c for c in COLUMNS if c not in WRITE_ONCE_COLUMNS]
+PRE_FIRST_COLUMNS = [c for c in PRE_KALSHI_COLUMNS if c not in WRITE_ONCE_COLUMNS]
 # Schema before the spread columns: `load` reads it with the spreads blank
 # and the next save writes the current schema.
 PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
@@ -113,7 +134,8 @@ PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
 # (the parser read nothing else), so `load` labels it "dk".
 LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
-PREGAME_COLUMNS = [c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
+PREGAME_COLUMNS = ([c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
+                   + KALSHI_PRE_COLUMNS)
 GRADE_COLUMNS = [c for c in COLUMNS
                  if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS]
 
@@ -291,12 +313,13 @@ def upsert_injuries(inj, snaps, now=None):
         accepted, rejected
 
 
-def apply_result(led, game_id, game, odds):
+def apply_result(led, game_id, game, odds, kalshi_odds=None):
     """Grade one row from a scoreboard game dict and ONE book's odds (or None).
 
     `odds` is what market.pick_close returns: that book's open/close plus its
-    `book` label. Writes only GRADE_COLUMNS, and only for a completed game
-    with scores.
+    `book` label. `kalshi_odds` (kalshi.grade_odds) holds the KALSHI_GRADE_COLUMNS
+    keys, written beside the book's. Writes only GRADE_COLUMNS, and only for a
+    completed game with scores.
     """
     hit = led.index[led["game_id"].astype(str) == str(game_id)]
     if not len(hit) or not game or not game.get("completed"):
@@ -327,6 +350,10 @@ def apply_result(led, game_id, game, odds):
             for c in SPREAD_COLUMNS:
                 if odds.get(c) is not None:
                     led.at[i, c] = odds[c]
+    for c in KALSHI_GRADE_COLUMNS:
+        v = (kalshi_odds or {}).get(c)
+        if v is not None and np.isfinite(v):
+            led.at[i, c] = v
     return True
 
 
@@ -338,20 +365,25 @@ def pending(led, today):
 
 
 CLOSE_RETRY_DAYS = 7   # graded rows with no close are re-asked this long
+KALSHI_FROM_SEASON = 2026   # Kalshi's KXNBAGAME lists games from the 2025 play-in
 
 
-def missing_close(led, today, days=CLOSE_RETRY_DAYS):
+def missing_close(led, today, days=CLOSE_RETRY_DAYS, kalshi=False):
     """Graded rows with no closing pair from the last `days` slates before
     `today`: grading found the result but no close (a failed or empty odds
-    fetch), so the next builds ask again. Finished games only, so a close is
-    still never written to a pending row."""
+    fetch), so the next builds ask again. `kalshi` asks about the Kalshi
+    close instead (seasons from KALSHI_FROM_SEASON). Finished games only, so
+    a close is still never written to a pending row."""
     if not len(led):
         return led
     d = pd.to_datetime(led["slate_date"].astype(str), errors="coerce")
     t = pd.Timestamp(today)
     won = pd.to_numeric(led["home_won"], errors="coerce").isin([0, 1])
-    no_close = (pd.to_numeric(led["close_home_ml"], errors="coerce").isna()
-                | pd.to_numeric(led["close_away_ml"], errors="coerce").isna())
+    pre = "kalshi_close" if kalshi else "close"
+    no_close = (pd.to_numeric(led[f"{pre}_home_ml"], errors="coerce").isna()
+                | pd.to_numeric(led[f"{pre}_away_ml"], errors="coerce").isna())
+    if kalshi:
+        no_close &= pd.to_numeric(led["season"], errors="coerce") >= KALSHI_FROM_SEASON
     return led[won & no_close & (d < t) & (d >= t - pd.Timedelta(days=days))]
 
 
