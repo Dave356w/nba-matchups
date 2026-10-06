@@ -150,8 +150,7 @@ def reconstructed_block(recon):
                      f"{s['d_logloss']:>+10.4f} +/- {s['d_logloss_se']:.4f}")
     for book, season, h in secs:
         lines.append(f"-- {market.BOOK_NAMES.get(book, book)} close, "
-                     f"{_season(season)}: {len(h)} games (the value side is picked "
-                     "against the close itself)")
+                     f"{_season(season)}: {len(h)} games")
         lines += _summary_block(h, "close", "  ")
         lines += scoring_lines(analysis.scoring(h), "  ")
     return lines
@@ -197,14 +196,15 @@ def report_text(native, recon, pre=None, tags=()):
              "Sources: data/nba_ledger.csv (native, pregame-locked); "
              "data/nba_reconstructed.csv (reconstructed, hindsight); "
              "data/nba_preseason.csv (exhibitions, Kalshi).",
-             "Headline: flat 1u on the LEAN (model's side) and on the VALUE side "
-             "(model P > no-vig q), at the price named.",
+             "Headline: flat 1u on the LEAN (model's side), at the price named. "
+             "Value-side bets are graded only as the pre-registered hypotheses "
+             "(the blanket value bet was retired 2026-10-06).",
              "Read every ROI against its null (q x payout - 1: the ROI if the "
              "no-vig market is right, about minus the hold), NOT zero.",
              "+/- is 1 SE; z = (ROI - null) / SE. fav = 1u on the market favourite "
              "of the same games at the same price (same-row baseline).",
-             "Bases, books and seasons are never pooled. Edge bins and price bands "
-             "are descriptive, not filters.",
+             "Bases, books and seasons are never pooled. Price bands are "
+             "descriptive, not filters.",
              ""]
     for block in (native_block(native), hypotheses_block(native, recon),
                   reconstructed_block(recon), preseason_block(pre)):

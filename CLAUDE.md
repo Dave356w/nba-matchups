@@ -148,7 +148,11 @@ Before a PR, run:
   the backtest (ρ, preseason κ, both) against the close on the same games.
   Watch the native early-season rows against it.
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean
-  and on the value side (model P > no-vig q), with model WP, market WP,
+  (the blanket value side, model P > no-vig q, and its ATS twin were retired
+  from the pages and report 2026-10-06, owner's decision: at the close its
+  claimed EV was +11 to +16% per book-season while it returned −6 to −11%,
+  null ≈ −4%; ATS −2.7 to −7.4% vs −4.5%; `analysis.SHOWN_RULES`; value-side
+  rules are tested only as the frozen hypotheses below), with model WP, market WP,
   actual, and the ROI null beside every ROI. Graded rows now also record the
   closing spread (`close_spread`, home line, plus both spread prices, same
   book as the moneyline close), and the ledger page grades ATS the same way

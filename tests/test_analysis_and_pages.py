@@ -80,9 +80,10 @@ def test_value_and_lean_picks_are_graded_at_the_right_price():
     for _, r in val.head(20).iterrows():
         assert r["units"] == market.unit_profit(r["ml"], r["won"])
     s = dict(analysis.roi_summary(g, "close"))
-    top = s[analysis.PICK_RULES[1][1]][0]
-    assert top["label"] == "All picks" and top["n"] == len(val)
-    assert abs(top["roi"] - val["units"].mean()) < 1e-12
+    assert analysis.PICK_RULES[1][1] not in s      # value side retired from display
+    top = s[analysis.PICK_RULES[0][1]][0]
+    assert top["label"] == "All picks" and top["n"] == len(lean)
+    assert abs(top["roi"] - lean["units"].mean()) < 1e-12
     assert top["roi_null"] < 0             # the hold: market-correct ROI is negative
 
 
@@ -111,7 +112,9 @@ def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
     assert "ROI — one unit on every pick" in grades and "vs null (± 1 SE)" in grades
     assert "Probabilities vs the close" in grades        # verdict strip
     assert "pregame snapshot price" in grades        # native bettable price
-    assert "Value pick · P/L (1u)" in grades
+    assert "Lean · P/L (1u)" in grades and "Value pick" not in grades
+    assert "Value bets" not in grades and "Value ATS" not in grades
+    assert "Retired 2026-10-06" in grades
     idx = (tmp_path / "index.html").read_text()
     assert "Model − market" in idx
 
@@ -179,8 +182,13 @@ def test_ats_picks_grade_covers_pushes_and_null():
 def test_roi_by_band_partitions_picks_with_ev_null():
     g = ledger.graded(synth(400, 8))
     p = analysis.picks(g, "close")
+    bands = dict(analysis.roi_by_band(g, "close"))
+    assert set(bands) == {label for rule, label in analysis.PICK_RULES
+                          if rule in analysis.SHOWN_RULES}
     for rule, label in analysis.PICK_RULES:
-        rows = dict(analysis.roi_by_band(g, "close"))[label]
+        if rule not in analysis.SHOWN_RULES:
+            continue
+        rows = bands[label]
         d = p[p["rule"] == rule]
         assert sum(r["n"] for r in rows) == len(d)
         assert abs(sum(r["units"] for r in rows) - d["units"].sum()) < 1e-9

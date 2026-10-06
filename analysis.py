@@ -230,9 +230,14 @@ PICK_RULES = (
     ("lean", "Lean — the model's favourite"),
     ("value", "Value — side where model P > no-vig market P"),
 )
+# Rules graded on the pages and in the report. The generic value side is
+# retired from display (owner's decision, 2026-10-06): on the reconstructed
+# rows its claimed EV at the close was +11 to +16% in every book-season while
+# it returned -6 to -11% (null about -4%), and it is picked against the close
+# itself. picks() still builds it: the pre-registered HYPOTHESES are
+# value-side rules at bettable prices and stay on the scoreboard.
+SHOWN_RULES = ("lean",)
 EARLY_BELOW = 10     # nba_composite.MIN_GAMES: below it v2 uses the carryover model
-EDGE_BINS = ((0.0, 0.02, "0–2 pp"), (0.02, 0.05, "2–5 pp"),
-             (0.05, 0.10, "5–10 pp"), (0.10, 1.0, "10+ pp"))
 
 
 def picks(g, price="close"):
@@ -325,23 +330,20 @@ def z_vs_null(r):
 
 
 def roi_summary(g, price="close"):
-    """[(rule label, [roi rows])]: all picks, early (games 1-9) vs later when
-    both exist, and value picks by model edge. Descriptive, not filters."""
+    """[(rule label, [roi rows])] for SHOWN_RULES: all picks, and early
+    (games 1-9) vs later when both exist. Descriptive, not filters."""
     p = picks(g, price)
     if not len(p):
         return []
     out = []
     for rule, label in PICK_RULES:
+        if rule not in SHOWN_RULES:
+            continue
         d = p[p["rule"] == rule]
         rows = [roi_row("All picks", d)]
         if d["early"].any() and (~d["early"]).any():
             rows += [roi_row("Games 10+", d[~d["early"]]),
                      roi_row("Games 1–9 (carryover)", d[d["early"]])]
-        if rule == "value":
-            for lo, hi, lab in EDGE_BINS:
-                s = d[(d["edge"] >= lo) & (d["edge"] < hi)]
-                if len(s):
-                    rows.append(roi_row(f"Edge {lab}", s))
         out.append((label, [r for r in rows if r]))
     return out
 
@@ -365,6 +367,8 @@ def roi_by_band(g, price="close", tags=None):
     rung = p["ml"].map(market.ladder_rung)
     out = []
     for rule, label in PICK_RULES:
+        if rule not in SHOWN_RULES:
+            continue
         rows = []
         for _lo, _hi, band in market.ODDS_LADDER:
             d = p[(p["rule"] == rule) & (rung == band)]
@@ -384,7 +388,7 @@ def season_rows(g, price="close"):
     """One summary per closing book x season of graded rows `g` (one basis).
 
     Each: book, season, n, scoring (model vs the close, analysis.scoring)
-    and lean / value roi rows at `price` (with the same-row favourite). The
+    and a roi row per SHOWN_RULES rule at `price` (with the same-row favourite). The
     shared source of the Model page's season table and ledger_report.txt.
     """
     h = with_close(g)
@@ -394,7 +398,7 @@ def season_rows(g, price="close"):
             hs = hb[hb["season"] == season]
             p = picks(hs, price)
             rows = {rule: (roi_row(rule, p[p["rule"] == rule]) if len(p) else None)
-                    for rule, _label in PICK_RULES}
+                    for rule, _label in PICK_RULES if rule in SHOWN_RULES}
             out.append(dict(book=book, season=season, n=len(hs),
                             scoring=scoring(hs), **rows))
     return out
@@ -489,11 +493,13 @@ def clv(g):
 
 # --------------------------------------------------------- against the spread
 ATS_SIGMA = 13.5     # pts: SD of margin about the market's expectation. Maps a
-                     # stored p_home to a margin for the ATS value side only;
-                     # it does not change any prediction (p_home is as written).
+                     # stored p_home to a margin for the model's cover %; it
+                     # does not change any prediction (p_home is as written).
+# The ATS value side (the side the model's margin favours against the line)
+# is retired with the moneyline value side (SHOWN_RULES, 2026-10-06): -6.1%,
+# -7.4% and -2.7% at the close against a -4.5% null, never above it.
 ATS_RULES = (
     ("lean", "Lean ATS — the model's moneyline favourite against the spread"),
-    ("value", "Value ATS — side the model's margin favours against the line"),
 )
 
 
@@ -527,8 +533,7 @@ def ats_picks(g, sigma=ATS_SIGMA):
     res_home = np.array([market.ats_result(m, s) for m, s in zip(margin, line)])
     out = []
     for rule, _label in ATS_RULES:
-        home = lean_is_home(g) if rule == "lean" else p_cover_home > 0.5
-        keep = np.ones(len(ph), bool) if rule == "lean" else p_cover_home != 0.5
+        home = lean_is_home(g)
         d = pd.DataFrame(dict(
             rule=rule, game_id=g["game_id"].to_numpy(),
             side=np.where(home, g["home"], g["away"]),
@@ -536,7 +541,7 @@ def ats_picks(g, sigma=ATS_SIGMA):
             model_p=np.where(home, p_cover_home, 1 - p_cover_home),
             q=np.where(home, q_home, 1 - q_home),
             ml=np.where(home, hso, aso),
-            result=np.where(home, res_home, 1 - res_home)))[keep]
+            result=np.where(home, res_home, 1 - res_home)))
         d = d[np.isfinite(d["q"])]
         d["breakeven"] = market.breakeven_prob(d["ml"])
         d["units"] = [0.0 if r == 0.5 else market.unit_profit(m, r == 1)

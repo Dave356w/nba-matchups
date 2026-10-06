@@ -975,6 +975,8 @@ def render_model(native, recon, built):
              "No-vig q", "Excess pp", "Mkt null", "Fav units", "Fav ROI",
              "LL model − close"]
     for rule, label in analysis.PICK_RULES:
+        if rule not in analysis.SHOWN_RULES:
+            continue
         rows = (_season_table(analysis.season_rows(ledger.graded(native)), "native", rule)
                 + _season_table(analysis.season_rows(ledger.graded(recon)),
                                 "reconstructed", rule))
@@ -991,8 +993,8 @@ def render_model(native, recon, built):
         "<b>Fav</b> bets the market favourite on the same games. <b>LL model − "
         "close</b>: log-loss gap on the same games (negative = model better). ± is "
         "one standard error; colour marks ≥ 2 SE from the null. Reconstructed rows "
-        "are hindsight (that season left out of the fit, graded at the close; the "
-        "value side is chosen against the close itself), never forward evidence.</div>")
+        "are hindsight (that season left out of the fit, graded at the close), never "
+        "forward evidence.</div>")
     return page("NBA model", "model.html", "".join(body), built)
 
 # ------------------------------------------------ ledger + calibration ---
@@ -1012,7 +1014,9 @@ READ_KEY = (
     "<details><summary>Glossary</summary><dl>"
     "<dt>Lean</dt><dd>The side the model gives ≥ 50% (as recorded on the row).</dd>"
     "<dt>Value side</dt><dd>The side where the model's probability beats the "
-    "market's no-vig probability.</dd>"
+    "market's no-vig probability. Graded only through the pre-registered "
+    "hypotheses; the blanket value bet is retired (see the note under the "
+    "hypotheses).</dd>"
     "<dt>Model %</dt><dd>The picked side's mean model win probability.</dd>"
     "<dt>Market %</dt><dd>The picked side's mean no-vig market probability "
     "(q): the price with the bookmaker's margin removed.</dd>"
@@ -1156,14 +1160,9 @@ def _verdicts(sec):
     price = "pre" if native and analysis.roi_summary(h, "pre") else "close"
     summ = {label: rows[0] for label, rows in analysis.roi_summary(h, price)}
     lean = summ.get(analysis.PICK_RULES[0][1])
-    val = summ.get(analysis.PICK_RULES[1][1])
     at = "pregame price" if price == "pre" else "close"
-    hind = ("" if native else
-            " <span class='basis' title='The value side is chosen against the "
-            "close itself, which no bettor knew in advance.'>hindsight price</span>")
     tiles = [_score_tile(analysis.scoring(h)),
-             _bet_tile(f"Lean bets · 1u at the {at}", lean),
-             _bet_tile(f"Value bets · 1u at the {at}", val, hind)]
+             _bet_tile(f"Lean bets · 1u at the {at}", lean)]
     if native:
         c = analysis.clv(h)
         if c:
@@ -1203,6 +1202,12 @@ def _hypotheses(native, recon):
         "reconstructed rows at the price the scan found it (pooled over both "
         "seasons and books, as registered), recomputed on the current "
         "reconstructed model; one season of native rows is not a verdict.</p>"
+        "<p class='note'><b>Retired 2026-10-06:</b> the blanket value bet (every "
+        "game, the side with model P > no-vig q) and its ATS twin. On the "
+        "reconstructed rows at the close its claimed EV was +11 to +16% in "
+        "every book and season while it returned −6 to −11% (null about −4%; "
+        "ATS −3 to −7% vs −4.5%). The value-side rules still under test are "
+        "the frozen hypotheses in this table.</p>"
         + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
                  "Hindsight n", "ROI", "Null", "vs null (± 1 SE)"],
                 rows, left=(0, 1), key=(3, 5)))
@@ -1212,9 +1217,10 @@ def render_grades(native, recon, built):
     secs = _sections(native, recon)
     body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, "
             "graded against the final score and the betting market. Each "
-            "section answers three questions: are the model's probabilities "
-            "better than the market's, and do its leans and its value picks "
-            "beat the bookmaker's hold? Native and reconstructed rows, and "
+            "section answers two questions: are the model's probabilities "
+            "better than the market's, and do its leans beat the bookmaker's "
+            "hold? Value-side bets are tested only by the pre-registered "
+            "hypotheses at the top. Native and reconstructed rows, and "
             "each book and season, are shown separately — never pooled.</p>",
             READ_KEY,
             _jump([("hypotheses", "Hypotheses")] + [(s["id"], s["jump"]) for s in secs]),
@@ -1252,11 +1258,7 @@ def _roi_section(body, h, native):
         if pre:
             body.append("<p class='note'>At the <b>pregame snapshot price</b> — "
                         "the last snapshot before tip, near the close.</p>" + pre)
-    body.append("<p class='note'>At the <b>closing price</b>"
-                + ("" if native else ": the value side is picked against the "
-                   "close itself, which a bettor would not have known — "
-                   "hindsight on price as well as on the model")
-                + ". Edge bins are descriptive, not a filter to bet.</p>"
+    body.append("<p class='note'>At the <b>closing price</b>.</p>"
                 + _roi_table(analysis.roi_summary(h, price="close")))
 
 
@@ -1296,8 +1298,8 @@ def _band_section(body, h, native):
                 "side's moneyline</span></summary>")
     body.append("<p class='note'>Graded at the <b>"
                 + ("pregame snapshot price" if native else "closing price")
-                + "</b>. With 16 cells per section, a |z| near 2 somewhere is "
-                "expected by chance. Bands are descriptive monitoring "
+                + "</b>. With 8 cells per section, a |z| near 2 somewhere "
+                "happens by chance about one section in three. Bands are descriptive monitoring "
                 "dimensions, not a filter: a band that looks good here is a "
                 "hypothesis to test forward, and the hypotheses under test are "
                 "the pre-registered ones at the top of this page (the earlier "
@@ -1339,17 +1341,10 @@ def _ats_section(body, h):
 
 def _recent_section(body, h, native, n=60):
     recent = h.sort_values(["slate_date", "tip_utc"], ascending=False).head(n)
-    val = analysis.picks(recent)
-    val = val[val["rule"] == "value"].set_index("game_id") if len(val) else val
     rows = []
     for _, r in recent.iterrows():
         won = int(r["lean_won"]) == 1
         lean_u = market.unit_profit(r["lean_ml"], won)
-        v = val.loc[r["game_id"]] if len(val) and r["game_id"] in val.index else None
-        vtxt = ("—" if v is None else
-                f"{esc(v['side'])} {ml_txt(v['ml'])} "
-                f"<span class='{'pos' if v['units'] > 0 else 'neg'}'>"
-                f"{v['units']:+.2f}u</span>")
         rows.append([
             esc(r["slate_date"]), f"{esc(r['away'])} @ {esc(r['home'])}",
             f"<span class='chip'>{esc(r['lean'])}</span>", pct(r["lean_p"]),
@@ -1357,15 +1352,14 @@ def _recent_section(body, h, native, n=60):
             f"{int(r['away_pts'])}–{int(r['home_pts'])}",
             f"<span class='{'pos' if won else 'neg'}'>{'W' if won else 'L'} "
             f"{lean_u:+.2f}u</span>",
-            vtxt,
         ])
     more = (f"latest {n} of {len(h)}" if len(h) > n else f"all {len(h)}")
     body.append(f"<details class='more'{' open' if native else ''}><summary>"
                 f"Game by game <span class='mut'>— {more}, newest first</span>"
                 "</summary>")
     body.append(table(["Date", "Away @ Home", "Lean", "Model %", "Market %",
-                       "Close ML", "Final (away–home)", "Lean · P/L (1u)",
-                       "Value pick · P/L (1u)"], rows, left=(0, 1, 2, 8)))
+                       "Close ML", "Final (away–home)", "Lean · P/L (1u)"],
+                      rows, left=(0, 1, 2)))
     if len(h) > n:
         body.append("<p class='note'>The full record is in the CSV under "
                     "<code>data/</code>.</p>")
