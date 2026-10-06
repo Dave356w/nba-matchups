@@ -1,0 +1,29 @@
+Games (reconstructed, graded): 1209; Kalshi close found: 1208 (99.9%); Kalshi open found: 1208
+  missing close, first few: 2026-01-25 GSW@MIN
+Kalshi close timing: median 0.0 min before tip (90% within 0.0)
+
+== DraftKings close vs Kalshi close, 2025-26: n = 963
+  log loss   Kalshi 0.5679   book 0.5697   model 0.5879
+  Brier      Kalshi 0.1939   book 0.1943   model 0.2013
+  Kalshi − book (neg = Kalshi better) log loss -0.0018 ± 0.0015   Brier -0.0004 ± 0.0005  (95%)
+  model − Kalshi                     log loss +0.0200 ± 0.0114   Brier +0.0074 ± 0.0048  (95%)
+  model − book                       log loss +0.0182 ± 0.0110   Brier +0.0070 ± 0.0047  (95%)
+  calibration slope Kalshi 1.02 ± 0.16, intercept +0.004
+  calibration slope book   1.07 ± 0.16, intercept +0.001
+  weight on book − Kalshi disagreement: -3.44 ± 3.57 (0 = the book adds nothing beyond Kalshi)
+  weight on Kalshi − book disagreement: +4.29 ± 3.40 (0 = Kalshi adds nothing beyond the book)
+  |Kalshi q − book q|: mean 0.90 pp, 90th pct 1.79 pp; corr of logits 0.9985
+  hold (fee included for Kalshi): Kalshi 4.02%  book 4.25%
+
+== ESPN BET close vs Kalshi close, 2025-26: n = 245
+  log loss   Kalshi 0.5652   book 0.5631   model 0.5644
+  Brier      Kalshi 0.1919   book 0.1912   model 0.1910
+  Kalshi − book (neg = Kalshi better) log loss +0.0021 ± 0.0049   Brier +0.0007 ± 0.0016  (95%)
+  model − Kalshi                     log loss -0.0008 ± 0.0286   Brier -0.0010 ± 0.0128  (95%)
+  model − book                       log loss +0.0013 ± 0.0277   Brier -0.0002 ± 0.0125  (95%)
+  calibration slope Kalshi 1.16 ± 0.34, intercept +0.044
+  calibration slope book   1.24 ± 0.36, intercept +0.049
+  weight on book − Kalshi disagreement: +5.67 ± 4.82 (0 = the book adds nothing beyond Kalshi)
+  weight on Kalshi − book disagreement: -4.22 ± 4.53 (0 = Kalshi adds nothing beyond the book)
+  |Kalshi q − book q|: mean 1.09 pp, 90th pct 2.21 pp; corr of logits 0.9977
+  hold (fee included for Kalshi): Kalshi 4.15%  book 4.35%
