@@ -31,9 +31,15 @@ import market
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
 SERIES = "KXNBAGAME"
 BOOK = "kalshi"
-# Kalshi team code -> Basketball-Reference code, where they differ.
+# Kalshi team code -> Basketball-Reference code, where they differ. The short
+# aliases (GS, NO, NY, SA, WSH) are accepted when parsing but Kalshi's tickers
+# use GSW, NOP, NYK, SAS and WAS (checked against the live API, 2026-10-06).
 KALSHI2BBR = {"BKN": "BRK", "CHA": "CHO", "PHX": "PHO", "GS": "GSW",
               "NO": "NOP", "NY": "NYK", "SA": "SAS", "WSH": "WAS"}
+# Basketball-Reference code -> the code in Kalshi's tickers (market_ticker).
+# Not the inverse of KALSHI2BBR: inverting it built GS / NY tickers, which do
+# not exist, so Warriors, Pelicans, Knicks, Spurs and Wizards games got no close.
+BBR2KALSHI = {"BRK": "BKN", "CHO": "CHA", "PHO": "PHX"}
 MONTHS = "JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC".split()
 CLOSE_WINDOW = 90 * 60          # seconds of 1-minute candles read before tip
 SPACING = 0.6                   # seconds between requests
@@ -161,10 +167,9 @@ def pregame_odds(games, date, home, away):
 
 
 def market_ticker(date, team_bbr, home, away):
-    """KXNBAGAME-26OCT03MIATOR-TOR for a BBR team, from Kalshi's own codes
-    (the inverse of team()); used when grading a game that is no longer open."""
-    inv = {v: k for k, v in KALSHI2BBR.items()}
-    code = {t: inv.get(t, t) for t in (home, away)}
+    """KXNBAGAME-26OCT03MIATOR-TOR for a BBR team, in Kalshi's own codes
+    (BBR2KALSHI); used when grading a game that is no longer open."""
+    code = {t: BBR2KALSHI.get(t, t) for t in (home, away)}
     return f"{SERIES}-{date_code(date)}{code[away]}{code[home]}-{code[team_bbr]}"
 
 

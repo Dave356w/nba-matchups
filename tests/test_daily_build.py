@@ -203,3 +203,12 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
     assert not len(ledger.load(ledger.NATIVE_PATH))
     page = (tmp_path / "public" / "preseason.html").read_text()
     assert "Preseason · exhibition" in page and "105" in page
+
+    # graded without a close (e.g. a ticker miss): the next build asks again
+    pre = ledger.load(ledger.PRESEASON_PATH)
+    pre.loc[0, ["close_home_ml", "close_away_ml", "close_q_home", "close_book"]] = None
+    ledger.save(pre, ledger.PRESEASON_PATH)
+    assert build_site.main(["--date", "2026-10-10"]) == 0
+    r = ledger.load(ledger.PRESEASON_PATH).iloc[0]
+    assert r["close_book"] == "kalshi" and r["home_won"] == 1
+    assert r["close_home_ml"] == market.american_from_prob(market.kalshi_cost(0.66))

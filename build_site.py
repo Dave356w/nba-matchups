@@ -290,8 +290,10 @@ def kalshi_close(row):
 
 def grade(led, today, close=espn_close):
     """Final scores for finished games from earlier slates, with the closing
-    pair from `close(row)` (ESPN books; kalshi_close for preseason rows)."""
-    todo = ledger.pending(led, today)
+    pair from `close(row)` (ESPN books; kalshi_close for preseason rows).
+    Recent graded rows still missing a close (ledger.missing_close) are
+    asked again."""
+    todo = pd.concat([ledger.pending(led, today), ledger.missing_close(led, today)])
     if not len(todo):
         return led, 0
     n = 0
