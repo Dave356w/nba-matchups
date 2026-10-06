@@ -11,6 +11,9 @@ owner directs the product.
 - `MODEL.md` + `nba_composite.py`: the model. `build_site.py`: the daily
   pipeline and pages. `market.py`: all price arithmetic, in one place.
   `ledger.py`: ledger invariants. `analysis.py`: calibration statistics.
+- `data/ledger_report.txt` (`report.py`): the bot-written plain-text
+  readout, as in the sibling repos. Quote live numbers from it (or the
+  pages, which call the same `analysis` functions), not from old PRs.
 - `data/nba_ledger.csv`: **native** rows, pregame-locked (snapshot < tip).
 - `data/nba_reconstructed.csv`: **reconstructed** rows (leave-one-season-out,
   closing price). This is hindsight and is not forward evidence.
@@ -33,7 +36,9 @@ owner directs the product.
    scores (Brier, log loss) and calibration. Accuracy or ROI alone does not
    show calibration. Each row's close comes from one book (`close_book`:
    DraftKings, or ESPN BET before late Nov 2025); report books separately.
-   ESPN provider 59 (live odds) is in-game and never read.
+   ESPN provider 59 (live odds) is in-game and never read. Every flat-ROI
+   figure also carries the same-row market-favourite baseline (`fav_roi`,
+   1u on the favourite of the same games at the same price).
 3. No-vig q and posted break-even are different thresholds. An EV figure
    (win% − break-even) is centred on `market.ev_null` (q − break-even, about
    minus the hold), **not zero**. Print the null beside every EV figure.
@@ -51,7 +56,10 @@ owner directs the product.
 - Grading writes only result and open/close columns (`ledger.GRADE_COLUMNS`).
 - A change to prediction math requires a new `MODEL_TAG`. A display change
   does not.
-- Keep `site-build` serialized (`cancel-in-progress: false`). Fit model and
+- Keep `site-build` serialized (`cancel-in-progress: false`). The
+  validate-and-commit step runs on `!cancelled()` (validation inside it), so
+  a render failure never costs a pregame snapshot; the Pages upload stays
+  success-only. Fit model and
   Backfill history each have their own queue (a pending run in `site-build`
   is cancelled by the next hourly build) and retry their push. Tests gate
   PRs and are deliberately not wired into the daily build.
