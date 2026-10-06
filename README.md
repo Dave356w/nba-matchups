@@ -10,9 +10,11 @@ Site (once Pages is enabled): **<https://dave356w.github.io/nba-matchups/>**
 
 | Page | Shows |
 |---|---|
-| `index.html` — Today | Composite Δ, the model's P(win) (games 1–9 tagged *early · carryover*), the moneyline with the no-vig probability, the lean, **model − market** (pp) and the model's EV estimate at the posted price |
+| `index.html` — Today | Headline tiles: flat 1u ROI on the lean (native at the pregame price; latest reconstructed season at the close, hindsight), each with its null and the market favourite on the same games, log loss vs the close, native row count. Then composite Δ, the model's P(win) (games 1–9 tagged *early · carryover*), the moneyline with the no-vig probability, the lean, **model − market** (pp) and the model's EV estimate at the posted price |
 | `grades.html` — Ledger | The pre-registered hypotheses (H1–H4: native ROI at the pregame or first-snapshot price beside the hindsight rule, each beside its null), then one section per basis × book × season: a verdict strip (log loss vs the close, lean ROI and value ROI each vs the market-correct null ± 1 SE, native CLV), **ROI of 1u flat bets** on the lean and value side (model %, market %, break-even, win %, ROI, null) by early/later games and model edge; collapsed: ROI by price band (EV beside its null, z), against the spread, game by game |
 | `market-calibration.html` — Calibration | Reliability charts (stated vs actual, ±2 SE): the market's no-vig close per book, then the model and the market on the same games per section, with Brier/log loss model vs market; the numbers in collapsed tables |
+| `model.html` — Model | Routing, fitted coefficients of each logit, and flat 1u ROI by basis × book × season (lean and value, at the close) with no-vig q, excess, market null, the same-row market favourite and log loss vs the close |
+| `ledger_report.txt` — Report (text) | The plain-text readout of every block above (`report.py`), committed as `data/ledger_report.txt`: quote live numbers from it |
 | `preseason.html` — Preseason | Exhibition games only (`data/nba_preseason.csv`): each scored by the early carryover logit on last season's games alone, priced from Kalshi (YES asks with the taker fee; close = the last 1-minute candle before tip) and graded like native rows; model vs the close (Brier/log loss ± 1 SE, reliability), flat-bet ROI at the pregame price beside its null, game by game. Never pooled with the other pages |
 
 Native (pregame-locked) and reconstructed (leave-one-season-out, hindsight)
@@ -27,7 +29,8 @@ never pooled into one record.
 | `market.py` | ESPN scoreboard + sportsbook odds (DraftKings, else ESPN BET; each price labelled with its book), devig, break-even, EV null, SEs, price ladder. The single home for price arithmetic. |
 | `kalshi.py` | Kalshi exchange prices for preseason rows only: live asks per build, the close from the last pregame 1-minute candle. |
 | `ledger.py` | Ledger schema, pregame-lock ingest, and grading rules. |
-| `analysis.py` | Calibration and same-row model-vs-market statistics. |
+| `analysis.py` | Calibration and same-row model-vs-market statistics, including the same-row market-favourite baseline (`fav_roi`). |
+| `report.py` | `data/ledger_report.txt`: the plain-text ledger readout (the siblings' format), built only from `analysis`, stamped from the data so an unchanged ledger makes no commit. |
 | `backfill_history.py` | Reconstruction of completed seasons with the production routing (leave-one-season-out, or walk-forward), with historical closes. |
 | `research/` | Walk-forward, calibration-shape, availability and cold-start backtests (workflows; write nothing to the repo). |
 | `MODEL.md` / `docs/nba_composite_model_report.pdf` | Model specification and validation. |

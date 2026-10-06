@@ -248,7 +248,9 @@ def picks(g, price="close"):
       could actually be bet when the row was written (native rows only).
 
     Returns rows with, per rule and game: the picked side's model P, no-vig
-    market P (q), break-even at the posted price, result, and unit P/L.
+    market P (q), break-even at the posted price, result, and unit P/L, plus
+    `fav_units`: 1u on the market favourite of the same game at the same
+    price (q > 0.5; exactly 0.5 ties to home), the same-row baseline.
     """
     if g is None or not len(g):
         return pd.DataFrame()
@@ -261,6 +263,10 @@ def picks(g, price="close"):
     ok = (qh.between(0, 1, inclusive="neither") & hml.notna() & aml.notna()
           & ph.notna() & won.isin([0, 1])).to_numpy()
     g, hml, aml, qh, ph, won = (x[ok] for x in (g, hml, aml, qh, ph, won))
+    fav_home = (qh >= 0.5).to_numpy()
+    fav_units = [market.unit_profit(m, w) for m, w in
+                 zip(np.where(fav_home, hml, aml),
+                     np.where(fav_home, won, 1 - won))]
     out = []
     for rule, _label in PICK_RULES:
         if rule == "lean":
@@ -279,7 +285,8 @@ def picks(g, price="close"):
             model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
             ml=ml, won=np.where(home, won, 1 - won),
             model_tag=g["first_model_tag" if price == "first"
-                        else "model_tag"].astype(str).to_numpy()))
+                        else "model_tag"].astype(str).to_numpy(),
+            fav_units=fav_units))
         d = d[keep]
         d["breakeven"] = market.breakeven_prob(d["ml"])
         d["units"] = [market.unit_profit(m, w) for m, w in zip(d["ml"], d["won"])]
@@ -291,11 +298,14 @@ def picks(g, price="close"):
 
 def roi_row(label, d):
     """Flat-stake summary. roi_null is the ROI if the no-vig market is right
-    (about minus the hold, ~-4%); an ROI is judged against it, not zero."""
+    (about minus the hold, ~-4%); an ROI is judged against it, not zero.
+    fav_roi is the market favourite on the same games at the same price."""
     n = len(d)
     if not n:
         return None
     u = d["units"].to_numpy(float)
+    fav = (d["fav_units"].to_numpy(float) if "fav_units" in d
+           else np.full(n, np.nan))
     return dict(
         label=label, n=n, w=int(d["won"].sum()), l=n - int(d["won"].sum()),
         model_p=float(d["model_p"].mean()), q=float(d["q"].mean()),
@@ -303,6 +313,7 @@ def roi_row(label, d):
         units=float(u.sum()), roi=float(u.mean()),
         roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float("nan"),
         roi_null=float(d["units_null"].mean()),
+        fav_units=float(fav.sum()), fav_roi=float(fav.mean()),
     )
 
 
@@ -367,6 +378,26 @@ def roi_by_band(g, price="close", tags=None):
             out.append((label, rows))
     return out
 
+
+
+def season_rows(g, price="close"):
+    """One summary per closing book x season of graded rows `g` (one basis).
+
+    Each: book, season, n, scoring (model vs the close, analysis.scoring)
+    and lean / value roi rows at `price` (with the same-row favourite). The
+    shared source of the Model page's season table and ledger_report.txt.
+    """
+    h = with_close(g)
+    out = []
+    for book, hb in book_split(h):
+        for season in sorted(hb["season"].dropna().unique(), reverse=True):
+            hs = hb[hb["season"] == season]
+            p = picks(hs, price)
+            rows = {rule: (roi_row(rule, p[p["rule"] == rule]) if len(p) else None)
+                    for rule, _label in PICK_RULES}
+            out.append(dict(book=book, season=season, n=len(hs),
+                            scoring=scoring(hs), **rows))
+    return out
 
 # Pre-registered forward hypotheses (CLAUDE.md; H1-H3 fixed 2026-09-30, H4
 # 2026-10-01, amendment A1 (H2-first) 2026-10-01, all before any native rows). The thresholds are frozen: never

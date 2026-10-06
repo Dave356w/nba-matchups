@@ -51,11 +51,15 @@ jobs:
       - name: Grade, score slate, render
         run: python build_site.py ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
 
-      - name: Validate data
-        run: python validate_data_files.py
-
-      - name: Commit ledger
+      # Validate and commit even if the render step failed: a pregame row
+      # already written to data/ cannot be re-derived after tip (the NFL
+      # site's rule). Validation runs inside this step, so a bad file still
+      # blocks the commit; the Pages upload below runs only on success, so
+      # the last good site stays live.
+      - name: Validate and commit ledger
+        if: ${{ !cancelled() }}
         run: |
+          python validate_data_files.py
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/
