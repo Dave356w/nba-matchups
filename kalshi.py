@@ -26,6 +26,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import pandas as pd
+
 import market
 
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
@@ -42,6 +44,7 @@ KALSHI2BBR = {"BKN": "BRK", "CHA": "CHO", "PHX": "PHO", "GS": "GSW",
 BBR2KALSHI = {"BRK": "BKN", "CHO": "CHA", "PHO": "PHX"}
 MONTHS = "JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC".split()
 CLOSE_WINDOW = 90 * 60          # seconds of 1-minute candles read before tip
+OPEN_WINDOW = 4 * 86400         # hourly candles searched for the open
 SPACING = 0.6                   # seconds between requests
 
 
@@ -174,11 +177,14 @@ def market_ticker(date, team_bbr, home, away):
 
 
 def _close(c, key):
-    """A candle's closing quote (dollars) for `key` (yes_ask / yes_bid)."""
+    """A candle's closing quote (dollars) for `key` (yes_ask / yes_bid).
+    Live payloads carry close_dollars; older live payloads an integer
+    `close` in cents; the historical archive a dollar string ("0.7700")."""
     q = c.get(key) or {}
     v = q.get("close_dollars")
     if v is None and q.get("close") is not None:
-        v = float(q["close"]) / 100.0       # older payloads: cents
+        raw = q["close"]
+        v = float(raw) if isinstance(raw, str) and "." in raw else float(raw) / 100.0
     try:
         v = float(v)
     except (TypeError, ValueError):
@@ -186,15 +192,30 @@ def _close(c, key):
     return v if 0 < v < 1 else None
 
 
+def candles(ticker, start, end, period):
+    """Candlesticks for one market: the live series endpoint, else Kalshi's
+    historical archive (markets settled before /historical/cutoff)."""
+    for path in (f"/series/{SERIES}/markets/{ticker}/candlesticks",
+                 f"/historical/markets/{ticker}/candlesticks"):
+        try:
+            js = get(path, start_ts=int(start), end_ts=int(end),
+                     period_interval=period)
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 404):
+                continue
+            raise
+        cs = (js or {}).get("candlesticks") or []
+        if cs:
+            return cs
+    return []
+
+
 def quote_at(ticker, tip_ts):
     """(bid, ask) of the last 1-minute candle ending at or before `tip_ts`
     (unix seconds) within CLOSE_WINDOW that has an ask; (None, None) when
     there is none. Candles ending after tip are never read."""
-    js = get(f"/series/{SERIES}/markets/{ticker}/candlesticks",
-             start_ts=int(tip_ts - CLOSE_WINDOW), end_ts=int(tip_ts),
-             period_interval=1)
     best = None
-    for c in js.get("candlesticks", []):
+    for c in candles(ticker, tip_ts - CLOSE_WINDOW, tip_ts, 1):
         end, ask = c.get("end_period_ts"), _close(c, "yes_ask")
         if end is not None and end <= tip_ts and ask is not None \
                 and (best is None or end > best[0]):
@@ -202,23 +223,70 @@ def quote_at(ticker, tip_ts):
     return (None, None) if best is None else best[1:]
 
 
-def close_odds(date, home, away, tip_utc):
-    """{'book', 'close_home_ml', 'close_away_ml'} at the last pregame minute
-    (the shape market.pick_close returns), or {} when either side has no
-    ask in the window. Event tickers list away then home; if that ticker is
-    unknown (404) the reverse order is tried."""
+def open_quote(ticker, tip_ts):
+    """(bid, ask) of the first hourly candle with an ask in the OPEN_WINDOW
+    before tip (the market opens ~2-3 days out); (None, None) without one."""
+    for c in candles(ticker, tip_ts - OPEN_WINDOW, tip_ts, 60):
+        end, ask = c.get("end_period_ts"), _close(c, "yes_ask")
+        if end is not None and end <= tip_ts and ask is not None:
+            return _close(c, "yes_bid"), ask
+    return None, None
+
+
+POSTPONED_DAYS = 2   # a postponed game keeps its original date in the ticker
+
+
+def _event_quotes(date, home, away, tip_utc, read):
+    """read(ticker, tip_ts) for both sides -> ((home), (away)), trying the
+    event ticker away+home first, then home+away (404 or empty), else None.
+    Without quotes on the slate date, the previous POSTPONED_DAYS dates are
+    tried (Kalshi keeps a postponed game's original date: GSW @ MIN played
+    2026-01-25 is KXNBAGAME-26JAN24GSWMIN). Only candles before THIS tip are
+    read, so an earlier game's market, closed by then, answers nothing."""
     from ledger import parse_utc
     tip_ts = parse_utc(tip_utc).timestamp()
+    day = pd.Timestamp(str(date)[:10])
+    for back in range(POSTPONED_DAYS + 1):
+        d = (day - pd.Timedelta(days=back)).strftime("%Y-%m-%d")
+        q = _quotes_on(d, home, away, tip_ts, read)
+        if q is not None:
+            return q
+    return None
+
+
+def _quotes_on(date, home, away, tip_ts, read):
     for h_, a_ in ((home, away), (away, home)):
         try:
-            h = quote_at(market_ticker(date, home, h_, a_), tip_ts)
-            a = quote_at(market_ticker(date, away, h_, a_), tip_ts)
+            h = read(market_ticker(date, home, h_, a_), tip_ts)
+            a = read(market_ticker(date, away, h_, a_), tip_ts)
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 continue
             raise
         if h == (None, None) and a == (None, None):
             continue                         # unknown ticker answered empty
-        o = odds_from_quotes(h, a, "close")
-        return {"book": BOOK, **o} if o else {}
-    return {}
+        return h, a
+    return None
+
+
+def close_odds(date, home, away, tip_utc):
+    """{'book', 'close_home_ml', 'close_away_ml', 'close_q_home'} at the last
+    pregame minute (the shape market.pick_close returns), or {} when either
+    side has no ask in the window."""
+    q = _event_quotes(date, home, away, tip_utc, quote_at)
+    o = odds_from_quotes(*q, "close") if q else {}
+    return {"book": BOOK, **o} if o else {}
+
+
+def grade_odds(date, home, away, tip_utc):
+    """Kalshi's close and open for a regular-season row, under the ledger's
+    KALSHI_GRADE_COLUMNS names ({} when Kalshi has no close): written beside
+    the sportsbook's by grading and by backfill_history.py --kalshi."""
+    c = close_odds(date, home, away, tip_utc)
+    if not c:
+        return {}
+    out = {f"kalshi_{k}": v for k, v in c.items() if k != "book"}
+    q = _event_quotes(date, home, away, tip_utc, open_quote)
+    o = odds_from_quotes(*q, "open") if q else {}
+    out.update({f"kalshi_{k}": v for k, v in o.items() if k != "open_q_home"})
+    return out

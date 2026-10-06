@@ -27,18 +27,28 @@ def check(path):
     elif list(df.columns) == ledger.PRE_SEEN_COLUMNS:
         print(f"note {path}: pre-decision-time schema; first_report_utc, "
               "first_route and seen_* added (blank) on the next bot write")
+    elif list(df.columns) == ledger.PRE_KALSHI_COLUMNS:
+        print(f"note {path}: pre-Kalshi schema; kalshi_* columns added "
+              "(blank) on the next bot write")
     elif list(df.columns) == ledger.PRE_FIRST_COLUMNS:
         print(f"note {path}: pre-first-snapshot schema; first_* columns added "
               "(blank) on the next bot write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_SEEN_COLUMNS,
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_KALSHI_COLUMNS,
+                            ledger.PRE_SEEN_COLUMNS,
                             ledger.PRE_FIRST_COLUMNS, ledger.PRE_SPREAD_COLUMNS):
         books = {b for _, b in market.BOOKS} | set(market.EXCHANGES)
         for col, q in (("pre_book", "pre_q_home"), ("close_book", "close_q_home")):
             priced = pd.to_numeric(df[q], errors="coerce").notna()
             if not df.loc[priced, col].isin(books).all():
                 errs.append(f"{path}: {col} missing or unknown on a priced row")
+    if "kalshi_close_q_home" in df.columns:
+        kq = pd.to_numeric(df["kalshi_close_q_home"], errors="coerce")
+        if (kq.notna() & ~kq.between(0, 1, inclusive="neither")).any():
+            errs.append(f"{path}: kalshi_close_q_home outside (0, 1)")
+        if (kq.notna() & pd.to_numeric(df["home_won"], errors="coerce").isna()).any():
+            errs.append(f"{path}: Kalshi close on a pending row")
     if "close_spread" in df.columns:
         spread = pd.to_numeric(df["close_spread"], errors="coerce")
         if (spread.notna() & pd.to_numeric(df["close_q_home"],

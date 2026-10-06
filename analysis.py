@@ -61,6 +61,40 @@ def with_close(g):
     return h
 
 
+def market_view(g):
+    """The ledger as the pages grade it: Kalshi is the market benchmark
+    wherever a row has it (owner's decision, 2026-10-06; research/
+    kalshi_benchmark.py). A row is Kalshi-priced when it is graded with a
+    Kalshi close, or still pending with a Kalshi pregame price; such a row
+    reads every price from Kalshi (pre, first, open, close; book "kalshi")
+    and keeps its model columns, result and sportsbook closing spread (the
+    ATS line). Every other row keeps its sportsbook prices, so a row is
+    always priced by one market. The pre-registered HYPOTHESES read the raw
+    rows: they were registered on sportsbook prices."""
+    if g is None or not len(g) or "kalshi_close_q_home" not in g.columns:
+        return g
+    num = lambda c: pd.to_numeric(g[c], errors="coerce")
+    won = num("home_won").isin([0, 1])
+    k = (won & num("kalshi_close_q_home").between(0, 1, inclusive="neither")) | (
+        ~won & num("kalshi_pre_q_home").between(0, 1, inclusive="neither"))
+    if not k.any():
+        return g
+    v = g.copy()
+    for c in ("pre_book", "close_book", "first_book"):
+        v[c] = v[c].astype(object)
+    for kind in ("pre", "first", "close", "open"):
+        rows = k & won if kind in ("close", "open") else k   # closes: graded only
+        cols = ([f"{kind}_home_ml", f"{kind}_away_ml"]
+                + ([f"{kind}_q_home"] if kind != "open" else []))
+        for c in cols:
+            v.loc[rows, c] = num(f"kalshi_{c}")[rows]
+    has_first = k & v["first_snapshot_utc"].notna()
+    v.loc[k, "pre_book"] = "kalshi"
+    v.loc[k & won, "close_book"] = "kalshi"
+    v.loc[has_first, "first_book"] = "kalshi"
+    return v
+
+
 def book_split(h):
     """[(book label, rows)] by closing book, in market.BOOKS order."""
     if h is None or not len(h):

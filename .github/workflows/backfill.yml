@@ -14,6 +14,10 @@ on:
         description: 'Only re-score existing rows with the current model (keep prices/results)'
         type: boolean
         default: true
+      kalshi:
+        description: 'Only fill Kalshi open/close on existing graded rows (2025-26 on); no refit'
+        type: boolean
+        default: false
 
 # Its own queue, not site-build: GitHub keeps one *pending* run per group,
 # so a pending run here was cancelled whenever the hourly build queued.
@@ -57,9 +61,14 @@ jobs:
           key: injury-reports-${{ github.run_id }}
           restore-keys: injury-reports-
       - name: Download seasons and logs
+        if: ${{ !inputs.kalshi }}
         run: python nba_composite.py download --years 2015-2019 2021-2026
       - name: Reconstruct
+        if: ${{ !inputs.kalshi }}
         run: python backfill_history.py --seasons ${{ inputs.seasons }} ${{ inputs.rescore && '--rescore' || '' }}
+      - name: Kalshi prices
+        if: ${{ inputs.kalshi }}
+        run: python backfill_history.py --seasons ${{ inputs.seasons }} --kalshi
       - run: python validate_data_files.py
       - name: Commit
         run: |
@@ -67,7 +76,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/
           git diff --cached --quiet && exit 0
-          git commit -m "reconstructed history ${{ inputs.seasons }}"
+          git commit -m "reconstructed history ${{ inputs.seasons }}${{ inputs.kalshi && ' (Kalshi prices)' || '' }}"
           for i in 1 2 3 4; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
             sleep $((2**i))

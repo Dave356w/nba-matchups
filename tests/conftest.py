@@ -9,6 +9,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import nba_composite as nc  # noqa: E402
+import kalshi  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_kalshi_network(monkeypatch):
+    """Kalshi answers nothing unless a test supplies its own `get`: the daily
+    build asks Kalshi for regular-season prices too, and tests never touch
+    the network."""
+    monkeypatch.setattr(kalshi, "get", lambda path, **params: {})
 
 
 def make_log(n, start="2026-10-21", seed=0, gap_days=2, strength=0.0):

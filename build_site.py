@@ -288,12 +288,25 @@ def kalshi_close(row):
                              row["tip_utc"])
 
 
-def grade(led, today, close=espn_close):
+def kalshi_grade(row):
+    """Kalshi's close and open for a graded regular-season row (from 2025-26),
+    beside the sportsbook's: kalshi.grade_odds."""
+    if not pd.to_numeric(row["season"], errors="coerce") >= ledger.KALSHI_FROM_SEASON:
+        return None
+    return kalshi.grade_odds(str(row["slate_date"]), row["home"], row["away"],
+                             row["tip_utc"])
+
+
+def grade(led, today, close=espn_close, kalshi_close_fn=None):
     """Final scores for finished games from earlier slates, with the closing
-    pair from `close(row)` (ESPN books; kalshi_close for preseason rows).
+    pair from `close(row)` (ESPN books; kalshi_close for preseason rows) and,
+    with `kalshi_close_fn` (kalshi_grade, regular season), Kalshi's beside it.
     Recent graded rows still missing a close (ledger.missing_close) are
     asked again."""
-    todo = pd.concat([ledger.pending(led, today), ledger.missing_close(led, today)])
+    todo = pd.concat([ledger.pending(led, today), ledger.missing_close(led, today)]
+                     + ([ledger.missing_close(led, today, kalshi=True)]
+                        if kalshi_close_fn else []))
+    todo = todo[~todo.index.duplicated()]
     if not len(todo):
         return led, 0
     n = 0
@@ -313,7 +326,13 @@ def grade(led, today, close=espn_close):
             except Exception as e:  # noqa: BLE001
                 log(f"grade {gid}: odds failed ({e!r}); graded without close")
                 odds = None
-            n += ledger.apply_result(led, gid, g, odds)
+            k = None
+            if kalshi_close_fn is not None:
+                try:
+                    k = kalshi_close_fn(row)
+                except Exception as e:  # noqa: BLE001
+                    log(f"grade {gid}: Kalshi failed ({e!r}); retried next build")
+            n += ledger.apply_result(led, gid, g, odds, k)
     return led, n
 
 
@@ -398,7 +417,23 @@ def score_slate(today, weights, model, now=None):
         r["route"] = route(r, model)
         add_pregame_price(r)
         rows.append(r)
+    add_kalshi_pregame(rows, today)
     return rows
+
+
+def add_kalshi_pregame(rows, today):
+    """Kalshi's live pair beside each row's sportsbook price, in place
+    (kalshi_pre_*; the pages' market where present, analysis.market_view).
+    One request per build; a failure leaves the rows on the book alone."""
+    try:
+        book = kalshi.open_games()
+    except Exception as e:  # noqa: BLE001
+        log(f"kalshi pregame failed ({e!r}); rows keep the sportsbook only")
+        return
+    for r in rows:
+        o = kalshi.pregame_odds(book, r["slate_date"], r["home"], r["away"])
+        for k in ("home_ml", "away_ml", "q_home"):
+            r[f"kalshi_pre_{k}"] = o.get(f"cur_{k}", np.nan)
 
 
 def add_pregame_price(r):
@@ -696,8 +731,9 @@ def tip_et(s):
 
 
 def book_tag(book):
-    """Visible label for any price not from DraftKings (the default book)."""
-    if pd.isna(book) or book in ("", "dk"):
+    """Visible label for any price not from Kalshi (the pages' market,
+    analysis.market_view); sportsbook prices say which book."""
+    if pd.isna(book) or book in ("", "kalshi"):
         return ""
     return f" <span class='basis'>{esc(market.BOOK_NAMES.get(book, book))}</span>"
 
@@ -795,11 +831,14 @@ def headline_tiles(native, recon):
 
 
 def render_index(led, today, built, model_ok, recon=None):
+    led, recon = analysis.market_view(led), analysis.market_view(recon)
     tiles = headline_tiles(led, recon)
     head = ("<h1>NBA composite vs market</h1><p class='lead'>Four-factors "
             "composite gap (home − away, in win-% points), the model's "
-            "P(win), and the sportsbook price (DraftKings when listed) with "
-            "its vig removed. "
+            "P(win), and the market price with its margin removed: Kalshi "
+            "(the exchange, its taker fee included in the price; q from the "
+            "bid/ask midpoints), or the sportsbook when Kalshi has no "
+            "price. "
             "<b>Model − market</b> is the lean side's model probability minus "
             "the no-vig market probability; <b>model EV</b> is what the model "
             "claims the posted price is worth. Both are model estimates, not "
@@ -882,7 +921,7 @@ def render_index(led, today, built, model_ok, recon=None):
              "which the four factors read only as attempts. "
              if MODEL_TAG_V6 in ACTIVE_TAGS else "") +
             "Prices are the moneyline at the snapshot time in the ledger "
-            "(DraftKings unless tagged ESPN BET), "
+            "(Kalshi unless tagged with a sportsbook), "
             "refreshed each build until tip and frozen after. A game abstains "
             "only while a team has no games yet (or the early model is not "
             "fitted).</p>")
@@ -946,6 +985,7 @@ def _season_table(rows, basis, rule):
 def render_model(native, recon, built):
     """What the model is and how each season scored: the NFL site's Model
     page, on this project's rows (never pooled across basis, book, season)."""
+    native, recon = analysis.market_view(native), analysis.market_view(recon)
     _w, base = load_model()
     avail, early = load_avail(), load_early()
     body = ["<h1>Model</h1><p class='lead'>Goal: flat 1u ROI on the model's "
@@ -1008,7 +1048,11 @@ BASIS_BADGES = {"native": "<span class='badge native'>Native · forward</span>",
 READ_KEY = (
     "<div class='key'><b>How to read.</b> Judge every ROI against its "
     "<b>null</b>: the ROI if the market's no-vig prices were exactly right. "
-    "That is about −4% (the bookmaker's hold), not zero. <b>±</b> is one "
+    "That is about −4% (the hold: Kalshi's taker fee and spread, or the "
+    "bookmaker's margin), not zero. <b>Market</b> is Kalshi's last pre-tip "
+    "price wherever a game has one (2025-26 on), else the sportsbook close; "
+    "the hypotheses stay on the sportsbook prices they were registered on. "
+    "<b>±</b> is one "
     "standard error (1 SE). Colour marks only gaps of at least "
     f"{SIG:g} SE from the null: <span class='pos'>green</span> above, "
     "<span class='neg'>red</span> below; everything else is left plain. "
@@ -1216,7 +1260,9 @@ def _hypotheses(native, recon):
 
 
 def render_grades(native, recon, built):
-    secs = _sections(native, recon)
+    # sections grade against Kalshi where a row has it; the hypotheses
+    # (below, raw rows) stay on the sportsbook prices they were registered on
+    secs = _sections(analysis.market_view(native), analysis.market_view(recon))
     body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, "
             "graded against the final score and the betting market. Each "
             "section answers two questions: are the model's probabilities "
@@ -1455,19 +1501,21 @@ def _market_games(native, recon):
 
 
 def render_calibration(native, recon, built):
+    native, recon = analysis.market_view(native), analysis.market_view(recon)
     parts = analysis.book_split(_market_games(native, recon))
     secs = _sections(native, recon)
     jumps = [(_slug("market", b), f"Market · {market.BOOK_NAMES[b]}") for b, _ in parts]
     jumps += [(s["id"], "Model · " + s["jump"]) for s in secs]
     body = ["<h1>Calibration</h1><p class='lead'>When a forecast says 70%, "
             "does it happen 70% of the time? First the <b>market</b> itself "
-            "(the no-vig close against results, one section per sportsbook), "
+            "(the no-vig close against results, one section per market: Kalshi "
+            "from 2025-26, the sportsbook before), "
             "then the <b>model</b>, with the market's own forecast on the same "
             "games beside it and both scored against the results.</p>",
             READ_KEY.replace("Judge every ROI against its <b>null</b>: the ROI "
                              "if the market's no-vig prices were exactly right. "
-                             "That is about −4% (the bookmaker's hold), not "
-                             "zero. ",
+                             "That is about −4% (the hold: Kalshi's taker fee "
+                             "and spread, or the bookmaker's margin), not zero. ",
                              "Here the null is the diagonal: stated = actual. "),
             _jump(jumps)]
     if not parts:
@@ -1713,7 +1761,7 @@ def main(argv=None):
         ACTIVE_TAGS = active_tags(model, load_avail(), load_fallback())
 
     if not a.render_only:
-        native, n = grade(native, today)
+        native, n = grade(native, today, kalshi_close_fn=kalshi_grade)
         log(f"graded {n} game(s)")
         if model_ok:
             try:

@@ -27,6 +27,12 @@ Model v4 (build_site.MODEL_TAG_V4 / _V4_AVAIL), every fit without Y:
                 report seasons;
   * games 1-9:  the v2 carryover model (logit on GAME_YEARS without Y).
 
+--kalshi fills only the kalshi_* grade columns (Kalshi's open and its last
+pre-tip minute, kalshi.grade_odds) of graded rows from
+ledger.KALSHI_FROM_SEASON on that lack them; nothing else is touched and no
+model is fitted. The pages grade against Kalshi wherever a row has it
+(analysis.market_view).
+
 --rescore replaces only the model columns (delta, p_home, lean, p_lean,
 model_tag, games played) of rows already in data/nba_reconstructed.csv and
 keeps their prices and results, so no odds are refetched.
@@ -49,6 +55,7 @@ import pandas as pd
 
 import build_site
 import cold_start
+import kalshi
 import ledger
 import market
 import nba_composite as nc
@@ -281,6 +288,38 @@ def attach_espn(test, sleep=0.25):
     return pd.DataFrame(rows, columns=ledger.COLUMNS)
 
 
+def backfill_kalshi(seasons, spacing=0.2, every=200):
+    """kalshi_* grade columns for graded reconstructed rows of `seasons` (from
+    ledger.KALSHI_FROM_SEASON) that lack a Kalshi close. Saves every `every`
+    rows, so a stopped run keeps its progress; reruns skip filled rows."""
+    kalshi.SPACING = spacing
+    df = ledger.load(ledger.RECON_PATH)
+    won = pd.to_numeric(df["home_won"], errors="coerce").isin([0, 1])
+    season = pd.to_numeric(df["season"], errors="coerce")
+    todo = df.index[won & season.isin(seasons) & (season >= ledger.KALSHI_FROM_SEASON)
+                    & pd.to_numeric(df["kalshi_close_q_home"], errors="coerce").isna()]
+    print(f"Kalshi: {len(todo)} reconstructed rows to fill", flush=True)
+    found = 0
+    for k, i in enumerate(todo, 1):
+        r = df.loc[i]
+        try:
+            o = kalshi.grade_odds(str(r["slate_date"]), r["home"], r["away"], r["tip_utc"])
+        except Exception as e:  # noqa: BLE001 - one game; rerun fills it
+            print(f"{r['game_id']}: {e!r}", flush=True)
+            continue
+        for c in ledger.KALSHI_GRADE_COLUMNS:
+            if o.get(c) is not None:
+                df.at[i, c] = o[c]
+        found += bool(o)
+        if k % every == 0:
+            ledger.save(df, ledger.RECON_PATH)
+            print(f"Kalshi: {k}/{len(todo)} read, {found} with a close", flush=True)
+    ledger.save(df, ledger.RECON_PATH)
+    print(f"Kalshi: {found}/{len(todo)} rows filled; wrote {ledger.RECON_PATH}",
+          flush=True)
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -294,7 +333,11 @@ def main(argv=None):
                     help="score with the v4 routing (no luck_def / talent_diff)")
     ap.add_argument("--v5", action="store_true",
                     help="score with the v5 routing (no ft_diff)")
+    ap.add_argument("--kalshi", action="store_true",
+                    help="fill only Kalshi's open/close on existing graded rows")
     a = ap.parse_args(argv)
+    if a.kalshi:
+        return backfill_kalshi(a.seasons)
     terms = None
     if not a.no_avail:
         archive = pav.ReportArchive(os.path.join(a.cache, "injury_reports"))
