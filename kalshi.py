@@ -26,6 +26,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import pandas as pd
+
 import market
 
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
@@ -231,11 +233,28 @@ def open_quote(ticker, tip_ts):
     return None, None
 
 
+POSTPONED_DAYS = 2   # a postponed game keeps its original date in the ticker
+
+
 def _event_quotes(date, home, away, tip_utc, read):
     """read(ticker, tip_ts) for both sides -> ((home), (away)), trying the
-    event ticker away+home first, then home+away (404 or empty), else None."""
+    event ticker away+home first, then home+away (404 or empty), else None.
+    Without quotes on the slate date, the previous POSTPONED_DAYS dates are
+    tried (Kalshi keeps a postponed game's original date: GSW @ MIN played
+    2026-01-25 is KXNBAGAME-26JAN24GSWMIN). Only candles before THIS tip are
+    read, so an earlier game's market, closed by then, answers nothing."""
     from ledger import parse_utc
     tip_ts = parse_utc(tip_utc).timestamp()
+    day = pd.Timestamp(str(date)[:10])
+    for back in range(POSTPONED_DAYS + 1):
+        d = (day - pd.Timedelta(days=back)).strftime("%Y-%m-%d")
+        q = _quotes_on(d, home, away, tip_ts, read)
+        if q is not None:
+            return q
+    return None
+
+
+def _quotes_on(date, home, away, tip_ts, read):
     for h_, a_ in ((home, away), (away, home)):
         try:
             h = read(market_ticker(date, home, h_, a_), tip_ts)

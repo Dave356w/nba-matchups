@@ -231,3 +231,23 @@ def test_build_adds_kalshi_pregame_and_survives_a_failure(monkeypatch):
     rows = [dict(slate_date="2026-11-19", home="GSW", away="UTA")]
     build_site.add_kalshi_pregame(rows, "2026-11-19")
     assert "kalshi_pre_home_ml" not in rows[0]               # book only
+
+
+def test_postponed_game_keeps_its_original_ticker_date(monkeypatch):
+    tip = "2026-01-25T22:30Z"
+    tip_ts = ledger.parse_utc(tip).timestamp()
+
+    def get(path, **p):
+        if "26JAN24GSWMIN" in path and p["end_ts"] <= tip_ts:
+            ask = 0.65 if path.split("/")[-2].endswith("MIN") else 0.37
+            return {"candlesticks": [{"end_period_ts": int(tip_ts) - 60,
+                                      "yes_ask": {"close_dollars": f"{ask}"},
+                                      "yes_bid": {"close_dollars": f"{ask - .01:.2f}"}}]}
+        return {}
+    monkeypatch.setattr(kalshi, "get", get)
+    o = kalshi.close_odds("2026-01-25", "MIN", "GSW", tip)
+    assert o["close_home_ml"] == market.american_from_prob(market.kalshi_cost(0.65))
+    # a game three days earlier is never picked up
+    monkeypatch.setattr(kalshi, "get", lambda path, **p: get(
+        path.replace("26JAN24", "26JAN22"), **p) if "26JAN24" in path else {})
+    assert kalshi.close_odds("2026-01-25", "MIN", "GSW", tip) == {}
