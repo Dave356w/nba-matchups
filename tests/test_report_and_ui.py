@@ -121,3 +121,61 @@ def test_build_commits_data_even_after_a_failed_render():
     # validation gates the commit inside the same step
     assert step.index("python validate_data_files.py") < step.index("git commit")
     assert "cancel-in-progress: false" in wf
+
+
+def _slate(n=3, seed=41):
+    """Pending native rows on one slate (synthetic rows, results cleared)."""
+    d = synth(n, seed, "native").copy()
+    d["slate_date"] = "2026-11-19"
+    for c in ("home_won", "home_pts", "away_pts"):
+        d[c] = np.nan
+    return d
+
+
+def test_index_renders_one_card_per_game_with_ev_beside_its_null(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    d = _slate()
+    build_site.write_pages(d, synth(100, 42, "reconstructed"), "2026-11-19",
+                           model_ok=True)
+    idx = (tmp_path / "index.html").read_text()
+    assert idx.count("<details class='card'>") == len(d)
+    for _, r in d.iterrows():
+        assert f"{r['away']} @ {r['home']}" in idx
+        assert f"Lean {r['lean']}" in idx
+    assert "Model EV" in idx and "if the market is right" in idx    # EV beside its null
+    assert "Model − market" in idx and "How these numbers are made" in idx
+    assert "Flat 1u ROI · native lean" in idx                    # record box kept
+
+
+def test_index_card_abstains_without_a_probability():
+    r = _slate(1).iloc[0].copy()
+    r["p_home"] = np.nan
+    card = build_site.game_card(r)
+    assert "Abstain" in card and "Lean " not in card and "probbar" not in card
+
+
+def test_rebuilt_history_is_folded_and_forward_rows_open(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(synth(100, 43, "native"), synth(100, 44, "reconstructed"),
+                           "2026-11-19", model_ok=True)
+    grades = (tmp_path / "grades.html").read_text()
+    nat = grades[grades.index("id='forward'"):grades.index("id='rebuilt'")]
+    rec = grades[grades.index("id='rebuilt'"):]
+    assert "<details class='fold' id='native-" in nat and "' open>" in nat
+    assert "<details class='fold' id='reconstructed-" in rec and "' open>" not in rec
+    assert "Hindsight, not a track record" in rec
+    # the summary line carries ROI with its null and the favourite baseline
+    assert "· null " in rec and "· fav " in rec
+    assert (tmp_path / ".nojekyll").exists()
+
+
+def test_nav_drops_report_but_every_footer_links_it(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(ledger.empty(), ledger.empty(), "2026-11-19", model_ok=True)
+    for name in ("index.html", "grades.html", "model.html", "preseason.html",
+                 "market-calibration.html"):
+        html = (tmp_path / name).read_text()
+        nav = html[html.index("<nav>"):html.index("</nav>")]
+        assert "ledger_report.txt" not in nav
+        foot = html[html.index("class='foot'"):]
+        assert "href='ledger_report.txt'" in foot
