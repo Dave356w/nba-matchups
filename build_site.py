@@ -624,8 +624,74 @@ width:100%;max-width:440px;box-shadow:var(--shadow)}
 .mk{stroke:var(--card);stroke-width:2}
 .foot{margin-top:28px;color:var(--faint);font-size:12.5px;border-top:1px solid var(--line);padding-top:10px}
 .foot code{font-size:12px}
-@media (max-width:640px){table{font-size:13px}td{font-size:12.5px}.brand{font-size:15px}}
+[hidden]{display:none!important}
+.badge.lean{background:var(--chip);color:var(--acc);border-color:transparent}
+.badge.warn{color:var(--s2);border-color:var(--s2)}
+.badge.w{background:var(--pos-bg);color:var(--pos);border-color:transparent}
+.badge.l{background:var(--neg-bg);color:var(--neg);border-color:transparent}
+.flag-note{background:var(--chip);border-left:3px solid var(--accb);border-radius:var(--r);
+padding:9px 13px;font-size:13.5px;color:var(--mut);max-width:none;margin:8px 0 12px}
+.flag-note b{color:var(--fg)}
+/* slate: one card per game, tap for details (the NFL site's scoreboard) */
+.grid{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
+border-radius:var(--r);box-shadow:var(--shadow);overflow:clip;margin:14px 0}
+.card+.card{border-top:1px solid var(--line)}
+.game-summary{position:relative;display:block;padding:13px 40px 12px 16px;list-style:none;cursor:pointer}
+.game-summary::-webkit-details-marker{display:none}.game-summary::marker{content:""}
+.game-summary:hover{background:var(--card2)}
+.card[open]>.game-summary{background:var(--card2);border-bottom:1px solid var(--line2)}
+.teams{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.7fr) minmax(0,1fr);align-items:center;gap:12px}
+.side{display:flex;align-items:center;gap:10px;min-width:0}
+.side.home{justify-content:flex-end;text-align:right}
+.tchip{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:999px;
+border:1px solid var(--line);background:var(--card2);font:800 12px/1 var(--mono);position:relative}
+.tchip .logo{position:absolute;inset:5px;width:32px;height:32px;object-fit:contain}
+.tchip .logo.dk{display:none}.tchip.has-logo span{visibility:hidden}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo.lt{display:none}
+:root:not([data-theme="light"]) .logo.dk{display:block}}
+:root[data-theme="dark"] .logo.lt{display:none}:root[data-theme="dark"] .logo.dk{display:block}
+.club{min-width:0}
+.club .nm{font:750 16.5px/1.15 var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.club .wp{font:800 22px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.club .wp.fav{color:var(--acc)}
+.mid{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.mid .t{font:800 15px/1 var(--mono)}.mid .mk{font:600 12.5px/1.2 var(--mono);color:var(--mut)}
+.chev{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--faint);font:800 18px/1 var(--sans)}
+.card[open] .chev{transform:translateY(-50%) rotate(180deg);color:var(--fg)}
+.flags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:9px}
+.flags .badge{margin:0}
+.probbar{display:flex;height:8px;border-radius:3px;overflow:hidden;margin:10px 0 2px;background:var(--line2)}
+.probbar i{display:block;height:100%}.probbar .a{background:var(--s2)}.probbar .h{background:var(--s1)}
+.detail{padding:4px 16px 14px}.detail .note{margin:6px 0}
+.detail .tiles{grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin:8px 0}
+.detail .tile{box-shadow:none;padding:8px 10px}.detail .tile .v{font-size:19px}
+/* folds: secondary detail stays one tap away */
+details.fold{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+box-shadow:var(--shadow);margin:0 0 8px;scroll-margin-top:8px}
+details.fold>summary{cursor:pointer;list-style:none;padding:10px 13px;font:700 14px/1.3 var(--sans);
+display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::before{content:"▸";color:var(--faint)}details.fold[open]>summary::before{content:"▾"}
+details.fold>summary .rt{margin-left:auto;font:600 13px/1.3 var(--mono);color:var(--mut)}
+details.fold>summary .badge{margin-right:0}
+details.fold>.in{padding:0 13px 10px;border-top:1px solid var(--line2)}
+details.fold>.in>.wrap,details.fold>.in>.tiles .tile{box-shadow:none}
+details.key>summary{cursor:pointer;color:var(--acc);font-weight:600}
+.record{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px 4px;margin-top:6px}
+.record>.l{font:650 12px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.record .tiles{margin:8px 0}.record .tile{box-shadow:none}
+.record .go{text-align:right;font:600 14px/1 var(--sans);margin:0 0 8px}
+@media (max-width:640px){table{font-size:13px}td{font-size:12.5px}.brand{font-size:15px}
+.teams{grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr);gap:6px}.tchip{display:none}
+.club .nm{font-size:14px}.club .wp{font-size:19px}.game-summary{padding:12px 30px 11px 12px}
+.chev{right:8px}}
 """
+
+# A link to a section inside a closed fold opens that fold (jump chips).
+OPEN_JS = ("<script>(function(){function o(){var h=location.hash.slice(1);if(!h)return;"
+           "var e=document.getElementById(h);for(;e;e=e.parentElement)"
+           "if(e.tagName==='DETAILS')e.open=true;}"
+           "addEventListener('hashchange',o);addEventListener('DOMContentLoaded',o);})();</script>")
 
 THEME_JS = ("<script>(function(){var k='nba-theme',r=document.documentElement;"
             "try{var s=localStorage.getItem(k);if(s)r.setAttribute('data-theme',s);}catch(e){}"
@@ -638,7 +704,7 @@ SITE_NAME = "NBA Four-Factors Composite"
 ASSETS = Path(__file__).resolve().parent / "assets" / "fonts"
 PAGES = (("index.html", "Today"), ("grades.html", "Ledger"),
          ("market-calibration.html", "Calibration"), ("model.html", "Model"),
-         ("preseason.html", "Preseason"), ("ledger_report.txt", "Report (text)"))
+         ("preseason.html", "Preseason"))
 
 
 def font_face_css(assets=ASSETS):
@@ -674,11 +740,12 @@ def page(title, active, body, built):
             f"href='index.html'>{SITE_NAME}</a><button class='theme' type='button' "
             "onclick='toggleTheme()' aria-label='Toggle colour theme'>Theme</button>"
             f"</div><nav>{nav}</nav>{body}<div class='foot'>Built "
-            f"<span class='stamp'>{esc(built)}</span> · model "
-            + " / ".join(f"<code>{esc(t)}</code>" for t in ACTIVE_TAGS)
-            + ". Win probabilities from prior-game four factors, roster talent "
-            "and the NBA injury report; the market is a benchmark only and never "
-            "enters the model. Not betting advice.</div></main></body></html>")
+            f"<span class='stamp'>{esc(built)}</span>. Win probabilities from "
+            "prior-game four factors, roster talent and the NBA injury report; "
+            "the market is a benchmark only and never enters the model. Full "
+            f"statistics: <a href='{report.REPORT_NAME}'>{report.REPORT_NAME}</a> "
+            "· model tags and coefficients: <a href='model.html'>Model</a>. "
+            f"Not betting advice.</div></main>{OPEN_JS}</body></html>")
 
 
 def pct(x, d=1):
@@ -723,6 +790,35 @@ def table(heads, rows, left=(0,), key=()):
         "<tr>" + "".join(f"<td class='{c(i)}'>{v}</td>" for i, v in enumerate(r))
         + "</tr>" for r in rows)
     return f"<div class='wrap'><table><thead><tr>{th}</tr></thead><tbody>{body}</tbody></table></div>"
+
+
+# Team logos hotlinked from ESPN's CDN (Basketball-Reference code -> ESPN code
+# where they differ), as on the NFL site: readers' browsers fetch them, the
+# build needs no network, and a missing logo falls back to the code.
+ESPN_CODES = {"BRK": "bkn", "CHO": "cha", "GSW": "gs", "NOP": "no", "NYK": "ny",
+              "PHO": "phx", "SAS": "sa", "UTA": "utah", "WAS": "wsh"}
+LOGO_URL = "https://a.espncdn.com/combiner/i?img=/i/teamlogos/nba/{variant}/{code}.png&h=80&w=80"
+
+
+def logo_html(code):
+    """Light- and dark-theme logo over the team code; CSS shows the one
+    matching the theme."""
+    if code not in TEAM_NAMES:
+        return ""
+    espn = ESPN_CODES.get(code, str(code).lower())
+    return "".join(
+        f"<img class='logo {cls}' src='{esc(LOGO_URL.format(variant=v, code=espn))}' "
+        "alt='' loading='lazy' decoding='async' referrerpolicy='no-referrer' "
+        "onload=\"this.parentNode.classList.add('has-logo')\" onerror='this.remove()'>"
+        for cls, v in (("lt", "500"), ("dk", "500-dark")))
+
+
+def fold(summary, inner, open_=False, id_="", label=""):
+    """A collapsible section (the NFL site's fold): summary line always
+    visible, the detail one tap away."""
+    attrs = (f" id='{id_}'" if id_ else "") + (f" aria-label='{esc(label)}'" if label else "")
+    return (f"<details class='fold'{attrs}{' open' if open_ else ''}>"
+            f"<summary>{summary}</summary><div class='in'>{inner}</div></details>")
 
 
 def tip_et(s):
@@ -796,7 +892,8 @@ def headline_tiles(native, recon):
     pooled; plus how many pregame rows are locked."""
     secs = _sections(native, ledger.empty() if recon is None else recon)
     nat = next((s for s in secs if s["basis"] == "native" and s["book"]), None)
-    rec = next((s for s in secs if s["basis"] == "reconstructed" and s["book"]), None)
+    rec = max((s for s in secs if s["basis"] == "reconstructed" and s["book"]),
+              key=lambda s: s["season"], default=None)       # the latest season
     tiles = []
     if nat:
         price = "pre" if analysis.roi_summary(nat["h"], "pre") else "close"
@@ -830,104 +927,134 @@ def headline_tiles(native, recon):
     return "<div class='tiles'>" + "".join(tiles) + "</div>"
 
 
-def render_index(led, today, built, model_ok, recon=None):
-    led, recon = analysis.market_view(led), analysis.market_view(recon)
-    tiles = headline_tiles(led, recon)
-    head = ("<h1>NBA composite vs market</h1><p class='lead'>Four-factors "
-            "composite gap (home − away, in win-% points), the model's "
-            "P(win), and the market price with its margin removed: Kalshi "
-            "(the exchange, its taker fee included in the price; q from the "
-            "bid/ask midpoints), or the sportsbook when Kalshi has no "
-            "price. "
-            "<b>Model − market</b> is the lean side's model probability minus "
-            "the no-vig market probability; <b>model EV</b> is what the model "
-            "claims the posted price is worth. Both are model estimates, not "
-            "verified edges — the calibration page tracks whether they hold "
-            f"up. Slate <span class='stamp'>{esc(today)}</span> (ET).</p>"
-            + tiles)
-    if not model_ok:
-        return page("NBA composite", "index.html", head +
-                    "<p class='note'>No fitted model in <code>model/</code> "
-                    "yet. Run the <b>Fit model</b> workflow.</p>", built)
-    day = led[led["slate_date"].astype(str) == today] if len(led) else led
-    if not len(day):
-        return page("NBA composite", "index.html", head +
-                    "<p class='note'>No regular-season games scored for this "
-                    "date (off day, preseason, or the build ran after tip). "
-                    "Exhibition games are tracked separately on the "
-                    "<a href='preseason.html'>Preseason</a> page.</p>",
-                    built)
-    rows = []
-    for _, r in day.sort_values("tip_utc").iterrows():
-        match = f"{esc(r['away'])} @ {esc(r['home'])}"
-        p = pd.to_numeric(r["p_home"], errors="coerce")
-        if not np.isfinite(p):
-            why = (f"abstain · {r['gp_away']:.0f}/{r['gp_home']:.0f} games "
-                   "played" if pd.notna(r["gp_home"])
-                   else "abstain · no game log")
-            rows.append([tip_et(r["tip_utc"]), match, "—", "—", "—",
-                         f"{ml_txt(r['pre_away_ml'])} / {ml_txt(r['pre_home_ml'])}"
-                         + book_tag(r["pre_book"]),
-                         f"<span class='mut'>{why}</span>", "", ""])
-            continue
-        lean_home = r["lean"] == r["home"]
-        q_home = pd.to_numeric(r["pre_q_home"], errors="coerce")
+HOW_INDEX = (
+    "<p class='note'><b>Model</b> is the composite's P(win); <b>market</b> is "
+    "the price with its margin removed: Kalshi (the exchange, its taker fee "
+    "included in the price; no-vig from the bid/ask midpoints), or the "
+    "sportsbook when Kalshi has no price (tagged with the book). The "
+    "<b>lean</b> is the side the model gives ≥ 50%. <b>Model − market</b> is "
+    "the lean's model probability minus its no-vig market probability; "
+    "<b>model EV</b> is what the model claims the posted price is worth, shown "
+    "beside its <b>null</b>: the EV if the market is exactly right, about minus "
+    "the hold, not zero. Both are model estimates, not verified edges; the "
+    "Ledger and Calibration pages track whether they hold up.</p>"
+    "<p class='note'><b>Composite Δ</b> is 100 × the standardised four-factor gap "
+    "(ridge weights, home − away, in win-% points). <b>early · carryover</b>: a "
+    f"team has fewer than {nc.MIN_GAMES} games, so last season's log "
+    f"(×{cold_start.RHO}) is carried in with its own early-season logit. "
+    "<b>injury report</b>: from game 10 the latest NBA injury report is folded "
+    "in (Out/Doubtful players, weighted by last season's BPM). The games-10+ "
+    "logits also grow the rating's weight through the season, discount "
+    "opponents' 3-point shooting (mostly luck), add roster talent (minutes "
+    "share × last season's BPM) and each team's free-throw percentage; see "
+    "<a href='model.html'>Model</a>. Prices are refreshed each build until tip "
+    "and frozen after. A game abstains only while a team has no games yet.</p>")
+
+
+def _side_html(code, wp, fav, cls):
+    club = (f"<div class='club'><div class='nm'>{esc(TEAM_NAMES.get(code, code))}</div>"
+            f"<div class='wp{' fav' if fav else ''}'>{pct(wp, 0) if np.isfinite(wp) else '—'}"
+            "</div></div>")
+    chip = f"<div class='tchip'><span>{esc(code)}</span>{logo_html(code)}</div>"
+    return f"<div class='side {cls}'>{chip + club if cls == 'away' else club + chip}</div>"
+
+
+def game_card(r):
+    """One game: model WP for both sides, the price, the lean; tap for the
+    model-vs-market detail. Reads only the row as recorded."""
+    away, home = r["away"], r["home"]
+    p = pd.to_numeric(r["p_home"], errors="coerce")
+    q_home = pd.to_numeric(r["pre_q_home"], errors="coerce")
+    won = pd.to_numeric(r.get("home_won"), errors="coerce")
+    has_ml = np.isfinite(pd.to_numeric(r["pre_home_ml"], errors="coerce"))
+    mk = (f"{esc(away)} {ml_txt(r['pre_away_ml'])} · {esc(home)} {ml_txt(r['pre_home_ml'])}"
+          + book_tag(r["pre_book"]) if has_ml else "No price yet")
+    flags = []
+    if np.isfinite(won):
+        flags.append(f"<span class='badge'>Final {int(r['away_pts'])}–{int(r['home_pts'])}</span>")
+    det = [f"<p class='note'><b>{esc(away)} @ {esc(home)}</b> · tip "
+           f"{tip_et(r['tip_utc'])} ET</p>"]
+    if not np.isfinite(p):
+        why = (f"{r['gp_away']:.0f}/{r['gp_home']:.0f} games played"
+               if pd.notna(r["gp_home"]) else "no game log")
+        flags.append(f"<span class='badge'>Abstain · {esc(why)}</span>")
+        det.append("<p class='note'>No probability: a team has no games yet "
+                   "(or the early model is not fitted).</p>")
+        fav_home = fav_away = False
+    else:
+        lean_home = r["lean"] == home
         ml = r["pre_home_ml"] if lean_home else r["pre_away_ml"]
         q = q_home if lean_home else 1 - q_home
         pl = float(r["p_lean"])
-        be = market.implied(ml)
-        ev = pl * market.decimal_payout(ml) - 1 if np.isfinite(be) else np.nan
-        early_tag = (" <span class='basis'>early · carryover</span>"
-                     if pd.notna(r["gp_home"]) and
-                     min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES else
-                     " <span class='basis'>injury report</span>"
-                     if r.get("model_tag") in AVAIL_TAGS else "")
-        b2b = "/".join(x for x, f in ((r["away"], r["away_b2b"]),
-                                      (r["home"], r["home_b2b"])) if f == 1) or "—"
-        rows.append([
-            tip_et(r["tip_utc"]), match, f"{float(r['delta']):+.1f}", esc(b2b),
-            f"{pct(1 - p)} / {pct(p)}",
-            f"{ml_txt(r['pre_away_ml'])} / {ml_txt(r['pre_home_ml'])}"
-            + book_tag(r["pre_book"])
-            + (f"<br><span class='mut'>{pct(1 - q_home)} / {pct(q_home)}</span>"
-               if np.isfinite(q_home) else ""),
-            f"<span class='chip'>{esc(r['lean'])}</span> {pct(pl)}{early_tag}",
-            pp(pl - q) if np.isfinite(q) else "—",
-            pp(ev) if np.isfinite(ev) else "—",
-        ])
-    heads = ["Tip ET", "Away @ Home", "Composite Δ", "B2B",
-             "Model away / home", "Market away / home<br>no-vig",
-             "Lean", "Model − market (pp)", "Model EV (%)"]
-    note = ("<p class='note'>Composite Δ is 100 × standardised four-factor gap · "
-            "ridge weights, in win-% points; P(home) = σ(a + b·Δ + c·b2b_net). "
-            "<b>early · carryover</b>: a team has fewer than "
-            f"{nc.MIN_GAMES} games, so last season's log (×{cold_start.RHO}) is "
-            "carried in with its own early-season logit; in backtests it "
-            "trailed the close by about as much as mid-season games do. "
-            "<b>injury report</b>: from game 10 the latest NBA injury report "
-            "is folded in (Out/Doubtful players, weighted by last season's "
-            "BPM, against how often they played in the rating window). "
-            + ("<b>v4</b>: a given composite gap counts for more as the "
-               "season goes on (× days since opening night, about double by "
-               "April), fitted on earlier seasons. "
-               if {MODEL_TAG_V4, MODEL_TAG_V5, MODEL_TAG_V6} & set(ACTIVE_TAGS)
-               else "") +
-            ("<b>v5</b>: the rating discounts the 3-point shooting of a team's "
-             "opponents (mostly luck) and adds roster talent: minutes share × "
-             "last season's BPM over the players in each team's last game, so "
-             "trades and returns count at once. "
-             if {MODEL_TAG_V5, MODEL_TAG_V6} & set(ACTIVE_TAGS) else "") +
-            ("<b>v6</b>: each team's own free-throw percentage (same decay), "
-             "which the four factors read only as attempts. "
-             if MODEL_TAG_V6 in ACTIVE_TAGS else "") +
-            "Prices are the moneyline at the snapshot time in the ledger "
-            "(Kalshi unless tagged with a sportsbook), "
-            "refreshed each build until tip and frozen after. A game abstains "
-            "only while a team has no games yet (or the early model is not "
-            "fitted).</p>")
-    return page("NBA composite", "index.html",
-                head + table(heads, rows, left=(1, 6)) + note, built)
+        dec = market.decimal_payout(ml) if has_ml else np.nan
+        ev = pl * dec - 1 if np.isfinite(dec) else np.nan
+        ev0 = q * dec - 1 if np.isfinite(dec) and np.isfinite(q) else np.nan
+        fav_home, fav_away = p > .5, p < .5
+        flags.append(f"<span class='badge lean'>Lean {esc(r['lean'])}"
+                     + (f" {ml_txt(ml)}" if has_ml else "") + "</span>")
+        if pd.notna(r["gp_home"]) and min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES:
+            flags.append("<span class='badge'>early · carryover</span>")
+        elif r.get("model_tag") in AVAIL_TAGS:
+            flags.append("<span class='badge'>injury report</span>")
+        det.append(table(["", esc(away), esc(home)], [
+            ["Model", pct(1 - p), pct(p)],
+            ["Market (no-vig)", pct(1 - q_home), pct(q_home)],
+            ["Moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]],
+            left=(0,)))
+        det.append("<div class='tiles'>"
+                   + tile("Model − market", f"{pp(pl - q, cls=False)} pp" if np.isfinite(q) else "—",
+                          f"{esc(r['lean'])}: {pct(pl)} vs {pct(q)}")
+                   + tile("Model EV", f"{pp(ev, cls=False)}%" if np.isfinite(ev) else "—",
+                          f"null {pp(ev0, cls=False) if np.isfinite(ev0) else '—'}% "
+                          "if the market is right")
+                   + tile("Composite Δ", f"{float(r['delta']):+.1f}",
+                          "home − away, win-% points")
+                   + "</div>")
+    b2b = [x for x, f in ((away, r["away_b2b"]), (home, r["home_b2b"])) if f == 1]
+    if b2b:
+        flags.append(f"<span class='badge warn'>B2B {esc('/'.join(b2b))}</span>")
+    pw = p if np.isfinite(p) else .5
+    bar = ("" if not np.isfinite(p) else
+           "<div class='probbar' aria-hidden='true'>"
+           f"<i class='a' style='width:{100 * (1 - pw):.1f}%'></i>"
+           f"<i class='h' style='width:{100 * pw:.1f}%'></i></div>")
+    summary = ("<summary class='game-summary'><div class='teams'>"
+               + _side_html(away, 1 - p, fav_away, "away")
+               + f"<div class='mid'><div class='t'>{tip_et(r['tip_utc'])} ET</div>"
+               f"<div class='mk'>{mk}</div></div>"
+               + _side_html(home, p, fav_home, "home") + "</div>" + bar
+               + f"<div class='flags'>{''.join(flags)}</div><span class='chev'>⌄</span></summary>")
+    return (f"<details class='card'>{summary}<div class='detail'>{''.join(det)}"
+            "</div></details>")
 
+
+def render_index(led, today, built, model_ok, recon=None):
+    led, recon = analysis.market_view(led), analysis.market_view(recon)
+    day_txt = pd.Timestamp(today).strftime("%A, %B %-d")
+    head = (f"<h1>{esc(day_txt)}</h1><p class='lead'>Model win probabilities "
+            "for every game on today's slate, against the market. Tap a game "
+            f"for details. Slate <span class='stamp'>{esc(today)}</span> (ET).</p>")
+    record = ("<div class='record'><div class='l'>Record · flat 1u on the lean, "
+              "against its null and the market favourite</div>"
+              + headline_tiles(led, recon)
+              + "<div class='go'><a href='grades.html'>Ledger →</a></div></div>")
+    how = fold("How these numbers are made", HOW_INDEX)
+    if not model_ok:
+        return page("NBA composite", "index.html", head +
+                    "<p class='note'>No fitted model in <code>model/</code> "
+                    "yet. Run the <b>Fit model</b> workflow.</p>" + record, built)
+    day = led[led["slate_date"].astype(str) == today] if len(led) else led
+    if not len(day):
+        return page("NBA composite", "index.html", head +
+                    "<div class='flag-note'>No regular-season games scored for this "
+                    "date (off day, preseason, or the build ran after tip). "
+                    "Exhibition games are tracked separately on the "
+                    "<a href='preseason.html'>Preseason</a> page.</div>"
+                    + record + how, built)
+    cards = [game_card(r) for _, r in day.sort_values("tip_utc").iterrows()]
+    return page("NBA composite", "index.html",
+                head + f"<div class='grid'>{''.join(cards)}</div>" + record + how,
+                built)
 
 
 # ------------------------------------------------------------- model page ---
@@ -946,7 +1073,7 @@ FEATURE_TXT = {
 
 def _coef_table(name, m):
     if not m:
-        return f"<p class='note'>{esc(name)}: not fitted.</p>"
+        return fold(f"{esc(name)} <span class='mut'>not fitted</span>", "")
     rows = [["Intercept (home edge)", f"{m['intercept']:+.4f}", ""]]
     rows += [[f"<code>{esc(f)}</code>", f"{c:+.4f}",
               f"<span class='mut'>{esc(FEATURE_TXT.get(f, ''))}</span>"]
@@ -954,8 +1081,8 @@ def _coef_table(name, m):
     yrs = m.get("years") or []
     meta = (f"{m.get('n_games', '?')} games · seasons ending "
             f"{min(yrs)}–{max(yrs)}" if yrs else f"{m.get('n_games', '?')} games")
-    return (f"<h3>{esc(name)}</h3><p class='note'>{meta}</p>"
-            + table(["Term", "Logit coef", "Meaning"], rows, left=(0, 2)))
+    return fold(f"{esc(name)} <span class='mut'>{meta}</span>",
+                table(["Term", "Logit coef", "Meaning"], rows, left=(0, 2)))
 
 
 def _season_table(rows, basis, rule):
@@ -991,11 +1118,11 @@ def render_model(native, recon, built):
     body = ["<h1>Model</h1><p class='lead'>Goal: flat 1u ROI on the model's "
             "side, judged against the market-correct null and the market "
             "favourite on the same games; log loss and Brier against the close "
-            "are the probability check. Active tags: "
-            + " / ".join(f"<code>{esc(t)}</code>" for t in ACTIVE_TAGS)
-            + f". Full description: <a href='{REPO_URL}MODEL.md'>MODEL.md</a>; "
-            f"the quotable readout: <a href='{report.REPORT_NAME}'>"
-            f"{report.REPORT_NAME}</a>.</p>"]
+            f"are the probability check. Full description: <a href='{REPO_URL}"
+            f"MODEL.md'>MODEL.md</a>; the quotable readout: <a href='"
+            f"{report.REPORT_NAME}'>{report.REPORT_NAME}</a>.</p>"
+            "<p class='note'>Active tags: "
+            + " / ".join(f"<code>{esc(t)}</code>" for t in ACTIVE_TAGS) + "</p>"]
     body.append("<h2>Routing</h2>" + table(
         ["Games played (fewer of the two)", "Formula", "Model file"],
         [["0", "abstain (no probability)", "—"],
@@ -1046,7 +1173,7 @@ BASIS_BADGES = {"native": "<span class='badge native'>Native · forward</span>",
                 "reconstructed": "<span class='badge recon'>Reconstructed · hindsight</span>"}
 
 READ_KEY = (
-    "<div class='key'><b>How to read.</b> Judge every ROI against its "
+    "<details class='key'><summary>How to read these numbers</summary> Judge every ROI against its "
     "<b>null</b>: the ROI if the market's no-vig prices were exactly right. "
     "That is about −4% (the hold: Kalshi's taker fee and spread, or the "
     "bookmaker's margin), not zero. <b>Market</b> is Kalshi's last pre-tip "
@@ -1083,7 +1210,7 @@ READ_KEY = (
     "<dt>Native</dt><dd>Written before tip and frozen: the forward test.</dd>"
     "<dt>Reconstructed</dt><dd>Scored afterwards with that season left out of "
     "the fit and graded at the close: hindsight, never forward evidence.</dd>"
-    "</dl></details></div>")
+    "</dl></details></details>")
 
 
 def _slug(*parts):
@@ -1236,6 +1363,13 @@ def _hypotheses(native, recon):
         rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *n, *h])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
+        "<p class='note'>Rules frozen before any native rows; every result is "
+        "reported here, win or lose. Native is the forward test; hindsight is the "
+        "same rule on the rebuilt seasons.</p>"
+        + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
+                 "Hindsight n", "ROI", "Null", "vs null (± 1 SE)"],
+                rows, left=(0, 1), key=(3, 5))
+        + fold("About these hypotheses <span class='mut'>— dates, prices, what was retired</span>",
         "<p class='note'>H1–H3 fixed on 2026-09-30, H4 and amendment A1 "
         "(H2·F: H2's rule at the first snapshot) on 2026-10-01, all "
         "before any native rows; the thresholds are frozen and every result "
@@ -1253,49 +1387,86 @@ def _hypotheses(native, recon):
         "reconstructed rows at the close its claimed EV was +11 to +16% in "
         "every book and season while it returned −6 to −11% (null about −4%; "
         "ATS −3 to −7% vs −4.5%). The value-side rules still under test are "
-        "the frozen hypotheses in this table.</p>"
-        + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
-                 "Hindsight n", "ROI", "Null", "vs null (± 1 SE)"],
-                rows, left=(0, 1), key=(3, 5)))
+        "the frozen hypotheses in this table.</p>"))
+
+
+def _lean_line(h, price):
+    """The fold's summary figure: flat 1u ROI on the lean beside its null
+    and the market favourite on the same games (colour at >= 2 SE only)."""
+    r = dict(analysis.roi_summary(h, price)).get(analysis.PICK_RULES[0][1])
+    r = r and r[0]
+    if not r:
+        return ""
+    c = sig_cls(analysis.z_vs_null(r))
+    return (f"<span class='rt'>{r['w']}–{r['l']} · ROI <span class='{c}'>"
+            f"{100 * r['roi']:+.1f}%</span> · null {100 * r['roi_null']:+.1f}% · "
+            f"fav {fav_txt(r)}</span>")
+
+
+def _ledger_body(sec, native):
+    """A section's contents: verdicts, ROI tables, then the folded extras."""
+    h, is_native = sec["h"], sec["basis"] == "native"
+    if not len(h):
+        return (_native_empty(native) if is_native else
+                "<p class='note'>No graded rows with a closing line yet.</p>")
+    how = ("Written before tip and frozen after" if is_native else
+           "Scored afterwards with this season left out of the fit")
+    body = [f"<p class='note'>{how} · {len(h)} graded games on "
+            f"{h['slate_date'].nunique()} slates.</p>", _verdicts(sec)]
+    _roi_section(body, h, is_native)
+    _band_section(body, h, is_native)
+    _ats_section(body, h)
+    _recent_section(body, h, is_native)
+    return "".join(body)
 
 
 def render_grades(native, recon, built):
     # sections grade against Kalshi where a row has it; the hypotheses
     # (below, raw rows) stay on the sportsbook prices they were registered on
     secs = _sections(analysis.market_view(native), analysis.market_view(recon))
-    body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, "
-            "graded against the final score and the betting market. Each "
-            "section answers two questions: are the model's probabilities "
-            "better than the market's, and do its leans beat the bookmaker's "
-            "hold? Value-side bets are tested only by the pre-registered "
-            "hypotheses at the top. Native and reconstructed rows, and "
-            "each book and season, are shown separately — never pooled.</p>",
+    body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, graded "
+            "against the final score and the market: one unit on the model's "
+            "lean each game. Judge each ROI against its <b>null</b> (about −4%, "
+            "the market's hold), not zero, and against the market favourite on "
+            "the same games. Forward rows and rebuilt history are never pooled.</p>",
             READ_KEY,
             _jump([("hypotheses", "Hypotheses")] + [(s["id"], s["jump"]) for s in secs]),
             _hypotheses(native, recon)]
-    for sec in secs:
-        h, is_native = sec["h"], sec["basis"] == "native"
-        body.append(f"<h2 id='{sec['id']}' aria-label='{esc(sec['label'])}'>"
-                    f"{sec['title']}</h2>")
-        if not len(h):
-            body.append(_native_empty(native) if is_native else
-                        "<p class='note'>No graded rows with a closing line yet.</p>")
+    nat = [s for s in secs if s["basis"] == "native"]
+    rec = [s for s in secs if s["basis"] != "native"]
+    body.append("<h2 id='forward'>Forward record "
+                "<span class='badge native'>Native · forward</span></h2>")
+    for sec in nat:
+        if sec["book"] is None:
+            body.append(f"<div id='{sec['id']}' aria-label='{esc(sec['label'])}'>"
+                        + _ledger_body(sec, native) + "</div>")
             continue
-        how = ("Written before tip and frozen after" if is_native else
-               "Scored afterwards with this season left out of the fit")
-        body.append(f"<p class='note'>{how} · {len(h)} graded games on "
-                    f"{h['slate_date'].nunique()} slates.</p>")
-        body.append(_verdicts(sec))
-        _roi_section(body, h, is_native)
-        _band_section(body, h, is_native)
-        _ats_section(body, h)
-        _recent_section(body, h, is_native)
+        price = "pre" if analysis.roi_summary(sec["h"], "pre") else "close"
+        body.append(fold(f"{esc(market.BOOK_NAMES[sec['book']])} close · "
+                         f"{season_txt(sec['season'])}" + _lean_line(sec["h"], price),
+                         _ledger_body(sec, native), open_=True,
+                         id_=sec["id"], label=sec["label"]))
+    if rec:
+        body.append("<h2 id='rebuilt'>Rebuilt history "
+                    "<span class='badge recon'>Reconstructed · hindsight</span></h2>"
+                    "<div class='flag-note'>The current model replayed on past "
+                    "seasons, each season left out of its own fit and graded at the "
+                    "close. <b>Hindsight, not a track record:</b> the model was "
+                    "designed after these games were played.</div>")
+    for sec in rec:
+        if sec["book"] is None:
+            body.append(f"<div id='{sec['id']}' aria-label='{esc(sec['label'])}'>"
+                        + _ledger_body(sec, native) + "</div>")
+            continue
+        body.append(fold(f"{esc(market.BOOK_NAMES[sec['book']])} close · "
+                         f"{season_txt(sec['season'])}" + _lean_line(sec["h"], "close"),
+                         _ledger_body(sec, native), id_=sec["id"], label=sec["label"]))
     return page("NBA ledger", "grades.html", "".join(body), built)
 
 
 def _roi_section(body, h, native):
     """1u flat-bet ROI for each pick rule: model WP, market WP, actual."""
-    body.append("<h3 style='font-size:16px'>ROI — one unit on every pick</h3>")
+    body.append("<h3>ROI — one unit on every pick</h3>")
     if native:
         first = _roi_table(analysis.roi_summary(h, price="first"))
         if first:
@@ -1507,25 +1678,24 @@ def render_calibration(native, recon, built):
     jumps = [(_slug("market", b), f"Market · {market.BOOK_NAMES[b]}") for b, _ in parts]
     jumps += [(s["id"], "Model · " + s["jump"]) for s in secs]
     body = ["<h1>Calibration</h1><p class='lead'>When a forecast says 70%, "
-            "does it happen 70% of the time? First the <b>market</b> itself "
-            "(the no-vig close against results, one section per market: Kalshi "
-            "from 2025-26, the sportsbook before), "
-            "then the <b>model</b>, with the market's own forecast on the same "
-            "games beside it and both scored against the results.</p>",
+            "does it happen 70% of the time? First the <b>market</b> (no-vig "
+            "close against results), then the <b>model</b>, with the market's "
+            "forecast on the same games beside it.</p>",
             READ_KEY.replace("Judge every ROI against its <b>null</b>: the ROI "
                              "if the market's no-vig prices were exactly right. "
                              "That is about −4% (the hold: Kalshi's taker fee "
                              "and spread, or the bookmaker's margin), not zero. ",
                              "Here the null is the diagonal: stated = actual. "),
-            _jump(jumps)]
+            _jump(jumps), "<h2 id='market'>Market: no-vig close vs actual</h2>"]
     if not parts:
-        body.append("<h2>Market: no-vig close vs actual</h2>"
-                    "<p class='note'>No graded games with a closing line yet.</p>")
+        body.append("<p class='note'>No graded games with a closing line yet.</p>")
     for book, hm in parts:
-        body.append(f"<h2 id='{_slug('market', book)}'>Market: no-vig close vs "
-                    f"actual — <span class='basis'>{esc(market.BOOK_NAMES[book])}"
-                    "</span></h2>")
-        _market_section(body, hm, first=book == parts[0][0])
+        out = []
+        _market_section(out, hm, first=book == parts[0][0])
+        body.append(fold(f"<span class='basis'>{esc(market.BOOK_NAMES[book])}</span> "
+                         f"<span class='mut'>{len(hm)} games</span>", "".join(out),
+                         open_=book == parts[0][0], id_=_slug("market", book)))
+    body.append("<h2 id='model'>Model vs market, same games</h2>")
     _model_sections(body, secs)
     body.append("<p class='note'>Bet grading by price band (ROI, EV and their "
                 "nulls) is on the <a href='grades.html'>Ledger</a>.</p>")
@@ -1577,53 +1747,68 @@ def _model_sections(body, secs):
     first = True
     for sec in secs:
         h = sec["h"]
-        body.append(f"<h2 id='{sec['id']}' aria-label='Model — {esc(sec['label'])}'>"
-                    f"Model — {sec['title']}</h2>")
-        if not len(h):
-            body.append("<p class='note'>No graded model rows with a close yet.</p>")
-            continue
-        s = analysis.scoring(h)
-        zb = (-s["d_brier"] / s["d_brier_se"]
-              if np.isfinite(s["d_brier_se"]) and s["d_brier_se"] > 0 else float("nan"))
-        body.append("<div class='tiles'>" + "".join([
-            _score_tile(s),
-            tile("Brier (model / market)",
-                 f"{s['model']['brier']:.4f} / {s['market']['brier']:.4f}",
-                 f"model − market {s['d_brier']:+.4f} ± {se4(s['d_brier_se'])} "
-                 f"(1 SE) · {resolved_txt(zb, 'model better', 'market better')}",
-                 sig_cls(zb)),
-            tile("Picked the winner (model lean / market favourite)",
-                 f"{pct(s['model']['acc'])} / {pct(s['market']['acc'])}",
-                 "same games · accuracy is not calibration"),
-        ]) + "</div>")
-        p = h["p_home"].to_numpy(float)
-        q = h["close_q_home"].to_numpy(float)
-        y = h["home_won"].to_numpy(float)
-        body.append("<div class='charts'>"
-                    + reliability_svg([("Model", "s1", analysis.reliability(p, y)),
-                                       ("Market (no-vig close)", "s2",
-                                        analysis.reliability(q, y))],
-                                      "Model vs market calibration, P(home win)")
-                    + f"<p class='note'>{CHART_NOTE if first else CHART_NOTE_SHORT}"
-                    " Both forecasts are for the same games; each is binned "
-                    "on its own probability. Negative model − market on the "
-                    "scores means the model did better; an interval spanning "
-                    "0 has not separated them.</p></div>")
-        first = False
-        cal = analysis.model_calibration(h)
-        body.append("<details class='more'><summary>Model bins in numbers "
-                    "<span class='mut'>— with the market's mean on the same "
-                    "games</span></summary>")
-        body.append(table(
-            ["Model P(home)", "n", "Model mean", "Market mean (same games)",
-             "Actual", "Actual − model (± 1 SE)"],
-            [[f"{c['lo']:.1f}–{c['hi']:.1f}", c["n"], pct(c["model"]),
-              pct(c["market"]), pct(c["actual"]),
-              f"<span class='{sig_cls((c['actual'] - c['model']) / c['se'] if c['se'] > 0 else float('nan'))}'>"
-              f"{pp(c['actual'] - c['model'], cls=False)}</span> "
-              f"<span class='mut'>± {100 * c['se']:.1f}</span>"]
-             for c in cal], key=(4, 5)))
-        body.append("</details>")
+        out = []
+        _model_section(out, h, first)
+        if len(h):
+            first = False
+            s = analysis.scoring(h)
+            se = s["d_logloss_se"]
+            z = -s["d_logloss"] / se if np.isfinite(se) and se > 0 else float("nan")
+            rt = (f"<span class='rt'>log loss model − market <span class='{sig_cls(z)}'>"
+                  f"{s['d_logloss']:+.4f}</span> ± {se4(se)} · n={s['n']}</span>")
+        else:
+            rt = ""
+        body.append(fold(f"{sec['title']}{rt}", "".join(out),
+                         open_=sec.get("basis") == "native" or len(secs) == 1,
+                         id_=sec["id"], label=f"Model — {sec['label']}"))
+
+
+def _model_section(body, h, first):
+    """One section's model-vs-market scores, chart and bins."""
+    if not len(h):
+        body.append("<p class='note'>No graded model rows with a close yet.</p>")
+        return
+    s = analysis.scoring(h)
+    zb = (-s["d_brier"] / s["d_brier_se"]
+          if np.isfinite(s["d_brier_se"]) and s["d_brier_se"] > 0 else float("nan"))
+    body.append("<div class='tiles'>" + "".join([
+        _score_tile(s),
+        tile("Brier (model / market)",
+             f"{s['model']['brier']:.4f} / {s['market']['brier']:.4f}",
+             f"model − market {s['d_brier']:+.4f} ± {se4(s['d_brier_se'])} "
+             f"(1 SE) · {resolved_txt(zb, 'model better', 'market better')}",
+             sig_cls(zb)),
+        tile("Picked the winner (model lean / market favourite)",
+             f"{pct(s['model']['acc'])} / {pct(s['market']['acc'])}",
+             "same games · accuracy is not calibration"),
+    ]) + "</div>")
+    p = h["p_home"].to_numpy(float)
+    q = h["close_q_home"].to_numpy(float)
+    y = h["home_won"].to_numpy(float)
+    body.append("<div class='charts'>"
+                + reliability_svg([("Model", "s1", analysis.reliability(p, y)),
+                                   ("Market (no-vig close)", "s2",
+                                    analysis.reliability(q, y))],
+                                  "Model vs market calibration, P(home win)")
+                + f"<p class='note'>{CHART_NOTE if first else CHART_NOTE_SHORT}"
+                " Both forecasts are for the same games; each is binned "
+                "on its own probability. Negative model − market on the "
+                "scores means the model did better; an interval spanning "
+                "0 has not separated them.</p></div>")
+    cal = analysis.model_calibration(h)
+    body.append("<details class='more'><summary>Model bins in numbers "
+                "<span class='mut'>— with the market's mean on the same "
+                "games</span></summary>")
+    body.append(table(
+        ["Model P(home)", "n", "Model mean", "Market mean (same games)",
+         "Actual", "Actual − model (± 1 SE)"],
+        [[f"{c['lo']:.1f}–{c['hi']:.1f}", c["n"], pct(c["model"]),
+          pct(c["market"]), pct(c["actual"]),
+          f"<span class='{sig_cls((c['actual'] - c['model']) / c['se'] if c['se'] > 0 else float('nan'))}'>"
+          f"{pp(c['actual'] - c['model'], cls=False)}</span> "
+          f"<span class='mut'>± {100 * c['se']:.1f}</span>"]
+         for c in cal], key=(4, 5)))
+    body.append("</details>")
 
 
 # ------------------------------------------------------------- preseason ---
@@ -1632,15 +1817,13 @@ def render_preseason(pre, built):
     the close on the same games, one closing book x season at a time, then
     the flat-bet record at the pregame price and every row. Nothing here is
     pooled with the native or reconstructed ledgers."""
-    body = ["<h1>Preseason</h1><p class='lead'>Exhibition games, tracked "
-            "apart from everything else. The regular-season card abstains "
-            "until both teams have played; here each game is scored by the "
-            "early-season carryover model on <b>last season's games only</b> "
-            f"(tag <code>{esc(PRESEASON_TAG)}</code>). Starters rest and "
-            "rotations are experiments, so these rows measure how far the "
-            "model's offseason view travels, not its regular-season skill. "
-            "They never enter the Ledger, Calibration, hypotheses or any "
-            "fit.</p>",
+    body = ["<h1>Preseason</h1><p class='lead'>Exhibition games, scored by "
+            "the early-season carryover model on <b>last season's games "
+            "only</b> and priced from Kalshi. Starters rest, so these rows "
+            "show how far the offseason view travels, not regular-season "
+            "skill.</p><div class='flag-note'>Tracked apart from everything "
+            "else: never in the Ledger, Calibration, hypotheses or any fit "
+            f"(tag <code>{esc(PRESEASON_TAG)}</code>).</div>",
             READ_KEY.replace("Native</dt><dd>Written before tip and frozen: "
                              "the forward test.",
                              "Preseason</dt><dd>Written before tip and "
@@ -1740,8 +1923,8 @@ def write_pages(native, recon, today, model_ok, pre=None):
     # published beside the pages; main() also commits it under data/.
     text = report.report_text(native, recon, pre, ACTIVE_TAGS)
     (OUT_DIR / report.REPORT_NAME).write_text(text, encoding="utf-8")
-    return text
     (OUT_DIR / ".nojekyll").write_text("")
+    return text
 
 
 def main(argv=None):
