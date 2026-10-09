@@ -179,9 +179,10 @@ def norm_name(name):
     return " ".join(_SUFFIX.sub("", s).split())
 
 
-def parse_advanced(html):
+def parse_advanced(html, stat="BPM"):
     """BBR NBA_{y}_advanced.html -> {norm name: (bpm, mp, games)}, one row per
-    player (the multi-team total row where present: the most minutes)."""
+    player (the multi-team total row where present: the most minutes). `stat`
+    picks another column in place of BPM (research: "WS/48", "WS")."""
     m = re.search(r'<table[^>]*id="advanced(?:_stats)?".*?</table>', nc.uncomment(html), re.S)
     if not m:
         return {}
@@ -190,20 +191,20 @@ def parse_advanced(html):
         df.columns = [c[-1] for c in df.columns]
     df = df[df["Player"].notna() & (df["Player"] != "Player")].copy()
     df = df[~df["Player"].astype(str).str.contains("League Average")]
-    for c in ("BPM", "MP", "G"):
+    for c in (stat, "MP", "G"):
         df[c] = pd.to_numeric(df[c], errors="coerce")
-    df = df.dropna(subset=["BPM", "MP"])
+    df = df.dropna(subset=[stat, "MP"])
     df["key"] = df["Player"].map(norm_name)
     df = df.sort_values("MP", ascending=False).drop_duplicates("key")
     return {k: (float(b), float(mp), float(g) if pd.notna(g) else np.nan)
-            for k, b, mp, g in zip(df["key"], df["BPM"], df["MP"], df["G"])}
+            for k, b, mp, g in zip(df["key"], df[stat], df["MP"], df["G"])}
 
 
-def load_bpm(y):
+def load_bpm(y, stat="BPM"):
     """Season y's BPM table (use y - 1 for season y's games: no lookahead)."""
     html = nc.fetch(f"{nc.BASE}/leagues/NBA_{y}_advanced.html",
                     nc.CACHE / f"advanced_{y}.html")
-    return parse_advanced(html)
+    return parse_advanced(html, stat)
 
 
 def player_values(box, bpm):

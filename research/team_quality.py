@@ -78,6 +78,19 @@ same fallback to last season's MP / G before a player's first game):
 All vs v5_base. A uniform rescale is absorbed by the fitted coefficient;
 only differences between players' weights can move the result.
 
+Win Shares (owner's request, 2026-10-09; research/win_shares.py): the
+shipped v6 base logit (v5_base + ft_diff, no injury-report terms) with
+talent_diff's last-season BPM replaced by WS/48 above replacement (BPM's
+replacement level mapped to WS/48), same roster and minutes share:
+  v6_base     V6_FEATURES                                       (reference)
+  v6_ws       last-season WS/48, shrunk toward replacement like the BPM
+  v6_wsb      Bayes: that prior updated by season-to-date WS/48 from ESPN
+              box lines before the date, (750 x prior + MP x obs) / (750 + MP)
+  v6_wso      season-to-date WS/48 only, shrunk to replacement the same way
+  v6_ws_wso   talent_ws + talent_wso, free weights (the fit picks the mix)
+  v6_bpm_wsb  v6_base + talent_wsb (on top of the BPM term)
+All vs v6_base; --ws runs only these box arms.
+
 Every feature uses games strictly before the date. Reported per test season
 and closing book on identical games: log loss and Brier of each arm vs base
 and vs the close (paired ± 95%), each arm's fitted terms, and how much of
@@ -101,6 +114,7 @@ import ledger  # noqa: E402
 import market as mk  # noqa: E402
 import nba_composite as nc  # noqa: E402
 import player_availability as pav  # noqa: E402
+import win_shares as ws  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output",
                    "team_quality.csv")
@@ -134,7 +148,25 @@ MIN_VARIANTS = ["med", "cap", "dec", "240"]
 for _v in MIN_VARIANTS:
     BOX_ARMS[f"v5_{_v}"] = [f"talent_{_v}" if f == "talent_diff" else f
                             for f in nc.V5_FEATURES]
+V6 = list(nc.V6_FEATURES)
+
+
+def _swap(feats, new):
+    return [x for f in feats for x in (new if f == "talent_diff" else [f])]
+
+
+WS_ARMS = {
+    "v6_base": V6,
+    "v6_ws": _swap(V6, ["talent_ws"]),
+    "v6_wsb": _swap(V6, ["talent_wsb"]),
+    "v6_wso": _swap(V6, ["talent_wso"]),
+    "v6_ws_wso": _swap(V6, ["talent_ws", "talent_wso"]),
+    "v6_bpm_wsb": V6 + ["talent_wsb"],
+}
+WS_COLS = ["talent_ws", "talent_wsb", "talent_wso"]
+BOX_ARMS.update(WS_ARMS)
 REF = {**{a: "base" for a in ARMS}, **{a: "base_box" for a in BOX_ARMS},
+       **{a: "v6_base" for a in WS_ARMS},
        "v5_base": "v5_base", "v5_ast": "v5_base", "v5_oo": "v5_base",
        "oo_luck": "v5_base", **{f"v5_{v}": "v5_base" for v in MIN_VARIANTS}}
 BOX_YEARS = [2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026]
@@ -394,6 +426,8 @@ def season_games(y, weights, logs=None, half_life=nc.HALF_LIFE,
                     "tank_diff": tank[0] - tank[1], "top_diff": top[0] - top[1],
                     "d_apr": delta * april,
                     "ast_off": ah[0] - aa[0], "ast_def": ah[1] - aa[1],
+                    "ft_diff": nc.own_ft_pct(logs[h], i, half_life)
+                    - nc.own_ft_pct(logs[a], j, half_life),
                     "win": int(r["pts"] > r["opp_pts"])})
         for h, a, _, _ in todays:                  # after the date's games
             for tm, opp in ((h, a), (a, h)):
@@ -505,6 +539,8 @@ def main(argv=None):
                          "(default BOX_YEARS; build history with box_history.py)")
     ap.add_argument("--no-talent", action="store_true",
                     help="skip the roster-talent arms (no box scores / BPM)")
+    ap.add_argument("--ws", action="store_true",
+                    help="only the Win Shares box arms (v6_*), vs v6_base")
     ap.add_argument("--cache", default=os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "output"))
     a = ap.parse_args(argv)
@@ -513,6 +549,7 @@ def main(argv=None):
     recon = recon[["slate_date", "home", "away", "close_q_home", "close_book",
                    "home_won"]]
     talent, onoff, talent_x = {}, {}, {}
+    box_arms = WS_ARMS if a.ws else BOX_ARMS
     if not a.no_talent:
         for t in nc.parse_years(a.box_seasons) if a.box_seasons else BOX_YEARS:
             if t > max(a.seasons):
@@ -527,11 +564,17 @@ def main(argv=None):
                 value, cov, cov_min = pav.player_values(box, bpm)
                 role = pav.arrival_roles(box, bpm)
                 talent[t] = talent_fn(box, value, role)
-                onoff[t] = onoff_fn(box, role)
-                mr = minutes_roles(box, role)
-                talent_x[t] = {**{f"talent_{v}": talent_fn(box, value, mr[v])
-                                  for v in mr},
-                               "talent_240": talent_scaled_fn(box, value, role)}
+                ws_terms, ws_info = ws.season_terms(t, box, role, a.cache)
+                print(f"box season {t}: {ws_info}", flush=True)
+                if a.ws:
+                    talent_x[t] = ws_terms
+                else:
+                    onoff[t] = onoff_fn(box, role)
+                    mr = minutes_roles(box, role)
+                    talent_x[t] = {**{f"talent_{v}": talent_fn(box, value, mr[v])
+                                      for v in mr},
+                                   "talent_240": talent_scaled_fn(box, value, role),
+                                   **ws_terms}
                 share, mins = heavy_minutes(box)
                 print(f"box season {t}: last-season BPM covers {100 * cov_min:.0f}% "
                       f"of minutes; players averaging 30+ min: {mins:.1f} min/game, "
@@ -559,12 +602,16 @@ def main(argv=None):
                              talent=talent.get(t), onoff=onoff.get(t),
                              talent_x=talent_x.get(t))
              for t in gy + [y]}
+        for t in g:                                 # a column for every arm
+            for c in WS_COLS:
+                if c not in g[t]:
+                    g[t][c] = np.nan
         tr = pd.concat([g[t] for t in gy], ignore_index=True)
         te, fits = fit_arms(tr, g[y])
         by = [t for t in gy if t in talent]
         if by and y in talent:
             te, bfits = fit_arms(pd.concat([g[t] for t in by], ignore_index=True), te,
-                                 BOX_ARMS)
+                                 box_arms)
             fits.update(bfits)
         te["slate_date"] = pd.to_datetime(te["date"]).dt.strftime("%Y-%m-%d")
         m = te.merge(recon, on=["slate_date", "home", "away"], how="inner")
@@ -582,6 +629,10 @@ def main(argv=None):
                 print(f"  {c}: corr with talent_diff {te[c].corr(te['talent_diff']):+.3f}, "
                       f"sd {te[c].std():.3f} vs {te['talent_diff'].std():.3f}, "
                       f"sd of the difference {(te[c] - te['talent_diff']).std():.3f}")
+        for c in WS_COLS:
+            if te[c].notna().any():
+                print(f"  {c}: for {int(te[c].notna().sum())} games, corr with "
+                      f"talent_diff {te[c].corr(te['talent_diff']):+.3f}, sd {te[c].std():.3f}")
         print("\n".join(coef_lines(fits)))
         allm.append(m)
     m = pd.concat(allm, ignore_index=True)
