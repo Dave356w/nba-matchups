@@ -341,9 +341,27 @@ Before a PR, run:
   +0.0025 ± 0.0089 / +0.0015 ± 0.0078 (2025-26 ESPN BET, n = 107: +0.0031
   ± 0.0037 / +0.0101 ± 0.0215). corr(onoff_diff, talent_diff) +0.50
   (2025-26). Gap to the close and team share unchanged. In-season on/off
-  adds nothing to last-season BPM and cannot replace it; dropped. An
-  in-season box-score rating (full ESPN box lines) is the untested
-  sharper variant.
+  adds nothing to last-season BPM and cannot replace it; dropped.
+- Win Shares (owner's request, 2026-10-09, from a Gemini WS/48 outline):
+  `research/win_shares.py` computes BBR's Win Shares from full ESPN box
+  lines, games strictly before the date (2024-25 full season vs BBR's
+  table: WS corr 1.000, MAE 0.03; WS/48 1000+ MP MAE 0.0009), and
+  `research/team_quality.py --ws` swaps it into v6's base logit (no
+  injury-report terms) in place of talent_diff's BPM, same roster and
+  minutes share (not usage-weighted); replacement = BPM −2.0 mapped to
+  WS/48 (0.064–0.070). Walk-forward, box seasons 2016-2019 + 2021-2025,
+  games 10+, log loss vs v6_base, ± 95% (2024-25 ESPN BET n = 1,071 /
+  2025-26 DK n = 964): last-season WS/48 `v6_ws` +0.0013 ± 0.0035 /
+  +0.0048 ± 0.0038 (worse); Bayes prior → season to date, M0 = 750 MP
+  (the outline's rule) `v6_wsb` +0.0022 ± 0.0051 / +0.0001 ± 0.0042;
+  season to date only `v6_wso` +0.0007 ± 0.0077 / −0.0035 ± 0.0062;
+  free mix `v6_ws_wso` +0.0015 ± 0.0042 / +0.0016 ± 0.0035; BPM kept +
+  wsb `v6_bpm_wsb` +0.0012 ± 0.0025 / +0.0002 ± 0.0020 (BPM coefficient
+  0.062 → 0.038). v6_base − close +0.0184 / +0.0219; no arm narrows it
+  outside noise. 2025-26 ESPN BET (n = 107) unresolved. WS/48 does not
+  beat last-season BPM; in-season box-score value adds nothing resolved.
+  Dropped. (The outline's season-level MAE of 0.31 wins was fitted on the
+  same season's outcomes, which Win Shares are built from.)
 - Home-court drift (2026-10-01, reconstructed rows, mean home P, ± 95%):
   none. Games 10+: model − market +0.26 ± 0.46 pp (2024-25) / +0.26 ±
   0.49 pp (2025-26), logit +0.016 ± 0.023 / +0.014 ± 0.024; model and
