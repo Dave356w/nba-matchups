@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-11",
+  "direct_build": "passed: both folds, full feature/date checks, exact baseline reproduction",
+  "grading": "passed: 473 log-loss rows, 860 ROI rows",
+  "validate_data_files": "passed",
+  "pytest": {
+    "passed": 229,
+    "scope": "Full local suite, including six earlier market-research tests; standalone remote branch contains only direct-iteration additions."
+  },
+  "production_math_changed": false
+}

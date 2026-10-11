@@ -1,0 +1,7 @@
+{
+  "rule": "lowest 2024-25 ESPN BET log loss",
+  "candidate": "projected_r10",
+  "training_season": 2025,
+  "evaluation_season": 2026,
+  "caveat": "Research menu designed retrospectively; season holdout is not prospective evidence."
+}

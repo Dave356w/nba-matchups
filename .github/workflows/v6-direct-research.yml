@@ -2,7 +2,12 @@ name: Export v6 direct research inputs
 on:
   push:
     branches: [research/v6-direct-iterations]
-    paths: ['research/export_v6_inputs.py', '.github/workflows/v6-direct-research.yml']
+    paths:
+      - 'research/export_v6_inputs.py'
+      - 'research/v6_direct_iterations.py'
+      - 'research/v6_direct_grading.py'
+      - 'tests/test_v6_direct_iterations.py'
+      - '.github/workflows/v6-direct-research.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,7 +24,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements.txt pytest
       - uses: actions/cache@v4
         with:
           path: bbr_cache
@@ -38,8 +43,16 @@ jobs:
           key: injury-reports-${{ github.run_id }}
           restore-keys: injury-reports-
       - run: python research/export_v6_inputs.py
+      - run: python research/v6_direct_iterations.py --inputs research/output/v6_inputs
+      - run: python research/v6_direct_grading.py
+      - run: python validate_data_files.py && python -m pytest tests/ -q
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: v6-direct-inputs
           path: research/output/v6_inputs/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v6-direct-results
+          path: diagnostics/v6_direct_iterations/
