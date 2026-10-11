@@ -1,0 +1,45 @@
+name: Export v6 direct research inputs
+on:
+  push:
+    branches: [research/v6-direct-iterations]
+    paths: ['research/export_v6_inputs.py', '.github/workflows/v6-direct-research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v6-direct-research
+  cancel-in-progress: false
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - run: python research/export_v6_inputs.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v6-direct-inputs
+          path: research/output/v6_inputs/
