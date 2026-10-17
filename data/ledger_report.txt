@@ -51,10 +51,10 @@ Market: Kalshi (last pre-tip minute; fee in the price) wherever a row has it, fr
   Lean accuracy 69.0%  vs close favourite 69.7%  (accuracy is not calibration)
 
 == PRESEASON (exhibitions, Kalshi prices; not regular-season skill): 66 rows
--- Kalshi close, 2026-27: 63 graded
+-- Kalshi close, 2026-27: 66 graded
   at the pregame:
     Lean — the model's favourite
-      All picks                n=63    33-30        -9.09u  ROI  -14.4% +/- 10.9  (null -4.0%, z -1.0)  win 52.4% vs q 58.2%  | fav -13.0%
+      All picks                n=66    33-33       -12.09u  ROI  -18.3% +/- 10.6  (null -4.0%, z -1.3)  win 50.0% vs q 58.4%  | fav -17.0%
   at the close:
     Lean — the model's favourite
-      All picks                n=63    33-30        -7.17u  ROI  -11.4% +/- 11.9  (null -4.0%, z -0.6)  win 52.4% vs q 57.7%  | fav -13.6%
+      All picks                n=66    33-33       -10.17u  ROI  -15.4% +/- 11.6  (null -4.0%, z -1.0)  win 50.0% vs q 57.7%  | fav -17.5%
