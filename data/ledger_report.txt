@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-16T23:32:26Z; latest graded slate 2026-10-15 (native and preseason rows)
+NBA ledger report -- latest pregame snapshot 2026-10-16T23:32:26Z; latest graded slate 2026-10-16 (native and preseason rows)
 Model tags: fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6 / fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6 / fourfactors_hl25_b2b_carry25_phase_v4
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight); data/nba_preseason.csv (exhibitions, Kalshi).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -51,10 +51,10 @@ Market: Kalshi (last pre-tip minute; fee in the price) wherever a row has it, fr
   Lean accuracy 69.0%  vs close favourite 69.7%  (accuracy is not calibration)
 
 == PRESEASON (exhibitions, Kalshi prices; not regular-season skill): 66 rows
--- Kalshi close, 2026-27: 54 graded
+-- Kalshi close, 2026-27: 63 graded
   at the pregame:
     Lean — the model's favourite
-      All picks                n=54    27-27       -10.21u  ROI  -18.9% +/- 11.6  (null -4.0%, z -1.3)  win 50.0% vs q 58.4%  | fav -15.1%
+      All picks                n=63    33-30        -9.09u  ROI  -14.4% +/- 10.9  (null -4.0%, z -1.0)  win 52.4% vs q 58.2%  | fav -13.0%
   at the close:
     Lean — the model's favourite
-      All picks                n=54    27-27        -9.88u  ROI  -18.3% +/- 11.8  (null -4.0%, z -1.2)  win 50.0% vs q 58.0%  | fav -15.5%
+      All picks                n=63    33-30        -7.17u  ROI  -11.4% +/- 11.9  (null -4.0%, z -0.6)  win 52.4% vs q 57.7%  | fav -13.6%
