@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-20T20:01:29Z; latest graded slate 2026-10-16 (native and preseason rows)
+NBA ledger report -- latest pregame snapshot 2026-10-20T20:11:59Z; latest graded slate 2026-10-16 (native and preseason rows)
 Model tags: fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6 / fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6 / fourfactors_hl25_b2b_carry25_phase_v4
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight); data/nba_preseason.csv (exhibitions, Kalshi).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -27,6 +27,12 @@ Market: Kalshi (last pre-tip minute; fee in the price) wherever a row has it, fr
   H2·F  Games 10+ · value side that is the favourite
     native @ first snapshot    no bets
     hindsight @ open           n=987   693-294      +6.25u  ROI   +0.6% +/-  2.2  (null -4.1%, z +2.2)  win 70.2% vs q 67.3%  | fav +0.6%
+  H5    Games 10+ · ATS: model margin vs the line ≥ 1 pt
+    native @ first snapshot    no bets
+    hindsight @ open           n=1528  819-709     +32.96u  ROI   +2.2% +/-  2.4  (null -4.5%, z +2.7)  win 53.6% vs q 50.1%  | fav -4.2%
+  H6    Games 1–9 · ATS: model margin vs the line ≥ 1 pt
+    native @ first snapshot    no bets
+    hindsight @ open           n=201   109-92       +7.18u  ROI   +3.6% +/-  6.7  (null -4.5%, z +1.2)  win 54.2% vs q 50.1%  | fav -3.5%
 
 == RECONSTRUCTED (leave-one-season-out, closing price: HINDSIGHT, never forward evidence)
   Season table (lean at the close):
