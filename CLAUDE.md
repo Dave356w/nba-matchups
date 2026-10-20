@@ -242,6 +242,21 @@ Before a PR, run:
     edition and route behind its P: `first_report_utc`, `first_route`).
     H3 there is H4; H2 there is **H2·F** (`analysis.HYPOTHESES`). H2 and H3
     at `pre` are unchanged; no threshold moved.
+  - **H5** (owner's request, fixed 2026-10-20, before any native row had a
+    model P; first expected 2026-10-22): games 10+, against the spread.
+    The model's home margin 13.5 × Φ⁻¹(P) (σ frozen in the rule, not read
+    from `analysis.ATS_SIGMA`); bet its side when |margin + home line| ≥ 1
+    pt; main-line prices only (both sides −135..+115,
+    `analysis.ATS_MAIN_LINE`). Native at the first snapshot (`first_spread`,
+    its prices, `first_p_home`); hindsight at the same book's open
+    (`diagnostics/ats_signal/open_spreads.csv`), pooled as registered:
+    +2.2% (n = 1,528, null −4.5%, z +2.7 at 1 SE); +2.1% 2024-25 ESPN BET (n =
+    743), +2.5% 2025-26 DK (n = 703), −0.4% 2025-26 ESPN BET (n = 82); the
+    same rule at the close −5.5% (n = 1,550). Why 1 pt: the smallest whole
+    point, where both seasons agree (vs null +6.6 ± 6.8 / +7.1 ± 7.0, 95%),
+    not the best cell (DK 2 pts, z +2.1). Caveats as H4: the first snapshot
+    is later than the open, so part of the line move (25–27% of the opening
+    edge by tip) may be gone, and games 10+ may be injury timing.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a
@@ -276,7 +291,7 @@ Before a PR, run:
     it by tip; in games 10+ part may be injury-report timing. Native rows
     record the pregame and first-snapshot spread from 2026-10-20 (see
     "Pregame spread" above), so a forward ATS test can be graded at a
-    bettable price. No ATS rule is pre-registered.
+    bettable price. H5 (above, under the hypotheses) is that test.
 - More game-log seasons to settle the half-life. Travel/altitude/rest
   context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
   the market's correction and worsen 2025-26 log loss jointly; not pursued.
