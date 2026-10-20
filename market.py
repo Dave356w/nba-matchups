@@ -227,12 +227,22 @@ def _parse_provider(item):
         cur = american(_dig(td, "current", "moneyLine"))
         if cur is None:
             cur = american(td.get("moneyLine"))
+        cur_spread = american(_dig(td, "current", "spread"))
+        if cur_spread is None:
+            cur_spread = american(td.get("spreadOdds"))
         return dict(cur=cur, open=american(_dig(td, "open", "moneyLine")),
                     close=american(_dig(td, "close", "moneyLine")),
+                    cur_line=spread_line(_dig(td, "current", "pointSpread")),
+                    cur_spread=cur_spread,
                     close_line=spread_line(_dig(td, "close", "pointSpread")),
                     close_spread=american(_dig(td, "close", "spread")))
     h, a = side("homeTeamOdds"), side("awayTeamOdds")
+    cur_line = _home_spread(h["cur_line"], a["cur_line"])
     return dict(cur_home_ml=h["cur"], cur_away_ml=a["cur"],
+                # current spread: a price only beside a line
+                cur_spread=cur_line,
+                cur_home_spread_odds=h["cur_spread"] if cur_line is not None else None,
+                cur_away_spread_odds=a["cur_spread"] if cur_line is not None else None,
                 open_home_ml=h["open"], open_away_ml=a["open"],
                 close_home_ml=h["close"], close_away_ml=a["close"],
                 close_spread=_home_spread(h["close_line"], a["close_line"]),

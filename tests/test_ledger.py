@@ -278,3 +278,75 @@ def test_pre_seen_file_loads_and_validates(tmp_path):
     assert list(back.columns) == ledger.COLUMNS
     assert back[["first_report_utc", "first_route", *ledger.SEEN_COLUMNS]].isna().all().all()
     assert back.iloc[0]["first_p_home"] == 0.62
+
+
+# ------------------------------------------------- pregame spread (2026-10-20)
+def test_pregame_spread_refreshed_before_tip_first_written_once_never_graded():
+    assert set(ledger.PREGAME_SPREAD_COLUMNS) <= set(ledger.PREGAME_COLUMNS)
+    assert set(ledger.FIRST_SPREAD_COLUMNS) <= set(ledger.WRITE_ONCE_COLUMNS)
+    assert not set(ledger.PREGAME_SPREAD_COLUMNS + ledger.FIRST_SPREAD_COLUMNS) \
+        & set(ledger.GRADE_COLUMNS)
+    spread = dict(pre_book="dk", pre_spread=-4.5, pre_home_spread_odds=-112,
+                  pre_away_spread_odds=-108)
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(**spread)], now=BEFORE)
+    r = led.iloc[0]
+    assert (r["first_spread"], r["first_home_spread_odds"],
+            r["first_away_spread_odds"]) == (-4.5, -112, -108)
+    # a later pregame snapshot refreshes pre_* only; first_* keeps the early line
+    led, acc, _ = ledger.upsert_pregame(
+        led, [row(**{**spread, "pre_spread": -6.5, "pre_home_spread_odds": -110})],
+        now=LATER_BEFORE)
+    r = led.iloc[0]
+    assert acc and r["pre_spread"] == -6.5 and r["pre_home_spread_odds"] == -110
+    assert r["first_spread"] == -4.5 and r["first_home_spread_odds"] == -112
+    # after tip nothing moves
+    led, acc, _ = ledger.upsert_pregame(led, [row(**{**spread, "pre_spread": -1.5})],
+                                        now=AFTER)
+    assert not acc and led.iloc[0]["pre_spread"] == -6.5
+    # grading writes the closing spread beside them and leaves them alone
+    keep = led[ledger.PREGAME_SPREAD_COLUMNS + ledger.FIRST_SPREAD_COLUMNS].copy()
+    odds = dict(close_home_ml=-160, close_away_ml=135, open_home_ml=-140,
+                open_away_ml=120, book="dk", close_spread=-7.5,
+                close_home_spread_odds=-105, close_away_spread_odds=-115)
+    assert ledger.apply_result(led, "401", dict(completed=True, home_pts=110,
+                                                away_pts=104), odds)
+    pd.testing.assert_frame_equal(
+        led[ledger.PREGAME_SPREAD_COLUMNS + ledger.FIRST_SPREAD_COLUMNS], keep)
+    assert led.iloc[0]["close_spread"] == -7.5
+
+
+def test_first_spread_waits_for_the_first_snapshot_with_a_model_p():
+    # the spread is part of the decision-time record: no P, no first_* at all
+    spread = dict(pre_book="dk", pre_spread=-4.5, pre_home_spread_odds=-110,
+                  pre_away_spread_odds=-110)
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(p_home=np.nan, **spread)],
+                                      now=BEFORE)
+    assert led.iloc[0]["pre_spread"] == -4.5 and pd.isna(led.iloc[0]["first_spread"])
+    led, _, _ = ledger.upsert_pregame(led, [row(**{**spread, "pre_spread": -5.5})],
+                                      now=LATER_BEFORE)
+    assert led.iloc[0]["first_spread"] == -5.5
+
+
+def test_pre_pregame_spread_file_loads_blank_and_validates(tmp_path):
+    import validate_data_files as v
+    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row(pre_book="dk")], now=BEFORE)
+    p = tmp_path / "old.csv"
+    led[ledger.PRE_PREGAME_SPREAD_COLUMNS].to_csv(p, index=False)
+    assert v.check(str(p)) == []
+    back = ledger.load(str(p))
+    assert list(back.columns) == ledger.COLUMNS
+    assert back[ledger.PREGAME_SPREAD_COLUMNS + ledger.FIRST_SPREAD_COLUMNS].isna().all().all()
+    assert back.iloc[0]["first_p_home"] == 0.62
+
+
+def test_validator_flags_a_pregame_spread_without_its_moneyline(tmp_path):
+    import validate_data_files as v
+    led, _, _ = ledger.upsert_pregame(
+        ledger.empty(), [row(pre_book="dk", pre_spread=-4.5, pre_home_spread_odds=-110,
+                             pre_away_spread_odds=-110)], now=BEFORE)
+    p = tmp_path / "x.csv"
+    ledger.save(led, str(p))
+    assert v.check(str(p)) == []
+    led.loc[0, "pre_q_home"] = np.nan
+    ledger.save(led, str(p))
+    assert any("pre_spread on a row without pre_q_home" in e for e in v.check(str(p)))

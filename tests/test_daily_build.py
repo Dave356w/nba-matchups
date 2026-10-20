@@ -28,7 +28,9 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     def odds(gid):
         return {"dk": dict(book="dk", cur_home_ml=-180, cur_away_ml=150, open_home_ml=-170,
                     open_away_ml=145, close_home_ml=-200 if state["completed"] else None,
-                    close_away_ml=165 if state["completed"] else None)}
+                    close_away_ml=165 if state["completed"] else None,
+                    cur_spread=-4.5, cur_home_spread_odds=-112, cur_away_spread_odds=-108,
+                    close_spread=-5.5 if state["completed"] else None)}
 
     logs = {"GSW": make_log(40, start="2026-10-21", seed=1, strength=1.0),
             "UTA": make_log(40, start="2026-10-22", seed=2, strength=-1.0)}
@@ -46,6 +48,10 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert list(led["game_id"]) == ["9001"]          # preseason game skipped
     r = led.iloc[0]
     assert r["pre_home_ml"] == -180 and pd.isna(r["close_home_ml"])
+    # the pregame spread comes from the same book and response as the price
+    assert (r["pre_spread"], r["pre_home_spread_odds"], r["pre_away_spread_odds"]) \
+        == (-4.5, -112, -108)
+    assert r["first_spread"] == -4.5 and pd.isna(r["close_spread"])
     assert pd.isna(r["home_won"]) and r["lean"] in ("GSW", "UTA")
     assert "UTA @ GSW" in (tmp_path / "public" / "index.html").read_text()
     snap = ledger.load_injuries()
@@ -68,6 +74,7 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     r = ledger.load(ledger.NATIVE_PATH).iloc[0]
     assert r["home_won"] == 1 and r["close_home_ml"] == -200
     assert r["pre_home_ml"] == -180                    # pregame price untouched
+    assert r["pre_spread"] == -4.5 and r["close_spread"] == -5.5
     pd.testing.assert_frame_equal(ledger.load_injuries(), frozen)
     pd.testing.assert_frame_equal(
         ledger.load(ledger.NATIVE_PATH)[ledger.WRITE_ONCE_COLUMNS], once)

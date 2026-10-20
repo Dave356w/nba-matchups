@@ -100,6 +100,16 @@ owner directs the product.
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with
   `first_p_home`. The reconstructed rows leave it blank.
+- Pregame spread (`ledger.PREGAME_SPREAD_COLUMNS`, `FIRST_SPREAD_COLUMNS`;
+  owner's request 2026-10-20, before any native row had a model P): the
+  pregame moneyline's book's current spread from the same ESPN odds
+  response (`market._parse_provider` `cur_spread`), home line and both
+  prices. `pre_spread` is refreshed with the pregame snapshot until tip and
+  frozen after; `first_spread` is written once with the rest of `first_*`;
+  grading never touches either (it writes `close_spread`). Validation: a
+  pregame or first spread only beside its moneyline. Recorded, not yet read
+  by the pages or the hypotheses. The reconstructed and preseason rows
+  leave them blank.
 
 Before a PR, run:
 
@@ -264,9 +274,9 @@ Before a PR, run:
     replicates across seasons. Same reading as the moneyline open vs close:
     the model knows something the opener does not and the market prices
     it by tip; in games 10+ part may be injury-report timing. Native rows
-    record only the closing spread (graded), so a forward ATS test at a
-    bettable price needs pregame spread snapshots (the build's ESPN odds
-    call already returns the current spread). Not pre-registered.
+    record the pregame and first-snapshot spread from 2026-10-20 (see
+    "Pregame spread" above), so a forward ATS test can be graded at a
+    bettable price. No ATS rule is pre-registered.
 - More game-log seasons to settle the half-life. Travel/altitude/rest
   context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
   the market's correction and worsen 2025-26 log loss jointly; not pursued.
