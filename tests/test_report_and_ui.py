@@ -138,10 +138,14 @@ def test_index_renders_one_card_per_game_with_ev_beside_its_null(tmp_path, monke
     build_site.write_pages(d, synth(100, 42, "reconstructed"), "2026-11-19",
                            model_ok=True)
     idx = (tmp_path / "index.html").read_text()
-    assert idx.count("<details class='card'>") == len(d)
+    assert idx.count("<details class='card' data-gid=") == len(d)
     for _, r in d.iterrows():
         assert f"{r['away']} @ {r['home']}" in idx
         assert f"Lean {r['lean']}" in idx
+        assert f"data-gid='{r['game_id']}'" in idx           # live scores match on it
+    # scores are fetched in the reader's browser for the slate's date only
+    assert "data-slate='2026-11-19'" in idx and "site.api.espn.com" in idx
+    assert idx.count("data-scores-asof hidden") == 1
     assert "Model EV" in idx and "if the market is right" in idx    # EV beside its null
     assert "Model − market" in idx and "How these numbers are made" in idx
     assert "Flat 1u ROI · native lean" in idx                    # record box kept

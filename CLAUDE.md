@@ -90,6 +90,12 @@ owner directs the product.
   Times on the pages are Pacific (`build_site.PT`, labelled PT; owner's
   request 2026-10-20); slate dates, the build schedule and the injury
   report stay on the NBA's ET calendar, and data columns stay UTC.
+  The Today page fetches ESPN's public scoreboard in the reader's browser
+  on each load (`build_site.SCORES_JS`, matched on the ESPN event id) to
+  show live and final scores: display only, never written to `data/` or
+  read by the build or the model. ESPN's CDN returns 403 to headless
+  Chrome (`sec-ch-ua: "HeadlessChrome"`); test it with that header
+  replaced.
 - First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with

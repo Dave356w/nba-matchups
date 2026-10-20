@@ -659,6 +659,9 @@ border:1px solid var(--line);background:var(--card2);font:800 12px/1 var(--mono)
 .club .wp.fav{color:var(--acc)}
 .mid{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
 .mid .t{font:800 15px/1 var(--mono)}.mid .mk{font:600 12.5px/1.2 var(--mono);color:var(--mut)}
+.mid .st{font:700 11px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.card.is-live .mid .st{color:var(--neg)}.card.is-live .mid .st::before{content:"● "}
+.card.is-live .mid .t,.card.is-final .mid .t{font-size:18px}
 .chev{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--faint);font:800 18px/1 var(--sans)}
 .card[open] .chev{transform:translateY(-50%) rotate(180deg);color:var(--fg)}
 .flags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:9px}
@@ -695,6 +698,33 @@ OPEN_JS = ("<script>(function(){function o(){var h=location.hash.slice(1);if(!h)
            "var e=document.getElementById(h);for(;e;e=e.parentElement)"
            "if(e.tagName==='DETAILS')e.open=true;}"
            "addEventListener('hashchange',o);addEventListener('DOMContentLoaded',o);})();</script>")
+
+# Today page: live and final scores from ESPN's public scoreboard, fetched by
+# the reader's browser on each page load (display only: never written to
+# data/ and never read by the model). Cards match on the ESPN event id
+# (data-gid); a failed fetch leaves the page as built.
+SCORES_JS = """<script>(function(){
+var g=document.querySelector('[data-slate]');if(!g||!window.fetch)return;
+var u='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?limit=100&dates='
++g.getAttribute('data-slate').replace(/-/g,'');
+function per(p){return p<=4?'Q'+p:p==5?'OT':(p-4)+'OT';}
+fetch(u,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
+var n=0;((j&&j.events)||[]).forEach(function(e){
+var c=document.querySelector(".card[data-gid='"+e.id+"']");if(!c)return;
+var st=e.status||{},ty=st.type||{},s={},txt,score=true;
+(((e.competitions||[])[0]||{}).competitors||[]).forEach(function(t){s[t.homeAway]=t.score;});
+if(ty.state==='in'){txt=ty.name==='STATUS_HALFTIME'?'Half':ty.name==='STATUS_END_PERIOD'?
+'End '+per(st.period):ty.name==='STATUS_IN_PROGRESS'?per(st.period)+' '+st.displayClock:ty.shortDetail;}
+else if(ty.state==='post'){txt=ty.shortDetail||'Final';score=!!ty.completed;}
+else return;
+var el=c.querySelector('.mid .st'),t=c.querySelector('.mid .t');
+el.textContent=txt;el.hidden=false;
+if(score&&s.away!=null&&s.home!=null)t.textContent=s.away+'\\u2013'+s.home;
+c.classList.add(ty.state==='in'?'is-live':'is-final');n++;});
+var a=document.querySelector('[data-scores-asof]');
+if(n&&a){a.querySelector('time').textContent=new Date().toLocaleTimeString('en-US',
+{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'})+' PT';a.hidden=false;}
+}).catch(function(){});})();</script>"""
 
 THEME_JS = ("<script>(function(){var k='nba-theme',r=document.documentElement;"
             "try{var s=localStorage.getItem(k);if(s)r.setAttribute('data-theme',s);}catch(e){}"
@@ -1025,12 +1055,12 @@ def game_card(r):
            f"<i class='h' style='width:{100 * pw:.1f}%'></i></div>")
     summary = ("<summary class='game-summary'><div class='teams'>"
                + _side_html(away, 1 - p, fav_away, "away")
-               + f"<div class='mid'><div class='t'>{tip_pt(r['tip_utc'])}</div>"
-               f"<div class='mk'>{mk}</div></div>"
+               + "<div class='mid'><div class='st' hidden></div>"
+               f"<div class='t'>{tip_pt(r['tip_utc'])}</div><div class='mk'>{mk}</div></div>"
                + _side_html(home, p, fav_home, "home") + "</div>" + bar
                + f"<div class='flags'>{''.join(flags)}</div><span class='chev'>⌄</span></summary>")
-    return (f"<details class='card'>{summary}<div class='detail'>{''.join(det)}"
-            "</div></details>")
+    return (f"<details class='card' data-gid='{esc(r['game_id'])}'>{summary}"
+            f"<div class='detail'>{''.join(det)}</div></details>")
 
 
 def render_index(led, today, built, model_ok, recon=None):
@@ -1039,7 +1069,8 @@ def render_index(led, today, built, model_ok, recon=None):
     head = (f"<h1>{esc(day_txt)}</h1><p class='lead'>Model win probabilities "
             "for every game on today's slate, against the market. Tap a game "
             f"for details. Slate <span class='stamp'>{esc(today)}</span>; times "
-            "are Pacific (PT).</p>")
+            "are Pacific (PT).<span data-scores-asof hidden> Scores from ESPN "
+            "as of <time></time>; reload the page to update them.</span></p>")
     record = ("<div class='record'><div class='l'>Record · flat 1u on the lean, "
               "against its null and the market favourite</div>"
               + headline_tiles(led, recon)
@@ -1059,8 +1090,8 @@ def render_index(led, today, built, model_ok, recon=None):
                     + record + how, built)
     cards = [game_card(r) for _, r in day.sort_values("tip_utc").iterrows()]
     return page("NBA composite", "index.html",
-                head + f"<div class='grid'>{''.join(cards)}</div>" + record + how,
-                built)
+                head + f"<div class='grid' data-slate='{esc(today)}'>{''.join(cards)}"
+                "</div>" + SCORES_JS + record + how, built)
 
 
 # ------------------------------------------------------------- model page ---
