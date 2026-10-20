@@ -365,5 +365,5 @@ def test_h4_graded_at_the_first_snapshot_on_the_page(tmp_path, monkeypatch):
                            model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "<b>H4</b>" in grades and "at the first snapshot" in grades
-    assert f"{len(d4)} <span class='mut'>at the first snapshot</span>" in grades
+    assert f"{len(d4)}<br><span class='mut'>at the first snapshot</span>" in grades
     assert "At the <b>first snapshot</b>" in grades

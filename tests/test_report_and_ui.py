@@ -154,6 +154,19 @@ def test_index_card_abstains_without_a_probability():
     assert "Abstain" in card and "Lean " not in card and "probbar" not in card
 
 
+def test_tip_times_are_pacific_across_dst_and_openers_have_no_games_yet():
+    # 7:30 pm ET on 2026-10-21 (PDT, UTC-7) and 2026-11-19 (PST, UTC-8)
+    assert build_site.tip_pt("2026-10-21T23:30Z") == "4:30 PM PT"
+    assert build_site.tip_pt("2026-11-20T00:30Z") == "4:30 PM PT"
+    assert build_site.tip_pt("") == "—"
+    r = _slate(1).iloc[0].copy()
+    r["tip_utc"] = "2026-11-20T00:30Z"
+    r[["p_home", "gp_home", "gp_away"]] = np.nan     # a team not in the logs yet
+    card = build_site.game_card(r)
+    assert "4:30 PM PT" in card and " ET" not in card
+    assert "Abstain · no games yet" in card
+
+
 def test_rebuilt_history_is_folded_and_forward_rows_open(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(synth(100, 43, "native"), synth(100, 44, "reconstructed"),

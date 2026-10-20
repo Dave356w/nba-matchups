@@ -87,6 +87,9 @@ owner directs the product.
   vs the ROI null, a forecast vs the diagonal, the model vs the close),
   never sign alone. Sections split basis × closing book × season. The lean
   is the recorded `lean` column everywhere (`analysis.lean_is_home`).
+  Times on the pages are Pacific (`build_site.PT`, labelled PT; owner's
+  request 2026-10-20); slate dates, the build schedule and the injury
+  report stay on the NBA's ET calendar, and data columns stay UTC.
 - First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with

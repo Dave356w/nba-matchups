@@ -31,7 +31,7 @@ import html
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -48,6 +48,9 @@ import player_availability as pav
 import report
 
 ET = ZoneInfo("America/New_York")
+# Pages show times in Pacific (PDT/PST, labelled PT); slate dates, the build
+# schedule and the injury report stay on the NBA's ET calendar.
+PT = ZoneInfo("America/Los_Angeles")
 OUT_DIR = Path("public")
 REPORT_PATH = Path("data") / report.REPORT_NAME
 # v2 = v1 from game 10 on, plus the last-season carryover model (cold_start.py)
@@ -821,9 +824,10 @@ def fold(summary, inner, open_=False, id_="", label=""):
             f"<summary>{summary}</summary><div class='in'>{inner}</div></details>")
 
 
-def tip_et(s):
+def tip_pt(s):
+    """A UTC tip time as Pacific clock time, e.g. '4:00 PM PT'."""
     t = ledger.parse_utc(s)
-    return t.astimezone(ET).strftime("%-I:%M %p") if t else "—"
+    return t.astimezone(PT).strftime("%-I:%M %p PT") if t else "—"
 
 
 def book_tag(book):
@@ -973,10 +977,11 @@ def game_card(r):
     if np.isfinite(won):
         flags.append(f"<span class='badge'>Final {int(r['away_pts'])}–{int(r['home_pts'])}</span>")
     det = [f"<p class='note'><b>{esc(away)} @ {esc(home)}</b> · tip "
-           f"{tip_et(r['tip_utc'])} ET</p>"]
+           f"{tip_pt(r['tip_utc'])}</p>"]
     if not np.isfinite(p):
+        # no gp: a team is not in this season's logs yet, i.e. has not played
         why = (f"{r['gp_away']:.0f}/{r['gp_home']:.0f} games played"
-               if pd.notna(r["gp_home"]) else "no game log")
+               if pd.notna(r["gp_home"]) else "no games yet")
         flags.append(f"<span class='badge'>Abstain · {esc(why)}</span>")
         det.append("<p class='note'>No probability: a team has no games yet "
                    "(or the early model is not fitted).</p>")
@@ -1020,7 +1025,7 @@ def game_card(r):
            f"<i class='h' style='width:{100 * pw:.1f}%'></i></div>")
     summary = ("<summary class='game-summary'><div class='teams'>"
                + _side_html(away, 1 - p, fav_away, "away")
-               + f"<div class='mid'><div class='t'>{tip_et(r['tip_utc'])} ET</div>"
+               + f"<div class='mid'><div class='t'>{tip_pt(r['tip_utc'])}</div>"
                f"<div class='mk'>{mk}</div></div>"
                + _side_html(home, p, fav_home, "home") + "</div>" + bar
                + f"<div class='flags'>{''.join(flags)}</div><span class='chev'>⌄</span></summary>")
@@ -1033,7 +1038,8 @@ def render_index(led, today, built, model_ok, recon=None):
     day_txt = pd.Timestamp(today).strftime("%A, %B %-d")
     head = (f"<h1>{esc(day_txt)}</h1><p class='lead'>Model win probabilities "
             "for every game on today's slate, against the market. Tap a game "
-            f"for details. Slate <span class='stamp'>{esc(today)}</span> (ET).</p>")
+            f"for details. Slate <span class='stamp'>{esc(today)}</span>; times "
+            "are Pacific (PT).</p>")
     record = ("<div class='record'><div class='l'>Record · flat 1u on the lean, "
               "against its null and the market favourite</div>"
               + headline_tiles(led, recon)
@@ -1356,9 +1362,9 @@ def _hypotheses(native, recon):
                 return ["0", "—", "—", "—"]
             return [str(r["n"]), *_roi_cells(r)]
         h, n = cell(hind), cell(nat)
-        h[0] = (f"{h[0]} <span class='mut'>at the "
+        h[0] = (f"{h[0]}<br><span class='mut'>at the "
                 f"{analysis.PRICE_NAMES[hyp['hindsight']]}</span>")
-        n[0] = (f"{n[0]} <span class='mut'>at the "
+        n[0] = (f"{n[0]}<br><span class='mut'>at the "
                 f"{analysis.PRICE_NAMES[hyp['native']]}</span>")
         rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *n, *h])
     return (
@@ -1910,7 +1916,7 @@ def snapshot_injuries(rows):
 
 def write_pages(native, recon, today, model_ok, pre=None):
     OUT_DIR.mkdir(exist_ok=True)
-    built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    built = datetime.now(PT).strftime("%Y-%m-%d %-I:%M %p PT")
     (OUT_DIR / "index.html").write_text(render_index(native, today, built, model_ok,
                                                      recon))
     (OUT_DIR / "grades.html").write_text(render_grades(native, recon, built))

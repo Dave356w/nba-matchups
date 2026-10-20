@@ -131,7 +131,7 @@ def test_hypotheses_stay_on_sportsbook_prices(tmp_path, monkeypatch):
     assert "Kalshi close" in grades and "DraftKings close" not in grades
     for hyp, hind, _nat in raw:                     # hindsight n at book prices
         if hind:
-            assert f"{hind['n']} <span class='mut'>at the" in grades
+            assert f"{hind['n']}<br><span class='mut'>at the" in grades
     report = (tmp_path / "ledger_report.txt").read_text()
     assert "Kalshi close" in report and "Market: Kalshi" in report
 
