@@ -290,7 +290,8 @@ def picks(g, price="close"):
     Returns rows with, per rule and game: the picked side's model P, no-vig
     market P (q), break-even at the posted price, result, and unit P/L, plus
     `fav_units`: 1u on the market favourite of the same game at the same
-    price (q > 0.5; exactly 0.5 ties to home), the same-row baseline.
+    price (q > 0.5; exactly 0.5 ties to home), the same-row baseline, and
+    `home_units`: 1u on the home side at the same price.
     """
     if g is None or not len(g):
         return pd.DataFrame()
@@ -307,6 +308,7 @@ def picks(g, price="close"):
     fav_units = [market.unit_profit(m, w) for m, w in
                  zip(np.where(fav_home, hml, aml),
                      np.where(fav_home, won, 1 - won))]
+    home_units = [market.unit_profit(m, w) for m, w in zip(hml, won)]
     out = []
     for rule, _label in PICK_RULES:
         if rule == "lean":
@@ -326,7 +328,7 @@ def picks(g, price="close"):
             ml=ml, won=np.where(home, won, 1 - won),
             model_tag=g["first_model_tag" if price == "first"
                         else "model_tag"].astype(str).to_numpy(),
-            fav_units=fav_units))
+            fav_units=fav_units, home_units=home_units))
         d = d[keep]
         d["breakeven"] = market.breakeven_prob(d["ml"])
         d["units"] = [market.unit_profit(m, w) for m, w in zip(d["ml"], d["won"])]
@@ -765,7 +767,7 @@ def ats_side_picks(g, price, sigma=ATS_SIGMA):
     def units(mls, res):
         return [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
                 for m, r in zip(mls, res)]
-    d = s[["game_id", "early", "side", "edge", "model_p", "q", "ml"]].assign(
+    d = s[["game_id", "early", "side", "line", "edge", "model_p", "q", "ml"]].assign(
         result=np.where(s["home"], res_home, 1 - res_home),
         fav_units=units(np.where(fav_home, s["hso"], s["aso"]),
                         np.where(fav_home, res_home, 1 - res_home)))

@@ -82,10 +82,17 @@ owner directs the product.
   PRs and are deliberately not wired into the daily build.
 - Do not hand-commit bot-generated `data/` changes or `public/`.
 - Pages: ± is 1 SE and labelled so; research scripts and the figures in
-  this file are ± 95%. One colour rule on the ledger and calibration pages
-  (`build_site.sig_cls`): colour marks a gap of ≥ 2 SE from its null (ROI
-  vs the ROI null, a forecast vs the diagonal, the model vs the close),
-  never sign alone. Sections split basis × closing book × season. The lean
+  this file are ± 95%. The site has public pages (Picks `index.html`,
+  Results, Performance: the NFL site's layout and tokens, owner's request
+  2026-10-20) and a Research tab (Ledger, Calibration, Model, Preseason:
+  every research table, unchanged). The public pages show only the native
+  forward record, one closing book × season (`build_site.public_scope`):
+  the lean's ROI beside its null and the market favourite, and the H5/H6
+  spread picks at their registered price; never the reconstructed rows.
+  One colour rule on every page (`build_site.sig_cls`): colour marks a
+  gap of ≥ 2 SE from its null (ROI vs the ROI null, a forecast vs the
+  diagonal, the model vs the close), never sign alone (a single game's
+  W/L is a result, not an estimate). Sections split basis × closing book × season. The lean
   is the recorded `lean` column everywhere (`analysis.lean_is_home`).
   Times on the pages are Pacific (`build_site.PT`, labelled PT; owner's
   request 2026-10-20); slate dates, the build schedule and the injury

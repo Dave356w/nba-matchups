@@ -96,21 +96,27 @@ def test_pages_publish_model_page_report_and_headline_tiles(tmp_path, monkeypatc
     assert "Flat 1u ROI by season" in model and "Fav ROI" in model
     assert "Routing" in model
     idx = (tmp_path / "index.html").read_text()
-    assert "Flat 1u ROI · native lean" in idx and "Flat 1u ROI · rebuilt history" in idx
-    assert "market fav" in idx
+    # the public record: the lean's ROI beside its null and the market favourite
+    assert "<div class='l'>Record</div>" in idx and "<div class='l'>ROI</div>" in idx
+    assert "null " in idx and "market favourite" in idx
     grades = (tmp_path / "grades.html").read_text()
     assert "Fav ROI" in grades
-    for name in ("index.html", "grades.html", "model.html", "preseason.html",
-                 "market-calibration.html"):
+    for name, _ in build_site.PAGES:
         html = (tmp_path / name).read_text()
         assert "class='brand'" in html and "toggleTheme" in html
         assert "href='model.html'" in html and "href='ledger_report.txt'" in html
-        assert html.count("aria-current='page'") == 1
+        nav = html[html.index("<nav class='nav'"):]
+        nav = nav[:nav.index("</nav>")]
+        assert nav.count("aria-current='page'") == 1      # one main tab is current
+        research = name in {h for h, _ in build_site.RESEARCH_PAGES}
+        assert ("aria-current='page'>Research<" in nav) == research
+        assert ("class='subnav'" in html) == research
 
 
-def test_headline_tiles_without_native_rows_say_so():
-    t = build_site.headline_tiles(ledger.empty(), synth(100, 40, "reconstructed"))
-    assert "no graded bets yet" in t and "rebuilt history" in t
+def test_record_tiles_without_native_rows_say_so():
+    assert build_site.public_scope(ledger.empty()) is None
+    t = build_site.record_tiles(None)
+    assert "No graded picks yet" in t and "null" in t
 
 
 def test_build_commits_data_even_after_a_failed_render():
@@ -138,17 +144,18 @@ def test_index_renders_one_card_per_game_with_ev_beside_its_null(tmp_path, monke
     build_site.write_pages(d, synth(100, 42, "reconstructed"), "2026-11-19",
                            model_ok=True)
     idx = (tmp_path / "index.html").read_text()
-    assert idx.count("<details class='card' data-gid=") == len(d)
+    assert idx.count("<details class='gcard") == idx.count(" data-gid='") == len(d)
     for _, r in d.iterrows():
         assert f"{r['away']} @ {r['home']}" in idx
-        assert f"Lean {r['lean']}" in idx
+        assert f"<span class='pk'>{r['lean']} " in idx      # the lean and its price
         assert f"data-gid='{r['game_id']}'" in idx           # live scores match on it
     # scores are fetched in the reader's browser for the slate's date only
     assert "data-slate='2026-11-19'" in idx and "site.api.espn.com" in idx
     assert idx.count("data-scores-asof hidden") == 1
     assert "Model EV" in idx and "if the market is right" in idx    # EV beside its null
     assert "Model − market" in idx and "How these numbers are made" in idx
-    assert "Flat 1u ROI · native lean" in idx                    # record box kept
+    assert "<div class='l'>Record</div>" in idx                  # record tiles kept
+    assert "data-filter" in idx and "data-state='upcoming'" in idx
 
 
 def test_index_card_abstains_without_a_probability():
@@ -189,10 +196,10 @@ def test_rebuilt_history_is_folded_and_forward_rows_open(tmp_path, monkeypatch):
 def test_nav_drops_report_but_every_footer_links_it(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(ledger.empty(), ledger.empty(), "2026-11-19", model_ok=True)
-    for name in ("index.html", "grades.html", "model.html", "preseason.html",
-                 "market-calibration.html"):
+    for name, _ in build_site.PAGES:
         html = (tmp_path / name).read_text()
-        nav = html[html.index("<nav>"):html.index("</nav>")]
+        nav = html[html.index("<nav class='nav'"):]
+        nav = nav[:nav.index("</nav>")]
         assert "ledger_report.txt" not in nav
         foot = html[html.index("class='foot'"):]
         assert "href='ledger_report.txt'" in foot
@@ -214,18 +221,19 @@ def _ats_pending(gp, first_p=0.75, line=-5.5, home_odds=-110):
 def test_card_shows_the_h6_pick_as_registered():
     # 13.5 * Phi^-1(0.75) = home by 9.1 vs home -5.5: 3.6 pts, home side
     card = build_site.game_card(_ats_pending(gp=3))
-    assert "badge hyp'>H6 ATS HOM -5.5<" in card
+    assert "Spread pick · H6</span><span class='pk'>HOM -5.5</span>" in card
     assert "<b>H6 pick</b>" in card and "<b>HOM -5.5</b> at -110" in card
     assert "model line HOM -9.1 vs market -5.5: 3.6 pts" in card
     assert "7:07 AM PT" in card and "DraftKings" in card and "H5" not in card
     # games 10+ is H5's, with the same reading
-    assert "badge hyp'>H5 ATS HOM -5.5<" in build_site.game_card(_ats_pending(gp=12))
+    assert "Spread pick · H5</span><span class='pk'>HOM -5.5</span>" in \
+        build_site.game_card(_ats_pending(gp=12))
 
 
 def test_card_says_why_there_is_no_ats_bet():
     # P 0.66 -> home by 5.6 vs -5.5: 0.1 pts, under the 1-pt threshold
     card = build_site.game_card(_ats_pending(gp=3, first_p=0.66))
-    assert "badge hyp" not in card
+    assert "Spread pick" not in card
     assert "<b>H6</b> (pre-registered, against the spread): no bet" in card
     assert "0.1 pts; the rule needs 1" in card
     # an alternate-line price is no main-line bet: no H5/H6 line at all
@@ -257,3 +265,43 @@ def test_card_names_the_spread_book_where_kalshi_is_the_market(tmp_path, monkeyp
                            "2026-11-19", model_ok=True)
     idx = (tmp_path / "index.html").read_text()
     assert "<b>HOM -5.5</b> at -110 <span class='basis'>DraftKings</span>" in idx
+
+
+# ----------------------------------------- public Results / Performance pages
+def test_results_and_performance_show_the_native_lean_record(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    native = synth(120, 52, "native")
+    build_site.write_pages(native, synth(200, 53, "reconstructed"), "2026-11-29",
+                           model_ok=True)
+    scope = build_site.public_scope(native)
+    r = scope["row"]
+    units = f"{r['units']:+.2f}u"
+    res = (tmp_path / "results.html").read_text()
+    assert "<h1 class='gr-h1'>Results</h1>" in res and units in res
+    assert "Game by game" in res and "<span class='badge w'>W</span>" in res
+    assert "Spread picks" in res and "No graded bets yet" in res     # no H5/H6 rows
+    perf = (tmp_path / "performance.html").read_text()
+    assert "<div class='uchart'>" in perf and f"<span class='v'>{units}</span>" in perf
+    for t in ("Model vs simple baselines", "Market favourite", "Home side", "By week"):
+        assert t in perf
+    assert f"null {100 * r['roi_null']:+.1f}%" in perf               # ROI beside its null
+
+
+def test_public_pages_never_show_the_rebuilt_seasons(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(ledger.empty(), synth(200, 54, "reconstructed"),
+                           "2026-11-29", model_ok=True)
+    assert "No graded picks yet" in (tmp_path / "results.html").read_text()
+    assert "starts with the first graded pick" in (tmp_path / "performance.html").read_text()
+    assert "No graded picks yet" in (tmp_path / "index.html").read_text()
+
+
+def test_a_graded_h6_bet_reaches_the_spread_tile_and_results(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    r = _ats_pending(gp=3)                       # H6: HOM -5.5 at -110
+    r["home_pts"], r["away_pts"], r["home_won"] = 110, 100, 1       # covers by 4.5
+    build_site.write_pages(pd.DataFrame([r]), synth(50, 55, "reconstructed"),
+                           "2026-11-20", model_ok=True)
+    res = (tmp_path / "results.html").read_text()
+    assert "Spread · H6 · games 1–9" in res and "<div class='v '>1–0</div>" in res
+    assert "H6 HOM -5.5 <span class='badge w'>W</span> +0.91u" in res
