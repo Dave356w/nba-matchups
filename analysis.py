@@ -527,6 +527,50 @@ def hypothesis_rows(native, recon):
     return out
 
 
+# The book behind each graded price (the hypotheses read raw rows: sportsbooks).
+PRICE_BOOK = {"first": "first_book", "pre": "pre_book", "open": "close_book",
+              "close": "close_book"}
+
+
+def hypothesis_by_season(native, recon, keys=("H5", "H6")):
+    """[(hypothesis, [part])] for the hypotheses in `keys`: the same bets as
+    hypothesis_rows, split by basis x the graded price's book x season and
+    never pooled (native first, newest season first). part = dict(basis,
+    book, season, price, row); a basis with no bets gives one part with
+    book, season and row None."""
+    order = {b: i for i, (_, b) in enumerate(market.BOOKS)}
+    out = []
+    for hyp in HYPOTHESES:
+        if hyp["key"] not in keys:
+            continue
+        ats = hyp.get("market") == "ats"
+        hind = with_open_spreads(recon) if ats and hyp["hindsight"] == "open" else recon
+        parts = []
+        for basis, g, price in (("native", native, hyp["native"]),
+                                ("reconstructed", hind, hyp["hindsight"])):
+            d = hypothesis_picks(g, hyp, price) if g is not None and len(g) else None
+            if d is None or not len(d):
+                parts.append(dict(basis=basis, book=None, season=None, price=price,
+                                  row=None))
+                continue
+            meta = pd.DataFrame(dict(game_id=g["game_id"].astype(str).to_numpy(),
+                                     book=g[PRICE_BOOK[price]].to_numpy(),
+                                     season=pd.to_numeric(g["season"],
+                                                          errors="coerce").to_numpy()))
+            d = d.assign(game_id=d["game_id"].astype(str)).merge(meta, on="game_id",
+                                                                 how="left")
+            groups = sorted(d.groupby(["book", "season"], dropna=False),
+                            key=lambda t: (-t[0][1], order.get(t[0][0], 99)))
+            for (book, season), x in groups:
+                r = (ats_row if ats else roi_row)(
+                    "", x.drop(columns=["book", "season"]).reset_index(drop=True))
+                r["z"] = z_vs_null(r)
+                parts.append(dict(basis=basis, book=book, season=season,
+                                  price=price, row=r))
+        out.append((hyp, parts))
+    return out
+
+
 def clv(g):
     """Closing-line value of native leans: close q - pregame q, lean side.
 
