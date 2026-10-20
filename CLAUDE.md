@@ -238,6 +238,35 @@ Before a PR, run:
   value bet needs to clear a 4% hold, and the value side gains +1.32 ±
   0.35 pp of no-vig probability open → close (+2.4 / +1.1 pp in games 1–9,
   which have no injury terms). Unresolved; native CLV is the test.
+- Against the spread (owner's question, 2026-10-20): `research/ats_signal.py`
+  (results `diagnostics/ats_signal/RESULTS.txt`) maps the reconstructed P to
+  a margin, 13.5 × Φ⁻¹(P) (`analysis.ATS_SIGMA`, not tuned; the market's own
+  moneyline-to-line scale is 12.9), and bets the model's side when |margin
+  + home line| ≥ 0–5 pts, at the row's close and at the same book's open
+  (ESPN core odds, cached in `open_spreads.csv`; 71 ESPN BET "opens" priced
+  outside −135..+115 were alternate lines and are dropped; every line is a
+  half point, so no pushes). Hindsight, ± 95%, games 10+ (2024-25 ESPN BET
+  n = 1,028 at the open / 1,071 at the close; 2025-26 DK n = 964):
+  - Close: nothing. Signal slope (cover margin on edge) −0.06 ± 0.28 /
+    −0.12 ± 0.28; edge ≥ 0 ROI −8.2% / −6.1% vs null −4.5% (the retired
+    ATS value side).
+  - Open: slope +0.31 ± 0.28 / +0.29 ± 0.29; edge ≥ 0 covers 53.0% /
+    52.3%, ROI +1.1% / −0.3% (vs null +5.5 ± 5.8 / +4.2 ± 6.0); edge ≥ 1
+    +2.1% / +2.5% (vs null +6.6 ± 6.8 / +7.1 ± 7.0). Near break-even after
+    the hold; unresolved.
+  - The line moves to the model's opening side by tip: +0.65 ± 0.13 /
+    +0.56 ± 0.14 pts, closing 27 ± 4% / 25 ± 4% of the opening edge (home
+    side, same games, −0.05 / +0.04). Resolved in both seasons; what is
+    left at the close carries nothing. Games 1–9 (no injury terms, ESPN
+    BET, n = 110/138): +0.70 ± 0.41 / +0.42 ± 0.36 pts, ROI vs null
+    unresolved (+10.8 ± 17.9 / +4.1 ± 16.0).
+  - 3 of 60 ROI cells clear |z| ≥ 1.96 (about 3 by chance); none
+    replicates across seasons. Same reading as the moneyline open vs close:
+    the model knows something the opener does not and the market prices
+    it by tip; in games 10+ part may be injury-report timing. Native rows
+    record only the closing spread (graded), so a forward ATS test at a
+    bettable price needs pregame spread snapshots (the build's ESPN odds
+    call already returns the current spread). Not pre-registered.
 - More game-log seasons to settle the half-life. Travel/altitude/rest
   context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
   the market's correction and worsen 2025-26 log loss jointly; not pursued.

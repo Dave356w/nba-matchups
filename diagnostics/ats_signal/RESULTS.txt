@@ -1,0 +1,107 @@
+ATS signal backtest -- reconstructed rows (leave-one-season-out P): HINDSIGHT
+Model margin = 13.5 x Phi^-1(P) (analysis.ATS_SIGMA, not tuned). Market check: the closing line vs its own moneyline gives sigma 12.9; SD of (margin + close line) 13.7 pts.
+Games: 2418 graded with P and a result; main-line opening spread for 2346 (71 openings priced outside -135..+115 were alternate lines and are left out).
+ROI and its null are per 1u bet incl. pushes (refunded); vs null = ROI - null +/- 95%; fav = 1u on the spread favourite of the same games at the same price.
+
+== ESPN BET close book, 2024-25 · games 1-9 (carryover, no injury terms): 138 games
+  open  signal slope b = +0.41 ± 0.61 (n=110; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   110   61-49-0    55.5%   +6.3%  -4.5%    +10.8 ± 17.9  +1.2   -11.1%  58.9%
+          1    86   49-37-0    57.0%   +9.1%  -4.5%    +13.6 ± 20.2  +1.3   -12.9%  60.9%
+          2    63   41-22-0    65.1%  +24.9%  -4.5%    +29.4 ± 22.8  +2.5   -11.0%  63.3%
+          3    51   34-17-0    66.7%  +28.1%  -4.5%    +32.6 ± 25.1  +2.5   -16.2%  64.7%
+          4    36   21-15-0    58.3%  +12.1%  -4.5%    +16.6 ± 31.4  +1.0   -13.7%  66.7%
+          5    28   14-14-0    50.0%   -3.5%  -4.5%     +1.0 ± 36.4  +0.1   -16.5%  67.8%
+  close signal slope b = +0.09 ± 0.56 (n=137; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   137   71-66-0    51.8%   -0.9%  -4.5%     +3.6 ± 16.1  +0.4   -13.6%  58.6%
+          1   109   57-52-0    52.3%   +0.0%  -4.5%     +4.6 ± 18.0  +0.5   -12.5%  60.3%
+          2    77   40-37-0    51.9%   -0.6%  -4.5%     +3.9 ± 21.5  +0.4   -18.4%  62.7%
+          3    55   30-25-0    54.5%   +4.2%  -4.5%     +8.7 ± 25.4  +0.7   -24.0%  64.8%
+          4    40   20-20-0    50.0%   -4.6%  -4.5%     -0.1 ± 29.9  -0.0   -32.9%  66.7%
+          5    26   12-14-0    46.2%  -11.8%  -4.5%     -7.2 ± 37.4  -0.4   -33.1%  68.7%
+  line value of opening picks (k=0): +0.70 ± 0.41 pts toward the side (n=110; moved for 53%, against 25%); home side, same games -0.41 ± 0.42
+  share of the opening edge the line closes by tip: +0.27 ± 0.10 (slope of the home line's move on the edge)
+
+== ESPN BET close book, 2024-25 · games 10+: 1071 games
+  open  signal slope b = +0.31 ± 0.28 (n=1028; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0  1028  545-483-0    53.0%   +1.1%  -4.5%      +5.5 ± 5.8  +1.9    -0.3%  57.0%
+          1   743  398-345-0    53.6%   +2.1%  -4.5%      +6.6 ± 6.8  +1.9    +0.0%  59.1%
+          2   511  272-239-0    53.2%   +1.3%  -4.5%      +5.8 ± 8.3  +1.4    +0.1%  61.2%
+          3   321  169-152-0    52.6%   -0.0%  -4.5%     +4.5 ± 10.4  +0.8    +2.0%  63.6%
+          4   198  109-89-0    55.1%   +4.5%  -4.5%     +9.0 ± 13.2  +1.3    +1.4%  65.7%
+          5   108   64-44-0    59.3%  +12.3%  -4.5%    +16.8 ± 17.7  +1.9    -2.8%  67.9%
+  close signal slope b = -0.06 ± 0.28 (n=1071; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0  1071  516-555-0    48.2%   -8.2%  -4.5%      -3.7 ± 5.7  -1.3    -3.5%  56.6%
+          1   776  378-398-0    48.7%   -7.2%  -4.5%      -2.7 ± 6.7  -0.8    -1.7%  58.5%
+          2   474  237-237-0    50.0%   -4.7%  -4.5%      -0.2 ± 8.6  -0.1    -4.7%  61.2%
+          3   285  141-144-0    49.5%   -5.5%  -4.5%     -1.0 ± 11.1  -0.2    -1.5%  63.8%
+          4   155   75-80-0    48.4%   -7.5%  -4.5%     -3.0 ± 15.1  -0.4    +0.2%  66.9%
+          5    96   47-49-0    49.0%   -6.5%  -4.5%     -2.1 ± 19.2  -0.2    +0.1%  69.3%
+  line value of opening picks (k=0): +0.65 ± 0.13 pts toward the side (n=1028; moved for 50%, against 26%); home side, same games -0.05 ± 0.13
+  share of the opening edge the line closes by tip: +0.27 ± 0.04 (slope of the home line's move on the edge)
+
+== DraftKings close book, 2025-26 · games 10+: 964 games
+  open  signal slope b = +0.29 ± 0.29 (n=964; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   964  504-460-0    52.3%   -0.3%  -4.5%      +4.2 ± 6.0  +1.4    -4.9%  56.9%
+          1   703  378-325-0    53.8%   +2.5%  -4.5%      +7.1 ± 7.0  +2.0    -7.8%  58.9%
+          2   456  251-205-0    55.0%   +4.8%  -4.5%      +9.3 ± 8.7  +2.1    -8.7%  61.5%
+          3   296  164-132-0    55.4%   +5.4%  -4.5%    +10.0 ± 10.8  +1.8    -7.7%  63.7%
+          4   182   96-86-0    52.7%   +0.4%  -4.5%     +4.9 ± 13.8  +0.7    -2.3%  66.0%
+          5    98   53-45-0    54.1%   +2.8%  -4.5%     +7.4 ± 18.9  +0.8    -6.2%  68.6%
+  close signal slope b = -0.12 ± 0.28 (n=964; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   964  475-489-0    49.3%   -6.1%  -4.5%      -1.6 ± 6.0  -0.5    -5.3%  57.0%
+          1   699  351-348-0    50.2%   -4.4%  -4.5%      +0.1 ± 7.1  +0.0    -7.5%  59.2%
+          2   485  241-244-0    49.7%   -5.5%  -4.5%      -1.1 ± 8.5  -0.2    -4.1%  61.3%
+          3   318  148-170-0    46.5%  -11.4%  -4.5%     -6.9 ± 10.5  -1.3    -3.5%  63.4%
+          4   188   83-105-0    44.1%  -15.8%  -4.5%    -11.3 ± 13.6  -1.6    +3.1%  65.8%
+          5    96   46-50-0    47.9%   -8.7%  -4.5%     -4.2 ± 19.2  -0.4    -0.2%  68.5%
+  line value of opening picks (k=0): +0.56 ± 0.14 pts toward the side (n=964; moved for 48%, against 28%); home side, same games +0.04 ± 0.14
+  share of the opening edge the line closes by tip: +0.25 ± 0.04 (slope of the home line's move on the edge)
+
+== ESPN BET close book, 2025-26 · games 1-9 (carryover, no injury terms): 138 games
+  open  signal slope b = +0.22 ± 0.54 (n=138; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   138   72-66-0    52.2%   -0.4%  -4.5%     +4.1 ± 16.0  +0.5    +4.4%  59.7%
+          1   115   60-55-0    52.2%   -0.5%  -4.5%     +4.0 ± 17.5  +0.4    +3.6%  61.3%
+          2    89   47-42-0    52.8%   +0.8%  -4.5%     +5.3 ± 19.9  +0.5    -0.5%  63.4%
+          3    69   34-35-0    49.3%   -5.7%  -4.5%     -1.2 ± 22.7  -0.1    -2.2%  65.2%
+          4    45   23-22-0    51.1%   -2.4%  -4.5%     +2.1 ± 28.2  +0.1    -5.8%  67.8%
+          5    30   16-14-0    53.3%   +2.3%  -4.5%     +6.8 ± 34.8  +0.4    -9.5%  70.0%
+  close signal slope b = +0.17 ± 0.53 (n=138; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   138   68-70-0    49.3%   -6.2%  -4.5%     -1.6 ± 16.0  -0.2    -0.5%  59.7%
+          1   113   54-59-0    47.8%   -8.9%  -4.5%     -4.4 ± 17.6  -0.5    -0.3%  61.5%
+          2    84   41-43-0    48.8%   -7.1%  -4.5%     -2.6 ± 20.5  -0.2    -2.3%  64.0%
+          3    65   31-34-0    47.7%   -9.2%  -4.5%     -4.7 ± 23.3  -0.4   -11.7%  65.9%
+          4    48   23-25-0    47.9%   -8.6%  -4.6%     -4.1 ± 27.3  -0.3   -12.3%  68.0%
+          5    35   18-17-0    51.4%   -2.1%  -4.6%     +2.5 ± 32.0  +0.2   -23.3%  69.9%
+  line value of opening picks (k=0): +0.42 ± 0.36 pts toward the side (n=138; moved for 43%, against 33%); home side, same games -0.48 ± 0.36
+  share of the opening edge the line closes by tip: +0.13 ± 0.08 (slope of the home line's move on the edge)
+
+== ESPN BET close book, 2025-26 · games 10+: 107 games
+  open  signal slope b = +1.01 ± 0.68 (n=106; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   106   60-46-0    56.6%   +7.8%  -4.5%    +12.2 ± 18.1  +1.3   -13.1%  58.1%
+          1    82   43-39-0    52.4%   -0.4%  -4.5%     +4.1 ± 20.7  +0.4   -11.3%  60.1%
+          2    61   33-28-0    54.1%   +2.8%  -4.5%     +7.3 ± 24.0  +0.6    -2.8%  62.0%
+          3    42   24-18-0    57.1%   +7.7%  -4.5%    +12.2 ± 28.6  +0.8    -0.1%  64.2%
+          4    24   14-10-0    58.3%   +9.9%  -4.5%    +14.4 ± 38.0  +0.7   -12.2%  67.1%
+          5    16   10-6-0    62.5%  +18.1%  -4.5%    +22.6 ± 46.3  +1.0   -15.6%  69.2%
+  close signal slope b = +0.87 ± 0.75 (n=107; 0 = no information beyond the line)
+          k     n       W-L-P  cover     ROI   null   vs null ± 95%     z  fav ROI  model
+          0   107   57-50-0    53.3%   +1.7%  -4.6%     +6.3 ± 18.2  +0.7   -13.7%  57.3%
+          1    76   41-35-0    53.9%   +3.0%  -4.6%     +7.6 ± 21.6  +0.7   -11.3%  59.6%
+          2    57   30-27-0    52.6%   +0.9%  -4.6%     +5.5 ± 25.1  +0.4    +8.1%  61.5%
+          3    36   19-17-0    52.8%   +0.4%  -4.6%     +5.0 ± 31.5  +0.3    +1.5%  63.8%
+          4    22   14-8-0    63.6%  +21.3%  -4.7%    +26.0 ± 39.2  +1.3   -12.2%  66.3%
+          5    13    8-5-0    61.5%  +17.0%  -4.8%    +21.7 ± 52.3  +0.8   -26.2%  68.7%
+  line value of opening picks (k=0): +0.67 ± 0.36 pts toward the side (n=106; moved for 53%, against 25%); home side, same games -0.35 ± 0.37
+  share of the opening edge the line closes by tip: +0.23 ± 0.10 (slope of the home line's move on the edge)
+
+60 ROI cells above: at 95%, about 3 would clear |z| >= 1.96 by chance alone.
+Cross-check: fetched opening moneyline equals the ledger's open_home_ml on 100.0% of 2418 games.
