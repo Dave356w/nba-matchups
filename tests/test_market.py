@@ -136,6 +136,33 @@ def test_spread_line_and_close_spread_parsing():
                                 )["close_spread"] is None
 
 
+def test_current_spread_parsing_for_the_pregame_snapshot():
+    def item(home_cur, away_cur, **side_extra):
+        side = lambda cur: {"current": cur, **side_extra}  # noqa: E731
+        return {"items": [{"provider": {"id": "100"},
+                           "homeTeamOdds": side(home_cur), "awayTeamOdds": side(away_cur)}]}
+    js = item({"moneyLine": {"american": "-198"}, "pointSpread": {"american": "-4.5"},
+               "spread": {"american": "-112"}},
+              {"moneyLine": {"american": "+164"}, "pointSpread": {"american": "+4.5"},
+               "spread": {"american": "-108"}})
+    o = market.pick_pregame(market.parse_book_odds(js))
+    assert o["book"] == "dk" and o["cur_home_ml"] == -198
+    assert o["cur_spread"] == -4.5
+    assert (o["cur_home_spread_odds"], o["cur_away_spread_odds"]) == (-112, -108)
+    # the price falls back to each side's spreadOdds, as the moneyline does
+    js = item({"moneyLine": {"american": "-198"}, "pointSpread": {"american": "-4.5"}},
+              {"moneyLine": {"american": "+164"}, "pointSpread": {"american": "+4.5"}},
+              spreadOdds=-110.0)
+    o = market.pick_pregame(market.parse_book_odds(js))
+    assert o["cur_spread"] == -4.5 and o["cur_home_spread_odds"] == -110
+    # no line: no spread prices either; the moneyline still parses
+    js = item({"moneyLine": {"american": "-198"}}, {"moneyLine": {"american": "+164"}},
+              spreadOdds=-110.0)
+    o = market.pick_pregame(market.parse_book_odds(js))
+    assert o["cur_home_ml"] == -198 and o["cur_spread"] is None
+    assert o["cur_home_spread_odds"] is None and o["cur_away_spread_odds"] is None
+
+
 def test_ats_result():
     assert market.ats_result(7, -5.5) == 1.0       # home -5.5 wins by 7
     assert market.ats_result(5, -5.5) == 0.0

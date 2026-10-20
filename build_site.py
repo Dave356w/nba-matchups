@@ -441,7 +441,9 @@ def add_kalshi_pregame(rows, today):
 
 def add_pregame_price(r):
     """The current moneyline pair of the first book in market.BOOKS, in place
-    (pre_book, pre_home_ml, pre_away_ml, pre_q_home; price_note when none)."""
+    (pre_book, pre_home_ml, pre_away_ml, pre_q_home; price_note when none),
+    and that book's current spread from the same response (pre_spread,
+    pre_home_spread_odds, pre_away_spread_odds; blank when it has none)."""
     try:
         odds = market.pick_pregame(market.book_odds(r["game_id"]))
         if not odds:
@@ -455,6 +457,9 @@ def add_pregame_price(r):
     r["pre_away_ml"] = odds.get("cur_away_ml")
     q = market.devig(r["pre_home_ml"], r["pre_away_ml"])
     r["pre_q_home"] = round(q, 5) if np.isfinite(q) else np.nan
+    r["pre_spread"] = odds.get("cur_spread")
+    r["pre_home_spread_odds"] = odds.get("cur_home_spread_odds")
+    r["pre_away_spread_odds"] = odds.get("cur_away_spread_odds")
 
 
 def score_preseason(today, weights, now=None):

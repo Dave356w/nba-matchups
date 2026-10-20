@@ -21,6 +21,10 @@ Invariants (tests/test_ledger.py pins each one):
     refreshed columns end near the close. The first snapshot also records
     the injury-report edition the build read then (`first_report_utc`) and
     the route that scored it (`first_route`): what news its P could contain.
+  * The pregame spread (`pre_spread` and both prices, PREGAME_SPREAD_COLUMNS)
+    comes from the pregame moneyline's book and follows the same lock:
+    refreshed until tip, frozen after; `first_spread` and its prices are
+    written once with the rest of `first_*`. Grading never touches them.
   * The row's very first snapshot (`seen_utc`, SEEN_COLUMNS) is written once
     when the row is created, with `seen_note` saying why `first_*` was not
     filled then (no price yet, odds fetch failed, model abstained; blank when
@@ -95,9 +99,22 @@ KALSHI_GRADE_COLUMNS = ["kalshi_open_home_ml", "kalshi_open_away_ml",
                         "kalshi_close_q_home"]
 KALSHI_COLUMNS = KALSHI_PRE_COLUMNS + KALSHI_FIRST_COLUMNS + KALSHI_GRADE_COLUMNS
 COLUMNS = COLUMNS + KALSHI_COLUMNS
+# Schema before the pregame spreads: `load` reads it with them blank and the
+# next save writes the current schema (2026-10-20, before any native row had
+# a model P, so no first snapshot lacks its spread).
+PRE_PREGAME_SPREAD_COLUMNS = list(COLUMNS)
+# Pregame spread from the pregame moneyline's book and odds response: the home
+# line (-5.5 = home gives 5.5) and each side's price. pre_* is refreshed with
+# the pregame snapshot until tip, frozen after; first_* is written once with
+# the other first_* columns (same snapshot, model P and moneyline).
+PREGAME_SPREAD_COLUMNS = ["pre_spread", "pre_home_spread_odds", "pre_away_spread_odds"]
+FIRST_SPREAD_COLUMNS = ["first_spread", "first_home_spread_odds",
+                        "first_away_spread_odds"]
+COLUMNS = COLUMNS + PREGAME_SPREAD_COLUMNS + FIRST_SPREAD_COLUMNS
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
-FIRST_COLUMNS = COLUMNS[COLUMNS.index("first_snapshot_utc"):
-                        COLUMNS.index("seen_utc")] + KALSHI_FIRST_COLUMNS
+FIRST_COLUMNS = (COLUMNS[COLUMNS.index("first_snapshot_utc"):
+                         COLUMNS.index("seen_utc")] + KALSHI_FIRST_COLUMNS
+                 + FIRST_SPREAD_COLUMNS)
 # Where each first_* column comes from: a pregame column, or (report, route)
 # a key of the scored row that is not itself a ledger column.
 FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_tag",
@@ -106,7 +123,8 @@ FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_
                 "first_q_home": "pre_q_home", "first_report_utc": "report_utc",
                 "first_route": "route",
                 **{f"kalshi_first_{k}": f"kalshi_pre_{k}"
-                   for k in ("home_ml", "away_ml", "q_home")}}
+                   for k in ("home_ml", "away_ml", "q_home")},
+                **dict(zip(FIRST_SPREAD_COLUMNS, PREGAME_SPREAD_COLUMNS))}
 # Columns written once and never refreshed or graded.
 WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS
 # String-valued columns (kept as object dtype).
@@ -117,7 +135,7 @@ SPREAD_COLUMNS = ["close_spread", "close_home_spread_odds",
                   "close_away_spread_odds"]
 # Schema before the Kalshi columns: `load` reads it with them blank and the
 # next save writes the current schema (2026-10-06; the native ledger was empty).
-PRE_KALSHI_COLUMNS = [c for c in COLUMNS if c not in KALSHI_COLUMNS]
+PRE_KALSHI_COLUMNS = [c for c in PRE_PREGAME_SPREAD_COLUMNS if c not in KALSHI_COLUMNS]
 # Schema before the report / route / seen columns: `load` reads it with them
 # blank and the next save writes the current schema. (The native ledger was
 # empty when they were added, 2026-10-01.)
@@ -135,7 +153,7 @@ PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
 LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = ([c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
-                   + KALSHI_PRE_COLUMNS)
+                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS)
 GRADE_COLUMNS = [c for c in COLUMNS
                  if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS]
 

@@ -33,10 +33,13 @@ def check(path):
     elif list(df.columns) == ledger.PRE_FIRST_COLUMNS:
         print(f"note {path}: pre-first-snapshot schema; first_* columns added "
               "(blank) on the next bot write")
+    elif list(df.columns) == ledger.PRE_PREGAME_SPREAD_COLUMNS:
+        print(f"note {path}: pre-pregame-spread schema; pre_spread / "
+              "first_spread columns added (blank) on the next write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_KALSHI_COLUMNS,
-                            ledger.PRE_SEEN_COLUMNS,
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_PREGAME_SPREAD_COLUMNS,
+                            ledger.PRE_KALSHI_COLUMNS, ledger.PRE_SEEN_COLUMNS,
                             ledger.PRE_FIRST_COLUMNS, ledger.PRE_SPREAD_COLUMNS):
         books = {b for _, b in market.BOOKS} | set(market.EXCHANGES)
         for col, q in (("pre_book", "pre_q_home"), ("close_book", "close_q_home")):
@@ -54,6 +57,12 @@ def check(path):
         if (spread.notna() & pd.to_numeric(df["close_q_home"],
                                            errors="coerce").isna()).any():
             errs.append(f"{path}: close_spread on a row without a moneyline close")
+    # a pregame spread comes only with its book's pregame moneyline
+    for line, q in (("pre_spread", "pre_q_home"), ("first_spread", "first_q_home")):
+        if line in df.columns:
+            if (pd.to_numeric(df[line], errors="coerce").notna()
+                    & pd.to_numeric(df[q], errors="coerce").isna()).any():
+                errs.append(f"{path}: {line} on a row without {q}")
     if "first_snapshot_utc" in df.columns:
         first = pd.to_datetime(df["first_snapshot_utc"], utc=True, errors="coerce")
         tip = pd.to_datetime(df["tip_utc"], utc=True, errors="coerce")
