@@ -196,3 +196,64 @@ def test_nav_drops_report_but_every_footer_links_it(tmp_path, monkeypatch):
         assert "ledger_report.txt" not in nav
         foot = html[html.index("class='foot'"):]
         assert "href='ledger_report.txt'" in foot
+
+
+# ------------------------------------------- H5 / H6 picks on the Today cards
+def _ats_pending(gp, first_p=0.75, line=-5.5, home_odds=-110):
+    """One pending row with a first snapshot (P, sportsbook spread)."""
+    r = _slate(1).iloc[0].copy()
+    r["gp_home"] = r["gp_away"] = gp
+    r["first_snapshot_utc"] = "2026-11-19T15:07:00Z"     # 7:07 AM PST
+    r["first_p_home"], r["first_book"] = first_p, "dk"
+    r["first_spread"], r["first_home_spread_odds"] = line, home_odds
+    r["first_away_spread_odds"] = -110
+    r["pre_spread"] = line
+    return r
+
+
+def test_card_shows_the_h6_pick_as_registered():
+    # 13.5 * Phi^-1(0.75) = home by 9.1 vs home -5.5: 3.6 pts, home side
+    card = build_site.game_card(_ats_pending(gp=3))
+    assert "badge hyp'>H6 ATS HOM -5.5<" in card
+    assert "<b>H6 pick</b>" in card and "<b>HOM -5.5</b> at -110" in card
+    assert "model line HOM -9.1 vs market -5.5: 3.6 pts" in card
+    assert "7:07 AM PT" in card and "DraftKings" in card and "H5" not in card
+    # games 10+ is H5's, with the same reading
+    assert "badge hyp'>H5 ATS HOM -5.5<" in build_site.game_card(_ats_pending(gp=12))
+
+
+def test_card_says_why_there_is_no_ats_bet():
+    # P 0.66 -> home by 5.6 vs -5.5: 0.1 pts, under the 1-pt threshold
+    card = build_site.game_card(_ats_pending(gp=3, first_p=0.66))
+    assert "badge hyp" not in card
+    assert "<b>H6</b> (pre-registered, against the spread): no bet" in card
+    assert "0.1 pts; the rule needs 1" in card
+    # an alternate-line price is no main-line bet: no H5/H6 line at all
+    card = build_site.game_card(_ats_pending(gp=3, home_odds=320))
+    assert "H6" not in card
+    # no first snapshot yet: nothing to show
+    r = _ats_pending(gp=3)
+    r[["first_snapshot_utc", "first_p_home", "first_spread"]] = np.nan
+    assert "H6" not in build_site.game_card(r)
+
+
+def test_card_pick_is_the_side_the_ledger_grades():
+    for p, line in ((0.75, -5.5), (0.40, -2.5), (0.55, 6.5)):
+        r = _ats_pending(gp=3, first_p=p, line=line)
+        a = analysis.ats_card(r)
+        g = pd.DataFrame([r]).assign(home_pts=110, away_pts=100, home_won=1)
+        d = analysis.hypothesis_picks(g, a["hyp"], "first")
+        assert a["bet"] == (len(d) == 1)
+        if a["bet"]:
+            assert d["side"].iloc[0] == a["side"]
+
+
+def test_card_names_the_spread_book_where_kalshi_is_the_market(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    r = _ats_pending(gp=3)
+    r["kalshi_pre_home_ml"], r["kalshi_pre_away_ml"] = -150, 130
+    r["kalshi_pre_q_home"] = 0.58
+    build_site.write_pages(pd.DataFrame([r]), synth(50, 43, "reconstructed"),
+                           "2026-11-19", model_ok=True)
+    idx = (tmp_path / "index.html").read_text()
+    assert "<b>HOM -5.5</b> at -110 <span class='basis'>DraftKings</span>" in idx

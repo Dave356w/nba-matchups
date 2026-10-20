@@ -659,16 +659,18 @@ def with_open_spreads(g, path=None):
         o[["game_id"] + cols], on="game_id", how="left")
 
 
-def ats_side_picks(g, price, sigma=ATS_SIGMA):
-    """Flat 1u spread bets on the model's side at one price ("first": the
-    first snapshot's spread, prices and first_p_home; "pre", "open",
-    "close": that spread with p_home).
+def ats_sides(g, price, sigma=ATS_SIGMA):
+    """The model's side against one price's spread, per game; no result
+    needed (ats_side_picks grades it, ats_card shows it on the Today page).
 
-    The model's home margin is sigma * Phi^-1(P); edge = margin + home line
-    (points), the bet is home if edge > 0 else away, `edge` is |edge|. Only
-    main-line prices (both sides in ATS_MAIN_LINE). q is the no-vig cover
-    probability of the side; fav_units is 1u on the spread favourite of the
-    same game at the same price (pick'em: the shorter price; tie: home).
+    price "first": the first snapshot's spread, prices and first_p_home;
+    "pre", "open", "close": that spread with p_home. The model's home margin
+    is sigma * Phi^-1(P); edge = margin + home line (points): home if
+    edge > 0, else away; `edge` is |edge|. Only main-line prices (both sides
+    in ATS_MAIN_LINE) and a model P. Per game: early (games 1-9), side,
+    home, edge, line (the side's), model_line (the model's line for that
+    side, -its margin), ml, q (no-vig cover probability), model_p, and the
+    home line and prices; indexed like `g`.
     """
     if g is None or not len(g) or f"{price}_spread" not in g.columns:
         return pd.DataFrame()
@@ -676,39 +678,78 @@ def ats_side_picks(g, price, sigma=ATS_SIGMA):
     line, hso, aso = (num(f"{price}_{c}") for c in
                       ("spread", "home_spread_odds", "away_spread_odds"))
     ph = num("first_p_home" if price == "first" else "p_home")
-    margin = num("home_pts") - num("away_pts")
     ok = (line.notna() & hso.between(*ATS_MAIN_LINE) & aso.between(*ATS_MAIN_LINE)
-          & margin.notna() & num("home_won").isin([0, 1])
           & ph.between(0, 1, inclusive="neither")).to_numpy()
     if not ok.any():
         return pd.DataFrame()
-    g, line, hso, aso, ph, margin = (x[ok] for x in (g, line, hso, aso, ph, margin))
+    g, line, hso, aso, ph = (x[ok] for x in (g, line, hso, aso, ph))
     nd = NormalDist()
-    edge = np.array([sigma * nd.inv_cdf(p) for p in ph]) + line.to_numpy()
+    m = np.array([sigma * nd.inv_cdf(p) for p in ph])          # model home margin
+    edge = m + line.to_numpy()
     home = edge > 0
     q_home = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
-    res_home = np.array([market.ats_result(m, s) for m, s in zip(margin, line)])
-    fav_home = np.where(line < 0, True, np.where(line > 0, False, hso <= aso))
-
-    def units(mls, res):
-        return [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
-                for m, r in zip(mls, res)]
-    d = pd.DataFrame(dict(
+    return pd.DataFrame(dict(
         game_id=g["game_id"].to_numpy(),
         early=(np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
                        pd.to_numeric(g["gp_away"], errors="coerce"))
                < EARLY_BELOW).to_numpy(),
-        side=np.where(home, g["home"], g["away"]), edge=np.abs(edge),
+        side=np.where(home, g["home"], g["away"]), home=home, edge=np.abs(edge),
+        line=np.where(home, line, -line), model_line=np.where(home, -m, m),
         model_p=[nd.cdf(abs(e) / sigma) for e in edge],
         q=np.where(home, q_home, 1 - q_home), ml=np.where(home, hso, aso),
-        result=np.where(home, res_home, 1 - res_home),
-        fav_units=units(np.where(fav_home, hso, aso),
-                        np.where(fav_home, res_home, 1 - res_home))))
-    d = d[(d["edge"] > 0) & np.isfinite(d["q"])]
+        home_line=line.to_numpy(), hso=hso.to_numpy(), aso=aso.to_numpy()),
+        index=g.index)
+
+
+def ats_side_picks(g, price, sigma=ATS_SIGMA):
+    """Flat 1u spread bets on the model's side at one price (ats_sides),
+    graded: result, units, its no-vig null and break-even, and fav_units,
+    1u on the spread favourite of the same game at the same price (pick'em:
+    the shorter price; tie: home). Finished games only."""
+    if g is None or not len(g):
+        return pd.DataFrame()
+    margin = (pd.to_numeric(g["home_pts"], errors="coerce")
+              - pd.to_numeric(g["away_pts"], errors="coerce"))
+    done = margin.notna() & pd.to_numeric(g["home_won"], errors="coerce").isin([0, 1])
+    s = ats_sides(g[done], price, sigma)
+    if not len(s):
+        return pd.DataFrame()
+    margin, line = margin[s.index], s["home_line"]
+    res_home = np.array([market.ats_result(m, x) for m, x in zip(margin, line)])
+    fav_home = np.where(line < 0, True, np.where(line > 0, False, s["hso"] <= s["aso"]))
+
+    def units(mls, res):
+        return [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
+                for m, r in zip(mls, res)]
+    d = s[["game_id", "early", "side", "edge", "model_p", "q", "ml"]].assign(
+        result=np.where(s["home"], res_home, 1 - res_home),
+        fav_units=units(np.where(fav_home, s["hso"], s["aso"]),
+                        np.where(fav_home, res_home, 1 - res_home)))
+    d = d[(d["edge"] > 0) & np.isfinite(d["q"])].reset_index(drop=True)
     d["breakeven"] = market.breakeven_prob(d["ml"])
     d["units"] = units(d["ml"], d["result"])
     d["units_null"] = d["q"] * [market.decimal_payout(m) for m in d["ml"]] - 1
     return d
+
+
+def ats_card(row):
+    """The ATS hypothesis (H5 or H6) that applies to one ledger row, at its
+    native price, exactly as the Ledger grades it: dict(hyp, bet, side,
+    line, model_line, ml, edge, model_p, q), bet = edge >= the rule's
+    threshold. None when the row has no first snapshot with a main-line
+    spread, or no ATS rule covers its games played."""
+    g = pd.DataFrame([row])
+    for hyp in HYPOTHESES:
+        if hyp.get("market") != "ats":
+            continue
+        s = ats_sides(g, hyp["native"], hyp["sigma"])
+        if not len(s) or bool(s["early"].iloc[0]) != hyp["early"]:
+            continue
+        r = s.iloc[0]
+        return dict(hyp=hyp, bet=bool(r["edge"] >= hyp["min_edge"]),
+                    **{k: r[k] for k in ("side", "line", "model_line", "ml",
+                                         "edge", "model_p", "q")})
+    return None
 
 
 def ats_summary(g, sigma=ATS_SIGMA):
