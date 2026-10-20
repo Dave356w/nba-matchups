@@ -59,6 +59,11 @@ SIGMA = analysis.ATS_SIGMA
 KS = (0, 1, 2, 3, 4, 5)
 PRICES = ("open", "close")
 PROVIDER = {book: pid for pid, book in market.BOOKS}
+# ESPN's "open" is sometimes an alternate line (ESPN BET, early 2024-25: -20.5
+# at +320 for a game that closed -11.5 at -110). A main-line spread price
+# sits in this band (99.96% of the closing prices); an opening pair outside
+# it is treated as missing.
+MAIN_LINE = (-135, 115)
 Z95 = 1.96
 ND = NormalDist()
 
@@ -114,6 +119,11 @@ def games(rec, opens):
     g["m"] = [SIGMA * ND.inv_cdf(p) for p in g["p"]]
     o = opens.assign(game_id=opens["game_id"].astype(str)).drop(columns="book")
     g = g.merge(o, on="game_id", how="left")
+    cols = ["open_spread", "open_home_spread_odds", "open_away_spread_odds"]
+    alt = ~(pd.to_numeric(g["open_home_spread_odds"], errors="coerce").between(*MAIN_LINE)
+            & pd.to_numeric(g["open_away_spread_odds"], errors="coerce").between(*MAIN_LINE))
+    g["open_alt"] = alt & g["open_spread"].notna()
+    g.loc[alt, cols] = np.nan
     for price in PRICES:
         line = pd.to_numeric(g[f"{price}_spread"], errors="coerce")
         g[f"{price}_e"] = g["m"] + line
@@ -189,7 +199,9 @@ def report(g):
     w(f"Model margin = {SIGMA:g} x Phi^-1(P) (analysis.ATS_SIGMA, not tuned). "
       f"Market check: the closing line vs its own moneyline gives sigma {s_mkt:.1f}; "
       f"SD of (margin + close line) {sd_res:.1f} pts.")
-    w(f"Games: {len(g)} graded with P and a result; opening spread found for {nopen}.")
+    w(f"Games: {len(g)} graded with P and a result; main-line opening spread for "
+      f"{nopen} ({int(g['open_alt'].sum())} openings priced outside {MAIN_LINE[0]}.."
+      f"+{MAIN_LINE[1]} were alternate lines and are left out).")
     w("ROI and its null are per 1u bet incl. pushes (refunded); vs null = ROI - null "
       "+/- 95%; fav = 1u on the spread favourite of the same games at the same price.")
     w("")
@@ -198,6 +210,8 @@ def report(g):
                                      key=lambda t: (t[0][1], t[0][0])):
         name = f"{market.BOOK_NAMES[book]} close book, {int(season) - 1}-{int(season) % 100:02d}"
         for early, gp in ((True, gb[gb["early"]]), (False, gb[~gb["early"]])):
+            if not len(gp):        # e.g. DraftKings closes begin after games 1-9
+                continue
             ph = "games 1-9 (carryover, no injury terms)" if early else "games 10+"
             w(f"== {name} · {ph}: {len(gp)} games")
             for price in PRICES:
@@ -228,10 +242,15 @@ def report(g):
             side = np.sign(e[ok])                         # +1 home, -1 away
             clv = side * (lc[ok] - lo[ok]) * -1           # side line open minus close
             if ok.sum() > 1:
+                drift = (lo - lc)[ok]                     # toward home, same games
+                mb, mse, _ = slope(e[ok], drift)
                 w(f"  line value of opening picks (k=0): {clv.mean():+.2f} ± "
                   f"{Z95 * clv.std(ddof=1) / np.sqrt(ok.sum()):.2f} pts toward the side "
                   f"(n={int(ok.sum())}; moved for {100 * (clv > 0).mean():.0f}%, "
-                  f"against {100 * (clv < 0).mean():.0f}%)")
+                  f"against {100 * (clv < 0).mean():.0f}%); home side, same games "
+                  f"{drift.mean():+.2f} ± {Z95 * drift.std(ddof=1) / np.sqrt(ok.sum()):.2f}")
+                w(f"  share of the opening edge the line closes by tip: {mb:+.2f} ± "
+                  f"{Z95 * mse:.2f} (slope of the home line's move on the edge)")
             w("")
     w(f"{cells} ROI cells above: at 95%, about {cells * 0.05:.0f} would clear "
       "|z| >= 1.96 by chance alone.")
