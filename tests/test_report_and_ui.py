@@ -138,10 +138,14 @@ def test_index_renders_one_card_per_game_with_ev_beside_its_null(tmp_path, monke
     build_site.write_pages(d, synth(100, 42, "reconstructed"), "2026-11-19",
                            model_ok=True)
     idx = (tmp_path / "index.html").read_text()
-    assert idx.count("<details class='card'>") == len(d)
+    assert idx.count("<details class='card' data-gid=") == len(d)
     for _, r in d.iterrows():
         assert f"{r['away']} @ {r['home']}" in idx
         assert f"Lean {r['lean']}" in idx
+        assert f"data-gid='{r['game_id']}'" in idx           # live scores match on it
+    # scores are fetched in the reader's browser for the slate's date only
+    assert "data-slate='2026-11-19'" in idx and "site.api.espn.com" in idx
+    assert idx.count("data-scores-asof hidden") == 1
     assert "Model EV" in idx and "if the market is right" in idx    # EV beside its null
     assert "Model − market" in idx and "How these numbers are made" in idx
     assert "Flat 1u ROI · native lean" in idx                    # record box kept
@@ -152,6 +156,19 @@ def test_index_card_abstains_without_a_probability():
     r["p_home"] = np.nan
     card = build_site.game_card(r)
     assert "Abstain" in card and "Lean " not in card and "probbar" not in card
+
+
+def test_tip_times_are_pacific_across_dst_and_openers_have_no_games_yet():
+    # 7:30 pm ET on 2026-10-21 (PDT, UTC-7) and 2026-11-19 (PST, UTC-8)
+    assert build_site.tip_pt("2026-10-21T23:30Z") == "4:30 PM PT"
+    assert build_site.tip_pt("2026-11-20T00:30Z") == "4:30 PM PT"
+    assert build_site.tip_pt("") == "—"
+    r = _slate(1).iloc[0].copy()
+    r["tip_utc"] = "2026-11-20T00:30Z"
+    r[["p_home", "gp_home", "gp_away"]] = np.nan     # a team not in the logs yet
+    card = build_site.game_card(r)
+    assert "4:30 PM PT" in card and " ET" not in card
+    assert "Abstain · no games yet" in card
 
 
 def test_rebuilt_history_is_folded_and_forward_rows_open(tmp_path, monkeypatch):
