@@ -257,6 +257,16 @@ Before a PR, run:
     not the best cell (DK 2 pts, z +2.1). Caveats as H4: the first snapshot
     is later than the open, so part of the line move (25–27% of the opening
     edge by tip) may be gone, and games 10+ may be injury timing.
+  - **H6** (owner's request, fixed 2026-10-20 with H5, still before any
+    native row had a model P): H5's rule unchanged (σ 13.5, ≥ 1 pt,
+    main-line prices, first snapshot; hindsight at the open) on games 1–9,
+    the carryover model with no injury-report terms, so no timing
+    contamination. Hindsight at the open, ESPN BET, pooled: +3.6% (n = 201,
+    null −4.5%, z +1.2 at 1 SE); +9.1% 2024-25 (n = 86, vs null +13.6 ±
+    20.2, 95%), −0.5% 2025-26 (n = 115, +4.0 ± 17.5): unresolved and not
+    consistent across seasons; at the close −4.5% (n = 222, the null). The
+    threshold was not re-chosen for these games. About 100 bets a season:
+    one season is far from a verdict.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a
@@ -291,7 +301,7 @@ Before a PR, run:
     it by tip; in games 10+ part may be injury-report timing. Native rows
     record the pregame and first-snapshot spread from 2026-10-20 (see
     "Pregame spread" above), so a forward ATS test can be graded at a
-    bettable price. H5 (above, under the hypotheses) is that test.
+    bettable price. H5 and H6 (above, under the hypotheses) are that test.
 - More game-log seasons to settle the half-life. Travel/altitude/rest
   context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
   the market's correction and worsen 2025-26 log loss jointly; not pursued.

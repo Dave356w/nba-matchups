@@ -270,7 +270,7 @@ def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path
     df.loc[:99, ["gp_home", "gp_away"]] = 4
     df.loc[100:, ["gp_home", "gp_away"]] = 30
     g = ledger.graded(df)
-    h1, h2, h3, h4, a1, h5 = analysis.HYPOTHESES
+    h1, h2, h3, h4, a1, h5, h6 = analysis.HYPOTHESES
     assert h4["native"] == "first" and h4["min_edge"] == h3["min_edge"]
     # amendment A1: H2's frozen rule, graded at the first snapshot
     assert a1["native"] == "first" and {k: v for k, v in a1.items()
@@ -386,16 +386,33 @@ def _ats_rows(n=6):
     return d
 
 
+def _hyp(key):
+    return next(h for h in analysis.HYPOTHESES if h["key"] == key)
+
+
 def test_h5_is_frozen_ats_at_the_first_snapshot():
-    h5 = analysis.HYPOTHESES[-1]
-    assert h5["key"] == "H5" and h5["market"] == "ats"
+    h5 = _hyp("H5")
+    assert h5["market"] == "ats"
     assert (h5["sigma"], h5["min_edge"], h5["early"]) == (13.5, 1.0, False)
     assert (h5["native"], h5["hindsight"]) == ("first", "open")
     assert analysis.ATS_MAIN_LINE == (-135, 115)
 
 
+def test_h6_is_h5s_rule_on_games_1_to_9():
+    h5, h6 = _hyp("H5"), _hyp("H6")
+    assert h6["early"] is True and h5["early"] is False
+    same = ("market", "favourite", "min_edge", "sigma", "hindsight", "native")
+    assert {k: h6[k] for k in same} == {k: h5[k] for k in same}
+    g = ledger.graded(_ats_rows(4))
+    g["first_p_home"] = 0.75                         # edge 3.6 pts, home
+    early = g.assign(gp_home=3, gp_away=12)          # the fewer of the two < 10
+    assert len(analysis.hypothesis_picks(early, h6, "first")) == 4
+    assert analysis.hypothesis_picks(early, h5, "first").empty
+    assert analysis.hypothesis_picks(g, h6, "first").empty
+
+
 def test_h5_reads_the_first_snapshot_p_and_line_and_its_edge_in_points():
-    h5 = analysis.HYPOTHESES[-1]
+    h5 = _hyp("H5")
     g = ledger.graded(_ats_rows(4))
     # margin 13.5 * Phi^-1(P) against home -5.5: P 0.75 -> +9.1 (edge 3.6,
     # home); 0.60 -> +3.4 (edge 2.1, away); 0.66 -> +5.6 (edge 0.1: no bet)

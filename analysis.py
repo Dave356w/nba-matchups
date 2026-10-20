@@ -472,6 +472,12 @@ HYPOTHESES = (
     dict(key="H5", rule="Games 10+ · ATS: model margin vs the line ≥ 1 pt",
          market="ats", early=False, favourite=False, min_edge=1.0, sigma=13.5,
          hindsight="open", native="first"),
+    # H6 (owner's request, fixed 2026-10-20 with H5, before any native row had
+    # a model P): H5's rule unchanged, on games 1-9 (the carryover model, no
+    # injury-report terms). Same sigma, threshold, price filter and prices.
+    dict(key="H6", rule="Games 1–9 · ATS: model margin vs the line ≥ 1 pt",
+         market="ats", early=True, favourite=False, min_edge=1.0, sigma=13.5,
+         hindsight="open", native="first"),
 )
 PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
                "close": "close"}
