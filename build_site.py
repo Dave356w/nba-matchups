@@ -1032,7 +1032,7 @@ def ats_note(r, a):
              and now != a["line"] else "")
     return (f"<p class='note'><b>{key} pick</b> (pre-registered, against the "
             f"spread): <b>{side} {line_txt(a['line'])}</b> at {ml_txt(a['ml'])}"
-            f"{book_tag(r.get('spread_book', r.get('first_book')))}, from the first snapshot "
+            f"{book_tag(r.get('first_book'))}, from the first snapshot "
             f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; model cover "
             f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig).{moved} "
             "Graded on the <a href='grades.html#hypotheses'>Ledger</a> at this "
@@ -1261,9 +1261,11 @@ def spread_charts(native):
 HOW_INDEX = (
     "<p class='note'><b>Lean</b> is the side the model gives ≥ 50%: the pick, "
     "one unit on its moneyline. <b>Model</b> is the composite's P(win); "
-    "<b>market</b> is the price with its margin removed: Kalshi (the exchange, "
-    "its taker fee included in the price; no-vig from the bid/ask midpoints), "
-    "or the sportsbook when Kalshi has no price (named on the card). "
+    "<b>market</b> is the sportsbook's price with its margin removed "
+    "(DraftKings; the book is named on the card, and its moneyline and spread "
+    "come from the same book). Open a game for Kalshi's price beside it. "
+    "The record above grades the lean at the market named under it: Kalshi "
+    "(the exchange, its taker fee in the price) wherever Kalshi has a price. "
     "<b>Model − market</b> is the lean's model probability minus its no-vig "
     "market probability; <b>EV</b> is what the model claims the posted price "
     "is worth, shown beside its <b>null</b>: the EV if the market is exactly "
@@ -1311,8 +1313,12 @@ def _team_row(r, code, side, p):
 def game_card(r):
     """One game (the NFL site's card): both teams with model WP, the lean
     and its price, the spread pick when H5/H6 bets; tap for the model
-    against the market. Reads only the row as recorded."""
+    against the market. Reads only the row as recorded: the sportsbook's
+    moneyline and spread (one book), Kalshi's pregame pair in the detail."""
+    def book_name(b):
+        return market.BOOK_NAMES.get(b, b) if pd.notna(b) and b else None
     away, home = r["away"], r["home"]
+    src = book_name(r.get("pre_book"))
     p = pd.to_numeric(r["p_home"], errors="coerce")
     q_home = pd.to_numeric(r["pre_q_home"], errors="coerce")
     won = pd.to_numeric(r.get("home_won"), errors="coerce")
@@ -1353,11 +1359,17 @@ def game_card(r):
             flags.append("<span class='badge'>early · carryover</span>")
         elif r.get("model_tag") in AVAIL_TAGS:
             flags.append("<span class='badge'>injury report</span>")
+        bk = esc(src) if src else "Market"
+        k_home = pd.to_numeric(r.get("kalshi_pre_q_home"), errors="coerce")
+        kalshi = ([["Kalshi (no-vig)", pct(1 - k_home), pct(k_home)],
+                   ["Kalshi moneyline", ml_txt(r.get("kalshi_pre_away_ml")),
+                    ml_txt(r.get("kalshi_pre_home_ml"))]]
+                  if np.isfinite(k_home) else [])
         det.append("<h3>Model vs market</h3>" + table(["", esc(away), esc(home)], [
             ["Model", pct(1 - p), pct(p)],
-            ["Market (no-vig)", pct(1 - q_home), pct(q_home)],
-            ["Moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]],
-            left=(0,)))
+            [f"{bk} (no-vig)", pct(1 - q_home), pct(q_home)],
+            [f"{bk} moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]]
+            + kalshi, left=(0,)))
         det.append("<div class='tiles'>"
                    + tile("Model − market", f"{pp(pl - q, cls=False)} pp" if np.isfinite(q) else "—",
                           f"{esc(r['lean'])}: {pct(pl)} vs {pct(q)}")
@@ -1383,15 +1395,9 @@ def game_card(r):
     b2b = [x for x, f in ((away, r["away_b2b"]), (home, r["home_b2b"])) if f == 1]
     if b2b:
         flags.append(f"<span class='badge warn'>B2B {esc('/'.join(b2b))}</span>")
-    def book_name(b):
-        return market.BOOK_NAMES.get(b, b) if pd.notna(b) and b else None
-    ml_src = book_name(r.get("pre_book"))
-    sp_src = book_name(r.get("pre_spread_book", r.get("pre_book")))
     has_sp = np.isfinite(pd.to_numeric(r.get("pre_spread"), errors="coerce"))
-    srcs = ([f"Moneyline: {esc(ml_src)}"] if ml_src else []) + (
-        [f"spread: {esc(sp_src)}"] if has_sp and sp_src else [])
-    note = (" · ".join(srcs) + " · refreshed each build until tip, frozen after"
-            if srcs else "No price yet")
+    note = (f"{esc(src)} moneyline{' and spread' if has_sp else ''} · refreshed "
+            "each build until tip, frozen after" if src and has_ml else "No price yet")
     summary = ("<summary class='game-summary'><div class='g-meta'>"
                f"<span class='when'>{tip_pt(r['tip_utc'])}</span>"
                f"<span class='badge st'>{status}</span></div><div class='g-teams'>"
@@ -1423,12 +1429,9 @@ c.hidden=f!=='all'&&c.getAttribute('data-state')!==f;});});})();</script>"""
 
 def render_index(led, today, built, model_ok, recon=None):
     """Picks: today's slate as cards, under the season's lean record."""
-    # spreads come from the sportsbook even where Kalshi is the market:
-    # keep its label before market_view relabels first_book
-    led = led.assign(spread_book=led["first_book"],
-                     pre_spread_book=led["pre_book"]) if len(led) else led
     scope = public_scope(led)
-    led = analysis.market_view(led)
+    # the cards read the raw rows: the sportsbook's moneyline and spread, one
+    # book (owner's decision, 2026-10-20); Kalshi's pair is in the detail
     day_txt = pd.Timestamp(today).strftime("%A, %B %-d")
     right = ("<div class='rec'><div class='l'>Forecast updated</div>"
              f"<div class='mono'>{esc(built)}</div></div>")

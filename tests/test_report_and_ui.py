@@ -256,7 +256,9 @@ def test_card_pick_is_the_side_the_ledger_grades():
             assert d["side"].iloc[0] == a["side"]
 
 
-def test_card_names_the_spread_book_where_kalshi_is_the_market(tmp_path, monkeypatch):
+def test_card_reads_one_sportsbook_with_kalshi_in_the_detail(tmp_path, monkeypatch):
+    # the card's moneyline and spread are the sportsbook's even where Kalshi
+    # is the record's market (owner's decision, 2026-10-20)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     r = _ats_pending(gp=3)
     r["kalshi_pre_home_ml"], r["kalshi_pre_away_ml"] = -150, 130
@@ -264,7 +266,19 @@ def test_card_names_the_spread_book_where_kalshi_is_the_market(tmp_path, monkeyp
     build_site.write_pages(pd.DataFrame([r]), synth(50, 43, "reconstructed"),
                            "2026-11-19", model_ok=True)
     idx = (tmp_path / "index.html").read_text()
+    away, home = build_site.ml_txt(r["pre_away_ml"]), build_site.ml_txt(r["pre_home_ml"])
+    assert f"<span class='px'>{home}<small>-5.5</small></span>" in idx
+    assert f"<span class='px'>{away}<small>+5.5</small></span>" in idx
+    assert "<span class='px'>-150" not in idx and "<span class='px'>+130" not in idx
+    assert "DraftKings moneyline and spread" in idx
+    q = float(r["pre_q_home"])
+    assert f"<span>Market {build_site.pct(q)}</span>" in idx           # the book's no-vig
     assert "<b>HOM -5.5</b> at -110 <span class='basis'>DraftKings</span>" in idx
+    # Kalshi's pair stays in the detail
+    assert ("<td class='l'>Kalshi (no-vig)</td><td class=''>42.0%</td>"
+            "<td class=''>58.0%</td>") in idx
+    assert ("<td class='l'>Kalshi moneyline</td><td class=''>+130</td>"
+            "<td class=''>-150</td>") in idx
 
 
 # ----------------------------------------- public Results / Performance pages
@@ -310,13 +324,16 @@ def test_a_graded_h6_bet_reaches_the_spread_tile_and_results(tmp_path, monkeypat
 # ------------------------------------------- prices on cards, spread charts
 def test_card_rows_show_each_sides_moneyline_and_spread():
     r = _ats_pending(gp=3)                      # home -5.5; DraftKings prices
-    r["pre_spread_book"] = "dk"
     card = build_site.game_card(r)
     away, home = build_site.ml_txt(r["pre_away_ml"]), build_site.ml_txt(r["pre_home_ml"])
     assert f"<span class='px'>{away}<small>+5.5</small></span>" in card
     assert f"<span class='px'>{home}<small>-5.5</small></span>" in card
     assert "<span>Model</span><span>Price</span>" in card
-    assert "Moneyline: DraftKings · spread: DraftKings" in card
+    assert "DraftKings moneyline and spread" in card
+    assert "Kalshi" not in card                 # no Kalshi price, no Kalshi row
+    r["pre_spread"] = np.nan
+    assert "DraftKings moneyline · refreshed" in build_site.game_card(r)
+    r["pre_spread"] = -5.5
     # an abstaining game still shows its prices
     r[["p_home", "gp_home", "gp_away", "first_p_home"]] = np.nan
     card = build_site.game_card(r)
