@@ -37,8 +37,12 @@ owner directs the product.
   `ledger.KALSHI_FROM_SEASON` = 2025-26, the first Kalshi lists).
   `analysis.market_view` prices a row by Kalshi when it is graded with a
   Kalshi close (or pending with a Kalshi pregame price), else by its
-  sportsbook; the Ledger, Calibration, Model and Today pages and the report
-  read that view, so 2024-25 stays on ESPN BET. The sportsbook columns are
+  sportsbook; the Ledger, Calibration, Model pages, the public record
+  (Picks tiles, Results, Performance) and the report read that view, so
+  2024-25 stays on ESPN BET. The Picks page's game cards read the raw rows
+  instead (owner's decision, 2026-10-20): one sportsbook's moneyline and
+  spread (DraftKings), with Kalshi's pregame pair in each card's detail.
+  The sportsbook columns are
   kept. The pre-registered hypotheses read the raw rows: they stay on the
   sportsbook prices they were registered on. Reconstructed Kalshi prices
   are filled by "Backfill history" with `kalshi` checked
@@ -105,8 +109,8 @@ owner directs the product.
   replaced.
   A Today card shows the H5/H6 pick that covers its game
   (`analysis.ats_card`, the same `ats_sides` the Ledger grades with, at the
-  first snapshot; the spread's sportsbook named even where Kalshi is the
-  market): a badge when the rule bets, the "no bet" edge otherwise.
+  first snapshot; its sportsbook named): a badge when the rule bets, the
+  "no bet" edge otherwise.
 - First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with
