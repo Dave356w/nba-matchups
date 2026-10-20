@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-20T20:20:49Z; latest graded slate 2026-10-16 (native and preseason rows)
+NBA ledger report -- latest pregame snapshot 2026-10-20T20:25:38Z; latest graded slate 2026-10-16 (native and preseason rows)
 Model tags: fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6 / fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6 / fourfactors_hl25_b2b_carry25_phase_v4
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight); data/nba_preseason.csv (exhibitions, Kalshi).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -33,6 +33,14 @@ Market: Kalshi (last pre-tip minute; fee in the price) wherever a row has it, fr
   H6    Games 1–9 · ATS: model margin vs the line ≥ 1 pt
     native @ first snapshot    no bets
     hindsight @ open           n=201   109-92       +7.18u  ROI   +3.6% +/-  6.7  (null -4.5%, z +1.2)  win 54.2% vs q 50.1%  | fav -3.5%
+  By season, never pooled (basis · the graded price's book · season; win = cover rate):
+    H5   native @ first snapshot        no bets
+    H5   DraftKings 2025-26 @ open      n=703   378-325     +17.77u  ROI   +2.5% +/-  3.6  (null -4.5%, z +2.0)  win 53.8% vs q 50.1%  | fav -7.8%
+    H5   ESPN BET 2025-26 @ open        n=82    43-39        -0.31u  ROI   -0.4% +/- 10.5  (null -4.5%, z +0.4)  win 52.4% vs q 50.2%  | fav -11.3%
+    H5   ESPN BET 2024-25 @ open        n=743   398-345     +15.50u  ROI   +2.1% +/-  3.5  (null -4.5%, z +1.9)  win 53.6% vs q 50.1%  | fav +0.0%
+    H6   native @ first snapshot        no bets
+    H6   ESPN BET 2025-26 @ open        n=115   60-55        -0.62u  ROI   -0.5% +/-  8.9  (null -4.5%, z +0.4)  win 52.2% vs q 50.2%  | fav +3.6%
+    H6   ESPN BET 2024-25 @ open        n=86    49-37        +7.79u  ROI   +9.1% +/- 10.3  (null -4.5%, z +1.3)  win 57.0% vs q 49.9%  | fav -12.9%
 
 == RECONSTRUCTED (leave-one-season-out, closing price: HINDSIGHT, never forward evidence)
   Season table (lean at the close):
