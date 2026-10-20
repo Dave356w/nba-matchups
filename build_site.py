@@ -664,12 +664,16 @@ padding:8px 12px;border-radius:7px;cursor:pointer}
 .g-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .g-meta .when{font:600 12.5px/1.2 var(--sans);color:var(--muted)}
 .g-teams{display:flex;flex-direction:column;gap:4px}
-.g-team{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;align-items:center;gap:10px;
+.g-team,.g-cols{display:grid;grid-template-columns:34px minmax(0,1fr) 44px 62px 30px;align-items:center;gap:8px;
 padding:6px 8px;margin:0 -8px;border-radius:9px}
+.g-cols{padding-top:0;padding-bottom:2px;font:700 10px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.g-cols span,.g-team .wp,.g-team .px{text-align:right}
+.g-team .wp{font:600 13px/1 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.g-team .px{display:flex;flex-direction:column;gap:3px;font:700 13.5px/1 var(--mono);font-variant-numeric:tabular-nums}
+.g-team .px small{font:500 11.5px/1 var(--mono);color:var(--faint)}
 .g-team.picked{background:rgba(var(--accent),.09)}
 .g-team .nm{font:700 16px/1.2 var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .g-team .nm small{font:600 11.5px/1 var(--mono);color:var(--faint);margin-left:6px}
-.g-team .ln{font:600 13px/1 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .g-team .sc{font:800 18px/1 var(--mono);min-width:28px;text-align:right;font-variant-numeric:tabular-nums}
 .g-team.picked .nm::after{content:"LEAN";font:800 9.5px/1 var(--sans);letter-spacing:.08em;color:var(--accent-on);
 background:rgb(var(--accent));border-radius:4px;padding:3px 5px;margin-left:8px;vertical-align:2px}
@@ -703,6 +707,8 @@ margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .uchart .area{fill:rgba(var(--accent),.08)}
 .uchart .ax{fill:var(--faint);font:500 13px var(--mono)}
 .uchart .pt{fill:rgb(var(--accent));stroke:var(--surface);stroke-width:2}
+.uchart-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin:0 0 12px}
+.uchart-pair .uchart{margin:0}.uchart-pair .empty{display:grid;place-items:center;min-height:120px}
 /* badges */
 .badge{display:inline-flex;align-items:center;gap:5px;font:700 11px/1 var(--sans);letter-spacing:.04em;text-transform:uppercase;
 padding:5px 8px;border-radius:var(--r-pill);border:1px solid var(--line);color:var(--muted);white-space:nowrap;
@@ -1195,12 +1201,12 @@ def spread_tiles(native):
     return "<div class='gr-summary'>" + "".join(tiles) + "</div>" if tiles else ""
 
 
-def units_svg(units, title="Running units"):
+def units_svg(units, title="Running units", width=900):
     """Cumulative units, one point per graded pick, from a zero start."""
     if not len(units):
         return ""
     cum = np.r_[0.0, np.cumsum(np.asarray(units, float))]
-    W, H, L, R, T, B = 900, 260, 46, 14, 14, 30
+    W, H, L, R, T, B = width, 260, 46, 14, 14, 30
     lo, hi = min(cum.min(), -1.0), max(cum.max(), 1.0)
     pad = 0.08 * (hi - lo)
     lo, hi = lo - pad, hi + pad
@@ -1230,6 +1236,26 @@ def units_svg(units, title="Running units"):
             f"<span class='v'>{cum[-1]:+.2f}u</span></div><svg viewBox='0 0 {W} {H}' "
             f"role='img' aria-label='{esc(title)}: {cum[-1]:+.2f} units after "
             f"{len(cum) - 1} picks'>" + "".join(g) + "</svg></div>")
+
+
+def spread_charts(native):
+    """Running units for each spread rule (H6, H5), one chart each, never
+    pooled, bets in tip order; an empty panel until a rule has a grade."""
+    nat = (native.assign(game_id=native["game_id"].astype(str))[["game_id", "tip_utc"]]
+           if native is not None and len(native) else None)
+    parts = []
+    for hyp, d in public_ats(native):
+        games = "games 1–9" if hyp["early"] else "games 10+"
+        title = f"Running units · {hyp['key']} spread · {games}"
+        if not len(d):
+            parts.append(f"<div class='uchart'><div class='head'><span class='t'>{title}"
+                         f"</span></div><div class='empty'>Starts with the first graded "
+                         f"{hyp['key']} bet.</div></div>")
+            continue
+        d = d.assign(game_id=d["game_id"].astype(str)).merge(
+            nat, on="game_id", how="left").sort_values(["tip_utc", "game_id"])
+        parts.append(units_svg(d["units"], title, width=560))
+    return f"<div class='uchart-pair'>{''.join(parts)}</div>" if parts else ""
 
 
 HOW_INDEX = (
@@ -1264,15 +1290,20 @@ HOW_INDEX = (
 
 
 def _team_row(r, code, side, p):
-    """One team line of a card: logo, name, model WP, score (live JS)."""
+    """One team line of a card: logo, name, model WP, the side's moneyline
+    over its spread (as recorded before tip), score (filled by live JS)."""
     picked = np.isfinite(p) and r["lean"] == code
     wp = (p if side == "home" else 1 - p) if np.isfinite(p) else np.nan
     pts = pd.to_numeric(r.get(f"{side}_pts"), errors="coerce")
+    line = pd.to_numeric(r.get("pre_spread"), errors="coerce")
+    line = line if side == "home" else -line
     small = esc(code) if side == "away" else f"@ {esc(code)}"
     return (f"<div class='g-team{' picked' if picked else ''}'>"
             f"<div class='tchip'><span>{esc(code)}</span>{logo_html(code)}</div>"
             f"<span class='nm'>{esc(TEAM_NAMES.get(code, code))}<small>{small}</small></span>"
-            f"<span class='ln'>{pct(wp, 0) if np.isfinite(wp) else '—'}</span>"
+            f"<span class='wp'>{pct(wp, 0) if np.isfinite(wp) else '—'}</span>"
+            f"<span class='px'>{ml_txt(r.get(f'pre_{side}_ml'))}"
+            f"<small>{line_txt(line) if np.isfinite(line) else ''}</small></span>"
             f"<span class='sc' data-side='{side}'>{int(pts) if np.isfinite(pts) else ''}"
             "</span></div>")
 
@@ -1352,13 +1383,20 @@ def game_card(r):
     b2b = [x for x, f in ((away, r["away_b2b"]), (home, r["home_b2b"])) if f == 1]
     if b2b:
         flags.append(f"<span class='badge warn'>B2B {esc('/'.join(b2b))}</span>")
-    book = r.get("pre_book")
-    src = (market.BOOK_NAMES.get(book, book) if pd.notna(book) and book else None)
-    note = (f"{esc(src)} price · refreshed each build until tip, frozen after"
-            if src else "No price yet")
+    def book_name(b):
+        return market.BOOK_NAMES.get(b, b) if pd.notna(b) and b else None
+    ml_src = book_name(r.get("pre_book"))
+    sp_src = book_name(r.get("pre_spread_book", r.get("pre_book")))
+    has_sp = np.isfinite(pd.to_numeric(r.get("pre_spread"), errors="coerce"))
+    srcs = ([f"Moneyline: {esc(ml_src)}"] if ml_src else []) + (
+        [f"spread: {esc(sp_src)}"] if has_sp and sp_src else [])
+    note = (" · ".join(srcs) + " · refreshed each build until tip, frozen after"
+            if srcs else "No price yet")
     summary = ("<summary class='game-summary'><div class='g-meta'>"
                f"<span class='when'>{tip_pt(r['tip_utc'])}</span>"
                f"<span class='badge st'>{status}</span></div><div class='g-teams'>"
+               "<div class='g-cols' aria-hidden='true'><span></span><span></span>"
+               "<span>Model</span><span>Price</span><span></span></div>"
                + _team_row(r, away, "away", p) + _team_row(r, home, "home", p)
                + "</div>" + "".join(lines)
                + (f"<div class='g-flags'>{''.join(flags)}</div>" if flags else "")
@@ -1387,7 +1425,8 @@ def render_index(led, today, built, model_ok, recon=None):
     """Picks: today's slate as cards, under the season's lean record."""
     # spreads come from the sportsbook even where Kalshi is the market:
     # keep its label before market_view relabels first_book
-    led = led.assign(spread_book=led["first_book"]) if len(led) else led
+    led = led.assign(spread_book=led["first_book"],
+                     pre_spread_book=led["pre_book"]) if len(led) else led
     scope = public_scope(led)
     led = analysis.market_view(led)
     day_txt = pd.Timestamp(today).strftime("%A, %B %-d")
@@ -1562,6 +1601,7 @@ def render_performance(native, built, today):
                     "<th class=n>Null</th></tr></thead><tbody>" + "".join(trs)
                     + "</tbody></table></div>")
     body += ["<h2 class='sec'>Spread picks</h2>", spread_tiles(native),
+             spread_charts(native),
              "<p class='note'>Calibration, the pre-registered hypotheses, the "
              "rebuilt seasons and the model's coefficients are on the "
              "<a href='grades.html'>Research</a> pages.</p>"]

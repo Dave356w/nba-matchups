@@ -305,3 +305,31 @@ def test_a_graded_h6_bet_reaches_the_spread_tile_and_results(tmp_path, monkeypat
     res = (tmp_path / "results.html").read_text()
     assert "Spread · H6 · games 1–9" in res and "<div class='v '>1–0</div>" in res
     assert "H6 HOM -5.5 <span class='badge w'>W</span> +0.91u" in res
+
+
+# ------------------------------------------- prices on cards, spread charts
+def test_card_rows_show_each_sides_moneyline_and_spread():
+    r = _ats_pending(gp=3)                      # home -5.5; DraftKings prices
+    r["pre_spread_book"] = "dk"
+    card = build_site.game_card(r)
+    away, home = build_site.ml_txt(r["pre_away_ml"]), build_site.ml_txt(r["pre_home_ml"])
+    assert f"<span class='px'>{away}<small>+5.5</small></span>" in card
+    assert f"<span class='px'>{home}<small>-5.5</small></span>" in card
+    assert "<span>Model</span><span>Price</span>" in card
+    assert "Moneyline: DraftKings · spread: DraftKings" in card
+    # an abstaining game still shows its prices
+    r[["p_home", "gp_home", "gp_away", "first_p_home"]] = np.nan
+    card = build_site.game_card(r)
+    assert "Abstain" in card and f"<span class='px'>{home}<small>-5.5</small></span>" in card
+
+
+def test_performance_charts_each_spread_rule(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    r = _ats_pending(gp=3)                       # H6 bet that covers: +0.91u
+    r["home_pts"], r["away_pts"], r["home_won"] = 110, 100, 1
+    build_site.write_pages(pd.DataFrame([r]), synth(50, 56, "reconstructed"),
+                           "2026-11-20", model_ok=True)
+    perf = (tmp_path / "performance.html").read_text()
+    assert "Running units · H6 spread · games 1–9" in perf
+    assert "<span class='v'>+0.91u</span>" in perf
+    assert "Starts with the first graded H5 bet." in perf
