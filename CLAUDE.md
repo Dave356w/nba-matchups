@@ -96,6 +96,10 @@ owner directs the product.
   read by the build or the model. ESPN's CDN returns 403 to headless
   Chrome (`sec-ch-ua: "HeadlessChrome"`); test it with that header
   replaced.
+  A Today card shows the H5/H6 pick that covers its game
+  (`analysis.ats_card`, the same `ats_sides` the Ledger grades with, at the
+  first snapshot; the spread's sportsbook named even where Kalshi is the
+  market): a badge when the rule bets, the "no bet" edge otherwise.
 - First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with

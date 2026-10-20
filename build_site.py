@@ -637,6 +637,7 @@ width:100%;max-width:440px;box-shadow:var(--shadow)}
 .badge.warn{color:var(--s2);border-color:var(--s2)}
 .badge.w{background:var(--pos-bg);color:var(--pos);border-color:transparent}
 .badge.l{background:var(--neg-bg);color:var(--neg);border-color:transparent}
+.badge.hyp{color:var(--s1);border-color:var(--s1)}
 .flag-note{background:var(--chip);border-left:3px solid var(--accb);border-radius:var(--r);
 padding:9px 13px;font-size:13.5px;color:var(--mut);max-width:none;margin:8px 0 12px}
 .flag-note b{color:var(--fg)}
@@ -860,9 +861,38 @@ def fold(summary, inner, open_=False, id_="", label=""):
 
 
 def tip_pt(s):
-    """A UTC tip time as Pacific clock time, e.g. '4:00 PM PT'."""
+    """A UTC time (a tip, a snapshot) as Pacific clock time, e.g. '4:00 PM PT'."""
     t = ledger.parse_utc(s)
     return t.astimezone(PT).strftime("%-I:%M %p PT") if t else "—"
+
+
+def line_txt(x):
+    """A spread line for one side: '-3.5', '+6.5', 'PK'."""
+    return "PK" if x == 0 else f"{x:+.1f}"
+
+
+def ats_note(r, a):
+    """The card's account of the ATS hypothesis that covers this game
+    (analysis.ats_card): the pick at its registered price, or why not."""
+    key, side = a["hyp"]["key"], esc(a["side"])
+    gap = (f"model line {side} {line_txt(round(a['model_line'], 1))} vs market "
+           f"{line_txt(a['line'])}: {a['edge']:.1f} pts")
+    if not a["bet"]:
+        return (f"<p class='note'><b>{key}</b> (pre-registered, against the "
+                f"spread): no bet. At the first snapshot the {gap}; the rule "
+                f"needs {a['hyp']['min_edge']:g}.</p>")
+    now = pd.to_numeric(r.get("pre_spread"), errors="coerce")
+    if np.isfinite(now):
+        now = now if r["home"] == a["side"] else -now
+    moved = (f" The line is now {line_txt(now)}." if np.isfinite(now)
+             and now != a["line"] else "")
+    return (f"<p class='note'><b>{key} pick</b> (pre-registered, against the "
+            f"spread): <b>{side} {line_txt(a['line'])}</b> at {ml_txt(a['ml'])}"
+            f"{book_tag(r.get('spread_book', r.get('first_book')))}, from the first snapshot "
+            f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; model cover "
+            f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig).{moved} "
+            "Graded on the <a href='grades.html#hypotheses'>Ledger</a> at this "
+            "price, win or lose.</p>")
 
 
 def book_tag(book):
@@ -987,7 +1017,14 @@ HOW_INDEX = (
     "opponents' 3-point shooting (mostly luck), add roster talent (minutes "
     "share × last season's BPM) and each team's free-throw percentage; see "
     "<a href='model.html'>Model</a>. Prices are refreshed each build until tip "
-    "and frozen after. A game abstains only while a team has no games yet.</p>")
+    "and frozen after. A game abstains only while a team has no games yet.</p>"
+    "<p class='note'><b>H5 / H6</b>: the pre-registered spread rules (H6 games "
+    "1–9, H5 games 10+; see the <a href='grades.html#hypotheses'>Ledger</a>). "
+    "From the first snapshot with a model probability and a spread, the "
+    "model's line (13.5 × Φ⁻¹(P) as a margin) must beat the market's by at "
+    "least 1 point at a main-line price; the badge names that side and line. "
+    "It is fixed when first written and graded at that price, win or lose, "
+    "even if the line moves later.</p>")
 
 
 def _side_html(code, wp, fav, cls):
@@ -1053,6 +1090,13 @@ def game_card(r):
     b2b = [x for x, f in ((away, r["away_b2b"]), (home, r["home_b2b"])) if f == 1]
     if b2b:
         flags.append(f"<span class='badge warn'>B2B {esc('/'.join(b2b))}</span>")
+    ats = analysis.ats_card(r)
+    if ats:
+        key = ats["hyp"]["key"]
+        if ats["bet"]:
+            flags.append(f"<span class='badge hyp'>{key} ATS {esc(ats['side'])} "
+                         f"{line_txt(ats['line'])}</span>")
+        det.append(ats_note(r, ats))
     pw = p if np.isfinite(p) else .5
     bar = ("" if not np.isfinite(p) else
            "<div class='probbar' aria-hidden='true'>"
@@ -1069,6 +1113,9 @@ def game_card(r):
 
 
 def render_index(led, today, built, model_ok, recon=None):
+    # spreads come from the sportsbook even where Kalshi is the market:
+    # keep its label before market_view relabels first_book
+    led = led.assign(spread_book=led["first_book"]) if len(led) else led
     led, recon = analysis.market_view(led), analysis.market_view(recon)
     day_txt = pd.Timestamp(today).strftime("%A, %B %-d")
     head = (f"<h1>{esc(day_txt)}</h1><p class='lead'>Model win probabilities "
