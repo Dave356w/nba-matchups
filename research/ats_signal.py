@@ -60,10 +60,9 @@ KS = (0, 1, 2, 3, 4, 5)
 PRICES = ("open", "close")
 PROVIDER = {book: pid for pid, book in market.BOOKS}
 # ESPN's "open" is sometimes an alternate line (ESPN BET, early 2024-25: -20.5
-# at +320 for a game that closed -11.5 at -110). A main-line spread price
-# sits in this band (99.96% of the closing prices); an opening pair outside
-# it is treated as missing.
-MAIN_LINE = (-135, 115)
+# at +320 for a game that closed -11.5 at -110); an opening pair priced
+# outside the main-line band (shared with H5) is treated as missing.
+MAIN_LINE = analysis.ATS_MAIN_LINE
 Z95 = 1.96
 ND = NormalDist()
 

@@ -1405,8 +1405,8 @@ def _hypotheses(native, recon):
         rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *n, *h])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
-        "<p class='note'>Rules frozen before any native rows; every result is "
-        "reported here, win or lose. Native is the forward test; hindsight is the "
+        "<p class='note'>Rules frozen before any native row had a model "
+        "probability; every result is reported here, win or lose. Native is the forward test; hindsight is the "
         "same rule on the rebuilt seasons.</p>"
         + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
                  "Hindsight n", "ROI", "Null", "vs null (± 1 SE)"],
@@ -1424,6 +1424,16 @@ def _hypotheses(native, recon):
         "reconstructed rows at the price the scan found it (pooled over both "
         "seasons and books, as registered), recomputed on the current "
         "reconstructed model; one season of native rows is not a verdict.</p>"
+        "<p class='note'><b>H5</b> and <b>H6</b> (fixed 2026-10-20, before any "
+        "native row had a model probability) are against the spread: the "
+        "model's win probability as a home margin, 13.5 × Φ⁻¹(P) points, bet "
+        "on its side when it differs from the line by at least 1 point, at "
+        "main-line prices (both sides −135 to +115). H5 is games 10+, H6 the "
+        "same rule on games 1–9 (the carryover model; about 100 bets a "
+        "season, so it needs several). Native bets use the first snapshot's "
+        "spread, prices and probability; hindsight uses the same book's "
+        "opening spread. Their ROI, null and win rate are per spread bet "
+        "(cover rate).</p>"
         "<p class='note'><b>Retired 2026-10-06:</b> the blanket value bet (every "
         "game, the side with model P > no-vig q) and its ATS twin. On the "
         "reconstructed rows at the close its claimed EV was +11 to +16% in "

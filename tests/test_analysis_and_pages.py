@@ -1,3 +1,5 @@
+from statistics import NormalDist
+
 import numpy as np
 import pytest
 import pandas as pd
@@ -268,7 +270,7 @@ def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path
     df.loc[:99, ["gp_home", "gp_away"]] = 4
     df.loc[100:, ["gp_home", "gp_away"]] = 30
     g = ledger.graded(df)
-    h1, h2, h3, h4, a1 = analysis.HYPOTHESES
+    h1, h2, h3, h4, a1, h5, h6 = analysis.HYPOTHESES
     assert h4["native"] == "first" and h4["min_edge"] == h3["min_edge"]
     # amendment A1: H2's frozen rule, graded at the first snapshot
     assert a1["native"] == "first" and {k: v for k, v in a1.items()
@@ -367,3 +369,81 @@ def test_h4_graded_at_the_first_snapshot_on_the_page(tmp_path, monkeypatch):
     assert "<b>H4</b>" in grades and "at the first snapshot" in grades
     assert f"{len(d4)}<br><span class='mut'>at the first snapshot</span>" in grades
     assert "At the <b>first snapshot</b>" in grades
+
+
+# ------------------------------------------------ H5: against the spread
+def _ats_rows(n=6):
+    """Graded games 10+ with a first-snapshot and an opening spread."""
+    d = synth(n, 21)
+    d[["gp_home", "gp_away"]] = 30
+    d["home_pts"], d["away_pts"] = 110, 100            # home wins by 10
+    d["home_won"] = 1
+    for k in ("first", "open", "close"):
+        d[f"{k}_spread"] = -5.5
+        d[f"{k}_home_spread_odds"] = -110
+        d[f"{k}_away_spread_odds"] = -110
+    d["first_p_home"] = d["p_home"]
+    return d
+
+
+def _hyp(key):
+    return next(h for h in analysis.HYPOTHESES if h["key"] == key)
+
+
+def test_h5_is_frozen_ats_at_the_first_snapshot():
+    h5 = _hyp("H5")
+    assert h5["market"] == "ats"
+    assert (h5["sigma"], h5["min_edge"], h5["early"]) == (13.5, 1.0, False)
+    assert (h5["native"], h5["hindsight"]) == ("first", "open")
+    assert analysis.ATS_MAIN_LINE == (-135, 115)
+
+
+def test_h6_is_h5s_rule_on_games_1_to_9():
+    h5, h6 = _hyp("H5"), _hyp("H6")
+    assert h6["early"] is True and h5["early"] is False
+    same = ("market", "favourite", "min_edge", "sigma", "hindsight", "native")
+    assert {k: h6[k] for k in same} == {k: h5[k] for k in same}
+    g = ledger.graded(_ats_rows(4))
+    g["first_p_home"] = 0.75                         # edge 3.6 pts, home
+    early = g.assign(gp_home=3, gp_away=12)          # the fewer of the two < 10
+    assert len(analysis.hypothesis_picks(early, h6, "first")) == 4
+    assert analysis.hypothesis_picks(early, h5, "first").empty
+    assert analysis.hypothesis_picks(g, h6, "first").empty
+
+
+def test_h5_reads_the_first_snapshot_p_and_line_and_its_edge_in_points():
+    h5 = _hyp("H5")
+    g = ledger.graded(_ats_rows(4))
+    # margin 13.5 * Phi^-1(P) against home -5.5: P 0.75 -> +9.1 (edge 3.6,
+    # home); 0.60 -> +3.4 (edge 2.1, away); 0.66 -> +5.6 (edge 0.1: no bet)
+    g["first_p_home"] = [0.75, 0.60, 0.66, 0.75]
+    g["p_home"] = 0.10                                  # pregame P: not read
+    g.loc[g.index[3], "first_home_spread_odds"] = 320  # alternate line: no bet
+    d = analysis.hypothesis_picks(g, h5, "first")
+    assert list(d["side"]) == ["HOM", "AWY"]
+    assert abs(d["edge"].iloc[0] - (13.5 * NormalDist().inv_cdf(0.75) - 5.5)) < 1e-9
+    assert list(d["result"]) == [1.0, 0.0]              # home covered -5.5 by 4.5
+    r = analysis.ats_row("x", d)
+    assert r["n"] == 2 and abs(r["roi_null"] - (0.5 * 210 / 110 - 1)) < 1e-9
+    assert "fav_roi" in r                               # same-row baseline
+    early = g.assign(gp_home=4, gp_away=4)
+    assert analysis.hypothesis_picks(early, h5, "first").empty
+
+
+def test_h5_hindsight_reads_the_open_spread_cache(tmp_path, monkeypatch):
+    nat = ledger.graded(_ats_rows(3))
+    rec = _ats_rows(3).assign(basis="reconstructed")
+    rec = rec.drop(columns=["open_spread", "open_home_spread_odds",
+                            "open_away_spread_odds"])
+    cache = tmp_path / "open.csv"
+    pd.DataFrame(dict(game_id=rec["game_id"], open_spread=-1.5,
+                      open_home_spread_odds=-110, open_away_spread_odds=-110)
+                 ).to_csv(cache, index=False)
+    monkeypatch.setattr(analysis, "OPEN_SPREADS", str(cache))
+    rows = {h["key"]: (hind, n) for h, hind, n in analysis.hypothesis_rows(nat, rec)}
+    hind, native = rows["H5"]
+    assert hind and hind["n"] == 3 and native["n"] >= 1
+    # without the cache the hindsight cell is empty, never the close
+    monkeypatch.setattr(analysis, "OPEN_SPREADS", str(tmp_path / "missing.csv"))
+    rows = {h["key"]: hind for h, hind, _ in analysis.hypothesis_rows(nat, rec)}
+    assert rows["H5"] is None

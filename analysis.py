@@ -7,6 +7,7 @@ closing book (`book_split`) at a time; nothing here pools either.
 """
 from __future__ import annotations
 
+import os
 from statistics import NormalDist
 
 import numpy as np
@@ -462,6 +463,21 @@ HYPOTHESES = (
     dict(key="H2·F", rule="Games 10+ · value side that is the favourite",
          early=False, favourite=True, min_edge=0.0, hindsight="open",
          native="first"),
+    # H5 (owner's request, fixed 2026-10-20, before any native row had a model
+    # P; research/ats_signal.py): against the spread. The model's home margin
+    # sigma * Phi^-1(P), sigma frozen at 13.5; bet its side when |margin +
+    # home line| >= 1 pt, main-line prices only (ATS_MAIN_LINE). Native at
+    # the first snapshot (first_spread, its prices, first_p_home); hindsight
+    # at the same book's open (OPEN_SPREADS).
+    dict(key="H5", rule="Games 10+ · ATS: model margin vs the line ≥ 1 pt",
+         market="ats", early=False, favourite=False, min_edge=1.0, sigma=13.5,
+         hindsight="open", native="first"),
+    # H6 (owner's request, fixed 2026-10-20 with H5, before any native row had
+    # a model P): H5's rule unchanged, on games 1-9 (the carryover model, no
+    # injury-report terms). Same sigma, threshold, price filter and prices.
+    dict(key="H6", rule="Games 1–9 · ATS: model margin vs the line ≥ 1 pt",
+         market="ats", early=True, favourite=False, min_edge=1.0, sigma=13.5,
+         hindsight="open", native="first"),
 )
 PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
                "close": "close"}
@@ -469,7 +485,14 @@ PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
 
 def hypothesis_picks(g, hyp, price):
     """The value-side bets one pre-registered rule makes, graded at `price`.
-    The edge and "favourite" (q > 0.5) are read at that same price."""
+    The edge and "favourite" (q > 0.5) are read at that same price. An ATS
+    rule (market "ats") bets the model's side against that price's spread,
+    its edge in points (ats_side_picks)."""
+    if hyp.get("market") == "ats":
+        p = ats_side_picks(g, price, hyp["sigma"])
+        if not len(p):
+            return p
+        return p[(p["early"] == hyp["early"]) & (p["edge"] >= hyp["min_edge"])]
     p = picks(g, price)
     if not len(p):
         return p
@@ -489,11 +512,14 @@ def hypothesis_rows(native, recon):
     """
     out = []
     for hyp in HYPOTHESES:
+        ats = hyp.get("market") == "ats"
+        hind = with_open_spreads(recon) if ats and hyp["hindsight"] == "open" else recon
         rows = []
-        for g, price, label in ((recon, hyp["hindsight"], "hindsight"),
+        for g, price, label in ((hind, hyp["hindsight"], "hindsight"),
                                 (native, hyp["native"], "native")):
-            r = roi_row(label, hypothesis_picks(g, hyp, price)) \
-                if g is not None and len(g) else None
+            d = hypothesis_picks(g, hyp, price) if g is not None and len(g) else None
+            r = ((ats_row if ats else roi_row)(label, d)
+                 if d is not None and len(d) else None)
             if r:
                 r["z"] = z_vs_null(r)
             rows.append(r)
@@ -603,7 +629,86 @@ def ats_row(label, d):
         units=float(u.sum()), roi=float(u.mean()),
         roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float("nan"),
         roi_null=float(d["units_null"].mean()),
+        **({"fav_roi": float(d["fav_units"].mean())} if "fav_units" in d else {}),
     )
+
+
+ATS_PRICES = ("first", "pre", "open", "close")   # *_spread, *_home/away_spread_odds
+# A main-line spread price sits in this band (99.96% of the reconstructed
+# closes); ESPN's "open" is sometimes an alternate line (-20.5 at +320 for
+# a game that closed -11.5 at -110), which is no main-line bet.
+ATS_MAIN_LINE = (-135, 115)
+# The same book's opening spreads for the reconstructed rows (research/
+# ats_signal.py), read only to show H5's hindsight at the open.
+OPEN_SPREADS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "diagnostics", "ats_signal", "open_spreads.csv")
+
+
+def with_open_spreads(g, path=None):
+    """`g` with open_spread and its prices from the research cache
+    (OPEN_SPREADS), or None without the cache (rows that already carry them
+    are returned as is)."""
+    if g is None or not len(g) or "open_spread" in g.columns:
+        return g
+    path = path or OPEN_SPREADS
+    if not os.path.exists(path):
+        return None
+    o = pd.read_csv(path, dtype={"game_id": str})
+    cols = ["open_spread", "open_home_spread_odds", "open_away_spread_odds"]
+    return g.assign(game_id=g["game_id"].astype(str)).merge(
+        o[["game_id"] + cols], on="game_id", how="left")
+
+
+def ats_side_picks(g, price, sigma=ATS_SIGMA):
+    """Flat 1u spread bets on the model's side at one price ("first": the
+    first snapshot's spread, prices and first_p_home; "pre", "open",
+    "close": that spread with p_home).
+
+    The model's home margin is sigma * Phi^-1(P); edge = margin + home line
+    (points), the bet is home if edge > 0 else away, `edge` is |edge|. Only
+    main-line prices (both sides in ATS_MAIN_LINE). q is the no-vig cover
+    probability of the side; fav_units is 1u on the spread favourite of the
+    same game at the same price (pick'em: the shorter price; tie: home).
+    """
+    if g is None or not len(g) or f"{price}_spread" not in g.columns:
+        return pd.DataFrame()
+    num = lambda c: pd.to_numeric(g[c], errors="coerce")  # noqa: E731
+    line, hso, aso = (num(f"{price}_{c}") for c in
+                      ("spread", "home_spread_odds", "away_spread_odds"))
+    ph = num("first_p_home" if price == "first" else "p_home")
+    margin = num("home_pts") - num("away_pts")
+    ok = (line.notna() & hso.between(*ATS_MAIN_LINE) & aso.between(*ATS_MAIN_LINE)
+          & margin.notna() & num("home_won").isin([0, 1])
+          & ph.between(0, 1, inclusive="neither")).to_numpy()
+    if not ok.any():
+        return pd.DataFrame()
+    g, line, hso, aso, ph, margin = (x[ok] for x in (g, line, hso, aso, ph, margin))
+    nd = NormalDist()
+    edge = np.array([sigma * nd.inv_cdf(p) for p in ph]) + line.to_numpy()
+    home = edge > 0
+    q_home = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
+    res_home = np.array([market.ats_result(m, s) for m, s in zip(margin, line)])
+    fav_home = np.where(line < 0, True, np.where(line > 0, False, hso <= aso))
+
+    def units(mls, res):
+        return [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
+                for m, r in zip(mls, res)]
+    d = pd.DataFrame(dict(
+        game_id=g["game_id"].to_numpy(),
+        early=(np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
+                       pd.to_numeric(g["gp_away"], errors="coerce"))
+               < EARLY_BELOW).to_numpy(),
+        side=np.where(home, g["home"], g["away"]), edge=np.abs(edge),
+        model_p=[nd.cdf(abs(e) / sigma) for e in edge],
+        q=np.where(home, q_home, 1 - q_home), ml=np.where(home, hso, aso),
+        result=np.where(home, res_home, 1 - res_home),
+        fav_units=units(np.where(fav_home, hso, aso),
+                        np.where(fav_home, res_home, 1 - res_home))))
+    d = d[(d["edge"] > 0) & np.isfinite(d["q"])]
+    d["breakeven"] = market.breakeven_prob(d["ml"])
+    d["units"] = units(d["ml"], d["result"])
+    d["units_null"] = d["q"] * [market.decimal_payout(m) for m in d["ml"]] - 1
+    return d
 
 
 def ats_summary(g, sigma=ATS_SIGMA):
