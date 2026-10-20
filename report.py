@@ -126,6 +126,19 @@ def hypotheses_block(native, recon):
             f"native @ {analysis.PRICE_NAMES[hyp['native']]}", nat, 26))
         lines.append("    " + roi_line(
             f"hindsight @ {analysis.PRICE_NAMES[hyp['hindsight']]}", hind, 26))
+    by = analysis.hypothesis_by_season(native, recon)
+    if by:
+        lines.append("  By season, never pooled (basis · the graded price's book · "
+                     "season; win = cover rate):")
+    for hyp, parts in by:
+        for p in parts:
+            at = analysis.PRICE_NAMES[p["price"]]
+            if p["row"] is None:
+                label = f"{p['basis']} @ {at}"
+            else:
+                label = (f"{market.BOOK_NAMES.get(p['book'], p['book'])} "
+                         f"{_season(p['season'])} @ {at}")
+            lines.append(f"    {hyp['key']:<4} " + roi_line(label, p["row"], 30))
     return lines
 
 

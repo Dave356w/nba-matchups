@@ -1437,6 +1437,42 @@ def _verdicts(sec):
     return "<div class='tiles'>" + "".join(tiles) + "</div>"
 
 
+def _hypotheses_by_season(native, recon):
+    """H5 / H6 split by basis x book x season (analysis.hypothesis_by_season):
+    the scoreboard above pools hindsight as registered; here nothing is
+    pooled."""
+    rows = []
+    for hyp, parts in analysis.hypothesis_by_season(native, recon):
+        for i, p in enumerate(parts):
+            badge = BASIS_BADGES[p["basis"]].replace(" · forward", "").replace(
+                " · hindsight", "")
+            at = f"at the {analysis.PRICE_NAMES[p['price']]}"
+            r = p["row"]
+            if not r:
+                where = ("no graded bets yet" if p["basis"] == "native"
+                         else "no bets")
+                rows.append([f"<b>{hyp['key']}</b>" if i == 0 else "",
+                             f"{badge}<span class='mut'>{where}</span>", at,
+                             "0", "—", "—", "—", "—", "—", "—", "—"])
+                continue
+            bname = market.BOOK_NAMES.get(p["book"], p["book"] if pd.notna(p["book"]) else "?")
+            rows.append([f"<b>{hyp['key']}</b>" if i == 0 else "",
+                         f"{badge}{esc(bname)} {season_txt(p['season'])}", at,
+                         r["n"], f"{r['w']}–{r['l']}", *_roi_cells(r),
+                         pct(r["actual"]), pct(r["breakeven"]), fav_txt(r)])
+    if not rows:
+        return ""
+    return ("<h3>H5 / H6 by season — never pooled</h3><p class='note'>The "
+            "scoreboard pools the hindsight seasons, as registered; here each "
+            "basis, book and season stands alone. The book is the one that "
+            "priced the graded spread (native: the first snapshot's; "
+            "hindsight: the open's). Win % is the cover rate; fav is 1u on "
+            "the spread favourite of the same games at the same price.</p>"
+            + table(["", "Basis · book · season", "Price", "n", "W–L", "ROI",
+                     "Null", "vs null (± 1 SE)", "Win %", "Break-even",
+                     "Fav ROI"], rows, left=(0, 1, 2), key=(5, 7)))
+
+
 def _hypotheses(native, recon):
     rows = []
     for hyp, hind, nat in analysis.hypothesis_rows(native, recon):
@@ -1458,6 +1494,7 @@ def _hypotheses(native, recon):
         + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
                  "Hindsight n", "ROI", "Null", "vs null (± 1 SE)"],
                 rows, left=(0, 1), key=(3, 5))
+        + _hypotheses_by_season(native, recon)
         + fold("About these hypotheses <span class='mut'>— dates, prices, what was retired</span>",
         "<p class='note'>H1–H3 fixed on 2026-09-30, H4 and amendment A1 "
         "(H2·F: H2's rule at the first snapshot) on 2026-10-01, all "

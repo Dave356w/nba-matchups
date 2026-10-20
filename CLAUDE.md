@@ -271,6 +271,9 @@ Before a PR, run:
     consistent across seasons; at the close −4.5% (n = 222, the null). The
     threshold was not re-chosen for these games. About 100 bets a season:
     one season is far from a verdict.
+  - The Ledger page and the report also show H5 and H6 by basis × the
+    graded price's book × season (`analysis.hypothesis_by_season`, the same
+    bets, never pooled), under the scoreboard's pooled-as-registered row.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a

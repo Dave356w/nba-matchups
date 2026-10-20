@@ -447,3 +447,40 @@ def test_h5_hindsight_reads_the_open_spread_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(analysis, "OPEN_SPREADS", str(tmp_path / "missing.csv"))
     rows = {h["key"]: hind for h, hind, _ in analysis.hypothesis_rows(nat, rec)}
     assert rows["H5"] is None
+
+
+def test_h5_h6_by_season_partition_the_pooled_scoreboard(tmp_path, monkeypatch):
+    rec = _ats_rows(12).assign(basis="reconstructed")
+    rec["season"] = [2025] * 6 + [2026] * 6
+    rec["close_book"] = ["espnbet"] * 6 + ["dk"] * 3 + ["espnbet"] * 3
+    rec.loc[rec.index[:4], ["gp_home", "gp_away"]] = 3     # four games 1-9 (H6)
+    rec["p_home"] = np.linspace(0.62, 0.9, 12)             # all clear 1 pt vs -5.5
+    rec.loc[rec.index[::2], "home_pts"] = 101              # mixed covers
+    cache = tmp_path / "open.csv"
+    rec[["game_id", "open_spread", "open_home_spread_odds",
+         "open_away_spread_odds"]].to_csv(cache, index=False)
+    rec = rec.drop(columns=["open_spread", "open_home_spread_odds",
+                            "open_away_spread_odds"])
+    monkeypatch.setattr(analysis, "OPEN_SPREADS", str(cache))
+    nat = ledger.empty()
+    pooled = {h["key"]: hind for h, hind, _ in analysis.hypothesis_rows(nat, rec)}
+    by = {h["key"]: parts for h, parts in analysis.hypothesis_by_season(nat, rec)}
+    assert list(by) == ["H5", "H6"]
+    for key, parts in by.items():
+        assert parts[0]["basis"] == "native" and parts[0]["row"] is None
+        rp = [p for p in parts if p["basis"] == "reconstructed"]
+        assert sum(p["row"]["n"] for p in rp) == pooled[key]["n"]
+        assert abs(sum(p["row"]["units"] for p in rp) - pooled[key]["units"]) < 1e-9
+        assert [p["season"] for p in rp] == sorted((p["season"] for p in rp),
+                                                   reverse=True)
+    h5 = [(p["book"], p["season"]) for p in by["H5"] if p["row"]]
+    assert h5 == [("dk", 2026), ("espnbet", 2026), ("espnbet", 2025)]
+    # the page and the report show the split beside the pooled scoreboard
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
+    grades = (tmp_path / "grades.html").read_text()
+    assert "H5 / H6 by season — never pooled" in grades
+    assert "DraftKings 2025-26" in grades and "ESPN BET 2024-25" in grades
+    assert "no graded bets yet" in grades
+    txt = (tmp_path / "ledger_report.txt").read_text()
+    assert "By season, never pooled" in txt and "H5   DraftKings 2025-26 @ open" in txt
