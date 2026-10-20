@@ -539,69 +539,211 @@ def score_preseason(today, weights, now=None):
 
 # ------------------------------------------------------------- rendering ---
 CSS = """
-:root{--bg:#f3f5f7;--fg:#161b20;--mut:#4f5a65;--faint:#636e7b;--card:#fff;
---card2:#eef1f4;--line:#dde3e8;--line2:#eceff2;--pos:#1d7a3c;--neg:#b4442a;
---acc:#825c0c;--accb:#b07c10;--chip:#f6efe0;--s1:#3474a8;--s2:#c6542c;
---grid:#eceff2;--pos-bg:#e9f4ec;--neg-bg:#f9ece8;
+:root{
+--bg:#f4f6f9;--surface:#ffffff;--surface-2:#f0f3f7;--ink:#13202f;
+--muted:#4d5d6e;--faint:#647384;--line:#dce3ea;--line-2:#e9eef3;
+--accent:9,120,94;--accent-tx:6,102,79;--accent-on:#ffffff;
+--warm:198,84,44;--cool:52,116,168;--lean:176,124,16;
+--warm-tx:164,69,36;--cool-tx:46,103,149;--lean-tx:130,92,12;
+--good:25,121,62;--bad:184,60,40;
 --mono:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
 --sans:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
---shadow:0 1px 2px rgba(16,18,29,.05),0 10px 26px -20px rgba(16,18,29,.28);--r:6px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1418;
---fg:#e7ecef;--mut:#96a2ad;--faint:#7f8b97;--card:#171d24;--card2:#131920;
---line:#242e38;--line2:#1c242c;--pos:#58c27d;--neg:#ef7f62;--acc:#f4c460;
---accb:#f4c460;--chip:#2a2618;--s1:#609ed0;--s2:#ec7a48;--grid:#1c242c;
---pos-bg:#14261b;--neg-bg:#2b1a15;
---shadow:0 1px 2px rgba(0,0,0,.45),0 14px 32px -22px rgba(0,0,0,.8)}}
-:root[data-theme="dark"]{--bg:#0f1418;--fg:#e7ecef;--mut:#96a2ad;--faint:#7f8b97;
---card:#171d24;--card2:#131920;--line:#242e38;--line2:#1c242c;--pos:#58c27d;
---neg:#ef7f62;--acc:#f4c460;--accb:#f4c460;--chip:#2a2618;--s1:#609ed0;
---s2:#ec7a48;--grid:#1c242c;--pos-bg:#14261b;--neg-bg:#2b1a15;
---shadow:0 1px 2px rgba(0,0,0,.45),0 14px 32px -22px rgba(0,0,0,.8)}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);
-font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
-a{color:var(--acc)}
-main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
-.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-border-bottom:2px solid var(--fg);padding-bottom:10px;margin-bottom:12px}
-.brand{font:800 18px/1 var(--sans);letter-spacing:.13em;text-transform:uppercase;
-color:var(--fg);text-decoration:none}
-.theme{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--mut);
-font:600 14px/1 var(--sans);padding:7px 11px;border-radius:var(--r);cursor:pointer}
-.theme:hover{color:var(--fg)}
-nav{display:flex;gap:6px 16px;flex-wrap:wrap;margin:0 0 14px;font:600 14px/1.3 var(--sans)}
-nav a{color:var(--mut);text-decoration:none;padding-bottom:3px;border-bottom:2px solid transparent}
-nav a:hover{color:var(--fg)}
-nav a.on{color:var(--fg);border-bottom-color:var(--accb)}
-nav.jump{gap:6px;margin:10px 0 4px;font:500 13px/1.3 var(--sans)}
-nav.jump a{border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--card)}
-h1{font:800 26px/1.15 var(--sans);margin:8px 0 6px}
-h2{font:800 15px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;
-margin:34px 0 8px;scroll-margin-top:8px}
-h2 .badge{letter-spacing:.04em}
-h3{font:750 13px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;
-color:var(--faint);margin:18px 0 6px}
-.lead,.note{color:var(--mut);max-width:78ch}.note{font-size:13.5px}
-.note code{overflow-wrap:anywhere}code{font-family:var(--mono);font-size:.92em}
-.stamp{font-family:var(--mono);font-size:13px}
-.key{background:var(--card2);border:1px solid var(--line2);border-radius:var(--r);padding:9px 13px;
+--shadow:0 1px 2px rgba(19,32,47,.04),0 6px 20px -12px rgba(19,32,47,.18);
+--r:14px;--r-s:6px;--r-pill:999px;
+/* the research pages' names for the same tokens */
+--fg:var(--ink);--mut:var(--muted);--card:var(--surface);--card2:var(--surface-2);
+--line2:var(--line-2);--pos:rgb(var(--good));--neg:rgb(var(--bad));
+--acc:rgb(var(--accent-tx));--accb:rgb(var(--accent));--chip:rgba(var(--accent),.09);
+--s1:rgb(var(--cool));--s2:rgb(var(--warm));--grid:var(--line-2);
+--pos-bg:rgba(var(--good),.1);--neg-bg:rgba(var(--bad),.1)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+--bg:#0c141d;--surface:#141e29;--surface-2:#18232f;--ink:#e6eef6;
+--muted:#a0b1c2;--faint:#8a9cb0;--line:#243241;--line-2:#1d2936;
+--accent:61,192,151;--accent-tx:110,218,184;--accent-on:#0c141d;
+--warm:236,122,72;--cool:96,158,208;--lean:244,196,96;
+--warm-tx:240,140,98;--cool-tx:120,176,222;--lean-tx:244,196,96;
+--good:88,194,125;--bad:239,127,98;
+--shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.8)}
+:root:not([data-theme="light"]) .logo.lt{display:none}
+:root:not([data-theme="light"]) .logo.dk{display:block}
+:root:not([data-theme="light"]) .theme .sun{display:none}
+:root:not([data-theme="light"]) .theme .moon{display:block}}
+:root[data-theme="dark"]{
+--bg:#0c141d;--surface:#141e29;--surface-2:#18232f;--ink:#e6eef6;
+--muted:#a0b1c2;--faint:#8a9cb0;--line:#243241;--line-2:#1d2936;
+--accent:61,192,151;--accent-tx:110,218,184;--accent-on:#0c141d;
+--warm:236,122,72;--cool:96,158,208;--lean:244,196,96;
+--warm-tx:240,140,98;--cool-tx:120,176,222;--lean-tx:244,196,96;
+--good:88,194,125;--bad:239,127,98;
+--shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -18px rgba(0,0,0,.8)}
+:root[data-theme="dark"] .logo.lt{display:none}:root[data-theme="dark"] .logo.dk{display:block}
+:root[data-theme="dark"] .theme .sun{display:none}:root[data-theme="dark"] .theme .moon{display:block}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--sans);
+-webkit-font-smoothing:antialiased;padding:0 16px 56px}
+.mx-wrap{max-width:1120px;margin:0 auto}
+a{color:rgb(var(--accent-tx))}
+.skip-link{position:absolute;left:16px;top:-80px;padding:10px 14px;background:var(--surface);
+border-radius:var(--r-s);z-index:10}.skip-link:focus{top:10px}
+:focus-visible{outline:3px solid rgb(var(--accent));outline-offset:3px}
+code{font-family:var(--mono);font-size:.92em}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.stamp{font-family:var(--mono);font-size:12.5px}
+/* header (shared with the NFL site) */
+.topbar{display:flex;align-items:center;gap:16px;padding:18px 0;margin-bottom:22px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font:800 19px/1 var(--sans);letter-spacing:-.02em;
+color:var(--ink);text-decoration:none;white-space:nowrap}
+.brand-mark{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;
+background:rgb(var(--accent));color:#fff;font:800 11px/1 var(--sans);letter-spacing:.03em}
+.brand-version{font:600 11px/1 var(--mono);color:var(--muted);border:1px solid var(--line);padding:4px 6px;border-radius:6px}
+.nav{display:flex;gap:4px;margin-left:auto;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.nav a{padding:8px 16px;border-radius:8px;color:var(--muted);text-decoration:none;font:650 14px/1.2 var(--sans);white-space:nowrap}
+.nav a:hover{color:var(--ink);background:var(--surface-2)}
+.nav a[aria-current="page"]{background:var(--ink);color:var(--surface)}
+.theme{appearance:none;display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--line);
+background:var(--surface);color:var(--muted);border-radius:10px;cursor:pointer;padding:0}
+.theme:hover{color:var(--ink)}.theme svg{width:18px;height:18px}.theme .moon{display:none}
+.subnav{display:flex;flex-wrap:wrap;gap:6px;margin:-6px 0 18px}
+.subnav a{border:1px solid var(--line);border-radius:var(--r-pill);padding:5px 12px;background:var(--surface);
+color:var(--muted);text-decoration:none;font:600 13px/1.3 var(--sans)}
+.subnav a:hover{color:var(--ink)}
+.subnav a[aria-current="page"]{color:rgb(var(--accent-tx));border-color:rgba(var(--accent),.45);background:rgba(var(--accent),.09)}
+.subnav .lbl{font:700 11.5px/2.2 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-right:4px}
+/* page heading, tiles, notes (public pages) */
+.gr-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin:6px 0 22px}
+.eyebrow{font:700 12px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:rgb(var(--accent-tx));margin-bottom:8px}
+.gr-h1{font:800 34px/1.08 var(--sans);letter-spacing:-.035em;margin:0 0 8px}
+.gr-lead{color:var(--muted);font-size:15px;line-height:1.6;max-width:68ch}
+.gr-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:0 0 18px}
+.gr-stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);min-width:0}
+.gr-stat .l{font:700 11.5px/1.2 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.gr-stat .v{font:800 28px/1.1 var(--mono);letter-spacing:-.02em;margin:8px 0 6px;font-variant-numeric:tabular-nums}
+.gr-stat .v.pos,.gr-stat .v.good{color:rgb(var(--good))}.gr-stat .v.neg,.gr-stat .v.bad{color:rgb(var(--bad))}
+.gr-stat .s{font:500 13px/1.45 var(--sans);color:var(--muted)}
+.meter{position:relative;height:6px;border-radius:var(--r-pill);background:var(--line-2);margin:10px 0 6px;overflow:visible}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:var(--r-pill);background:rgb(var(--accent))}
+.meter b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:1px}
+.gr-note{background:var(--surface-2);border:1px solid var(--line-2);border-radius:10px;
+padding:12px 15px;margin:0 0 16px;font-size:14px;line-height:1.6;color:var(--muted)}
+.gr-note b{color:var(--ink)}
+.flag-note{border-left:3px solid rgb(var(--lean));background:rgba(var(--lean),.09);border-radius:10px;
+padding:12px 15px;margin:0 0 16px;font-size:14px;line-height:1.6;color:var(--muted)}
+.flag-note b{color:var(--ink)}
+h2.sec{font:800 19px/1.25 var(--sans);letter-spacing:-.02em;text-transform:none;margin:36px 0 12px}
+.sec-lead{color:var(--muted);font-size:14px;margin:-4px 0 14px;max-width:72ch}
+.rec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;font-size:14px}
+.rec .l{font:700 11.5px/1.2 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.gr-tablewrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+box-shadow:var(--shadow);overflow-x:auto;margin-bottom:12px}
+table.gr{width:100%;border-collapse:collapse;font-size:14px}
+table.gr th{font:700 11.5px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2);position:static}
+table.gr td{padding:11px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle;text-align:left;
+font-family:var(--sans);font-size:14px;white-space:normal}
+table.gr tr:last-child td{border-bottom:0}table.gr tbody tr:hover{background:var(--surface-2)}
+table.gr .n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.small{font-size:13px;line-height:1.55}
+.team-code{font:800 13px/1 var(--mono);letter-spacing:.02em}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px;color:var(--muted);text-align:center}
+/* filters and game cards (public Picks page) */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:26px 0 12px}
+.toolbar h2.sec{margin:0}
+.seg{display:inline-flex;gap:3px;padding:3px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:650 13px/1 var(--sans);
+padding:8px 12px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.seg .ct{font-family:var(--mono);color:var(--faint);margin-left:4px}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;align-items:start;margin-bottom:18px}
+.gcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:clip}
+.gcard.picked-card{border-color:rgba(var(--accent),.35)}
+.game-summary{display:block;padding:14px 16px;list-style:none;cursor:pointer}
+.game-summary::-webkit-details-marker{display:none}.game-summary::marker{content:""}
+.game-summary:hover{background:var(--surface-2)}
+.gcard[open]>.game-summary{border-bottom:1px solid var(--line-2)}
+.g-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.g-meta .when{font:600 12.5px/1.2 var(--sans);color:var(--muted)}
+.g-teams{display:flex;flex-direction:column;gap:4px}
+.g-team{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;align-items:center;gap:10px;
+padding:6px 8px;margin:0 -8px;border-radius:9px}
+.g-team.picked{background:rgba(var(--accent),.09)}
+.g-team .nm{font:700 16px/1.2 var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-team .nm small{font:600 11.5px/1 var(--mono);color:var(--faint);margin-left:6px}
+.g-team .ln{font:600 13px/1 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.g-team .sc{font:800 18px/1 var(--mono);min-width:28px;text-align:right;font-variant-numeric:tabular-nums}
+.g-team.picked .nm::after{content:"LEAN";font:800 9.5px/1 var(--sans);letter-spacing:.08em;color:var(--accent-on);
+background:rgb(var(--accent));border-radius:4px;padding:3px 5px;margin-left:8px;vertical-align:2px}
+.tchip{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:var(--r-pill);
+background:var(--surface-2);font:800 11px/1 var(--mono);position:relative}
+.tchip .logo{position:absolute;inset:3px;width:28px;height:28px;object-fit:contain}
+.tchip .logo.dk{display:none}.tchip.has-logo{background:transparent}.tchip.has-logo span{visibility:hidden}
+.pick-lines{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;
+margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.pick-lines .kind{font:700 11px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);width:100%}
+.pick-lines .pk{font:800 20px/1.2 var(--mono);letter-spacing:-.01em}
+.pick-lines .pk.na{font:600 14px/1.4 var(--sans);color:var(--muted)}
+.pick-lines .edge{font:600 12.5px/1.3 var(--sans);color:var(--muted)}
+.g-mk{font:500 12.5px/1.5 var(--mono);color:var(--muted);margin-top:6px}
+.g-mk span{white-space:nowrap}
+.g-flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.g-note{font:500 12px/1.4 var(--sans);color:var(--faint);margin-top:8px}
+.g-detail{padding:14px 16px 18px}
+.g-detail h3{font:750 12px/1.2 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
+.g-detail p{margin:8px 0;font-size:13.5px;color:var(--muted)}
+.g-detail .gr-tablewrap{box-shadow:none}
+.g-detail table.gr{font-size:13px}.g-detail table.gr td,.g-detail table.gr th{padding:8px 11px}
+/* running-units chart (Performance) */
+.uchart{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px 10px;margin:0 0 12px}
+.uchart .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.uchart .t{font:700 14px/1.3 var(--sans)}.uchart .v{font:800 18px/1 var(--mono)}
+.uchart svg{display:block;width:100%;height:auto;margin-top:8px;overflow:visible}
+.uchart .grid-ln{stroke:var(--line-2);stroke-width:1}
+.uchart .zero{stroke:var(--faint);stroke-width:1;stroke-dasharray:3 3}
+.uchart .ln{fill:none;stroke:rgb(var(--accent));stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.uchart .area{fill:rgba(var(--accent),.08)}
+.uchart .ax{fill:var(--faint);font:500 13px var(--mono)}
+.uchart .pt{fill:rgb(var(--accent));stroke:var(--surface);stroke-width:2}
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:5px;font:700 11px/1 var(--sans);letter-spacing:.04em;text-transform:uppercase;
+padding:5px 8px;border-radius:var(--r-pill);border:1px solid var(--line);color:var(--muted);white-space:nowrap;
+background:var(--surface);vertical-align:middle;margin-right:6px}
+.g-flags .badge,.g-meta .badge,td .badge{margin-right:0}
+.badge.w,.badge.native{color:rgb(var(--good));border-color:rgba(var(--good),.4);background:rgba(var(--good),.09)}
+.badge.l{color:rgb(var(--bad));border-color:rgba(var(--bad),.4);background:rgba(var(--bad),.09)}
+.badge.lean{color:rgb(var(--accent-tx));border-color:rgba(var(--accent),.45);background:rgba(var(--accent),.09)}
+.badge.warn{color:rgb(var(--warm-tx));border-color:rgba(var(--warm),.45);background:rgba(var(--warm),.09)}
+.badge.hyp{color:rgb(var(--cool-tx));border-color:rgba(var(--cool),.45);background:rgba(var(--cool),.09)}
+.badge.recon{background:var(--surface-2);color:var(--muted)}
+.badge.live{color:rgb(var(--bad));border-color:rgba(var(--bad),.4)}
+.badge.live::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+/* research pages: the same tokens on their own components */
+h1{font:800 30px/1.1 var(--sans);letter-spacing:-.03em;margin:6px 0 8px}
+h2{font:800 15px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;margin:34px 0 8px;scroll-margin-top:8px}
+h3{font:750 13px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:18px 0 6px}
+.lead,.note{color:var(--mut);max-width:78ch}.note{font-size:13.5px}.lead{font-size:15px;line-height:1.6}
+.note code{overflow-wrap:anywhere}
+.key{background:var(--card2);border:1px solid var(--line2);border-radius:10px;padding:10px 14px;
 font-size:13.5px;max-width:78ch;margin:10px 0;color:var(--mut)}
-.key b{color:var(--fg)}
-.key summary{cursor:pointer;color:var(--acc);margin-top:4px}
+.key b{color:var(--fg)}.key summary{cursor:pointer;color:var(--acc);margin-top:4px}
 .key dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:8px 0 2px}
 .key dt{font-weight:600;color:var(--fg)}.key dd{margin:0}
+details.key>summary{cursor:pointer;color:var(--acc);font-weight:600}
+nav.jump{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px;font:500 13px/1.3 var(--sans)}
+nav.jump a{border:1px solid var(--line);border-radius:var(--r-pill);padding:3px 11px;background:var(--card);
+color:var(--mut);text-decoration:none}
+nav.jump a:hover{color:var(--fg)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-padding:11px 13px;box-shadow:var(--shadow)}
-.tile .l{font:650 12px/1.25 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-.tile .v{font:800 22px/1.15 var(--mono);margin:5px 0 3px;font-variant-numeric:tabular-nums}
-.tile .s{font:500 12.5px/1.4 var(--mono);color:var(--mut)}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;box-shadow:var(--shadow);min-width:0}
+.tile .l{font:700 11.5px/1.25 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.tile .v{font:800 22px/1.15 var(--mono);margin:6px 0 4px;font-variant-numeric:tabular-nums}
+.tile .s{font:500 12.5px/1.45 var(--mono);color:var(--mut)}
 .tile.pos .v{color:var(--pos)}.tile.neg .v{color:var(--neg)}
 .wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);
 background:var(--card);box-shadow:var(--shadow);margin-bottom:12px}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
-th,td{padding:7px 9px;border-bottom:1px solid var(--line2);text-align:right;white-space:nowrap}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line2);text-align:right;white-space:nowrap}
 td{font-family:var(--mono);font-size:13.5px}td.l{font-family:var(--sans);font-size:14px}
-th{font:650 11.5px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;
+th{font:700 11.5px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;
 color:var(--faint);background:var(--card2);border-bottom:1px solid var(--line);position:sticky;top:0}
 td.l,th.l{text-align:left}tr:last-child td{border-bottom:0}
 th.k,td.k{background:var(--chip)}
@@ -609,16 +751,11 @@ th.k,td.k{background:var(--chip)}
 .chip{display:inline-block;background:var(--chip);border-radius:4px;padding:0 6px;
 font:800 13px/1.5 var(--mono);color:var(--acc)}
 .basis{display:inline-block;font:700 11px/1.4 var(--sans);letter-spacing:.04em;
-text-transform:uppercase;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--mut)}
-.badge{display:inline-block;font:700 11.5px/1.3 var(--sans);letter-spacing:.04em;
-text-transform:uppercase;border-radius:3px;padding:2px 7px;vertical-align:middle;
-margin-right:8px;border:1px solid var(--line)}
-.badge.native{background:var(--pos-bg);color:var(--pos);border-color:transparent}
-.badge.recon{background:var(--card2);color:var(--mut)}
+text-transform:uppercase;border:1px solid var(--line);border-radius:var(--r-pill);padding:1px 7px;color:var(--mut)}
 details.more{margin:12px 0}details.more>summary{cursor:pointer;font-weight:700;font-size:14px;padding:4px 0}
 details.more>summary .mut{font-weight:400;font-size:13px}
 .charts{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin:12px 0}
-.chart{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;
+.chart{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;
 width:100%;max-width:440px;box-shadow:var(--shadow)}
 .chart svg{display:block;width:100%;height:auto}
 .chart .t{font-weight:700;font-size:14px}
@@ -630,73 +767,37 @@ width:100%;max-width:440px;box-shadow:var(--shadow)}
 .eb{stroke-width:2;stroke-linecap:round;opacity:.55}
 .s1{fill:var(--s1);stroke:var(--s1)}.s2{fill:var(--s2);stroke:var(--s2)}
 .mk{stroke:var(--card);stroke-width:2}
-.foot{margin-top:28px;color:var(--faint);font-size:12.5px;border-top:1px solid var(--line);padding-top:10px}
-.foot code{font-size:12px}
-[hidden]{display:none!important}
-.badge.lean{background:var(--chip);color:var(--acc);border-color:transparent}
-.badge.warn{color:var(--s2);border-color:var(--s2)}
-.badge.w{background:var(--pos-bg);color:var(--pos);border-color:transparent}
-.badge.l{background:var(--neg-bg);color:var(--neg);border-color:transparent}
-.badge.hyp{color:var(--s1);border-color:var(--s1)}
-.flag-note{background:var(--chip);border-left:3px solid var(--accb);border-radius:var(--r);
-padding:9px 13px;font-size:13.5px;color:var(--mut);max-width:none;margin:8px 0 12px}
-.flag-note b{color:var(--fg)}
-/* slate: one card per game, tap for details (the NFL site's scoreboard) */
-.grid{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
-border-radius:var(--r);box-shadow:var(--shadow);overflow:clip;margin:14px 0}
-.card+.card{border-top:1px solid var(--line)}
-.game-summary{position:relative;display:block;padding:13px 40px 12px 16px;list-style:none;cursor:pointer}
-.game-summary::-webkit-details-marker{display:none}.game-summary::marker{content:""}
-.game-summary:hover{background:var(--card2)}
-.card[open]>.game-summary{background:var(--card2);border-bottom:1px solid var(--line2)}
-.teams{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.7fr) minmax(0,1fr);align-items:center;gap:12px}
-.side{display:flex;align-items:center;gap:10px;min-width:0}
-.side.home{justify-content:flex-end;text-align:right}
-.tchip{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:999px;
-border:1px solid var(--line);background:var(--card2);font:800 12px/1 var(--mono);position:relative}
-.tchip .logo{position:absolute;inset:5px;width:32px;height:32px;object-fit:contain}
-.tchip .logo.dk{display:none}.tchip.has-logo span{visibility:hidden}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo.lt{display:none}
-:root:not([data-theme="light"]) .logo.dk{display:block}}
-:root[data-theme="dark"] .logo.lt{display:none}:root[data-theme="dark"] .logo.dk{display:block}
-.club{min-width:0}
-.club .nm{font:750 16.5px/1.15 var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.club .wp{font:800 22px/1.1 var(--mono);font-variant-numeric:tabular-nums}
-.club .wp.fav{color:var(--acc)}
-.mid{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
-.mid .t{font:800 15px/1 var(--mono)}.mid .mk{font:600 12.5px/1.2 var(--mono);color:var(--mut)}
-.mid .st{font:700 11px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-.card.is-live .mid .st{color:var(--neg)}.card.is-live .mid .st::before{content:"● "}
-.card.is-live .mid .t,.card.is-final .mid .t{font-size:18px}
-.chev{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--faint);font:800 18px/1 var(--sans)}
-.card[open] .chev{transform:translateY(-50%) rotate(180deg);color:var(--fg)}
-.flags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:9px}
-.flags .badge{margin:0}
-.probbar{display:flex;height:8px;border-radius:3px;overflow:hidden;margin:10px 0 2px;background:var(--line2)}
-.probbar i{display:block;height:100%}.probbar .a{background:var(--s2)}.probbar .h{background:var(--s1)}
-.detail{padding:4px 16px 14px}.detail .note{margin:6px 0}
-.detail .tiles{grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin:8px 0}
-.detail .tile{box-shadow:none;padding:8px 10px}.detail .tile .v{font-size:19px}
-/* folds: secondary detail stays one tap away */
 details.fold{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-box-shadow:var(--shadow);margin:0 0 8px;scroll-margin-top:8px}
-details.fold>summary{cursor:pointer;list-style:none;padding:10px 13px;font:700 14px/1.3 var(--sans);
-display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+box-shadow:var(--shadow);margin:0 0 10px;scroll-margin-top:8px;overflow:clip}
+details.fold>summary{cursor:pointer;list-style:none;padding:13px 16px;font:700 14.5px/1.3 var(--sans);
+display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap}
+details.fold>summary:hover{background:var(--surface-2)}
 details.fold>summary::-webkit-details-marker{display:none}
-details.fold>summary::before{content:"▸";color:var(--faint)}details.fold[open]>summary::before{content:"▾"}
+details.fold>summary::before{content:"▸";color:var(--faint);transition:transform .15s}
+details.fold[open]>summary::before{transform:rotate(90deg)}
 details.fold>summary .rt{margin-left:auto;font:600 13px/1.3 var(--mono);color:var(--mut)}
 details.fold>summary .badge{margin-right:0}
-details.fold>.in{padding:0 13px 10px;border-top:1px solid var(--line2)}
-details.fold>.in>.wrap,details.fold>.in>.tiles .tile{box-shadow:none}
-details.key>summary{cursor:pointer;color:var(--acc);font-weight:600}
-.record{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px 4px;margin-top:6px}
-.record>.l{font:650 12px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-.record .tiles{margin:8px 0}.record .tile{box-shadow:none}
-.record .go{text-align:right;font:600 14px/1 var(--sans);margin:0 0 8px}
-@media (max-width:640px){table{font-size:13px}td{font-size:12.5px}.brand{font-size:15px}
-.teams{grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr);gap:6px}.tchip{display:none}
-.club .nm{font-size:14px}.club .wp{font-size:19px}.game-summary{padding:12px 30px 11px 12px}
-.chev{right:8px}}
+details.fold>.in{padding:0 16px 12px;border-top:1px solid var(--line2)}
+details.fold>.in>.wrap,details.fold>.in>.tiles .tile,details.fold>.in>.gr-tablewrap{box-shadow:none}
+details.fold>.in>.gr-tablewrap:first-child{border-width:0;border-radius:0;margin:0 -16px}
+.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 18px;margin-top:44px;padding-top:16px;
+border-top:1px solid var(--line);color:var(--faint);font-size:12.5px;line-height:1.6}
+.foot a{color:var(--muted)}.foot code{font-size:12px}.foot .r{text-align:right}
+@media (max-width:720px){
+.topbar{flex-wrap:wrap;gap:12px;padding:14px 0;margin-bottom:16px}
+.nav{order:3;width:100%;margin-left:0}.nav a{flex:1;text-align:center;padding:9px 4px;font-size:13px}
+.theme{margin-left:auto}.brand-version{display:none}
+.gr-h1{font-size:28px}h1{font-size:26px}
+.gr-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.gr-stat{padding:13px}.gr-stat .v{font-size:22px}
+.ggrid{grid-template-columns:minmax(0,1fr)}
+table{font-size:13px}td{font-size:12.5px}
+table.gr{font-size:13px}table.gr th,table.gr td{padding:9px 10px;white-space:nowrap}
+.g-detail table.gr td{white-space:normal}
+details.fold>summary .rt{margin-left:0;width:100%}
+.foot .r{text-align:left}
+.uchart .ax{font-size:30px}.uchart .ln{stroke-width:4}.uchart .zero{stroke-width:2}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 """
 
 # A link to a section inside a closed fold opens that fold (jump chips).
@@ -716,20 +817,22 @@ var u='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?l
 function per(p){return p<=4?'Q'+p:p==5?'OT':(p-4)+'OT';}
 fetch(u,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
 var n=0;((j&&j.events)||[]).forEach(function(e){
-var c=document.querySelector(".card[data-gid='"+e.id+"']");if(!c)return;
+var c=document.querySelector(".gcard[data-gid='"+e.id+"']");if(!c)return;
 var st=e.status||{},ty=st.type||{},s={},txt,score=true;
 (((e.competitions||[])[0]||{}).competitors||[]).forEach(function(t){s[t.homeAway]=t.score;});
 if(ty.state==='in'){txt=ty.name==='STATUS_HALFTIME'?'Half':ty.name==='STATUS_END_PERIOD'?
 'End '+per(st.period):ty.name==='STATUS_IN_PROGRESS'?per(st.period)+' '+st.displayClock:ty.shortDetail;}
 else if(ty.state==='post'){txt=ty.shortDetail||'Final';score=!!ty.completed;}
 else return;
-var el=c.querySelector('.mid .st'),t=c.querySelector('.mid .t');
-el.textContent=txt;el.hidden=false;
-if(score&&s.away!=null&&s.home!=null)t.textContent=s.away+'\\u2013'+s.home;
-c.classList.add(ty.state==='in'?'is-live':'is-final');n++;});
+var b=c.querySelector('.g-meta .st');b.textContent=txt;
+b.className='badge st'+(ty.state==='in'?' live':'');
+if(score&&s.away!=null&&s.home!=null)c.querySelectorAll('.sc').forEach(function(x){
+x.textContent=s[x.getAttribute('data-side')];});
+c.setAttribute('data-state',ty.state==='in'?'live':'final');n++;});
 var a=document.querySelector('[data-scores-asof]');
 if(n&&a){a.querySelector('time').textContent=new Date().toLocaleTimeString('en-US',
 {timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'})+' PT';a.hidden=false;}
+if(n&&window.nbaCount)window.nbaCount();
 }).catch(function(){});})();</script>"""
 
 THEME_JS = ("<script>(function(){var k='nba-theme',r=document.documentElement;"
@@ -739,11 +842,32 @@ THEME_JS = ("<script>(function(){var k='nba-theme',r=document.documentElement;"
             "var n=d==='dark'?'light':'dark';r.setAttribute('data-theme',n);"
             "try{localStorage.setItem(k,n);}catch(e){}};})();</script>")
 
-SITE_NAME = "NBA Four-Factors Composite"
+SITE_NAME = "NBA Composite"
 ASSETS = Path(__file__).resolve().parent / "assets" / "fonts"
-PAGES = (("index.html", "Today"), ("grades.html", "Ledger"),
-         ("market-calibration.html", "Calibration"), ("model.html", "Model"),
-         ("preseason.html", "Preseason"))
+# The public site (the NFL site's layout): Picks, Results, Performance, and one
+# Research tab that holds the research pages, which keep their content.
+PUBLIC_PAGES = (("index.html", "Picks"), ("results.html", "Results"),
+                ("performance.html", "Performance"))
+RESEARCH_PAGES = (("grades.html", "Ledger"), ("market-calibration.html", "Calibration"),
+                  ("model.html", "Model"), ("preseason.html", "Preseason"))
+PAGES = PUBLIC_PAGES + RESEARCH_PAGES
+THEME_BUTTON = (
+    "<button class='theme' type='button' onclick='toggleTheme()' "
+    "aria-label='Toggle colour theme' title='Toggle theme'><svg class='sun' "
+    "viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' "
+    "stroke-linecap='round' aria-hidden='true'><circle cx='12' cy='12' r='4'/>"
+    "<path d='M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"
+    "M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/></svg><svg class='moon' viewBox='0 0 24 24' "
+    "fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' "
+    "aria-hidden='true'><path d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'/>"
+    "</svg></button>")
+
+
+def model_version(tags=None):
+    """'v6' from the active model tag (the brand's version pill)."""
+    import re
+    m = re.search(r"_v(\d+)$", str((tags or ACTIVE_TAGS or [""])[0]))
+    return f"v{m.group(1)}" if m else ""
 
 
 def font_face_css(assets=ASSETS):
@@ -767,24 +891,38 @@ def esc(s):
 
 
 def page(title, active, body, built):
-    cur = " class='on' aria-current='page'"
-    nav = "".join(f"<a href='{h}'{cur if h == active else ''}>{t}</a>"
-                  for h, t in PAGES)
+    """One page in the shared shell: header (brand, Picks / Results /
+    Performance / Research, theme), a sub-nav on research pages, footer."""
+    cur = " aria-current='page'"
+    research = active in {h for h, _ in RESEARCH_PAGES}
+    tab = RESEARCH_PAGES[0][0] if research else active
+    nav = "".join(f"<a href='{h}'{cur if h == tab else ''}>{t}</a>"
+                  for h, t in PUBLIC_PAGES + (("grades.html", "Research"),))
+    sub = ("<nav class='subnav' aria-label='Research pages'><span class='lbl'>"
+           "Research</span>" + "".join(f"<a href='{h}'{cur if h == active else ''}>{t}</a>"
+                                       for h, t in RESEARCH_PAGES) + "</nav>"
+           if research else "")
+    ver = model_version()
+    research_links = " · ".join(f"<a href='{h}'>{t}</a>" for h, t in RESEARCH_PAGES)
     return (f"<!doctype html><html lang='en'><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{esc(title)}</title><meta name='description' content='NBA "
-            "four-factors composite win probabilities, pregame-locked ledger and "
-            f"market calibration'>{THEME_JS}<style>{font_face_css()}{CSS}</style>"
-            "</head><body><main><div class='topbar'><a class='brand' "
-            f"href='index.html'>{SITE_NAME}</a><button class='theme' type='button' "
-            "onclick='toggleTheme()' aria-label='Toggle colour theme'>Theme</button>"
-            f"</div><nav>{nav}</nav>{body}<div class='foot'>Built "
+            "composite model picks: win probabilities against the market, "
+            "graded flat 1u against its null'>"
+            f"{THEME_JS}<style>{font_face_css()}{CSS}</style></head><body>"
+            "<a class='skip-link' href='#main-content'>Skip to content</a>"
+            "<div class='mx-wrap'><header class='topbar'><a class='brand' href='index.html'>"
+            f"<span class='brand-mark' aria-hidden='true'>NBA</span>{SITE_NAME}"
+            + (f"<span class='brand-version'>{esc(ver)}</span>" if ver else "")
+            + f"</a><nav class='nav' aria-label='Main navigation'>{nav}</nav>"
+            f"{THEME_BUTTON}</header><main id='main-content'>{sub}{body}</main>"
+            "<footer class='foot'><div>Built "
             f"<span class='stamp'>{esc(built)}</span>. Win probabilities from "
             "prior-game four factors, roster talent and the NBA injury report; "
-            "the market is a benchmark only and never enters the model. Full "
-            f"statistics: <a href='{report.REPORT_NAME}'>{report.REPORT_NAME}</a> "
-            "· model tags and coefficients: <a href='model.html'>Model</a>. "
-            f"Not betting advice.</div></main>{OPEN_JS}</body></html>")
+            "the market is a benchmark only and never enters the model. "
+            "Not betting advice.</div><div class='r'>Research: "
+            f"{research_links} · <a href='{report.REPORT_NAME}'>{report.REPORT_NAME}</a>"
+            f"</div></footer></div>{OPEN_JS}</body></html>")
 
 
 def pct(x, d=1):
@@ -943,70 +1081,168 @@ def resolved_txt(z, better, worse):
     return f"{better if z > 0 else worse} by {abs(z):.1f} SE"
 
 
-def _roi_headline(label, r, basis_txt):
-    """An NFL/MLB-style headline tile: flat 1u ROI, its null and the market
-    favourite on the same games. Colour only at >= 2 SE from the null."""
-    if not r:
-        return tile(label, "—", basis_txt)
-    z = analysis.z_vs_null(r)
-    return tile(label, f"{100 * r['roi']:+.1f}%",
-                f"{r['units']:+.2f}u · {r['w']}–{r['l']} · ± {se_txt(r['roi_se'])} SE"
-                f"<br>null {100 * r['roi_null']:+.1f}% · market fav "
-                f"{fav_txt(r)}<br>{basis_txt}", sig_cls(z))
+# ------------------------------------------------------- public pages ------
+# Picks (index.html), Results and Performance: the NFL site's layout, on the
+# native forward rows only. The research pages (Ledger, Calibration, Model,
+# Preseason) keep every table; nothing here replaces them.
+
+def _head(eyebrow, h1, lead, right=""):
+    return ("<div class='gr-head'><div>"
+            f"<div class='eyebrow'>{eyebrow}</div><h1 class='gr-h1'>{h1}</h1>"
+            f"<div class='gr-lead'>{lead}</div></div>{right}</div>")
 
 
-def headline_tiles(native, recon):
-    """Today's headline row: the goal metric (flat 1u ROI on the lean) on
-    the native forward rows and on the latest reconstructed season, never
-    pooled; plus how many pregame rows are locked."""
-    secs = _sections(native, ledger.empty() if recon is None else recon)
-    nat = next((s for s in secs if s["basis"] == "native" and s["book"]), None)
-    rec = max((s for s in secs if s["basis"] == "reconstructed" and s["book"]),
-              key=lambda s: s["season"], default=None)       # the latest season
+def _stat(label, value, sub="", cls="", meter=None):
+    """One headline tile; `meter` = (rate, break-even) draws the bar."""
+    m = ""
+    if meter and all(np.isfinite(meter)):
+        a, be = meter
+        m = (f"<div class='meter' role='img' aria-label='Win rate {pct(a)}, "
+             f"break-even {pct(be)}'><i style='width:{100 * a:.1f}%'></i>"
+             f"<b style='left:{100 * be:.1f}%'></b></div>")
+    return (f"<div class='gr-stat'><div class='l'>{label}</div>"
+            f"<div class='v {cls}'>{value}</div><div class='s'>{m}{sub}</div></div>")
+
+
+def public_scope(native):
+    """The public record (Picks, Results, Performance tiles): the latest
+    native section, one closing book x season of analysis.market_view
+    (sections never pool), its lean bets at the price the record uses (the
+    pregame snapshot, else the close), and those rows. None before any
+    graded native row with a close."""
+    secs = [s for s in _sections(analysis.market_view(native), ledger.empty())
+            if s["basis"] == "native" and s["book"]]
+    if not secs:
+        return None
+    sec = max(secs, key=lambda s: (s["season"], len(s["h"])))
+    price = "pre" if analysis.roi_summary(sec["h"], "pre") else "close"
+    p = analysis.picks(sec["h"], price)
+    p = p[p["rule"] == "lean"] if len(p) else p
+    if not len(p):
+        return None
+    return dict(sec=sec, price=price, picks=p.reset_index(drop=True),
+                row=analysis.roi_row("lean", p))
+
+
+def _scope_txt(scope):
+    s = scope["sec"]
+    where = "pregame price" if scope["price"] == "pre" else "close"
+    return f"{esc(market.BOOK_NAMES[s['book']])} {season_txt(s['season'])} · {where}"
+
+
+def record_tiles(scope):
+    """Record, win rate, units, ROI on the lean: the ROI beside its null and
+    the market favourite on the same games; colour only at >= 2 SE."""
+    if not scope:
+        return ("<div class='gr-summary'>"
+                + _stat("Record", "0–0", "No graded picks yet · written before "
+                        "tip, frozen after")
+                + _stat("Win rate", "—", "Break-even depends on each price")
+                + _stat("Units", "0.00u", "Flat 1 unit on the model's lean")
+                + _stat("ROI", "—", "Read against its null (about −4%, the "
+                        "market's hold), not zero")
+                + "</div>")
+    r = scope["row"]
+    c = sig_cls(analysis.z_vs_null(r))
+    return ("<div class='gr-summary'>"
+            + _stat("Record", f"{r['w']}–{r['l']}", f"W–L · {r['n']} bets · "
+                    f"{_scope_txt(scope)}")
+            + _stat("Win rate", pct(r["actual"]), f"Break-even {pct(r['breakeven'])} "
+                    "at the prices taken", meter=(r["actual"], r["breakeven"]))
+            + _stat("Units", f"{r['units']:+.2f}u", "Flat 1 unit per pick on the "
+                    "model's lean", c)
+            + _stat("ROI", f"{100 * r['roi']:+.1f}%", f"± {se_txt(r['roi_se'])} pp "
+                    f"(1 SE) · null {100 * r['roi_null']:+.1f}% · market favourite "
+                    f"{fav_txt(r)}", c)
+            + "</div>")
+
+
+def public_ats(native):
+    """[(hypothesis, bets)] for the spread rules (H5, H6) on the latest
+    native season, graded at their registered price (raw rows, as the
+    Ledger's scoreboard reads them)."""
+    if native is None or not len(native):
+        return []
+    season = pd.to_numeric(native["season"], errors="coerce").max()
+    g = ledger.graded(native[pd.to_numeric(native["season"], errors="coerce") == season])
+    out = []
+    for hyp in analysis.HYPOTHESES:
+        if hyp.get("market") != "ats":
+            continue
+        d = analysis.hypothesis_picks(g, hyp, hyp["native"]) if len(g) else pd.DataFrame()
+        out.append((hyp, d))
+    return sorted(out, key=lambda t: not t[0]["early"])    # H6 (games 1-9) first
+
+
+def spread_tiles(native):
+    """One tile per spread rule: W-L-P, cover rate, ROI beside its null."""
     tiles = []
-    if nat:
-        price = "pre" if analysis.roi_summary(nat["h"], "pre") else "close"
-        r = dict(analysis.roi_summary(nat["h"], price)).get(analysis.PICK_RULES[0][1])
-        where = "pregame price" if price == "pre" else "close"
-        tiles.append(_roi_headline(
-            "Flat 1u ROI · native lean", r and r[0],
-            f"{market.BOOK_NAMES[nat['book']]} {season_txt(nat['season'])} · {where}"))
-    else:
-        tiles.append(tile("Flat 1u ROI · native lean", "—",
-                          "no graded bets yet · pregame-locked rows"))
-    if rec:
-        r = dict(analysis.roi_summary(rec["h"], "close")).get(analysis.PICK_RULES[0][1])
-        tiles.append(_roi_headline(
-            "Flat 1u ROI · rebuilt history", r and r[0],
-            f"{market.BOOK_NAMES[rec['book']]} {season_txt(rec['season'])} · close · "
-            "hindsight"))
-        sc = analysis.scoring(rec["h"])
-        if sc:
-            se = sc["d_logloss_se"]
-            z = -sc["d_logloss"] / se if np.isfinite(se) and se > 0 else float("nan")
-            tiles.append(tile("Log loss vs the close · rebuilt", f"{sc['d_logloss']:+.4f}",
-                              f"model − close ± {se4(se)} (1 SE)<br>negative = model "
-                              f"better · n={sc['n']}<br>"
-                              f"{resolved_txt(z, 'model better', 'close better')}",
-                              sig_cls(z)))
-    n = len(native)
-    graded = len(ledger.graded(native)) if n else 0
-    tiles.append(tile("Native ledger", f"{n}", f"{graded} graded · {n - graded} "
-                      "pending<br>written before tip, frozen after"))
-    return "<div class='tiles'>" + "".join(tiles) + "</div>"
+    for hyp, d in public_ats(native):
+        games = "games 1–9" if hyp["early"] else "games 10+"
+        label = f"Spread · {hyp['key']} · {games}"
+        r = analysis.ats_row(hyp["key"], d) if len(d) else None
+        if not r:
+            tiles.append(_stat(label, "0–0", "No graded bets yet · first-snapshot "
+                               "spread, edge ≥ 1 pt"))
+            continue
+        c = sig_cls(analysis.z_vs_null(r))
+        tiles.append(_stat(
+            label, f"{r['w']}–{r['l']}" + (f"–{r['push']}" if r["push"] else ""),
+            f"Cover {pct(r['actual'])} (break-even {pct(r['breakeven'])}) · ROI "
+            f"<span class='{c}'>{100 * r['roi']:+.1f}%</span> ± {se_txt(r['roi_se'])} "
+            f"(1 SE) · null {100 * r['roi_null']:+.1f}% · spread favourite "
+            f"{fav_txt(r)}", meter=(r["actual"], r["breakeven"])))
+    return "<div class='gr-summary'>" + "".join(tiles) + "</div>" if tiles else ""
+
+
+def units_svg(units, title="Running units"):
+    """Cumulative units, one point per graded pick, from a zero start."""
+    if not len(units):
+        return ""
+    cum = np.r_[0.0, np.cumsum(np.asarray(units, float))]
+    W, H, L, R, T, B = 900, 260, 46, 14, 14, 30
+    lo, hi = min(cum.min(), -1.0), max(cum.max(), 1.0)
+    pad = 0.08 * (hi - lo)
+    lo, hi = lo - pad, hi + pad
+
+    def X(i):
+        return L + (W - L - R) * i / max(len(cum) - 1, 1)
+
+    def Y(v):
+        return T + (H - T - B) * (hi - v) / (hi - lo)
+    step = max(1, int(np.ceil((hi - lo) / 5)))
+    g = []
+    for v in range(int(np.ceil(lo / step)) * step, int(np.floor(hi)) + 1, step):
+        g.append(f"<line class='grid-ln' x1='{L}' y1='{Y(v):.1f}' x2='{W - R}' "
+                 f"y2='{Y(v):.1f}'/><text class='ax' x='{L - 8}' y='{Y(v) + 4:.1f}' "
+                 f"text-anchor='end'>{v:+d}</text>".replace("+0<", "0<"))
+    g.append(f"<line class='zero' x1='{L}' y1='{Y(0):.1f}' x2='{W - R}' y2='{Y(0):.1f}'/>")
+    pts = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(cum))
+    g.append(f"<polygon class='area' points='{X(0):.1f},{Y(0):.1f} {pts} "
+             f"{X(len(cum) - 1):.1f},{Y(0):.1f}'/>")
+    g.append(f"<polyline class='ln' points='{pts}'/>")
+    if len(cum) <= 120:
+        g += [f"<circle class='pt' cx='{X(i):.1f}' cy='{Y(v):.1f}' r='3'><title>"
+              f"pick {i}: {v:+.2f}u</title></circle>" for i, v in enumerate(cum) if i]
+    g.append(f"<text class='ax' x='{L}' y='{H - 6}'>Start</text><text class='ax' "
+             f"x='{W - R}' y='{H - 6}' text-anchor='end'>Pick {len(cum) - 1}</text>")
+    return (f"<div class='uchart'><div class='head'><span class='t'>{esc(title)}</span>"
+            f"<span class='v'>{cum[-1]:+.2f}u</span></div><svg viewBox='0 0 {W} {H}' "
+            f"role='img' aria-label='{esc(title)}: {cum[-1]:+.2f} units after "
+            f"{len(cum) - 1} picks'>" + "".join(g) + "</svg></div>")
 
 
 HOW_INDEX = (
-    "<p class='note'><b>Model</b> is the composite's P(win); <b>market</b> is "
-    "the price with its margin removed: Kalshi (the exchange, its taker fee "
-    "included in the price; no-vig from the bid/ask midpoints), or the "
-    "sportsbook when Kalshi has no price (tagged with the book). The "
-    "<b>lean</b> is the side the model gives ≥ 50%. <b>Model − market</b> is "
-    "the lean's model probability minus its no-vig market probability; "
-    "<b>model EV</b> is what the model claims the posted price is worth, shown "
-    "beside its <b>null</b>: the EV if the market is exactly right, about minus "
-    "the hold, not zero. Both are model estimates, not verified edges; the "
-    "Ledger and Calibration pages track whether they hold up.</p>"
+    "<p class='note'><b>Lean</b> is the side the model gives ≥ 50%: the pick, "
+    "one unit on its moneyline. <b>Model</b> is the composite's P(win); "
+    "<b>market</b> is the price with its margin removed: Kalshi (the exchange, "
+    "its taker fee included in the price; no-vig from the bid/ask midpoints), "
+    "or the sportsbook when Kalshi has no price (named on the card). "
+    "<b>Model − market</b> is the lean's model probability minus its no-vig "
+    "market probability; <b>EV</b> is what the model claims the posted price "
+    "is worth, shown beside its <b>null</b>: the EV if the market is exactly "
+    "right, about minus the hold, not zero. Both are model estimates, not "
+    "verified edges; Results and Performance track whether they hold up.</p>"
     "<p class='note'><b>Composite Δ</b> is 100 × the standardised four-factor gap "
     "(ridge weights, home − away, in win-% points). <b>early · carryover</b>: a "
     f"team has fewer than {nc.MIN_GAMES} games, so last season's log "
@@ -1018,46 +1254,51 @@ HOW_INDEX = (
     "share × last season's BPM) and each team's free-throw percentage; see "
     "<a href='model.html'>Model</a>. Prices are refreshed each build until tip "
     "and frozen after. A game abstains only while a team has no games yet.</p>"
-    "<p class='note'><b>H5 / H6</b>: the pre-registered spread rules (H6 games "
-    "1–9, H5 games 10+; see the <a href='grades.html#hypotheses'>Ledger</a>). "
-    "From the first snapshot with a model probability and a spread, the "
-    "model's line (13.5 × Φ⁻¹(P) as a margin) must beat the market's by at "
-    "least 1 point at a main-line price; the badge names that side and line. "
-    "It is fixed when first written and graded at that price, win or lose, "
-    "even if the line moves later.</p>")
+    "<p class='note'><b>Spread pick (H5 / H6)</b>: the pre-registered spread "
+    "rules (H6 games 1–9, H5 games 10+; see the <a href='grades.html#hypotheses'>"
+    "Ledger</a>). From the first snapshot with a model probability and a "
+    "spread, the model's line (13.5 × Φ⁻¹(P) as a margin) must beat the "
+    "market's by at least 1 point at a main-line price. It is fixed when "
+    "first written and graded at that price, win or lose, even if the line "
+    "moves later.</p>")
 
 
-def _side_html(code, wp, fav, cls):
-    club = (f"<div class='club'><div class='nm'>{esc(TEAM_NAMES.get(code, code))}</div>"
-            f"<div class='wp{' fav' if fav else ''}'>{pct(wp, 0) if np.isfinite(wp) else '—'}"
-            "</div></div>")
-    chip = f"<div class='tchip'><span>{esc(code)}</span>{logo_html(code)}</div>"
-    return f"<div class='side {cls}'>{chip + club if cls == 'away' else club + chip}</div>"
+def _team_row(r, code, side, p):
+    """One team line of a card: logo, name, model WP, score (live JS)."""
+    picked = np.isfinite(p) and r["lean"] == code
+    wp = (p if side == "home" else 1 - p) if np.isfinite(p) else np.nan
+    pts = pd.to_numeric(r.get(f"{side}_pts"), errors="coerce")
+    small = esc(code) if side == "away" else f"@ {esc(code)}"
+    return (f"<div class='g-team{' picked' if picked else ''}'>"
+            f"<div class='tchip'><span>{esc(code)}</span>{logo_html(code)}</div>"
+            f"<span class='nm'>{esc(TEAM_NAMES.get(code, code))}<small>{small}</small></span>"
+            f"<span class='ln'>{pct(wp, 0) if np.isfinite(wp) else '—'}</span>"
+            f"<span class='sc' data-side='{side}'>{int(pts) if np.isfinite(pts) else ''}"
+            "</span></div>")
 
 
 def game_card(r):
-    """One game: model WP for both sides, the price, the lean; tap for the
-    model-vs-market detail. Reads only the row as recorded."""
+    """One game (the NFL site's card): both teams with model WP, the lean
+    and its price, the spread pick when H5/H6 bets; tap for the model
+    against the market. Reads only the row as recorded."""
     away, home = r["away"], r["home"]
     p = pd.to_numeric(r["p_home"], errors="coerce")
     q_home = pd.to_numeric(r["pre_q_home"], errors="coerce")
     won = pd.to_numeric(r.get("home_won"), errors="coerce")
     has_ml = np.isfinite(pd.to_numeric(r["pre_home_ml"], errors="coerce"))
-    mk = (f"{esc(away)} {ml_txt(r['pre_away_ml'])} · {esc(home)} {ml_txt(r['pre_home_ml'])}"
-          + book_tag(r["pre_book"]) if has_ml else "No price yet")
-    flags = []
-    if np.isfinite(won):
-        flags.append(f"<span class='badge'>Final {int(r['away_pts'])}–{int(r['home_pts'])}</span>")
-    det = [f"<p class='note'><b>{esc(away)} @ {esc(home)}</b> · tip "
-           f"{tip_pt(r['tip_utc'])}</p>"]
+    final = np.isfinite(won)
+    status = (f"Final {int(r['away_pts'])}–{int(r['home_pts'])}" if final else "Pregame")
+    flags, lines = [], []
+    det = [f"<p><b>{esc(away)} @ {esc(home)}</b> · tip {tip_pt(r['tip_utc'])}</p>"]
     if not np.isfinite(p):
-        # no gp: a team is not in this season's logs yet, i.e. has not played
         why = (f"{r['gp_away']:.0f}/{r['gp_home']:.0f} games played"
                if pd.notna(r["gp_home"]) else "no games yet")
+        lines.append("<div class='pick-lines'><span class='kind'>Lean</span>"
+                     "<span class='pk na'>No pick: the model needs a game from "
+                     "both teams</span></div>")
         flags.append(f"<span class='badge'>Abstain · {esc(why)}</span>")
-        det.append("<p class='note'>No probability: a team has no games yet "
-                   "(or the early model is not fitted).</p>")
-        fav_home = fav_away = False
+        det.append("<p>No probability: a team has no games yet (or the early "
+                   "model is not fitted).</p>")
     else:
         lean_home = r["lean"] == home
         ml = r["pre_home_ml"] if lean_home else r["pre_away_ml"]
@@ -1066,14 +1307,22 @@ def game_card(r):
         dec = market.decimal_payout(ml) if has_ml else np.nan
         ev = pl * dec - 1 if np.isfinite(dec) else np.nan
         ev0 = q * dec - 1 if np.isfinite(dec) and np.isfinite(q) else np.nan
-        fav_home, fav_away = p > .5, p < .5
-        flags.append(f"<span class='badge lean'>Lean {esc(r['lean'])}"
-                     + (f" {ml_txt(ml)}" if has_ml else "") + "</span>")
+        price = f" {ml_txt(ml)}" if has_ml else ""
+        gap = (f"{pp(pl - q, cls=False)} pp vs market" if np.isfinite(q)
+               else "no price yet")
+        lines.append(f"<div class='pick-lines'><span class='kind'>Lean · moneyline"
+                     f"</span><span class='pk'>{esc(r['lean'])}{price}</span>"
+                     f"<span class='edge'>{gap}</span></div>"
+                     f"<div class='g-mk'><span>Model {pct(pl)}</span> · <span>Market "
+                     f"{pct(q)}</span>"
+                     + (f" · <span>EV {pp(ev, cls=False)}% (null "
+                        f"{pp(ev0, cls=False)}%)</span>" if np.isfinite(ev0) else "")
+                     + "</div>")
         if pd.notna(r["gp_home"]) and min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES:
             flags.append("<span class='badge'>early · carryover</span>")
         elif r.get("model_tag") in AVAIL_TAGS:
             flags.append("<span class='badge'>injury report</span>")
-        det.append(table(["", esc(away), esc(home)], [
+        det.append("<h3>Model vs market</h3>" + table(["", esc(away), esc(home)], [
             ["Model", pct(1 - p), pct(p)],
             ["Market (no-vig)", pct(1 - q_home), pct(q_home)],
             ["Moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]],
@@ -1087,63 +1336,236 @@ def game_card(r):
                    + tile("Composite Δ", f"{float(r['delta']):+.1f}",
                           "home − away, win-% points")
                    + "</div>")
+    ats = analysis.ats_card(r)
+    if ats:
+        if ats["bet"]:
+            side = esc(ats["side"])
+            lines.append(
+                f"<div class='pick-lines'><span class='kind'>Spread pick · "
+                f"{ats['hyp']['key']}</span><span class='pk'>{side} "
+                f"{line_txt(ats['line'])}</span><span class='edge'>{ats['edge']:.1f} "
+                f"pts vs the line</span></div><div class='g-mk'><span>Model {side} "
+                f"{line_txt(round(ats['model_line'], 1))}</span> · <span>Market "
+                f"{side} {line_txt(ats['line'])}</span> · <span>at {ml_txt(ats['ml'])}"
+                "</span></div>")
+        det.append("<h3>Spread rule</h3>" + ats_note(r, ats))
     b2b = [x for x, f in ((away, r["away_b2b"]), (home, r["home_b2b"])) if f == 1]
     if b2b:
         flags.append(f"<span class='badge warn'>B2B {esc('/'.join(b2b))}</span>")
-    ats = analysis.ats_card(r)
-    if ats:
-        key = ats["hyp"]["key"]
-        if ats["bet"]:
-            flags.append(f"<span class='badge hyp'>{key} ATS {esc(ats['side'])} "
-                         f"{line_txt(ats['line'])}</span>")
-        det.append(ats_note(r, ats))
-    pw = p if np.isfinite(p) else .5
-    bar = ("" if not np.isfinite(p) else
-           "<div class='probbar' aria-hidden='true'>"
-           f"<i class='a' style='width:{100 * (1 - pw):.1f}%'></i>"
-           f"<i class='h' style='width:{100 * pw:.1f}%'></i></div>")
-    summary = ("<summary class='game-summary'><div class='teams'>"
-               + _side_html(away, 1 - p, fav_away, "away")
-               + "<div class='mid'><div class='st' hidden></div>"
-               f"<div class='t'>{tip_pt(r['tip_utc'])}</div><div class='mk'>{mk}</div></div>"
-               + _side_html(home, p, fav_home, "home") + "</div>" + bar
-               + f"<div class='flags'>{''.join(flags)}</div><span class='chev'>⌄</span></summary>")
-    return (f"<details class='card' data-gid='{esc(r['game_id'])}'>{summary}"
-            f"<div class='detail'>{''.join(det)}</div></details>")
+    book = r.get("pre_book")
+    src = (market.BOOK_NAMES.get(book, book) if pd.notna(book) and book else None)
+    note = (f"{esc(src)} price · refreshed each build until tip, frozen after"
+            if src else "No price yet")
+    summary = ("<summary class='game-summary'><div class='g-meta'>"
+               f"<span class='when'>{tip_pt(r['tip_utc'])}</span>"
+               f"<span class='badge st'>{status}</span></div><div class='g-teams'>"
+               + _team_row(r, away, "away", p) + _team_row(r, home, "home", p)
+               + "</div>" + "".join(lines)
+               + (f"<div class='g-flags'>{''.join(flags)}</div>" if flags else "")
+               + f"<div class='g-note'>{note}</div></summary>")
+    cls = "gcard picked-card" if np.isfinite(p) else "gcard"
+    return (f"<details class='{cls}' data-gid='{esc(r['game_id'])}' "
+            f"data-state='{'final' if final else 'upcoming'}'>{summary}"
+            f"<div class='g-detail'>{''.join(det)}</div></details>")
+
+
+FILTER_JS = """<script>(function(){var bar=document.querySelector('.seg[data-filter]');
+if(!bar)return;bar.hidden=false;
+function count(){var c={all:0,upcoming:0,live:0,final:0};
+document.querySelectorAll('.gcard[data-state]').forEach(function(x){c.all++;c[x.getAttribute('data-state')]++;});
+bar.querySelectorAll('button').forEach(function(b){var k=b.getAttribute('data-show');
+b.querySelector('.ct').textContent=c[k];if(k==='live')b.hidden=!c.live;});}
+window.nbaCount=count;count();
+bar.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
+var f=b.getAttribute('data-show');bar.querySelectorAll('button').forEach(function(x){
+x.setAttribute('aria-pressed',x===b?'true':'false');});
+document.querySelectorAll('.gcard[data-state]').forEach(function(c){
+c.hidden=f!=='all'&&c.getAttribute('data-state')!==f;});});})();</script>"""
 
 
 def render_index(led, today, built, model_ok, recon=None):
+    """Picks: today's slate as cards, under the season's lean record."""
     # spreads come from the sportsbook even where Kalshi is the market:
     # keep its label before market_view relabels first_book
     led = led.assign(spread_book=led["first_book"]) if len(led) else led
-    led, recon = analysis.market_view(led), analysis.market_view(recon)
+    scope = public_scope(led)
+    led = analysis.market_view(led)
     day_txt = pd.Timestamp(today).strftime("%A, %B %-d")
-    head = (f"<h1>{esc(day_txt)}</h1><p class='lead'>Model win probabilities "
-            "for every game on today's slate, against the market. Tap a game "
-            f"for details. Slate <span class='stamp'>{esc(today)}</span>; times "
-            "are Pacific (PT).<span data-scores-asof hidden> Scores from ESPN "
-            "as of <time></time>; reload the page to update them.</span></p>")
-    record = ("<div class='record'><div class='l'>Record · flat 1u on the lean, "
-              "against its null and the market favourite</div>"
-              + headline_tiles(led, recon)
-              + "<div class='go'><a href='grades.html'>Ledger →</a></div></div>")
+    right = ("<div class='rec'><div class='l'>Forecast updated</div>"
+             f"<div class='mono'>{esc(built)}</div></div>")
+    head = _head(f"{season_txt(season_for(today))} regular season",
+                 f"Picks · {esc(day_txt)}",
+                 "The model's side in every game (the lean, one unit on its "
+                 "moneyline) against the market, and the pre-registered spread "
+                 "pick when its rule bets. Prices refresh each build until tip "
+                 "and freeze after. Open a game for the model against the market. "
+                 f"Slate <span class='stamp'>{esc(today)}</span>; times are "
+                 "Pacific (PT).<span data-scores-asof hidden> Scores from ESPN "
+                 "as of <time></time>; reload the page to update them.</span>",
+                 right)
+    tiles = record_tiles(scope)
     how = fold("How these numbers are made", HOW_INDEX)
     if not model_ok:
-        return page("NBA composite", "index.html", head +
-                    "<p class='note'>No fitted model in <code>model/</code> "
-                    "yet. Run the <b>Fit model</b> workflow.</p>" + record, built)
+        return page("NBA picks", "index.html", head + tiles +
+                    "<div class='flag-note'>No fitted model in <code>model/</code> "
+                    "yet. Run the <b>Fit model</b> workflow.</div>", built)
     day = led[led["slate_date"].astype(str) == today] if len(led) else led
     if not len(day):
-        return page("NBA composite", "index.html", head +
-                    "<div class='flag-note'>No regular-season games scored for this "
+        return page("NBA picks", "index.html", head + tiles +
+                    "<div class='empty'>No regular-season games scored for this "
                     "date (off day, preseason, or the build ran after tip). "
-                    "Exhibition games are tracked separately on the "
-                    "<a href='preseason.html'>Preseason</a> page.</div>"
-                    + record + how, built)
+                    "Exhibition games are tracked on the <a href='preseason.html'>"
+                    "Preseason</a> research page.</div>" + how, built)
+    n_abs = int(pd.to_numeric(day["p_home"], errors="coerce").isna().sum())
+    note = (f"<div class='flag-note'>{n_abs} of {len(day)} game"
+            f"{'s' if len(day) != 1 else ''} {'have' if n_abs != 1 else 'has'} no "
+            "model probability yet: the model needs at least one game from both "
+            "teams this season.</div>" if n_abs else "")
+    seg = ("<div class='seg' data-filter role='group' aria-label='Filter games' hidden>"
+           + "".join(f"<button type='button' data-show='{k}' aria-pressed="
+                     f"'{'true' if k == 'all' else 'false'}'>{t}<span class='ct'></span>"
+                     "</button>" for k, t in (("all", "All"), ("upcoming", "Upcoming"),
+                                               ("live", "Live"), ("final", "Final")))
+           + "</div>")
     cards = [game_card(r) for _, r in day.sort_values("tip_utc").iterrows()]
-    return page("NBA composite", "index.html",
-                head + f"<div class='grid' data-slate='{esc(today)}'>{''.join(cards)}"
-                "</div>" + SCORES_JS + record + how, built)
+    return page("NBA picks", "index.html",
+                head + tiles + note
+                + f"<div class='toolbar'><h2 class='sec'>Today’s games</h2>{seg}</div>"
+                + f"<div class='ggrid' data-slate='{esc(today)}'>{''.join(cards)}</div>"
+                + FILTER_JS + SCORES_JS + how, built)
+
+
+def _game_rows(native, scope):
+    """The public game-by-game rows: the lean bet at the record's price, the
+    result, and the spread pick (H5/H6) when its rule bet the game."""
+    sec = scope["sec"]["h"].assign(game_id=lambda d: d["game_id"].astype(str))
+    p = scope["picks"].assign(game_id=lambda d: d["game_id"].astype(str))
+    ats = {}
+    for hyp, d in public_ats(native):
+        for _, a in d.iterrows():
+            ats[str(a["game_id"])] = (hyp["key"], a)
+    rows = p.merge(sec[["game_id", "slate_date", "tip_utc", "away", "home",
+                        "away_pts", "home_pts"]], on="game_id", how="left")
+    return rows.sort_values(["slate_date", "tip_utc"], ascending=[False, True]), ats
+
+
+def _result_badge(r):
+    return ("<span class='badge w'>W</span>" if r == 1 else
+            "<span class='badge l'>L</span>" if r == 0 else "<span class='badge'>P</span>")
+
+
+def render_results(native, built, today):
+    """Results: every graded pick this season, by slate, newest first."""
+    scope = public_scope(native)
+    body = [_head(f"{season_txt(season_for(today))} season", "Results",
+                  "Every graded pick this season, written before tip. The lean "
+                  "is one unit on the model's side at the pregame price; spread "
+                  "picks (H5/H6) at their first-snapshot price. Read each ROI "
+                  "against its <b>null</b> (about −4%, the market's hold), not zero."),
+            record_tiles(scope), "<h2 class='sec'>Spread picks</h2>",
+            "<p class='sec-lead'>The pre-registered spread rules, graded at the "
+            "first snapshot's spread and price.</p>", spread_tiles(native),
+            "<h2 class='sec'>Game by game</h2>"]
+    if not scope:
+        body.append("<div class='empty'>No graded picks yet. Results appear the "
+                    "morning after the first games with a model probability.</div>")
+        return page("NBA results", "results.html", "".join(body), built)
+    rows, ats = _game_rows(native, scope)
+    for i, (date, g) in enumerate(rows.groupby("slate_date", sort=False)):
+        w, n = int(g["won"].sum()), len(g)
+        trs = []
+        for _, r in g.iterrows():
+            sp = ats.get(str(r["game_id"]))
+            spread = ("—" if not sp else
+                      f"{sp[0]} {esc(sp[1]['side'])} {line_txt(sp[1]['line'])} "
+                      f"{_result_badge(sp[1]['result'])} {sp[1]['units']:+.2f}u")
+            trs.append(
+                f"<tr><td><span class='team-code'>{esc(r['away'])} @ {esc(r['home'])}"
+                f"</span><br><span class='mut small'>{tip_pt(r['tip_utc'])}</span></td>"
+                f"<td><b>{esc(r['side'])}</b> <span class='mono'>{ml_txt(r['ml'])}</span></td>"
+                f"<td class='n'>{pct(r['model_p'])}</td><td class='n'>{pct(r['q'])}</td>"
+                f"<td class='n'>{int(r['away_pts'])}–{int(r['home_pts'])}</td>"
+                f"<td>{_result_badge(int(r['won']))}</td>"
+                f"<td class='n'>{r['units']:+.2f}u</td><td class='small'>{spread}</td></tr>")
+        head = "".join(f"<th{' class=n' if c in ('Model', 'Market', 'Final', 'Units') else ''}>"
+                       f"{c}</th>" for c in ("Game", "Lean", "Model", "Market", "Final",
+                                             "Result", "Units", "Spread pick"))
+        tbl = (f"<div class='gr-tablewrap'><table class='gr'><thead><tr>{head}</tr>"
+               f"</thead><tbody>{''.join(trs)}</tbody></table></div>")
+        day = pd.Timestamp(date).strftime("%a %b %-d")
+        body.append(fold(f"{esc(day)} · {w}–{n - w}<span class='rt'>"
+                         f"{g['units'].sum():+.2f}u</span>", tbl, open_=i == 0))
+    body.append(f"<p class='note'>Lean record: {_scope_txt(scope)}. The full "
+                "record, both bases and every book, is on the "
+                "<a href='grades.html'>Ledger</a>.</p>")
+    return page("NBA results", "results.html", "".join(body), built)
+
+
+def render_performance(native, built, today):
+    """Performance: running units and same-game baselines for the lean."""
+    scope = public_scope(native)
+    body = [_head(f"{season_txt(season_for(today))} season", "Performance",
+                  "How this season's leans are doing, beside simple baselines on "
+                  "the same games at the same prices. Each ROI is read against "
+                  "its null, the ROI if the market's no-vig price were exactly "
+                  "right (about minus the hold), not zero."),
+            record_tiles(scope)]
+    if not scope:
+        body.append("<div class='empty'>The running-units chart starts with the "
+                    "first graded pick.</div>")
+    else:
+        p = scope["picks"]
+        sec = scope["sec"]["h"].assign(game_id=lambda d: d["game_id"].astype(str))
+        p = p.assign(game_id=p["game_id"].astype(str)).merge(
+            sec[["game_id", "slate_date", "tip_utc"]], on="game_id", how="left"
+        ).sort_values(["tip_utc", "game_id"])
+        body.append(units_svg(p["units"], f"Running units · lean · {_scope_txt(scope)}"))
+        r = scope["row"]
+
+        def base(label, u):
+            u = np.asarray(u, float)
+            n = len(u)
+            se = u.std(ddof=1) / np.sqrt(n) if n > 1 else float("nan")
+            w = int((u > 0).sum())
+            z = (u.mean() - r["roi_null"]) / se if np.isfinite(se) and se > 0 else float("nan")
+            return _stat(label, f"{w}–{n - w}",
+                         f"{u.sum():+.2f}u · ROI <span class='{sig_cls(z)}'>"
+                         f"{100 * u.mean():+.1f}%</span> ± {se_txt(se)} (1 SE)")
+        body += ["<h2 class='sec'>Model vs simple baselines</h2><div class='gr-summary'>",
+                 _stat("Compared games", f"{r['n']}", f"{_scope_txt(scope)} · same "
+                       "games, same prices"),
+                 base("Model lean", p["units"]),
+                 base("Market favourite", p["fav_units"]),
+                 base("Home side", p["home_units"]),
+                 "</div><p class='note'>The model's lean, always taking the market "
+                 "favourite, and always taking the home side, each 1 unit at the "
+                 f"same price. Null (market exactly right): "
+                 f"{100 * r['roi_null']:+.1f}% for the lean. Colour marks only a "
+                 f"gap of at least {SIG:g} SE from the null.</p>"]
+        wk = pd.to_datetime(p["slate_date"].astype(str))
+        p = p.assign(week=(wk - pd.to_timedelta(wk.dt.weekday, unit="D")).dt.strftime("%Y-%m-%d"))
+        trs = []
+        for week, g in sorted(p.groupby("week"), reverse=True):
+            rr = analysis.roi_row(week, g)
+            c = sig_cls(analysis.z_vs_null(rr))
+            start = pd.Timestamp(week)
+            trs.append(f"<tr><td>{start.strftime('%b %-d')}–"
+                       f"{(start + pd.Timedelta(days=6)).strftime('%b %-d')}</td>"
+                       f"<td class='n'>{rr['w']}–{rr['l']}</td><td class='n'>"
+                       f"{pct(rr['actual'])}</td><td class='n'>{rr['units']:+.2f}u</td>"
+                       f"<td class='n'><span class='{c}'>{100 * rr['roi']:+.1f}%</span> "
+                       f"<span class='mut'>± {se_txt(rr['roi_se'])}</span></td>"
+                       f"<td class='n'>{100 * rr['roi_null']:+.1f}%</td></tr>")
+        body.append("<h2 class='sec'>By week</h2><div class='gr-tablewrap'><table class='gr'>"
+                    "<thead><tr><th>Week</th><th class=n>W–L</th><th class=n>Win %</th>"
+                    "<th class=n>Units</th><th class=n>ROI (± 1 SE)</th>"
+                    "<th class=n>Null</th></tr></thead><tbody>" + "".join(trs)
+                    + "</tbody></table></div>")
+    body += ["<h2 class='sec'>Spread picks</h2>", spread_tiles(native),
+             "<p class='note'>Calibration, the pre-registered hypotheses, the "
+             "rebuilt seasons and the model's coefficients are on the "
+             "<a href='grades.html'>Research</a> pages.</p>"]
+    return page("NBA performance", "performance.html", "".join(body), built)
 
 
 # ------------------------------------------------------------- model page ---
@@ -2046,9 +2468,11 @@ def snapshot_injuries(rows):
 
 def write_pages(native, recon, today, model_ok, pre=None):
     OUT_DIR.mkdir(exist_ok=True)
-    built = datetime.now(PT).strftime("%Y-%m-%d %-I:%M %p PT")
+    built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
     (OUT_DIR / "index.html").write_text(render_index(native, today, built, model_ok,
                                                      recon))
+    (OUT_DIR / "results.html").write_text(render_results(native, built, today))
+    (OUT_DIR / "performance.html").write_text(render_performance(native, built, today))
     (OUT_DIR / "grades.html").write_text(render_grades(native, recon, built))
     (OUT_DIR / "market-calibration.html").write_text(
         render_calibration(native, recon, built))
@@ -2111,8 +2535,8 @@ def main(argv=None):
     text = write_pages(native, recon, today, model_ok, pre)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(text, encoding="utf-8")
-    log(f"wrote {OUT_DIR}/index.html, grades.html, market-calibration.html, "
-        f"model.html, preseason.html, {report.REPORT_NAME}")
+    log(f"wrote {OUT_DIR}/" + ", ".join(h for h, _ in PAGES)
+        + f", {report.REPORT_NAME}")
     return 0
 
 
