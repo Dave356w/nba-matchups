@@ -8,6 +8,10 @@ owner directs the product.
 
 ## Sources of truth
 
+- `docs/model_guidelines.md`: the model's strengths and weaknesses from all
+  the research below, and the rules for using and changing it (owner's
+  request, 2026-10-21; `research/model_review.py`). Read it before
+  proposing a model change or a new bet rule.
 - `MODEL.md` + `nba_composite.py`: the model. `build_site.py`: the daily
   pipeline and pages. `market.py`: all price arithmetic, in one place.
   `ledger.py`: ledger invariants. `analysis.py`: calibration statistics.
