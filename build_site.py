@@ -1700,9 +1700,9 @@ def render_model(native, recon, built):
     for rule, label in analysis.PICK_RULES:
         if rule not in analysis.SHOWN_RULES:
             continue
-        rows = (_season_table(_shown(analysis.season_rows(ledger.graded(native))),
+        rows = (_season_table(analysis.shown(analysis.season_rows(ledger.graded(native))),
                               "native", rule)
-                + _season_table(_shown(analysis.season_rows(ledger.graded(recon))),
+                + _season_table(analysis.shown(analysis.season_rows(ledger.graded(recon))),
                                 "reconstructed", rule))
         body.append(f"<h2>Flat 1u ROI by season · {esc(label.split(' — ')[0].lower())} "
                     "at the close</h2>")
@@ -1726,21 +1726,15 @@ BASIS_LABELS = {"native": "Native (pregame-locked, forward)",
                 "reconstructed": "Reconstructed (leave-one-season-out, hindsight)"}
 BASIS_BADGES = {"native": "<span class='badge native'>Native · forward</span>",
                 "reconstructed": "<span class='badge recon'>Reconstructed · hindsight</span>"}
-# Books the research pages leave out (owner's decision, 2026-10-21): ESPN BET
-# is no longer offered, so the Ledger, Calibration and Model pages show no
-# ESPN BET-priced section, season or spread, and the Ledger grades the
-# hypotheses on DraftKings (analysis.HYPOTHESIS_BOOK). The report keeps them.
-HIDDEN_BOOKS = ("espnbet",)
+# The research pages, like the report, show nothing priced by a book in
+# analysis.HIDDEN_BOOKS (ESPN BET, no longer offered; owner's decisions,
+# 2026-10-21): no section, season row, market fold or spread. The Ledger
+# grades the hypotheses on DraftKings (analysis.HYPOTHESIS_BOOK).
 HIDDEN_NOTE = ("Seasons priced only by ESPN BET (2024-25), which is no longer "
-               "offered, are left out of these pages; the plain-text "
-               f"<a href='{report.REPORT_NAME}'>report</a> keeps them.")
-
-
-def _shown(items, key="book"):
-    """Sections, season rows or (book, rows) pairs whose book the research
-    pages show (HIDDEN_BOOKS)."""
-    return [x for x in items
-            if (x[0] if isinstance(x, tuple) else x[key]) not in HIDDEN_BOOKS]
+               "offered, are left out of these pages and the "
+               f"<a href='{report.REPORT_NAME}'>report</a>; the rows stay in "
+               f"<a href='{REPO_URL}data/nba_reconstructed.csv'>"
+               "data/nba_reconstructed.csv</a>.")
 
 READ_KEY = (
     "<details class='key'><summary>How to read these numbers</summary> Judge every ROI against its "
@@ -2123,7 +2117,7 @@ def _ledger_body(sec, native):
 def render_grades(native, recon, built):
     # sections grade against Kalshi where a row has it; the hypotheses
     # (below, raw rows) stay on the sportsbook prices they were registered on
-    secs = _shown(_sections(analysis.market_view(native), analysis.market_view(recon)))
+    secs = analysis.shown(_sections(analysis.market_view(native), analysis.market_view(recon)))
     body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, graded "
             "against the final score and the market: one unit on the model's "
             "lean each game. Judge each ROI against its <b>null</b> (about −4%, "
@@ -2232,10 +2226,10 @@ def _band_section(body, h, native):
 
 def _ats_section(body, h):
     """1u flat spread bets at the closing spread, beside the moneyline ROI.
-    Only spreads from books the research pages show (HIDDEN_BOOKS); the
+    Only spreads from books the pages show (analysis.HIDDEN_BOOKS); the
     sportsbook behind a Kalshi-priced row's spread is its `spread_book`."""
     book = h["spread_book"] if "spread_book" in h else h["close_book"]
-    h = h[~book.astype(str).isin(HIDDEN_BOOKS)]
+    h = h[~book.astype(str).isin(analysis.HIDDEN_BOOKS)]
     sections = analysis.ats_summary(h)
     if not sections:
         return
@@ -2377,8 +2371,8 @@ def _market_games(native, recon):
 
 def render_calibration(native, recon, built):
     native, recon = analysis.market_view(native), analysis.market_view(recon)
-    parts = _shown(analysis.book_split(_market_games(native, recon)))
-    secs = _shown(_sections(native, recon))
+    parts = analysis.shown(analysis.book_split(_market_games(native, recon)))
+    secs = analysis.shown(_sections(native, recon))
     jumps = [(_slug("market", b), f"Market · {market.BOOK_NAMES[b]}") for b, _ in parts]
     jumps += [(s["id"], "Model · " + s["jump"]) for s in secs]
     body = ["<h1>Calibration</h1><p class='lead'>When a forecast says 70%, "

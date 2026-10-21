@@ -79,7 +79,7 @@ def _summary_block(h, price, indent="    "):
 def _sections(g):
     h = analysis.with_close(ledger.graded(g)) if g is not None and len(g) else g
     out = []
-    for book, hb in analysis.book_split(h):
+    for book, hb in analysis.shown(analysis.book_split(h)):
         for season in sorted(hb["season"].dropna().unique(), reverse=True):
             out.append((book, season, hb[hb["season"] == season]))
     return out
@@ -168,7 +168,7 @@ def reconstructed_block(recon):
     lines.append("  Season table (lean at the close):")
     lines.append(f"    {'book · season':<24}{'n':>6}{'W-L':>11}{'units':>9}"
                  f"{'ROI':>8}{'+/-':>6}{'null':>8}{'fav ROI':>9}{'LL model-close':>17}")
-    for row in analysis.season_rows(ledger.graded(recon)):
+    for row in analysis.shown(analysis.season_rows(ledger.graded(recon))):
         r, s = row["lean"], row["scoring"]
         if not r:
             continue
@@ -238,6 +238,9 @@ def report_text(native, recon, pre=None, tags=()):
              "Market: Kalshi (last pre-tip minute; fee in the price) wherever a row "
              "has it, from 2025-26; earlier rows keep their sportsbook close. The "
              "hypotheses stay on the sportsbook prices they were registered on.",
+             "Nothing priced by ESPN BET (no longer offered) is shown, as on the "
+             "pages: 2024-25 is left out; its rows stay in "
+             "data/nba_reconstructed.csv.",
              ""]
     nv, rv = analysis.market_view(native), analysis.market_view(recon)
     for block in (native_block(nv), hypotheses_block(native, recon),

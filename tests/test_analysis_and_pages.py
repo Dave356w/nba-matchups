@@ -138,7 +138,7 @@ def _two_books():
 
 def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    monkeypatch.setattr(build_site, "HIDDEN_BOOKS", ())     # every book shown
+    monkeypatch.setattr(analysis, "HIDDEN_BOOKS", ())       # every book shown
     recon = _two_books()
     build_site.write_pages(ledger.empty(), recon, "2026-11-19", model_ok=True)
     cal = (tmp_path / "market-calibration.html").read_text()
@@ -153,7 +153,7 @@ def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
     assert len(parts["espnbet"]) == 120 and len(parts["dk"]) == 80
 
 
-def test_research_pages_leave_out_espn_bet_and_the_report_keeps_it(tmp_path, monkeypatch):
+def test_pages_and_report_leave_out_espn_bet(tmp_path, monkeypatch):
     # ESPN BET is no longer offered (owner's decision, 2026-10-21)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     txt = build_site.write_pages(ledger.empty(), _two_books(), "2026-11-19",
@@ -168,7 +168,9 @@ def test_research_pages_leave_out_espn_bet_and_the_report_keeps_it(tmp_path, mon
     assert "80 games (0 native, 80 reconstructed;" in cal and "120 games" not in cal
     model = pages["model.html"]
     assert "DraftKings 2026-27" in model and "ESPN BET 2026-27" not in model
-    assert "ESPN BET 2026-27" in txt                      # the report keeps it
+    # the report too; the hidden rows are still in the data it was given
+    assert "ESPN BET 2026-27" not in txt and "ESPN BET close" not in txt
+    assert "DraftKings 2026-27" in txt and "no longer offered" in txt
 
 
 def test_clv_only_within_one_book():

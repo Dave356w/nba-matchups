@@ -98,6 +98,19 @@ def market_view(g):
     return v
 
 
+# Books the pages and the report leave out (owner's decisions, 2026-10-21):
+# ESPN BET is no longer offered. The data keep its rows and prices; only what
+# is shown is filtered (shown()).
+HIDDEN_BOOKS = ("espnbet",)
+
+
+def shown(items, key="book"):
+    """Sections, season rows or (book, ...) tuples whose book is shown (not
+    in HIDDEN_BOOKS)."""
+    return [x for x in items
+            if (x[0] if isinstance(x, tuple) else x[key]) not in HIDDEN_BOOKS]
+
+
 def book_split(h):
     """[(book label, rows)] by closing book, in market.BOOKS order."""
     if h is None or not len(h):
