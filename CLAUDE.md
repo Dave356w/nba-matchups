@@ -44,9 +44,9 @@ owner directs the product.
   Nov) are left off the pages and the report (see Pages below) and stay in
   the data. The Picks page's game cards read the raw rows (owner's
   decision, 2026-10-20): one sportsbook's moneyline and spread
-  (DraftKings), with Kalshi's pregame pair in each card's detail for
-  reference. The Preseason page stays on Kalshi, the only market for
-  exhibitions. The pre-registered hypotheses read the raw rows: they stay
+  (DraftKings), and no Kalshi price (owner's decision, 2026-10-21). The
+  Preseason page stays on Kalshi, the only market for exhibitions; it is
+  the only page that shows a Kalshi price. The pre-registered hypotheses read the raw rows: they stay
   on the sportsbook prices they were registered on. Reconstructed Kalshi
   prices are filled by "Backfill history" with `kalshi` checked
   (`backfill_history.py --kalshi`), never by hand.

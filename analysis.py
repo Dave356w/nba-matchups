@@ -65,9 +65,8 @@ def with_close(g):
 # The bases market_view prices by Kalshi: none. Live (native) and rebuilt
 # games are graded at their sportsbook, DraftKings (owner's decisions,
 # 2026-10-21; Kalshi was the pages' market from 2026-10-06). Kalshi's prices
-# stay in the data (kalshi_* columns; research/kalshi_benchmark.py), in the
-# Picks cards' detail and on the Preseason page; naming a basis here grades
-# it by Kalshi again.
+# stay in the data (kalshi_* columns; research/kalshi_benchmark.py) and on the
+# Preseason page; naming a basis here grades it by Kalshi again.
 KALSHI_BASES = ()
 
 
