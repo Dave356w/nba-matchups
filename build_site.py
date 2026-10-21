@@ -1700,8 +1700,9 @@ def render_model(native, recon, built):
     for rule, label in analysis.PICK_RULES:
         if rule not in analysis.SHOWN_RULES:
             continue
-        rows = (_season_table(analysis.season_rows(ledger.graded(native)), "native", rule)
-                + _season_table(analysis.season_rows(ledger.graded(recon)),
+        rows = (_season_table(_shown(analysis.season_rows(ledger.graded(native))),
+                              "native", rule)
+                + _season_table(_shown(analysis.season_rows(ledger.graded(recon))),
                                 "reconstructed", rule))
         body.append(f"<h2>Flat 1u ROI by season · {esc(label.split(' — ')[0].lower())} "
                     "at the close</h2>")
@@ -1717,7 +1718,7 @@ def render_model(native, recon, built):
         "close</b>: log-loss gap on the same games (negative = model better). ± is "
         "one standard error; colour marks ≥ 2 SE from the null. Reconstructed rows "
         "are hindsight (that season left out of the fit, graded at the close), never "
-        "forward evidence.</div>")
+        f"forward evidence. {HIDDEN_NOTE}</div>")
     return page("NBA model", "model.html", "".join(body), built)
 
 # ------------------------------------------------ ledger + calibration ---
@@ -1725,11 +1726,21 @@ BASIS_LABELS = {"native": "Native (pregame-locked, forward)",
                 "reconstructed": "Reconstructed (leave-one-season-out, hindsight)"}
 BASIS_BADGES = {"native": "<span class='badge native'>Native · forward</span>",
                 "reconstructed": "<span class='badge recon'>Reconstructed · hindsight</span>"}
-# Books the Ledger page leaves out (owner's decision, 2026-10-21): ESPN BET is
-# no longer offered, so the Ledger shows no ESPN BET-priced section or spread
-# and grades the hypotheses on DraftKings (analysis.HYPOTHESIS_BOOK). The
-# Model and Calibration pages and the report's season table keep them.
-LEDGER_HIDDEN_BOOKS = ("espnbet",)
+# Books the research pages leave out (owner's decision, 2026-10-21): ESPN BET
+# is no longer offered, so the Ledger, Calibration and Model pages show no
+# ESPN BET-priced section, season or spread, and the Ledger grades the
+# hypotheses on DraftKings (analysis.HYPOTHESIS_BOOK). The report keeps them.
+HIDDEN_BOOKS = ("espnbet",)
+HIDDEN_NOTE = ("Seasons priced only by ESPN BET (2024-25), which is no longer "
+               "offered, are left out of these pages; the plain-text "
+               f"<a href='{report.REPORT_NAME}'>report</a> keeps them.")
+
+
+def _shown(items, key="book"):
+    """Sections, season rows or (book, rows) pairs whose book the research
+    pages show (HIDDEN_BOOKS)."""
+    return [x for x in items
+            if (x[0] if isinstance(x, tuple) else x[key]) not in HIDDEN_BOOKS]
 
 READ_KEY = (
     "<details class='key'><summary>How to read these numbers</summary> Judge every ROI against its "
@@ -2112,9 +2123,7 @@ def _ledger_body(sec, native):
 def render_grades(native, recon, built):
     # sections grade against Kalshi where a row has it; the hypotheses
     # (below, raw rows) stay on the sportsbook prices they were registered on
-    secs = [s for s in _sections(analysis.market_view(native),
-                                 analysis.market_view(recon))
-            if s["book"] not in LEDGER_HIDDEN_BOOKS]
+    secs = _shown(_sections(analysis.market_view(native), analysis.market_view(recon)))
     body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, graded "
             "against the final score and the market: one unit on the model's "
             "lean each game. Judge each ROI against its <b>null</b> (about −4%, "
@@ -2143,9 +2152,7 @@ def render_grades(native, recon, built):
                     "<div class='flag-note'>The current model replayed on past "
                     "seasons, each season left out of its own fit and graded at the "
                     "close. <b>Hindsight, not a track record:</b> the model was "
-                    "designed after these games were played. Seasons priced only "
-                    "by ESPN BET (no longer offered) are left out here; the "
-                    "<a href='model.html'>Model</a> page keeps them.</div>")
+                    f"designed after these games were played. {HIDDEN_NOTE}</div>")
     for sec in rec:
         if sec["book"] is None:
             body.append(f"<div id='{sec['id']}' aria-label='{esc(sec['label'])}'>"
@@ -2225,10 +2232,10 @@ def _band_section(body, h, native):
 
 def _ats_section(body, h):
     """1u flat spread bets at the closing spread, beside the moneyline ROI.
-    Only spreads from books the Ledger shows (LEDGER_HIDDEN_BOOKS); the
+    Only spreads from books the research pages show (HIDDEN_BOOKS); the
     sportsbook behind a Kalshi-priced row's spread is its `spread_book`."""
     book = h["spread_book"] if "spread_book" in h else h["close_book"]
-    h = h[~book.astype(str).isin(LEDGER_HIDDEN_BOOKS)]
+    h = h[~book.astype(str).isin(HIDDEN_BOOKS)]
     sections = analysis.ats_summary(h)
     if not sections:
         return
@@ -2370,8 +2377,8 @@ def _market_games(native, recon):
 
 def render_calibration(native, recon, built):
     native, recon = analysis.market_view(native), analysis.market_view(recon)
-    parts = analysis.book_split(_market_games(native, recon))
-    secs = _sections(native, recon)
+    parts = _shown(analysis.book_split(_market_games(native, recon)))
+    secs = _shown(_sections(native, recon))
     jumps = [(_slug("market", b), f"Market · {market.BOOK_NAMES[b]}") for b, _ in parts]
     jumps += [(s["id"], "Model · " + s["jump"]) for s in secs]
     body = ["<h1>Calibration</h1><p class='lead'>When a forecast says 70%, "
@@ -2395,7 +2402,7 @@ def render_calibration(native, recon, built):
     body.append("<h2 id='model'>Model vs market, same games</h2>")
     _model_sections(body, secs)
     body.append("<p class='note'>Bet grading by price band (ROI, EV and their "
-                "nulls) is on the <a href='grades.html'>Ledger</a>.</p>")
+                f"nulls) is on the <a href='grades.html'>Ledger</a>. {HIDDEN_NOTE}</p>")
     return page("NBA calibration", "market-calibration.html", "".join(body), built)
 
 
