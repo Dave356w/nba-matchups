@@ -201,15 +201,25 @@ decomposition, not a stronger rating.
 
 ## 7. Known limitations
 
-- **No demonstrated edge.** v5 trails the close by about 0.016–0.019 log
-  loss per game on the resolved samples. Native (pregame-locked) rows are
-  the forward test; there are none yet.
-- **Only the open is close to break-even.** At the close the model adds
-  nothing to the price; at the open its disagreement is about the size a
-  value bet needs, and lines move toward it (CLAUDE.md, open vs close).
-  Part of that may be injury-report timing: `research/open_price.py`.
-- **Heavy favourites are too flat.** Market favourites of 80–90% won
-  83–86%; the base + phase model's mean P was 77–78% (§6.2 runs).
+The aggregate review of every result, with the rules for using and
+changing the model, is [`docs/model_guidelines.md`](docs/model_guidelines.md)
+(2026-10-21; numbers from `research/model_review.py`).
+
+- **No demonstrated edge.** v6 trails the close by +0.0184 ± 0.0110
+  (2025-26 DraftKings) and +0.0143 ± 0.0098 (2024-25 ESPN BET) log loss per
+  game, games 10+, and most of the gap sits in the games where it disagrees
+  most with the close. Native (pregame-locked) rows are the forward test;
+  none is graded yet.
+- **Only the open is close to break-even.** At the close the outcome puts
+  no weight on the model's disagreement (w −0.06 ± 0.40 / +0.01 ± 0.37); at
+  the open about a third (+0.33 ± 0.37 / +0.44 ± 0.35), and lines move
+  toward it (CLAUDE.md, open vs close). Part of that may be injury-report
+  timing: `research/open_price.py`.
+- **Not flat against outcomes.** The calibration slope is 1.04 ± 0.17
+  (2025-26 DK) and 0.97 ± 0.15 (2024-25 ESPN BET); the earlier "heavy
+  favourites too flat" reading was against the close or an older model (v5
+  audit, Task C). Heavy favourites (≥ 0.90 at the close) trail the DK close
+  in 2025-26 (+0.050 ± 0.013, n = 39) but not the ESPN BET close in 2024-25.
 - **Reconstructed rows are hindsight**: priced at the close, with design
   choices (half-life, B2B, phase) made on overlapping seasons.
 - **Not modelled**: travel, altitude, lineups beyond the report's
@@ -227,6 +237,7 @@ decomposition, not a stronger rating.
 | §6.2 phase | Calibration shape | `python research/calibration_shape.py --seasons 2025 2026` |
 | Open vs close, H1–H3 | Open vs close | `python research/open_price.py --seasons 2025 2026` |
 | H1–H6 on DraftKings | — (repo data) | `python research/dk_hypotheses.py [--open-price research/output/open_price.csv]` |
+| Model review, §7 and the guidelines | — (repo data) | `python research/model_review.py` |
 
 The 2026-09-30 refit and re-score after the coverage fix reproduced the
 committed `logit_avail.json` and reconstructed rows exactly (nothing to
