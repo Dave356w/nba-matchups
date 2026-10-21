@@ -1,0 +1,35 @@
+name: Median margin benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/median-margin-benchmark]
+    paths:
+      - research/median_margin_benchmark.py
+      - tests/test_median_margin_benchmark.py
+      - .github/workflows/median-margin-benchmark.yml
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_median_margin_benchmark.py -q
+      - name: Frozen median holdout benchmark
+        run: python research/median_margin_benchmark.py
+      - name: Report
+        run: cat diagnostics/median_margin_benchmark/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: median-margin-benchmark
+          path: diagnostics/median_margin_benchmark/
