@@ -1,0 +1,23 @@
+{
+  "seasons": [
+    2017,
+    2018,
+    2019,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "mappings": [
+    "fixed_13_5",
+    "scale_only",
+    "affine"
+  ],
+  "bootstrap_seed": 20261021,
+  "bootstrap_draws": 2000,
+  "bootstrap_cluster": "date",
+  "margin": "home final points minus away final points; includes overtime",
+  "source_commit": "a70fabb8ae8677b6fe4371b8f950630ad3b50c31"
+}
