@@ -82,7 +82,7 @@ def test_calib_recovers_slope():
 
 
 def test_part_b_frozen_core(monkeypatch):
-    w = {"sd": [1.0] * 8, "w": [0.01] * 8, "years": [2015, 2026]}
+    w = {"sd": [1.0] * 8, "w": [0.01] * 8, "years": [2015, 2026], "r2_in_sample": 0.9}
     lg = {"features": ["delta", "b2b_net", "d_phase"], "intercept": 0.3,
           "coef": [0.03, 0.3, 0.0], "years": [2016, 2026]}
 
@@ -101,7 +101,11 @@ def test_part_b_frozen_core(monkeypatch):
 
     monkeypatch.setattr(c, "season_table", table)
     monkeypatch.setattr(hb, "frozen_core", lambda: (w, lg))
+    era = {"sd": [1.0] * 8, "w": [0.012, 0.01, 0.008, 0.01, 0.011, 0.009, 0.01, 0.01],
+           "r2_in_sample": 0.92}
+    monkeypatch.setattr(hb.nc, "fit_weights", lambda years: era)
     text = "\n".join(hb.part_b([2008, 2009, 2010]))
     assert "2007-08" in text and "2009-10" in text and "pooled: n=2400" in text
     slope = float(text.split("pooled: ")[1].split("frozen slope ")[1].split()[0])
     assert 0.8 < slope < 1.2                       # the true model is the frozen one
+    assert "frozen - full refit" in text and "B2." in text and "correlation" in text
