@@ -1,6 +1,8 @@
-"""Kalshi as the pages' market (analysis.market_view): ledger locks on the
-kalshi_* columns, the view's one-market-per-row rule, the hypotheses staying
-on sportsbook prices, the historical candle format, grading and backfill."""
+"""Kalshi beside the sportsbook: ledger locks on the kalshi_* columns, the
+view's one-market-per-row rule (analysis.market_view, for bases in
+KALSHI_BASES: none since 2026-10-21, when the pages moved to DraftKings),
+the hypotheses staying on sportsbook prices, the historical candle format,
+grading and backfill."""
 import urllib.error
 from datetime import datetime, timezone
 
@@ -89,7 +91,23 @@ def with_kalshi(df, frac=1.0, shift=0.03, seed=0):
     return df
 
 
-def test_market_view_prices_each_row_by_one_market():
+@pytest.fixture
+def kalshi_native(monkeypatch):
+    """The view as it was 2026-10-06 to 10-21: native rows priced by Kalshi."""
+    monkeypatch.setattr(analysis, "KALSHI_BASES", ("native",))
+
+
+def test_pages_grade_every_basis_at_its_sportsbook_by_default():
+    # owner's decision, 2026-10-21: live and rebuilt games on DraftKings
+    assert analysis.KALSHI_BASES == ()
+    df = pd.concat([with_kalshi(synth(30, 1, "native")),
+                    with_kalshi(synth(30, 2, "reconstructed"))], ignore_index=True)
+    v = analysis.market_view(df)
+    assert (v["close_book"] == "dk").all() and (v["pre_book"] == "dk").all()
+    assert v["close_q_home"].equals(df["close_q_home"])
+
+
+def test_market_view_prices_each_row_by_one_market(kalshi_native):
     df = with_kalshi(synth(200, 1), frac=0.5)
     df["first_snapshot_utc"] = "2026-11-19T15:00:00Z"
     v = analysis.market_view(df)
@@ -111,7 +129,7 @@ def test_market_view_prices_each_row_by_one_market():
     assert set(books) == {"dk", "kalshi"} and len(books["kalshi"]) == k.sum()
 
 
-def test_market_view_leaves_reconstructed_rows_on_their_sportsbook():
+def test_market_view_leaves_reconstructed_rows_on_their_sportsbook(kalshi_native):
     df = with_kalshi(synth(40, 2, "reconstructed"))
     v = analysis.market_view(df)
     assert (v["close_book"] == "dk").all()
@@ -123,7 +141,7 @@ def test_market_view_leaves_reconstructed_rows_on_their_sportsbook():
     assert set(v.loc[v["basis"] == "reconstructed", "close_book"]) == {"dk"}
 
 
-def test_market_view_pending_rows_use_kalshi_pregame():
+def test_market_view_pending_rows_use_kalshi_pregame(kalshi_native):
     df = with_kalshi(synth(20, 2))
     df.loc[:9, ["home_won", "home_pts", "away_pts"]] = np.nan
     df.loc[:9, ledger.KALSHI_GRADE_COLUMNS] = np.nan
@@ -142,18 +160,19 @@ def test_hypotheses_stay_on_sportsbook_prices(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
-    # native sections on Kalshi; rebuilt ones on their sportsbook (2026-10-21)
+    # native and rebuilt sections both on the DraftKings close (2026-10-21)
     nat_html = grades[grades.index("id='forward'"):grades.index("id='rebuilt'")]
     rec_html = grades[grades.index("id='rebuilt'"):]
-    assert "Kalshi close" in nat_html and "DraftKings close" not in nat_html
-    assert "DraftKings close" in rec_html and "Kalshi close" not in rec_html
+    assert "DraftKings close" in nat_html and "DraftKings close" in rec_html
+    assert "Kalshi close" not in grades
+    cal = (tmp_path / "market-calibration.html").read_text()
+    assert "Market · Kalshi" not in cal and "Judge every ROI" not in cal
     for hyp, hind, _nat in raw:                     # hindsight n at book prices
         if hind:
             assert f"{hind['n']}<br><span class='mut'>at the" in grades
     report = (tmp_path / "ledger_report.txt").read_text()
-    assert "Kalshi close" in report and "Market: native rows use Kalshi" in report
-    rec_txt = report[report.index("== RECONSTRUCTED"):]
-    assert "DraftKings close" in rec_txt and "Kalshi close" not in rec_txt
+    assert "Market: DraftKings" in report and "DraftKings close" in report
+    assert "Kalshi close" not in report.split("== PRESEASON")[0]
 
 
 def test_historical_candles_are_dollar_strings_and_fallback(monkeypatch):

@@ -62,24 +62,24 @@ def with_close(g):
     return h
 
 
-# The bases market_view prices by Kalshi. Reconstructed rows stay on their
-# sportsbook (owner's decision, 2026-10-21): the rebuilt 2025-26 section is
-# graded at the DraftKings close. Their Kalshi columns stay in the data
-# (research/kalshi_benchmark.py reads them).
-KALSHI_BASES = ("native",)
+# The bases market_view prices by Kalshi: none. Live (native) and rebuilt
+# games are graded at their sportsbook, DraftKings (owner's decisions,
+# 2026-10-21; Kalshi was the pages' market from 2026-10-06). Kalshi's prices
+# stay in the data (kalshi_* columns; research/kalshi_benchmark.py), in the
+# Picks cards' detail and on the Preseason page; naming a basis here grades
+# it by Kalshi again.
+KALSHI_BASES = ()
 
 
 def market_view(g):
-    """The ledger as the pages grade it: Kalshi is the market benchmark
-    for native rows that have it (owner's decision, 2026-10-06; research/
-    kalshi_benchmark.py; KALSHI_BASES). A row is Kalshi-priced when it is
-    graded with a Kalshi close, or still pending with a Kalshi pregame
-    price; such a row reads every price from Kalshi (pre, first, open,
-    close; book "kalshi") and keeps its model columns, result and
-    sportsbook closing spread (the ATS line; `spread_book` keeps the
-    sportsbook that priced it). Every other row, every reconstructed row
-    among them, keeps its sportsbook prices, so a row is always priced by
-    one market. The pre-registered HYPOTHESES read the raw rows: they were
+    """The ledger as the pages grade it. Rows of a basis in KALSHI_BASES
+    (none since 2026-10-21) are Kalshi-priced when graded with a Kalshi
+    close, or still pending with a Kalshi pregame price; such a row reads
+    every price from Kalshi (pre, first, open, close; book "kalshi") and
+    keeps its model columns, result and sportsbook closing spread (the ATS
+    line; `spread_book` keeps the sportsbook that priced it). Every other
+    row keeps its sportsbook prices, so a row is always priced by one
+    market. The pre-registered HYPOTHESES read the raw rows: they were
     registered on sportsbook prices."""
     if g is None or not len(g) or "kalshi_close_q_home" not in g.columns:
         return g

@@ -28,28 +28,27 @@ owner directs the product.
   so these rows say how far the offseason view travels, not regular-season
   skill.
 
-- **Kalshi is the pages' market** (owner's decision, 2026-10-06, after
-  `research/kalshi_benchmark.py`; results in
-  `diagnostics/kalshi_benchmark/`). Native and reconstructed rows carry
-  Kalshi's prices beside the sportsbook's (`ledger.KALSHI_COLUMNS`:
+- **DraftKings is the pages' market** (owner's decisions, 2026-10-21; Kalshi
+  was from 2026-10-06, after `research/kalshi_benchmark.py`, results in
+  `diagnostics/kalshi_benchmark/`). Native and reconstructed rows still
+  carry Kalshi's prices beside the sportsbook's (`ledger.KALSHI_COLUMNS`:
   `kalshi_pre_*` under the pregame lock, `kalshi_first_*` written once with
   `first_*`, `kalshi_open/close_*` by grading; seasons from
   `ledger.KALSHI_FROM_SEASON` = 2025-26, the first Kalshi lists).
-  `analysis.market_view` prices a native row by Kalshi when it is graded
-  with a Kalshi close (or pending with a Kalshi pregame price), else by its
-  sportsbook; reconstructed rows keep their sportsbook
-  (`analysis.KALSHI_BASES`; owner's decision, 2026-10-21: the rebuilt
-  2025-26 section is graded at the DraftKings close). The Ledger,
-  Calibration, Model pages, the public record (Picks tiles, Results,
-  Performance) and the report read that view; games priced only by ESPN
-  BET (all of 2024-25, and 2025-26 before 25 Nov) are left off the pages
-  and the report (see Pages below) and stay in the data. The Picks page's game cards read the raw rows
-  instead (owner's decision, 2026-10-20): one sportsbook's moneyline and
-  spread (DraftKings), with Kalshi's pregame pair in each card's detail.
-  The sportsbook columns are
-  kept. The pre-registered hypotheses read the raw rows: they stay on the
-  sportsbook prices they were registered on. Reconstructed Kalshi prices
-  are filled by "Backfill history" with `kalshi` checked
+  `analysis.market_view` prices a row by Kalshi only if its basis is in
+  `analysis.KALSHI_BASES` (graded with a Kalshi close, or pending with a
+  Kalshi pregame price); that tuple is empty, so the Ledger, Calibration,
+  Model pages, the public record (Picks tiles, Results, Performance) and
+  the report grade live and rebuilt games at their sportsbook, DraftKings.
+  Games priced only by ESPN BET (all of 2024-25, and 2025-26 before 25
+  Nov) are left off the pages and the report (see Pages below) and stay in
+  the data. The Picks page's game cards read the raw rows (owner's
+  decision, 2026-10-20): one sportsbook's moneyline and spread
+  (DraftKings), with Kalshi's pregame pair in each card's detail for
+  reference. The Preseason page stays on Kalshi, the only market for
+  exhibitions. The pre-registered hypotheses read the raw rows: they stay
+  on the sportsbook prices they were registered on. Reconstructed Kalshi
+  prices are filled by "Backfill history" with `kalshi` checked
   (`backfill_history.py --kalshi`), never by hand.
 
 ## Evidence rules
@@ -58,9 +57,10 @@ owner directs the product.
    with separate labels and counts; never pool them silently.
 2. Compare the model with the market on the **same rows** using proper
    scores (Brier, log loss) and calibration. Accuracy or ROI alone does not
-   show calibration. Each row's close comes from one market (`close_book`
-   in `analysis.market_view`: Kalshi from 2025-26, else DraftKings, or ESPN
-   BET before late Nov 2025); report markets separately.
+   show calibration. Each row's close comes from one market (`close_book`:
+   DraftKings, or ESPN BET before late Nov 2025, which the pages leave out;
+   Kalshi only for a basis in `analysis.KALSHI_BASES`, none since
+   2026-10-21); report markets separately.
    ESPN provider 59 (live odds) is in-game and never read. Every flat-ROI
    figure also carries the same-row market-favourite baseline (`fav_roi`,
    1u on the favourite of the same games at the same price).

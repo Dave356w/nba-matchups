@@ -235,10 +235,10 @@ def report_text(native, recon, pre=None, tags=()):
              "of the same games at the same price (same-row baseline).",
              "Bases, books and seasons are never pooled. Price bands are "
              "descriptive, not filters.",
-             "Market: native rows use Kalshi (last pre-tip minute; fee in the "
-             "price) where they have it, else their sportsbook close; "
-             "reconstructed rows use their sportsbook close (DraftKings). The "
-             "hypotheses stay on the sportsbook prices they were registered on.",
+             "Market: DraftKings, native and reconstructed rows alike (Kalshi's "
+             "prices stay in the data; the preseason block is Kalshi, the only "
+             "market for exhibitions). The hypotheses stay on the sportsbook "
+             "prices they were registered on.",
              "Nothing priced by ESPN BET (no longer offered) is shown, as on the "
              "pages: all of 2024-25 and 2025-26 before 25 Nov are left out; their "
              "rows stay in data/nba_reconstructed.csv.",

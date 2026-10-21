@@ -1040,8 +1040,8 @@ def ats_note(r, a):
 
 
 def book_tag(book):
-    """Visible label for any price not from Kalshi (the pages' market,
-    analysis.market_view); sportsbook prices say which book."""
+    """Visible label naming a sportsbook price's book; Kalshi prices (the
+    Preseason page's only market) carry none."""
     if pd.isna(book) or book in ("", "kalshi"):
         return ""
     return f" <span class='basis'>{esc(market.BOOK_NAMES.get(book, book))}</span>"
@@ -1263,9 +1263,9 @@ HOW_INDEX = (
     "one unit on its moneyline. <b>Model</b> is the composite's P(win); "
     "<b>market</b> is the sportsbook's price with its margin removed "
     "(DraftKings; the book is named on the card, and its moneyline and spread "
-    "come from the same book). Open a game for Kalshi's price beside it. "
-    "The record above grades the lean at the market named under it: Kalshi "
-    "(the exchange, its taker fee in the price) wherever Kalshi has a price. "
+    "come from the same book). Open a game for Kalshi's price beside it "
+    "(for reference; nothing is graded on it). The record above grades the "
+    "lean at the DraftKings price named under it. "
     "<b>Model − market</b> is the lean's model probability minus its no-vig "
     "market probability; <b>EV</b> is what the model claims the posted price "
     "is worth, shown beside its <b>null</b>: the EV if the market is exactly "
@@ -1740,12 +1740,11 @@ HIDDEN_NOTE = ("Games priced only by ESPN BET (all of 2024-25, and 2025-26 "
 READ_KEY = (
     "<details class='key'><summary>How to read these numbers</summary> Judge every ROI against its "
     "<b>null</b>: the ROI if the market's no-vig prices were exactly right. "
-    "That is about −4% (the hold: Kalshi's taker fee and spread, or the "
-    "bookmaker's margin), not zero. <b>Market</b>: forward (native) games use "
-    "Kalshi's last pre-tip price where a game has one, else the sportsbook "
-    "close; rebuilt seasons use the DraftKings close; "
-    "the hypotheses stay on sportsbook prices, DraftKings only (ESPN BET is "
-    "no longer offered, so this page shows nothing priced by it). "
+    "That is about −4% (the hold: the bookmaker's margin), not zero. "
+    "<b>Market</b> is DraftKings: forward (native) games at their pregame "
+    "snapshot and close, rebuilt seasons at the close, the hypotheses at "
+    "the prices they were registered on (ESPN BET is no longer offered, so "
+    "this page shows nothing priced by it). "
     "<b>±</b> is one "
     "standard error (1 SE). Colour marks only gaps of at least "
     f"{SIG:g} SE from the null: <span class='pos'>green</span> above, "
@@ -2383,8 +2382,8 @@ def render_calibration(native, recon, built):
             "forecast on the same games beside it.</p>",
             READ_KEY.replace("Judge every ROI against its <b>null</b>: the ROI "
                              "if the market's no-vig prices were exactly right. "
-                             "That is about −4% (the hold: Kalshi's taker fee "
-                             "and spread, or the bookmaker's margin), not zero. ",
+                             "That is about −4% (the hold: the bookmaker's "
+                             "margin), not zero. ",
                              "Here the null is the diagonal: stated = actual. "),
             _jump(jumps), "<h2 id='market'>Market: no-vig close vs actual</h2>"]
     if not parts:
