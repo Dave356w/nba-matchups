@@ -1,0 +1,3 @@
+method,intercept,scale,train_n,train_max_year
+fitted_scale,0.0,11.179597300183296,8438,2025
+fitted_affine,-0.4331282116087108,11.458799159995788,8438,2025
