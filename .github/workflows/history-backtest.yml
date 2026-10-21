@@ -1,0 +1,81 @@
+name: History backtest
+
+# Research only (research/history_backtest.py): the current model against
+# outcomes, no market prices. A: walk-forward with the production v6 routing,
+# 2016-17 to 2025-26 (log loss vs simpler arms, calibration, reliability,
+# phase, routes, back-to-backs, each term dropped). B: the frozen core
+# (committed weights and v4 logit) on seasons no fit has seen (--era).
+# Writes nothing to the repo; results are the job summary and an artifact.
+# The push trigger runs it from the research branch before it exists on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Part A walk-forward test seasons (BBR years; 2026 = 2025-26)'
+        default: '2017 2018 2019 2021 2022 2023 2024 2025 2026'
+      era:
+        description: 'Part B out-of-era seasons (BBR years)'
+        default: '2005-2014'
+  push:
+    branches: [claude/bold-gates-5nks87]
+    paths:
+      - 'research/history_backtest.py'
+      - '.github/workflows/history-backtest.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: history-backtest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SEASONS: ${{ inputs.seasons || '2017 2018 2019 2021 2022 2023 2024 2025 2026' }}
+      ERA: ${{ inputs.era || '2005-2014' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years $ERA 2015-2026
+      - name: Backtest
+        run: |
+          set -o pipefail
+          python research/history_backtest.py --seasons $SEASONS --era "$ERA" | tee history_backtest.txt
+      - name: Summary
+        if: always()
+        run: |
+          { echo '```'; cat diagnostics/history_backtest/RESULTS.txt 2>/dev/null \
+              || tail -n 60 history_backtest.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: history-backtest
+          path: |
+            history_backtest.txt
+            diagnostics/history_backtest/RESULTS.txt
