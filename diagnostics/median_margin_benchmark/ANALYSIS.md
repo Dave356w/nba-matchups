@@ -93,6 +93,28 @@ and its metrics and uncertainty intervals match the local results. Exact score j
 across sources; the maximum reconstructed-WP difference is 0.00004879, within CSV rounding.
 No production models, display math, or ledgers were changed.
 
+## ATS cover-rate supplement
+
+The follow-up [ATS_REPORT.md](ATS_REPORT.md) applies the specified sign-of-forecast-disagreement
+selection rule at both opening and closing handicaps. It reports covers, noncovers, pushes,
+no-edge passes, and Wilson intervals for all five original forecast types, plus the two
+prior-season fitted mean conversions from the earlier WP-to-margin study.
+
+At closing lines, the home-band median covers **48.34%** (466–498), favorite-band median
+**48.76%** (470–494), fixed 13.5 **49.27%** (475–489), fitted mean scale **50.00%** (482–482),
+and fitted mean intercept plus scale **50.73%** (489–475). Every model's reported 95% Wilson
+interval includes 50%. None of these results establishes a reliable ATS accuracy improvement.
+
+Opening-line model results use reconstructed pregame WP and lack opening-time alignment.
+The closing-line forecast evaluated against opening handicaps is marked **look-ahead only**;
+it uses future information. A market forecast compared to its own line has no disagreement
+and passes all games, rather than receiving an invented 50% cover rate. All recorded lines
+are half points, so there are no outcome pushes in this particular sample.
+
+The ATS extension passed the expanded **272-test** local suite and data validation.
+Its source commit is `bd05c099f7b3a6ce62e3e1ec4cde59828ff87a70`.
+[Independent combined benchmark run](https://github.com/Dave356w/nba-matchups/actions/runs/39680860233).
+
 To reproduce from the versioned inputs, without a historical data download:
 
 ```bash
