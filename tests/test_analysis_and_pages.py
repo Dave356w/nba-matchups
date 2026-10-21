@@ -552,3 +552,55 @@ def test_ledger_ats_fold_reads_draftkings_spreads_only():
     build_site._ats_section(body, h)
     html = "".join(body)
     assert "<td class=''>4</td>" in html and "DraftKings closing spread" in html
+
+
+def test_ats_bands_cover_every_main_line_bet_exactly_once():
+    lines = np.arange(-25, 25.5, 0.5)
+    prices = [p for p in range(analysis.ATS_MAIN_LINE[0], analysis.ATS_MAIN_LINE[1] + 1)
+              if p <= -100 or p >= 100]
+    for vals, bands in ((lines, analysis.ATS_LINE_BANDS),
+                        (prices, analysis.ATS_PRICE_BANDS)):
+        for v in vals:
+            assert sum(lo <= v <= hi for lo, hi, _ in bands) == 1, v
+
+
+def test_ats_by_band_partitions_the_bets_and_hides_small_band_se():
+    rng = np.random.default_rng(4)
+    n = 60
+    d = pd.DataFrame(dict(
+        line=rng.choice([-11.5, -7.5, -4.5, -1.5, 2.5, 4.5, 8.5, 12.5], n),
+        ml=rng.choice([-120, -112, -110, -105, 100], n),
+        result=rng.choice([0.0, 1.0], n), model_p=0.55, q=0.5))
+    d["breakeven"] = market.breakeven_prob(d["ml"])
+    d["units"] = [market.unit_profit(m, r == 1) for m, r in zip(d["ml"], d["result"])]
+    d["units_null"] = d["q"] * [market.decimal_payout(m) for m in d["ml"]] - 1
+    b = analysis.ats_by_band(d)
+    for key in ("line", "price"):
+        assert sum(r["n"] for r in b[key]) == n
+        assert abs(sum(r["units"] for r in b[key]) - d["units"].sum()) < 1e-9
+        for r in b[key]:
+            small = r["n"] < analysis.BAND_MIN_N
+            assert np.isnan(r["roi_se"]) == small and np.isnan(r["z"]) == (
+                small or not r["roi_se"] > 0)
+    assert analysis.ats_by_band(None) == {"line": [], "price": []}
+
+
+def test_ats_bands_on_the_ledger_and_in_the_report(tmp_path, monkeypatch):
+    rec = _ats_rows(12).assign(basis="reconstructed")
+    rec["p_home"] = np.linspace(0.62, 0.9, 12)
+    rec.loc[rec.index[::2], "home_pts"] = 101
+    cache = tmp_path / "open.csv"
+    rec[["game_id", "open_spread", "open_home_spread_odds",
+         "open_away_spread_odds"]].to_csv(cache, index=False)
+    rec = rec.drop(columns=["open_spread", "open_home_spread_odds",
+                            "open_away_spread_odds"])
+    monkeypatch.setattr(analysis, "OPEN_SPREADS", str(cache))
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    txt = build_site.write_pages(ledger.empty(), rec, "2026-11-19", model_ok=True)
+    grades = (tmp_path / "grades.html").read_text()
+    assert "By the picked side&#x27;s spread" in grades or \
+        "By the picked side's spread" in grades
+    assert "By spread price" in grades and "H5 by spread price" in grades
+    assert "H5 / H6 by spread and price" in grades
+    assert "H5 / H6 by the picked side's spread and spread price" in txt
+    assert "hindsight @ open · Fav −3 to −5.5" in txt

@@ -23,6 +23,8 @@ ESPN BET only), at the DraftKings open and close.
      research/open_price.py): H2/H3 on the same DK games with the v4 P and
      with `base` (no injury-report terms), at the open and the close.
   6. The same rules on the other book-seasons, one line each, never pooled.
+  7. The blanket value bet retired 2026-10-06 and its ATS twin, re-checked
+     at the close on every book-season beside the model's claimed EV.
 
 Not an independent test: these DK games were in the scans that chose H1-H6
 (the 271-cell scan, and H5's ats_signal cells), and the reconstructed P is
@@ -244,7 +246,45 @@ def report(recon, open_price=None, source=None):
                     continue
                 L.append(f"  {label:<10} {BOOK_NAMES[book]} {season_name(season):<8}"
                          f" @{hyp['hindsight']:<6} {fmt(r)}")
+    L.append("")
+    L += retired_value_block(recon)
     return "\n".join(L) + "\n"
+
+
+def claimed_ev(d):
+    """The model's own EV for bets `d`: mean(model P x decimal payout - 1)."""
+    pay = np.array([market.decimal_payout(m) for m in d["ml"]])
+    return float(np.mean(d["model_p"].to_numpy(float) * pay - 1))
+
+
+def retired_value_block(recon):
+    """Section 7: the blanket value bet retired 2026-10-06 (every game, the
+    side with model P > no-vig q) and its ATS twin (the model margin's side
+    against the closing line, main-line prices), at the close on every
+    book-season, beside the model's claimed EV."""
+    g = recon[pd.to_numeric(recon["home_won"], errors="coerce").isin([0, 1])]
+    q, p = analysis.price_q_home(g, "close"), pd.to_numeric(g["p_home"], errors="coerce")
+    L = ["== 7. The retired blanket value bet, re-checked at the close (retired "
+         "2026-10-06; analysis.SHOWN_RULES)",
+         f"  Every game, the side with model P > no-vig q (exact ties P == q: "
+         f"{int((p == q).sum())}, so P >= q bets the same games), and its ATS twin. "
+         "claimed EV = mean(model P x payout - 1)."]
+    for title, fn, row in (("moneyline value side", lambda x: (
+            lambda t: t[t["rule"] == "value"])(analysis.picks(x, "close")),
+                            analysis.roi_row),
+                           ("ATS twin", lambda x: analysis.ats_side_picks(x, "close"),
+                            analysis.ats_row)):
+        L.append(f"  {title}:")
+        for (season, book), x in sorted(g.groupby(["season", "close_book"]),
+                                        key=lambda t: (t[0][0], t[0][1])):
+            d = fn(x)
+            if not len(d):
+                continue
+            r = row("", d)
+            r["z"] = analysis.z_vs_null(r)
+            L.append(f"    {BOOK_NAMES.get(book, book)} {season_name(season):<8} "
+                     f"claimed EV {100 * claimed_ev(d):+5.1f}%  {fmt(r)}")
+    return L
 
 
 def main(argv=None):

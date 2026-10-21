@@ -62,24 +62,24 @@ def with_close(g):
     return h
 
 
-# The bases market_view prices by Kalshi. Reconstructed rows stay on their
-# sportsbook (owner's decision, 2026-10-21): the rebuilt 2025-26 section is
-# graded at the DraftKings close. Their Kalshi columns stay in the data
-# (research/kalshi_benchmark.py reads them).
-KALSHI_BASES = ("native",)
+# The bases market_view prices by Kalshi: none. Live (native) and rebuilt
+# games are graded at their sportsbook, DraftKings (owner's decisions,
+# 2026-10-21; Kalshi was the pages' market from 2026-10-06). Kalshi's prices
+# stay in the data (kalshi_* columns; research/kalshi_benchmark.py), in the
+# Picks cards' detail and on the Preseason page; naming a basis here grades
+# it by Kalshi again.
+KALSHI_BASES = ()
 
 
 def market_view(g):
-    """The ledger as the pages grade it: Kalshi is the market benchmark
-    for native rows that have it (owner's decision, 2026-10-06; research/
-    kalshi_benchmark.py; KALSHI_BASES). A row is Kalshi-priced when it is
-    graded with a Kalshi close, or still pending with a Kalshi pregame
-    price; such a row reads every price from Kalshi (pre, first, open,
-    close; book "kalshi") and keeps its model columns, result and
-    sportsbook closing spread (the ATS line; `spread_book` keeps the
-    sportsbook that priced it). Every other row, every reconstructed row
-    among them, keeps its sportsbook prices, so a row is always priced by
-    one market. The pre-registered HYPOTHESES read the raw rows: they were
+    """The ledger as the pages grade it. Rows of a basis in KALSHI_BASES
+    (none since 2026-10-21) are Kalshi-priced when graded with a Kalshi
+    close, or still pending with a Kalshi pregame price; such a row reads
+    every price from Kalshi (pre, first, open, close; book "kalshi") and
+    keeps its model columns, result and sportsbook closing spread (the ATS
+    line; `spread_book` keeps the sportsbook that priced it). Every other
+    row keeps its sportsbook prices, so a row is always priced by one
+    market. The pre-registered HYPOTHESES read the raw rows: they were
     registered on sportsbook prices."""
     if g is None or not len(g) or "kalshi_close_q_home" not in g.columns:
         return g
@@ -950,4 +950,68 @@ def ats_summary(g, sigma=ATS_SIGMA):
         row = ats_row("All picks", p[p["rule"] == rule])
         if row:
             out.append((label, [row]))
+    return out
+
+
+# ATS bands (owner's request, 2026-10-21): the picked side's line (negative =
+# laying points) and its spread price, inclusive (lo, hi, label). Descriptive
+# monitoring dimensions, not filters (evidence rule 4); every main-line price
+# (ATS_MAIN_LINE) and every half-point line falls in exactly one band. Plus
+# prices are rare at the main line (under 2% of bets), so they share a band.
+ATS_LINE_BANDS = ((-99, -10, "Fav −10 or more"), (-9.5, -6, "Fav −6 to −9.5"),
+                  (-5.5, -3, "Fav −3 to −5.5"), (-2.5, 2.5, "Pick'em −2.5 to +2.5"),
+                  (3, 5.5, "Dog +3 to +5.5"), (6, 9.5, "Dog +6 to +9.5"),
+                  (10, 99, "Dog +10 or more"))
+ATS_PRICE_BANDS = ((-1000, -116, "−116 or shorter"), (-115, -111, "−115 to −111"),
+                   (-110, -110, "−110"), (-109, 1000, "−109 or longer"))
+# Below this many bets a band's SE and z are not shown: a few bets with the
+# same result give a near-zero spread and a meaningless z.
+BAND_MIN_N = 10
+
+
+def ats_by_band(d):
+    """ATS bets `d` (ats_picks or ats_side_picks rows) by the picked side's
+    line and by its spread price: {"line": [row], "price": [row]}, each an
+    ats_row labelled with its band plus z vs the ROI null (SE and z left
+    out below BAND_MIN_N bets); empty bands are left out. Descriptive,
+    never a filter."""
+    out = {"line": [], "price": []}
+    if d is None or not len(d):
+        return out
+    for key, col, bands in (("line", "line", ATS_LINE_BANDS),
+                            ("price", "ml", ATS_PRICE_BANDS)):
+        v = pd.to_numeric(d[col], errors="coerce").to_numpy()
+        for lo, hi, label in bands:
+            r = ats_row(label, d[(v >= lo) & (v <= hi)])
+            if r:
+                if r["n"] < BAND_MIN_N:
+                    r["roi_se"] = float("nan")
+                r["z"] = z_vs_null(r)
+                out[key].append(r)
+    return out
+
+
+def ats_lean_by_band(g, sigma=ATS_SIGMA):
+    """The lean ATS bets at the closing spread (ats_picks) by band."""
+    p = ats_picks(g, sigma)
+    return ats_by_band(p[p["rule"] == "lean"] if len(p) else p)
+
+
+def hypothesis_ats_bands(native, recon, book=None):
+    """[(hypothesis, {"native": bands, "hindsight": bands})] for the ATS
+    hypotheses: the same bets as hypothesis_rows (with `book`) by the
+    picked side's line and spread price (ats_by_band). Descriptive: the
+    rules themselves stay as registered."""
+    out = []
+    for hyp in HYPOTHESES:
+        if hyp.get("market") != "ats":
+            continue
+        hind = with_open_spreads(recon) if hyp["hindsight"] == "open" else recon
+        parts = {}
+        for basis, g, price in (("native", native, hyp["native"]),
+                                ("hindsight", hind, hyp["hindsight"])):
+            g = on_book(g, price, book)
+            d = hypothesis_picks(g, hyp, price) if g is not None and len(g) else None
+            parts[basis] = ats_by_band(d)
+        out.append((hyp, parts))
     return out
