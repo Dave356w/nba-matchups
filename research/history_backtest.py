@@ -21,10 +21,12 @@ games 1-9 is not covered here):
   B. Out of era, 2004-05 to 2013-14 (--era): seasons no fit or design choice
      has seen. The frozen core as committed (model/weights.json for delta,
      model/logit_v4.json for the logit: delta, b2b, delta*phase; the
-     production fallback path), beside the same core refitted walk-forward
-     on the era's earlier seasons. Box scores and injury reports are not
-     cached that far back, so talent, luck, FT% and availability are not
-     tested there.
+     production fallback path), beside the same logit refitted walk-forward
+     on the era's earlier seasons (committed weights) and the full refit
+     (composite weights and logit both from the era's earlier seasons); and
+     B2, the committed four-factor weights beside weights fitted on the era.
+     Box scores and injury reports are not cached that far back, so talent,
+     luck, FT% and availability are not tested there.
 
 Research only: nothing here touches the ledgers, the pages or the model.
 Writes diagnostics/history_backtest/RESULTS.txt. ± is 95%.
@@ -186,10 +188,14 @@ def part_a(folds):
                  f"intercept {ic:+.2f} ± {icc:.2f}  home won "
                  f"{100 * g['win'].mean():.1f}% vs predicted "
                  f"{100 * np.nanmean(g['p::v6 (production)']):.1f}%")
-    sl, slc, ic, icc = calib(v6, y)
-    L.append(f"    {'pooled':<9} n={len(d):<5} slope {sl:.2f} ± {slc:.2f}  intercept "
-             f"{ic:+.2f} ± {icc:.2f}  home won {100 * y.mean():.1f}% vs predicted "
-             f"{100 * np.nanmean(v6):.1f}%")
+    first = d["year"] == d["year"].min()
+    for name, k in (("pooled", np.ones(len(d), bool)),
+                    ("pooled, without the first fold (one training season)",
+                     ~first.to_numpy())):
+        sl, slc, ic, icc = calib(v6[k], y[k])
+        L.append(f"    {name}: n={int(k.sum())}  slope {sl:.2f} ± {slc:.2f}  intercept "
+                 f"{ic:+.2f} ± {icc:.2f}  home won {100 * y[k].mean():.1f}% vs "
+                 f"predicted {100 * np.nanmean(v6[k]):.1f}%")
 
     L.append("")
     L.append("  A3. Calibration slope by season phase, pooled seasons (the v1 core has "
@@ -237,16 +243,21 @@ def part_a(folds):
 
     L.append("")
     L.append("  A7. Each v6 term dropped in turn (refit without it): log loss without "
-             "- with, ± 95% (positive = the term helps out of sample)")
+             "- with, ± 95% (positive = the term helps out of sample), on the games "
+             "the term reaches (v6 terms: base and availability routes; availability: "
+             "its own route, which exists from the first season with a report season "
+             "to train on)")
+    route = d["route"].to_numpy()
     for key, name in TERMS + (("availability", "injury-report availability"),):
+        k = (route == "avail") if key == "availability" else (route != "v4")
         p = P[f"v6 - {key}"]
-        m, ci = paired(p, v6, y)
-        helps = sum(1 for s, g in d.groupby("year")
-                    if paired(g[f"p::v6 - {key}"].to_numpy(float),
-                              g["p::v6 (production)"].to_numpy(float),
-                              g["win"].to_numpy(float))[0] > 0)
-        L.append(f"    {name:<28} {m:+.4f} ± {ci:.4f}  (helps in {helps} of "
-                 f"{d['year'].nunique()} seasons)")
+        m, ci = paired(p[k], v6[k], y[k])
+        g = d[k]
+        per = [paired(h[f"p::v6 - {key}"].to_numpy(float),
+                      h["p::v6 (production)"].to_numpy(float),
+                      h["win"].to_numpy(float))[0] for _, h in g.groupby("year")]
+        L.append(f"    {name:<28} {m:+.4f} ± {ci:.4f}  n={int(k.sum()):<5} (helps in "
+                 f"{sum(x > 0 for x in per)} of {len(per)} seasons)")
     return L
 
 
@@ -261,52 +272,88 @@ def frozen_core():
 
 def part_b(era):
     w, lg = frozen_core()
-    L = ["== B. Out of era, frozen core (committed weights and v4 logit: delta, "
-         "b2b, delta*phase), games 10+",
-         f"  Frozen model fit on {lg['years'][0]}-{lg['years'][-1]} "
-         f"(weights {w['years'][0]}-{w['years'][-1]}); refit = the same core "
-         "fitted walk-forward on the era's earlier seasons; home only = the "
-         "earlier era seasons' home win rate."]
-    tabs = {}
+    feats, coef = lg["features"], np.asarray(lg["coef"], float)
+    L = ["== B. Out of era, the core (delta, b2b, delta*phase), games 10+",
+         f"  frozen = the committed weights ({w['years'][0]}-{w['years'][-1]}, no "
+         f"2020) and v4 logit ({lg['years'][0]}-{lg['years'][-1]}), never refitted; "
+         "logit refit = committed weights, logit fitted on the era's earlier "
+         "seasons; full refit = composite weights and logit both fitted on the "
+         "era's earlier seasons; home = the earlier era seasons' home win rate.",
+         "  Log loss per game; differences ± 95% (positive = frozen worse)."]
+    raw = {}
     for t in era:
         try:
-            tabs[t] = c.with_weights(c.season_table(t, None), w)
+            raw[t] = c.season_table(t, None)
         except Exception as e:  # noqa: BLE001
             L.append(f"  {season_name(t)}: not built ({e!r})")
-    feats, coef = lg["features"], np.asarray(lg["coef"], float)
+    tabs = {t: c.with_weights(r, w) for t, r in raw.items()}
     pooled = []
     L.append(f"    {'season':<9}{'n':>6}  {'home won':>8} {'frozen pred':>11}  "
-             f"{'frozen':>7} {'refit':>7} {'home':>7}  {'frozen slope':>14} "
-             f"{'frozen - refit':>18}")
+             f"{'frozen':>7} {'logit':>7} {'full':>7} {'home':>7}  {'frozen slope':>14} "
+             f"{'frozen - full refit':>20}")
     for t in sorted(tabs):
         g = tabs[t][c.finite(tabs[t], feats)].reset_index(drop=True)
         yy = g["win"].to_numpy(float)
         pf = 1 / (1 + np.exp(-(lg["intercept"] + g[feats].to_numpy(float) @ coef)))
-        prior = [tabs[s] for s in sorted(tabs) if s < t]
+        prior = [s for s in sorted(tabs) if s < t]
+        pr = pfull = ph = np.full(len(g), np.nan)
         if prior:
-            tr = pd.concat(prior, ignore_index=True)
+            tr = pd.concat([tabs[s] for s in prior], ignore_index=True)
             pr = fitpred(tr, feats, g)
             ph = np.full(len(g), tr["win"].mean())
-        else:
-            pr = ph = np.full(len(g), np.nan)
+            we = nc.fit_weights(prior)
+            gt = c.with_weights(raw[t], we)
+            gt = gt[c.finite(tabs[t], feats)].reset_index(drop=True)
+            tre = pd.concat([c.with_weights(raw[s], we) for s in prior], ignore_index=True)
+            pfull = fitpred(tre, feats, gt)
         sl, slc, _, _ = calib(pf, yy)
-        md, cd = paired(pf, pr, yy) if prior else (np.nan, np.nan)
+        md, cd = paired(pf, pfull, yy) if prior else (np.nan, np.nan)
         L.append(f"    {season_name(t):<9}{len(g):>6}  {100 * yy.mean():7.1f}% "
                  f"{100 * pf.mean():10.1f}%  {ll(pf, yy).mean():7.4f} "
-                 f"{np.nanmean(ll(pr, yy)) if prior else float('nan'):7.4f} "
-                 f"{np.nanmean(ll(ph, yy)) if prior else float('nan'):7.4f}  "
+                 f"{np.nanmean(ll(pr, yy)) if prior else np.nan:7.4f} "
+                 f"{np.nanmean(ll(pfull, yy)) if prior else np.nan:7.4f} "
+                 f"{np.nanmean(ll(ph, yy)) if prior else np.nan:7.4f}  "
                  f"{sl:6.2f} ± {slc:.2f}   {md:+.4f} ± {cd:.4f}")
-        pooled.append(pd.DataFrame(dict(y=yy, pf=pf, pr=pr, phase=g["phase"])))
-    if pooled:
-        d = pd.concat(pooled, ignore_index=True)
-        sl, slc, ic, icc = calib(d["pf"], d["y"])
-        L.append(f"    pooled: n={len(d)}  frozen slope {sl:.2f} ± {slc:.2f}  intercept "
-                 f"{ic:+.2f} ± {icc:.2f}  home won {100 * d['y'].mean():.1f}% vs "
-                 f"predicted {100 * d['pf'].mean():.1f}%")
-        for lo, hi, name in PHASES:
-            k = ((d["phase"] >= lo) & (d["phase"] < hi)).to_numpy()
-            s2, c2, _, _ = calib(d["pf"][k], d["y"][k])
-            L.append(f"      {name:<14} n={int(k.sum()):<5} frozen slope {s2:.2f} ± {c2:.2f}")
+        pooled.append(pd.DataFrame(dict(y=yy, pf=pf, pr=pr, pfull=pfull, ph=ph,
+                                        phase=g["phase"], b2b=g["b2b_net"])))
+    if not pooled:
+        return L
+    d = pd.concat(pooled, ignore_index=True)
+    y, pf = d["y"].to_numpy(float), d["pf"].to_numpy(float)
+    sl, slc, ic, icc = calib(pf, y)
+    L.append(f"    pooled: n={len(d)}  frozen slope {sl:.2f} ± {slc:.2f}  intercept "
+             f"{ic:+.2f} ± {icc:.2f}  home won {100 * y.mean():.1f}% vs predicted "
+             f"{100 * pf.mean():.1f}%")
+    k = np.isfinite(d["pfull"].to_numpy(float))
+    for name, col in (("logit refit", "pr"), ("full refit", "pfull"), ("home only", "ph")):
+        m, ci = paired(pf[k], d[col].to_numpy(float)[k], y[k])
+        L.append(f"      frozen - {name:<12} {m:+.4f} ± {ci:.4f}  (n={int(k.sum())}, "
+                 "seasons after the first)")
+    for lo, hi, name in PHASES:
+        kk = ((d["phase"] >= lo) & (d["phase"] < hi)).to_numpy()
+        s2, c2, _, _ = calib(pf[kk], y[kk])
+        L.append(f"      {name:<14} n={int(kk.sum()):<5} frozen slope {s2:.2f} ± {c2:.2f}")
+    for v, name in ((1, "away team on a back-to-back"), (-1, "home team on a back-to-back")):
+        kk = (d["b2b"] == v).to_numpy()
+        if kk.sum() < 20:
+            continue
+        a, b = c.wilson(int(y[kk].sum()), int(kk.sum()))
+        L.append(f"      {name:<30} n={int(kk.sum()):<5} home won {100 * y[kk].mean():5.1f}% "
+                 f"({100 * a:.1f}-{100 * b:.1f})  frozen predicted {100 * pf[kk].mean():5.1f}%")
+    L.append("")
+    try:
+        we = nc.fit_weights(sorted(raw))
+    except Exception as e:  # noqa: BLE001
+        L.append(f"  era weights: not fitted ({e!r})")
+        return L
+    L.append(f"  B2. Composite weights, wins per +1 SD over 82 games: committed vs "
+             f"fitted on {season_name(min(raw))} to {season_name(max(raw))} "
+             f"(in-sample R2 {w.get('r2_in_sample', np.nan):.3f} vs "
+             f"{we['r2_in_sample']:.3f})")
+    for n, a, b in zip(nc.FEATURES, w["w"], we["w"]):
+        L.append(f"    {n:<16} {82 * a:+6.2f}  {82 * b:+6.2f}")
+    L.append(f"    correlation of the two weight vectors: "
+             f"{np.corrcoef(w['w'], we['w'])[0, 1]:+.2f}")
     return L
 
 
