@@ -7,6 +7,8 @@ on:
     paths:
       - research/median_margin_benchmark.py
       - tests/test_median_margin_benchmark.py
+      - research/median_ats_comparison.py
+      - tests/test_median_ats_comparison.py
       - .github/workflows/median-margin-benchmark.yml
 
 permissions:
@@ -23,11 +25,13 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: python -m pip install -r requirements.txt pytest
-      - run: python -m pytest tests/test_median_margin_benchmark.py -q
+      - run: python -m pytest tests/test_median_margin_benchmark.py tests/test_median_ats_comparison.py -q
       - name: Frozen median holdout benchmark
         run: python research/median_margin_benchmark.py
+      - name: ATS cover-rate comparison
+        run: python research/median_ats_comparison.py --predictions diagnostics/median_margin_benchmark/predictions.csv.gz
       - name: Report
-        run: cat diagnostics/median_margin_benchmark/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+        run: cat diagnostics/median_margin_benchmark/REPORT.md diagnostics/median_margin_benchmark/ATS_REPORT.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
