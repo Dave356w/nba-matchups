@@ -1730,9 +1730,10 @@ BASIS_BADGES = {"native": "<span class='badge native'>Native · forward</span>",
 # analysis.HIDDEN_BOOKS (ESPN BET, no longer offered; owner's decisions,
 # 2026-10-21): no section, season row, market fold or spread. The Ledger
 # grades the hypotheses on DraftKings (analysis.HYPOTHESIS_BOOK).
-HIDDEN_NOTE = ("Seasons priced only by ESPN BET (2024-25), which is no longer "
-               "offered, are left out of these pages and the "
-               f"<a href='{report.REPORT_NAME}'>report</a>; the rows stay in "
+HIDDEN_NOTE = ("Games priced only by ESPN BET (all of 2024-25, and 2025-26 "
+               "before 25 Nov), which is no longer offered, are left out of "
+               f"these pages and the <a href='{report.REPORT_NAME}'>report</a>; "
+               "the rows stay in "
                f"<a href='{REPO_URL}data/nba_reconstructed.csv'>"
                "data/nba_reconstructed.csv</a>.")
 
@@ -1740,8 +1741,9 @@ READ_KEY = (
     "<details class='key'><summary>How to read these numbers</summary> Judge every ROI against its "
     "<b>null</b>: the ROI if the market's no-vig prices were exactly right. "
     "That is about −4% (the hold: Kalshi's taker fee and spread, or the "
-    "bookmaker's margin), not zero. <b>Market</b> is Kalshi's last pre-tip "
-    "price wherever a game has one (2025-26 on), else the sportsbook close; "
+    "bookmaker's margin), not zero. <b>Market</b>: forward (native) games use "
+    "Kalshi's last pre-tip price where a game has one, else the sportsbook "
+    "close; rebuilt seasons use the DraftKings close; "
     "the hypotheses stay on sportsbook prices, DraftKings only (ESPN BET is "
     "no longer offered, so this page shows nothing priced by it). "
     "<b>±</b> is one "

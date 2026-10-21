@@ -111,6 +111,18 @@ def test_market_view_prices_each_row_by_one_market():
     assert set(books) == {"dk", "kalshi"} and len(books["kalshi"]) == k.sum()
 
 
+def test_market_view_leaves_reconstructed_rows_on_their_sportsbook():
+    df = with_kalshi(synth(40, 2, "reconstructed"))
+    v = analysis.market_view(df)
+    assert (v["close_book"] == "dk").all()
+    assert v["close_q_home"].equals(df["close_q_home"])
+    # a frame mixing bases converts only the native rows
+    mix = pd.concat([with_kalshi(synth(20, 3, "native")), df], ignore_index=True)
+    v = analysis.market_view(mix)
+    assert set(v.loc[v["basis"] == "native", "close_book"]) == {"kalshi"}
+    assert set(v.loc[v["basis"] == "reconstructed", "close_book"]) == {"dk"}
+
+
 def test_market_view_pending_rows_use_kalshi_pregame():
     df = with_kalshi(synth(20, 2))
     df.loc[:9, ["home_won", "home_pts", "away_pts"]] = np.nan
@@ -130,12 +142,18 @@ def test_hypotheses_stay_on_sportsbook_prices(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
-    assert "Kalshi close" in grades and "DraftKings close" not in grades
+    # native sections on Kalshi; rebuilt ones on their sportsbook (2026-10-21)
+    nat_html = grades[grades.index("id='forward'"):grades.index("id='rebuilt'")]
+    rec_html = grades[grades.index("id='rebuilt'"):]
+    assert "Kalshi close" in nat_html and "DraftKings close" not in nat_html
+    assert "DraftKings close" in rec_html and "Kalshi close" not in rec_html
     for hyp, hind, _nat in raw:                     # hindsight n at book prices
         if hind:
             assert f"{hind['n']}<br><span class='mut'>at the" in grades
     report = (tmp_path / "ledger_report.txt").read_text()
-    assert "Kalshi close" in report and "Market: Kalshi" in report
+    assert "Kalshi close" in report and "Market: native rows use Kalshi" in report
+    rec_txt = report[report.index("== RECONSTRUCTED"):]
+    assert "DraftKings close" in rec_txt and "Kalshi close" not in rec_txt
 
 
 def test_historical_candles_are_dollar_strings_and_fallback(monkeypatch):

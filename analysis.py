@@ -62,16 +62,24 @@ def with_close(g):
     return h
 
 
+# The bases market_view prices by Kalshi. Reconstructed rows stay on their
+# sportsbook (owner's decision, 2026-10-21): the rebuilt 2025-26 section is
+# graded at the DraftKings close. Their Kalshi columns stay in the data
+# (research/kalshi_benchmark.py reads them).
+KALSHI_BASES = ("native",)
+
+
 def market_view(g):
     """The ledger as the pages grade it: Kalshi is the market benchmark
-    wherever a row has it (owner's decision, 2026-10-06; research/
-    kalshi_benchmark.py). A row is Kalshi-priced when it is graded with a
-    Kalshi close, or still pending with a Kalshi pregame price; such a row
-    reads every price from Kalshi (pre, first, open, close; book "kalshi")
-    and keeps its model columns, result and sportsbook closing spread (the
-    ATS line; `spread_book` keeps the sportsbook that priced it). Every
-    other row keeps its sportsbook prices, so a row is always priced by one
-    market. The pre-registered HYPOTHESES read the raw rows: they were
+    for native rows that have it (owner's decision, 2026-10-06; research/
+    kalshi_benchmark.py; KALSHI_BASES). A row is Kalshi-priced when it is
+    graded with a Kalshi close, or still pending with a Kalshi pregame
+    price; such a row reads every price from Kalshi (pre, first, open,
+    close; book "kalshi") and keeps its model columns, result and
+    sportsbook closing spread (the ATS line; `spread_book` keeps the
+    sportsbook that priced it). Every other row, every reconstructed row
+    among them, keeps its sportsbook prices, so a row is always priced by
+    one market. The pre-registered HYPOTHESES read the raw rows: they were
     registered on sportsbook prices."""
     if g is None or not len(g) or "kalshi_close_q_home" not in g.columns:
         return g
@@ -79,6 +87,7 @@ def market_view(g):
     won = num("home_won").isin([0, 1])
     k = (won & num("kalshi_close_q_home").between(0, 1, inclusive="neither")) | (
         ~won & num("kalshi_pre_q_home").between(0, 1, inclusive="neither"))
+    k &= g["basis"].astype(str).isin(KALSHI_BASES)
     if not k.any():
         return g
     v = g.copy()

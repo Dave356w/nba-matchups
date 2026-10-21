@@ -235,12 +235,13 @@ def report_text(native, recon, pre=None, tags=()):
              "of the same games at the same price (same-row baseline).",
              "Bases, books and seasons are never pooled. Price bands are "
              "descriptive, not filters.",
-             "Market: Kalshi (last pre-tip minute; fee in the price) wherever a row "
-             "has it, from 2025-26; earlier rows keep their sportsbook close. The "
+             "Market: native rows use Kalshi (last pre-tip minute; fee in the "
+             "price) where they have it, else their sportsbook close; "
+             "reconstructed rows use their sportsbook close (DraftKings). The "
              "hypotheses stay on the sportsbook prices they were registered on.",
              "Nothing priced by ESPN BET (no longer offered) is shown, as on the "
-             "pages: 2024-25 is left out; its rows stay in "
-             "data/nba_reconstructed.csv.",
+             "pages: all of 2024-25 and 2025-26 before 25 Nov are left out; their "
+             "rows stay in data/nba_reconstructed.csv.",
              ""]
     nv, rv = analysis.market_view(native), analysis.market_view(recon)
     for block in (native_block(nv), hypotheses_block(native, recon),
