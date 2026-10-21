@@ -523,6 +523,27 @@ Before a PR, run:
   games with `--avail`), split by route. Walk-forward costs +0.0010 ±
   0.0030 vs leave-one-season-out, so the reconstructed rows are not
   materially flattered. Pace adds nothing. Research only.
+- History backtest (owner's question, 2026-10-21; `research/
+  history_backtest.py`, workflow "History backtest", results
+  `diagnostics/history_backtest/RESULTS.txt`, MODEL.md §6.4): the model
+  against outcomes only, games 10+, on every season the logs reach (no
+  prices, so nothing about the market; stats.nba.com does not answer from
+  the runners, so BBR and ESPN as in production). Walk-forward v6 routing
+  2016-17 to 2025-26 (n = 9,509): v6 − v4 core −0.0100 ± 0.0033 log loss,
+  better in 9 of 9 seasons. Terms dropped in turn (positive = helps):
+  talent +0.0059 ± 0.0026, b2b +0.0024 ± 0.0012, Δ·phase +0.0009 ± 0.0006
+  (8 of 9 each), availability +0.0029 ± 0.0033 (3 of 3), FT% +0.0004 ±
+  0.0005 (8 of 9), opponent luck +0.0002 ± 0.0009 (6 of 9, the weakest).
+  Calibration slope 0.99 ± 0.06 (folds with 2+ training seasons); Δ·phase
+  takes the last third from 1.24 (v1) to 1.04. Predicted home rate 1.5 pts
+  above the actual (2017-18 to 2025-26). Out of era 2004-05 to 2013-14
+  (n = 10,480), the frozen committed core: slope 1.03 ± 0.06, home teams
+  won 2.8 pts more than predicted; frozen − full in-era refit +0.0005 ± 0.0018; era weights
+  correlate +0.96 with the committed ones. The logic and the shape transfer;
+  the home intercept moves with the era (recency weighting already ruled
+  out). The home-team back-to-back residual flips sign between eras
+  (−2 / +2 pts): not a lead. Takes 2 minutes on cached data; rerun after
+  any model change.
 - One feature builder: `nba_composite.logit_inputs` (delta, b2b_net, phase
   from opening night, d_phase) serves build_games, the CLI scorer and
   `build_site.score_game`; research scripts reuse the `phase` column.

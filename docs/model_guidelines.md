@@ -13,6 +13,9 @@ ESPN BET before). Reconstructed rows are leave-one-season-out; for 2025-26
 every fit uses earlier seasons only, and walk-forward costs only +0.0010 ±
 0.0030 log loss against leave-one-season-out, so the rows are not flattered.
 No native (pregame-locked) row has been graded with a model probability yet.
+Against outcomes alone (no prices) the evidence is wider: nine walk-forward
+seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
+2013-14), `research/history_backtest.py` (MODEL.md §6.4).
 ± is 95% throughout; log loss differences are per game, model − market
 (positive = the market is better).
 
@@ -57,6 +60,7 @@ No native (pregame-locked) row has been graded with a model probability yet.
 | S4 | Not only injury timing | H3 at the DraftKings open without the injury-report terms: +15.2 ± 22.1 vs null (with them +11.2 ± 23.0); games 1–9, which have no report terms, also see the line move toward the model (+0.42 to +0.70 pts) | dk_hypotheses §5; ats_signal |
 | S5 | Every shipped term earned its place out of sample | Phase −0.0036 ± 0.0036 / −0.0075 ± 0.0032; availability v3 − v2 −0.008 ± 0.010 in both seasons; v5 luck + talent −0.0036 / −0.0054 vs base v4; v6 FT% −0.0003 / −0.0010; carryover early season +0.02 behind the close vs +0.03 to +0.09 for this-season-only | MODEL.md §6 |
 | S6 | Honest construction | Features strictly before the date, pregame lock, walk-forward ≈ leave-one-season-out, frozen hypotheses, a tag per formula, tests on lookahead | CLAUDE.md engineering rules |
+| S8 | The logic and the shape hold on every season, not just the priced two | Walk-forward 2016–26: v6 beats the v4 core in 9 of 9 seasons (−0.0100 ± 0.0033); slope 0.99 ± 0.06. Frozen core on 2004–14: slope 1.03 ± 0.06, no worse than refitting it in that era (+0.0005 ± 0.0018); era weights correlate +0.96 with the committed ones | history_backtest A1–A2, B |
 | S7 | Interpretable | The composite is a decomposition of four factors (r = 0.98 with margin); each later term has a basketball meaning | MODEL.md §6.3 |
 
 ## 3. Weaknesses
@@ -69,6 +73,8 @@ No native (pregame-locked) row has been graded with a model probability yet.
 | W4 | Coarse player information | Talent is last season's BPM (rookies at replacement) over the previous box score; the report gives Out/Doubtful only; newly-out players are double counted (≈ −1× the talent coefficient). Even perfect "who played" adds little over v5 (−0.0028 ± 0.0078 / +0.0014 ± 0.0079) | v5 audit E; roster minutes |
 | W5 | Early season unresolved | Games 1–9: −0.0073 ± 0.0395 and +0.0092 ± 0.0420 vs the close (138 games each, ESPN BET); the carryover leans home +2.5 to +3.2 pp beyond the market. DraftKings priced no game 1–9, so H1 and H6 have no DraftKings hindsight | model_review §1; home-court; dk_hypotheses |
 | W6 | Thin, in-sample evidence for the rules | Two priced seasons, one DraftKings season; the hypotheses came from a 271-cell scan where 3 passed (about 7 expected by chance); the DraftKings backtest re-reads the same games | CLAUDE.md hypotheses |
+| W8 | The home edge is the training seasons' edge | Walk-forward 2017-18 to 2025-26 it ran 1.5 pts above the actual home rate (3–4 pts in 2020-21, 2021-22, 2023-24; within 1.3 in the last two); on 2004–14 the frozen core ran 2.8 pts below it. Recency weighting bought nothing (§4) | history_backtest A2, B |
+| W9 | Opponent luck barely earns its place inside v6 | Dropped and refitted: +0.0002 ± 0.0009, helps in 6 of 9 seasons, against +0.0059 for talent and +0.0024 for back-to-back. It earned its gate against base v4 (−0.0022 pooled), before talent took the same information | history_backtest A7 |
 | W7 | Segment results do not replicate | Heavy DK favourites (≥ 0.90) +0.050 ± 0.013 (n = 39) but −0.007 ± 0.034 in 2024-25; worst months differ by season. Treat single-season cells as noise until they replicate | model_review §2 |
 
 ## 4. Ruled out (do not retest without a new reason)
@@ -81,6 +87,7 @@ No native (pregame-locked) row has been graded with a model probability yet.
 | Late-season tank/top flags | −0.0010 ± 0.0023 / −0.0003 ± 0.0025 (held, not dropped) |
 | Last season past game 10 | +0.0028 ± 0.0055 / +0.0041 ± 0.0048 (worse) |
 | Recency-weighted intercept | within 0.0005 of v5 |
+| A separate home back-to-back term | the residual flips sign between eras: −2 pts (2016–26), +2 pts (2004–14) |
 | Probit link | +0.0004 / +0.0003 (slightly worse) |
 | Δ·\|Δ\| (curvature) | +0.0005 / −0.0007 |
 | Eight free factor weights instead of Δ | +0.0004 / +0.0001 |
@@ -154,6 +161,9 @@ No native (pregame-locked) row has been graded with a model probability yet.
 - **G10. Re-run the checks after every rescore.** Rerun
   `research/model_review.py`, `research/dk_hypotheses.py` (§7, the retired
   bet) and the hypothesis scoreboard; keep native and reconstructed apart.
+  After a change to prediction math also run the History backtest
+  (workflow, 2 minutes on cached data): the change should not lose any
+  season's term ablation or the out-of-era slope.
 
 ### Markets and data
 
@@ -182,4 +192,5 @@ No native (pregame-locked) row has been graded with a model probability yet.
 
 Reproduce: `python research/model_review.py` (§1–4 above),
 `python research/dk_hypotheses.py --open-price research/output/open_price.csv`
-(DraftKings backtest and the retired-bet re-check).
+(DraftKings backtest and the retired-bet re-check), and the "History
+backtest" workflow (`research/history_backtest.py`; S8, W8, W9).
