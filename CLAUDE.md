@@ -35,12 +35,15 @@ owner directs the product.
   `kalshi_pre_*` under the pregame lock, `kalshi_first_*` written once with
   `first_*`, `kalshi_open/close_*` by grading; seasons from
   `ledger.KALSHI_FROM_SEASON` = 2025-26, the first Kalshi lists).
-  `analysis.market_view` prices a row by Kalshi when it is graded with a
-  Kalshi close (or pending with a Kalshi pregame price), else by its
-  sportsbook; the Ledger, Calibration, Model pages, the public record
-  (Picks tiles, Results, Performance) and the report read that view;
-  2024-25, priced by ESPN BET only, is left off the pages and the report
-  (see Pages below) and stays in the data. The Picks page's game cards read the raw rows
+  `analysis.market_view` prices a native row by Kalshi when it is graded
+  with a Kalshi close (or pending with a Kalshi pregame price), else by its
+  sportsbook; reconstructed rows keep their sportsbook
+  (`analysis.KALSHI_BASES`; owner's decision, 2026-10-21: the rebuilt
+  2025-26 section is graded at the DraftKings close). The Ledger,
+  Calibration, Model pages, the public record (Picks tiles, Results,
+  Performance) and the report read that view; games priced only by ESPN
+  BET (all of 2024-25, and 2025-26 before 25 Nov) are left off the pages
+  and the report (see Pages below) and stay in the data. The Picks page's game cards read the raw rows
   instead (owner's decision, 2026-10-20): one sportsbook's moneyline and
   spread (DraftKings), with Kalshi's pregame pair in each card's detail.
   The sportsbook columns are
