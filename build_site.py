@@ -1263,9 +1263,8 @@ HOW_INDEX = (
     "one unit on its moneyline. <b>Model</b> is the composite's P(win); "
     "<b>market</b> is the sportsbook's price with its margin removed "
     "(DraftKings; the book is named on the card, and its moneyline and spread "
-    "come from the same book). Open a game for Kalshi's price beside it "
-    "(for reference; nothing is graded on it). The record above grades the "
-    "lean at the DraftKings price named under it. "
+    "come from the same book). The record above grades the lean at the "
+    "DraftKings price named under it. "
     "<b>Model − market</b> is the lean's model probability minus its no-vig "
     "market probability; <b>EV</b> is what the model claims the posted price "
     "is worth, shown beside its <b>null</b>: the EV if the market is exactly "
@@ -1314,7 +1313,8 @@ def game_card(r):
     """One game (the NFL site's card): both teams with model WP, the lean
     and its price, the spread pick when H5/H6 bets; tap for the model
     against the market. Reads only the row as recorded: the sportsbook's
-    moneyline and spread (one book), Kalshi's pregame pair in the detail."""
+    moneyline and spread (one book); no Kalshi price (owner's decision,
+    2026-10-21)."""
     def book_name(b):
         return market.BOOK_NAMES.get(b, b) if pd.notna(b) and b else None
     away, home = r["away"], r["home"]
@@ -1360,16 +1360,11 @@ def game_card(r):
         elif r.get("model_tag") in AVAIL_TAGS:
             flags.append("<span class='badge'>injury report</span>")
         bk = esc(src) if src else "Market"
-        k_home = pd.to_numeric(r.get("kalshi_pre_q_home"), errors="coerce")
-        kalshi = ([["Kalshi (no-vig)", pct(1 - k_home), pct(k_home)],
-                   ["Kalshi moneyline", ml_txt(r.get("kalshi_pre_away_ml")),
-                    ml_txt(r.get("kalshi_pre_home_ml"))]]
-                  if np.isfinite(k_home) else [])
         det.append("<h3>Model vs market</h3>" + table(["", esc(away), esc(home)], [
             ["Model", pct(1 - p), pct(p)],
             [f"{bk} (no-vig)", pct(1 - q_home), pct(q_home)],
-            [f"{bk} moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]]
-            + kalshi, left=(0,)))
+            [f"{bk} moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]],
+            left=(0,)))
         det.append("<div class='tiles'>"
                    + tile("Model − market", f"{pp(pl - q, cls=False)} pp" if np.isfinite(q) else "—",
                           f"{esc(r['lean'])}: {pct(pl)} vs {pct(q)}")
@@ -1431,7 +1426,7 @@ def render_index(led, today, built, model_ok, recon=None):
     """Picks: today's slate as cards, under the season's lean record."""
     scope = public_scope(led)
     # the cards read the raw rows: the sportsbook's moneyline and spread, one
-    # book (owner's decision, 2026-10-20); Kalshi's pair is in the detail
+    # book (owner's decision, 2026-10-20); no Kalshi price (2026-10-21)
     day_txt = pd.Timestamp(today).strftime("%A, %B %-d")
     right = ("<div class='rec'><div class='l'>Forecast updated</div>"
              f"<div class='mono'>{esc(built)}</div></div>")

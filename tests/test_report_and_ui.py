@@ -256,9 +256,10 @@ def test_card_pick_is_the_side_the_ledger_grades():
             assert d["side"].iloc[0] == a["side"]
 
 
-def test_card_reads_one_sportsbook_with_kalshi_in_the_detail(tmp_path, monkeypatch):
-    # the card's moneyline and spread are the sportsbook's even where Kalshi
-    # is the record's market (owner's decision, 2026-10-20)
+def test_card_reads_one_sportsbook_and_no_kalshi(tmp_path, monkeypatch):
+    # the card's moneyline and spread are the sportsbook's (owner's decision,
+    # 2026-10-20), and no Kalshi price shows even where the row has one
+    # (2026-10-21)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     r = _ats_pending(gp=3)
     r["kalshi_pre_home_ml"], r["kalshi_pre_away_ml"] = -150, 130
@@ -274,11 +275,8 @@ def test_card_reads_one_sportsbook_with_kalshi_in_the_detail(tmp_path, monkeypat
     q = float(r["pre_q_home"])
     assert f"<span>Market {build_site.pct(q)}</span>" in idx           # the book's no-vig
     assert "<b>HOM -5.5</b> at -110 <span class='basis'>DraftKings</span>" in idx
-    # Kalshi's pair stays in the detail
-    assert ("<td class='l'>Kalshi (no-vig)</td><td class=''>42.0%</td>"
-            "<td class=''>58.0%</td>") in idx
-    assert ("<td class='l'>Kalshi moneyline</td><td class=''>+130</td>"
-            "<td class=''>-150</td>") in idx
+    # no Kalshi row in the detail, and no Kalshi anywhere on the page
+    assert "Kalshi" not in idx and "58.0%" not in idx
 
 
 # ----------------------------------------- public Results / Performance pages
