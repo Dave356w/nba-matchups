@@ -226,6 +226,7 @@ decomposition, not a stronger rating.
 | §6.1 | Walk-forward backtest | `python research/walk_forward.py --seasons 2025 2026 --avail --v5` (v6 gate: `--v6`) |
 | §6.2 phase | Calibration shape | `python research/calibration_shape.py --seasons 2025 2026` |
 | Open vs close, H1–H3 | Open vs close | `python research/open_price.py --seasons 2025 2026` |
+| H1–H6 on DraftKings | — (repo data) | `python research/dk_hypotheses.py [--open-price research/output/open_price.csv]` |
 
 The 2026-09-30 refit and re-score after the coverage fix reproduced the
 committed `logit_avail.json` and reconstructed rows exactly (nothing to

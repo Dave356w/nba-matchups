@@ -285,6 +285,22 @@ Before a PR, run:
   - The Ledger page and the report also show H5 and H6 by basis × the
     graded price's book × season (`analysis.hypothesis_by_season`, the same
     bets, never pooled), under the scoreboard's pooled-as-registered row.
+  - DraftKings backtest (owner's question, 2026-10-21;
+    `research/dk_hypotheses.py`, results `diagnostics/dk_hypotheses/
+    RESULTS.txt`): the frozen rules on the 964 reconstructed 2025-26 games
+    with a DK close. ESPN lists DK from 2025-11-25 only, so there is no
+    2024-25 DK and no DK game 1–9: H1 and H6 cannot be tested on DK.
+    Hindsight, ROI − null ± 95%: at the open H2 +4.2 ± 6.7 (n = 412), H3/H4
+    +18.9 ± 25.0 (n = 119), H5 +7.1 ± 7.0 (n = 703, z +2.0); at the close
+    −2.3, −0.3, +0.1 (the null). The same open bets at the close price keep
+    +1.4 / +11.3 / +4.1 (the line moves toward them +1.6 pp / +4.1 pp /
+    +0.64 pts). H3 and H5 on DK sit in late Nov–Jan (+58 ± 45, n = 41;
+    +10.8 ± 10.3, n = 323) more than Feb–Apr (−1.7 ± 29, n = 78; +3.9 ±
+    9.6, n = 380). Without the injury-report terms (Open vs close run
+    36754366300, v4 rows) H3 at the DK open is +15.2 ± 22.1 (v4 +11.2 ±
+    23.0) and H2 +2.1 ± 7.8 (v4 +4.2 ± 7.7): not lost to injury timing on
+    DK, unresolved. Not an independent test: these games were in the scans
+    that chose the rules; native rows are the test.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a
