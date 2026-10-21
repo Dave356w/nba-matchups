@@ -1,0 +1,30 @@
+{
+  "test_year": 2026,
+  "oos_holdout_games": 1071,
+  "dk_reconstructed_rows": 964,
+  "dk_complete_open_close_scores": 964,
+  "matched_games": 964,
+  "unmatched_complete_dk_rows": 0,
+  "max_probability_rounding_difference": 4.8789513237168514e-05,
+  "first_date": "2025-11-25",
+  "last_date": "2026-04-12",
+  "reconstructed_snapshot_timestamps": 0,
+  "training_games": 8438,
+  "training_seasons": [
+    2017,
+    2018,
+    2019,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "training_max_year": 2025,
+  "holdout_routes": {
+    "avail": 964
+  },
+  "home_empty_band_fallback_games": 0,
+  "favorite_empty_band_fallback_games": 0,
+  "source_commit": "8ebe8a2733717edd1e6908fca2f976d243311d8a"
+}
