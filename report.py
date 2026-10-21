@@ -117,16 +117,33 @@ def native_block(native):
 
 
 def hypotheses_block(native, recon):
+    book = analysis.HYPOTHESIS_BOOK
+    name = market.BOOK_NAMES.get(book, book)
     lines = ["== PRE-REGISTERED HYPOTHESES (frozen; analysis.HYPOTHESES)",
              "  Native at the registered price beside the hindsight rule on the "
-             "reconstructed rows. Never pooled; one season is not a verdict."]
-    for hyp, hind, nat in analysis.hypothesis_rows(native, recon):
+             "reconstructed rows. Never pooled; one season is not a verdict.",
+             f"  {name} prices only, as on the Ledger page (ESPN BET is no longer "
+             "offered); the registered pooled figures are in CLAUDE.md."]
+    for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
         lines.append(f"  {hyp['key']:<5} {hyp['rule']}")
         lines.append("    " + roi_line(
             f"native @ {analysis.PRICE_NAMES[hyp['native']]}", nat, 26))
         lines.append("    " + roi_line(
             f"hindsight @ {analysis.PRICE_NAMES[hyp['hindsight']]}", hind, 26))
-    by = analysis.hypothesis_by_season(native, recon)
+    bt = [b for b in analysis.hypothesis_backtest(recon, book) if b["open"] or b["close"]]
+    if bt:
+        lines.append(f"  {name} backtest (hindsight; the open bets re-priced at the "
+                     "close, and the market's move toward them):")
+    for b in bt:
+        for label, r in (("@ open", b["open"]), ("@ close", b["close"]),
+                         ("open bets @ close", b["open_at_close"])):
+            if r:
+                lines.append(f"    {b['label']:<10} " + roi_line(label, r, 18))
+        m = b["move"]
+        if m:
+            lines.append(f"    {'':<10} line moved toward the open bets "
+                         f"{m['mean']:+.2f} {m['unit']} +/- {m['se']:.2f}")
+    by = analysis.hypothesis_by_season(native, recon, book=book)
     if by:
         lines.append("  By season, never pooled (basis · the graded price's book · "
                      "season; win = cover rate):")

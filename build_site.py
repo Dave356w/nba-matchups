@@ -1725,6 +1725,11 @@ BASIS_LABELS = {"native": "Native (pregame-locked, forward)",
                 "reconstructed": "Reconstructed (leave-one-season-out, hindsight)"}
 BASIS_BADGES = {"native": "<span class='badge native'>Native · forward</span>",
                 "reconstructed": "<span class='badge recon'>Reconstructed · hindsight</span>"}
+# Books the Ledger page leaves out (owner's decision, 2026-10-21): ESPN BET is
+# no longer offered, so the Ledger shows no ESPN BET-priced section or spread
+# and grades the hypotheses on DraftKings (analysis.HYPOTHESIS_BOOK). The
+# Model and Calibration pages and the report's season table keep them.
+LEDGER_HIDDEN_BOOKS = ("espnbet",)
 
 READ_KEY = (
     "<details class='key'><summary>How to read these numbers</summary> Judge every ROI against its "
@@ -1732,7 +1737,8 @@ READ_KEY = (
     "That is about −4% (the hold: Kalshi's taker fee and spread, or the "
     "bookmaker's margin), not zero. <b>Market</b> is Kalshi's last pre-tip "
     "price wherever a game has one (2025-26 on), else the sportsbook close; "
-    "the hypotheses stay on the sportsbook prices they were registered on. "
+    "the hypotheses stay on sportsbook prices, DraftKings only (ESPN BET is "
+    "no longer offered, so this page shows nothing priced by it). "
     "<b>±</b> is one "
     "standard error (1 SE). Colour marks only gaps of at least "
     f"{SIG:g} SE from the null: <span class='pos'>green</span> above, "
@@ -1903,11 +1909,11 @@ def _verdicts(sec):
 
 
 def _hypotheses_by_season(native, recon):
-    """H5 / H6 split by basis x book x season (analysis.hypothesis_by_season):
-    the scoreboard above pools hindsight as registered; here nothing is
-    pooled."""
+    """H5 / H6 split by basis x season on DraftKings prices
+    (analysis.hypothesis_by_season); nothing is pooled."""
     rows = []
-    for hyp, parts in analysis.hypothesis_by_season(native, recon):
+    for hyp, parts in analysis.hypothesis_by_season(
+            native, recon, book=analysis.HYPOTHESIS_BOOK):
         for i, p in enumerate(parts):
             badge = BASIS_BADGES[p["basis"]].replace(" · forward", "").replace(
                 " · hindsight", "")
@@ -1927,38 +1933,118 @@ def _hypotheses_by_season(native, recon):
                          pct(r["actual"]), pct(r["breakeven"]), fav_txt(r)])
     if not rows:
         return ""
-    return ("<h3>H5 / H6 by season — never pooled</h3><p class='note'>The "
-            "scoreboard pools the hindsight seasons, as registered; here each "
-            "basis, book and season stands alone. The book is the one that "
-            "priced the graded spread (native: the first snapshot's; "
-            "hindsight: the open's). Win % is the cover rate; fav is 1u on "
-            "the spread favourite of the same games at the same price.</p>"
+    return ("<h3>H5 / H6 by season — never pooled</h3><p class='note'>Each "
+            "basis and season stands alone, on DraftKings spreads (native: "
+            "the first snapshot's; hindsight: the open's). Win % is the "
+            "cover rate; fav is 1u on the spread favourite of the same games "
+            "at the same price.</p>"
             + table(["", "Basis · book · season", "Price", "n", "W–L", "ROI",
                      "Null", "vs null (± 1 SE)", "Win %", "Break-even",
                      "Fav ROI"], rows, left=(0, 1, 2), key=(5, 7)))
 
 
+def _dk_scope(recon):
+    """'964 rebuilt 2025-26 games from 25 Nov 2025': the reconstructed rows
+    the hypotheses are graded on (analysis.HYPOTHESIS_BOOK), in words."""
+    g = analysis.on_book(recon, "close", analysis.HYPOTHESIS_BOOK)
+    if g is None or not len(g):
+        return "no rebuilt games"
+    seasons = ", ".join(season_txt(x) for x in sorted(g["season"].dropna().unique()))
+    first = pd.Timestamp(str(g["slate_date"].min())).strftime("%-d %b %Y")
+    return f"{len(g):,} rebuilt {seasons} games from {first}"
+
+
+def _backtest_row(label, price, r, move=None):
+    if not r:
+        return None
+    mv = "—"
+    if move:          # pp of no-vig probability, or spread points
+        se = f"{move['se']:.2f}" if np.isfinite(move["se"]) else "—"
+        mv = f"{move['mean']:+.2f} {move['unit']} <span class='mut'>± {se}</span>"
+    return [label, price, r["n"], f"{r['w']}–{r['l']}", *_roi_cells(r),
+            pct(r["actual"]), pct(r["q"]), mv, fav_txt(r)]
+
+
+def _hypothesis_backtest(recon):
+    """The rules' hindsight on DraftKings alone (analysis.hypothesis_backtest):
+    at the open, at the close, and the open bets at the close price."""
+    book = analysis.HYPOTHESIS_BOOK
+    name = market.BOOK_NAMES[book]
+    rows, halves, none = [], [], []
+    for b in analysis.hypothesis_backtest(recon, book):
+        hyp = b["hyp"]
+        if not (b["open"] or b["close"]):
+            none.append(b["label"])
+            continue
+        reg = lambda p: (" <span class='mut'>· registered</span>"  # noqa: E731
+                         if hyp["hindsight"] == p else "")
+        lab = f"<b>{esc(b['label'])}</b>"
+        part = [_backtest_row(lab, f"at the open{reg('open')}", b["open"]),
+                _backtest_row("", f"at the close{reg('close')}", b["close"]),
+                _backtest_row("", "open bets at the close",
+                              b["open_at_close"], b["move"])]
+        part = [r for r in part if r]
+        if part and not part[0][0]:
+            part[0][0] = lab
+        rows += part
+        for i, (half, r) in enumerate(b["halves"]):
+            row = _backtest_row(lab if i == 0 else "",
+                                f"{half}, at the {analysis.PRICE_NAMES[hyp['hindsight']]}", r)
+            if row:
+                halves.append(row[:-2] + [row[-1]])
+    if not rows:
+        return ""
+    heads = ["", "Price", "n", "W–L", "ROI", "Null", "vs null (± 1 SE)", "Win %",
+             "Market %", "Line move", "Fav ROI"]
+    missing = (f" {' and '.join(none)} bet only games 1–9, which {name} never "
+               "priced in the rebuilt rows, so they have no backtest here."
+               if none else "")
+    return (f"<h3>{esc(name)} backtest — hindsight</h3><p class='note'>Every "
+            f"rule on the {_dk_scope(recon)} that {esc(name)} priced, at its "
+            "open and its close, and the same opening bets re-priced at the "
+            "close. <b>Line move</b> is how far the market moved toward those "
+            "bets by tip (no-vig points of probability, or spread points; "
+            "± 1 SE); "
+            "native bets are placed at the first snapshot, between the two. "
+            f"H4 and H2·F are H3 and H2 at the first snapshot, which rebuilt "
+            f"rows do not have, so in hindsight each pair is one set of bets."
+            f"{missing} <b>Not an independent test:</b> these games were in "
+            "the scans that chose the rules; the native rows are the test. "
+            "Full tables: <code>diagnostics/dk_hypotheses/RESULTS.txt</code>.</p>"
+            + table(heads, rows, left=(0, 1), key=(4, 6))
+            + (fold("By half-season <span class='mut'>— descriptive, not a "
+                    "filter</span>",
+                    table(heads[:-2] + heads[-1:], halves, left=(0, 1), key=(4, 6)))
+               if halves else ""))
+
+
 def _hypotheses(native, recon):
+    book = analysis.HYPOTHESIS_BOOK
+    name = market.BOOK_NAMES[book]
     rows = []
-    for hyp, hind, nat in analysis.hypothesis_rows(native, recon):
+    for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
         def cell(r):
             if not r:
                 return ["0", "—", "—", "—"]
             return [str(r["n"]), *_roi_cells(r)]
         h, n = cell(hind), cell(nat)
         h[0] = (f"{h[0]}<br><span class='mut'>at the "
-                f"{analysis.PRICE_NAMES[hyp['hindsight']]}</span>")
+                f"{analysis.PRICE_NAMES[hyp['hindsight']]}</span>" if hind else
+                f"{h[0]}<br><span class='mut'>no {esc(name)} games</span>")
         n[0] = (f"{n[0]}<br><span class='mut'>at the "
                 f"{analysis.PRICE_NAMES[hyp['native']]}</span>")
         rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *n, *h])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
         "<p class='note'>Rules frozen before any native row had a model "
-        "probability; every result is reported here, win or lose. Native is the forward test; hindsight is the "
-        "same rule on the rebuilt seasons.</p>"
+        "probability; every result is reported here, win or lose. Native is "
+        f"the forward test, on {esc(name)} prices; hindsight is the same rule "
+        f"on the {_dk_scope(recon)} that {esc(name)} priced (ESPN BET is no "
+        "longer offered, so its prices are left out).</p>"
         + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
-                 "Hindsight n", "ROI", "Null", "vs null (± 1 SE)"],
+                 f"Hindsight n ({esc(name)})", "ROI", "Null", "vs null (± 1 SE)"],
                 rows, left=(0, 1), key=(3, 5))
+        + _hypothesis_backtest(recon)
         + _hypotheses_by_season(native, recon)
         + fold("About these hypotheses <span class='mut'>— dates, prices, what was retired</span>",
         "<p class='note'>H1–H3 fixed on 2026-09-30, H4 and amendment A1 "
@@ -1970,9 +2056,11 @@ def _hypotheses(native, recon):
         "the earliest priced one, with the model probability written then "
         "(H4 is H3's rule at the early price, where the hindsight edge "
         "appeared). <b>Hindsight</b> is the same rule on the "
-        "reconstructed rows at the price the scan found it (pooled over both "
-        "seasons and books, as registered), recomputed on the current "
-        "reconstructed model; one season of native rows is not a verdict.</p>"
+        "reconstructed rows at the price the scan found it, recomputed on "
+        "the current reconstructed model; it was registered pooled over both "
+        "seasons and books, and since 2026-10-21 is shown on DraftKings "
+        "prices only (ESPN BET is no longer offered). One season of native "
+        "rows is not a verdict.</p>"
         "<p class='note'><b>H5</b> and <b>H6</b> (fixed 2026-10-20, before any "
         "native row had a model probability) are against the spread: the "
         "model's win probability as a home margin, 13.5 × Φ⁻¹(P) points, bet "
@@ -2024,7 +2112,9 @@ def _ledger_body(sec, native):
 def render_grades(native, recon, built):
     # sections grade against Kalshi where a row has it; the hypotheses
     # (below, raw rows) stay on the sportsbook prices they were registered on
-    secs = _sections(analysis.market_view(native), analysis.market_view(recon))
+    secs = [s for s in _sections(analysis.market_view(native),
+                                 analysis.market_view(recon))
+            if s["book"] not in LEDGER_HIDDEN_BOOKS]
     body = ["<h1>Ledger</h1><p class='lead'>Every game the model scored, graded "
             "against the final score and the market: one unit on the model's "
             "lean each game. Judge each ROI against its <b>null</b> (about −4%, "
@@ -2053,7 +2143,9 @@ def render_grades(native, recon, built):
                     "<div class='flag-note'>The current model replayed on past "
                     "seasons, each season left out of its own fit and graded at the "
                     "close. <b>Hindsight, not a track record:</b> the model was "
-                    "designed after these games were played.</div>")
+                    "designed after these games were played. Seasons priced only "
+                    "by ESPN BET (no longer offered) are left out here; the "
+                    "<a href='model.html'>Model</a> page keeps them.</div>")
     for sec in rec:
         if sec["book"] is None:
             body.append(f"<div id='{sec['id']}' aria-label='{esc(sec['label'])}'>"
@@ -2132,7 +2224,11 @@ def _band_section(body, h, native):
 
 
 def _ats_section(body, h):
-    """1u flat spread bets at the closing spread, beside the moneyline ROI."""
+    """1u flat spread bets at the closing spread, beside the moneyline ROI.
+    Only spreads from books the Ledger shows (LEDGER_HIDDEN_BOOKS); the
+    sportsbook behind a Kalshi-priced row's spread is its `spread_book`."""
+    book = h["spread_book"] if "spread_book" in h else h["close_book"]
+    h = h[~book.astype(str).isin(LEDGER_HIDDEN_BOOKS)]
     sections = analysis.ats_summary(h)
     if not sections:
         return
@@ -2150,8 +2246,8 @@ def _ats_section(body, h):
               pct(r["model_p"]), pct(r["q"])]
              for r in rows], left=(0,), key=(3, 5)))
     body.append("".join(out))
-    body.append("<p class='note'>Only rows with a recorded closing spread "
-                "(same book as the moneyline close). <b>Model cover %</b> maps "
+    body.append("<p class='note'>Only rows with a recorded DraftKings closing "
+                "spread. <b>Model cover %</b> maps "
                 "the model's win probability to a margin with σ = "
                 f"{analysis.ATS_SIGMA:g} pts; it is a display mapping, not a "
                 "new prediction. <b>Cover %</b> is covers ÷ (covers + misses); "

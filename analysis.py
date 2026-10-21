@@ -69,9 +69,10 @@ def market_view(g):
     Kalshi close, or still pending with a Kalshi pregame price; such a row
     reads every price from Kalshi (pre, first, open, close; book "kalshi")
     and keeps its model columns, result and sportsbook closing spread (the
-    ATS line). Every other row keeps its sportsbook prices, so a row is
-    always priced by one market. The pre-registered HYPOTHESES read the raw
-    rows: they were registered on sportsbook prices."""
+    ATS line; `spread_book` keeps the sportsbook that priced it). Every
+    other row keeps its sportsbook prices, so a row is always priced by one
+    market. The pre-registered HYPOTHESES read the raw rows: they were
+    registered on sportsbook prices."""
     if g is None or not len(g) or "kalshi_close_q_home" not in g.columns:
         return g
     num = lambda c: pd.to_numeric(g[c], errors="coerce")
@@ -83,6 +84,7 @@ def market_view(g):
     v = g.copy()
     for c in ("pre_book", "close_book", "first_book"):
         v[c] = v[c].astype(object)
+    v["spread_book"] = v["close_book"]
     for kind in ("pre", "first", "close", "open"):
         rows = k & won if kind in ("close", "open") else k   # closes: graded only
         cols = ([f"{kind}_home_ml", f"{kind}_away_ml"]
@@ -505,12 +507,32 @@ def hypothesis_picks(g, hyp, price):
     return d
 
 
-def hypothesis_rows(native, recon):
+# The book behind each graded price (the hypotheses read raw rows: sportsbooks).
+PRICE_BOOK = {"first": "first_book", "pre": "pre_book", "open": "close_book",
+              "close": "close_book"}
+# The book the pages grade the hypotheses on (owner's decision, 2026-10-21):
+# DraftKings only, as ESPN BET is no longer offered. The rules are unchanged;
+# a basis keeps the bets whose graded price came from this book (PRICE_BOOK).
+# The reconstructed DraftKings rows are 2025-26 from 2025-11-25 (ESPN lists
+# DraftKings from then), all games 10+, so H1 and H6 have no hindsight there.
+# The registered pooled figures are in CLAUDE.md and research/dk_hypotheses.py.
+HYPOTHESIS_BOOK = "dk"
+
+
+def on_book(g, price, book):
+    """Rows of `g` whose `price` came from `book` (every row if book is None)."""
+    if book is None or g is None or not len(g):
+        return g
+    return g[g[PRICE_BOOK[price]].astype(str) == book]
+
+
+def hypothesis_rows(native, recon, book=None):
     """[(hypothesis, hindsight roi row | None, native roi row | None)].
 
     Hindsight: reconstructed rows at the price the scan used (pooled over
-    seasons and books, as pre-registered). Native: pregame-locked rows at
-    the hypothesis's native price. Never pooled with each other.
+    seasons and books, as pre-registered, unless `book` keeps one book's
+    prices). Native: pregame-locked rows at the hypothesis's native price.
+    Never pooled with each other.
     """
     out = []
     for hyp in HYPOTHESES:
@@ -519,6 +541,7 @@ def hypothesis_rows(native, recon):
         rows = []
         for g, price, label in ((hind, hyp["hindsight"], "hindsight"),
                                 (native, hyp["native"], "native")):
+            g = on_book(g, price, book)
             d = hypothesis_picks(g, hyp, price) if g is not None and len(g) else None
             r = ((ats_row if ats else roi_row)(label, d)
                  if d is not None and len(d) else None)
@@ -529,17 +552,12 @@ def hypothesis_rows(native, recon):
     return out
 
 
-# The book behind each graded price (the hypotheses read raw rows: sportsbooks).
-PRICE_BOOK = {"first": "first_book", "pre": "pre_book", "open": "close_book",
-              "close": "close_book"}
-
-
-def hypothesis_by_season(native, recon, keys=("H5", "H6")):
+def hypothesis_by_season(native, recon, keys=("H5", "H6"), book=None):
     """[(hypothesis, [part])] for the hypotheses in `keys`: the same bets as
-    hypothesis_rows, split by basis x the graded price's book x season and
-    never pooled (native first, newest season first). part = dict(basis,
-    book, season, price, row); a basis with no bets gives one part with
-    book, season and row None."""
+    hypothesis_rows (with the same `book`), split by basis x the graded
+    price's book x season and never pooled (native first, newest season
+    first). part = dict(basis, book, season, price, row); a basis with no
+    bets gives one part with book, season and row None."""
     order = {b: i for i, (_, b) in enumerate(market.BOOKS)}
     out = []
     for hyp in HYPOTHESES:
@@ -550,6 +568,7 @@ def hypothesis_by_season(native, recon, keys=("H5", "H6")):
         parts = []
         for basis, g, price in (("native", native, hyp["native"]),
                                 ("reconstructed", hind, hyp["hindsight"])):
+            g = on_book(g, price, book)
             d = hypothesis_picks(g, hyp, price) if g is not None and len(g) else None
             if d is None or not len(d):
                 parts.append(dict(basis=basis, book=None, season=None, price=price,
@@ -570,6 +589,107 @@ def hypothesis_by_season(native, recon, keys=("H5", "H6")):
                 parts.append(dict(basis=basis, book=book, season=season,
                                   price=price, row=r))
         out.append((hyp, parts))
+    return out
+
+
+def hypothesis_groups():
+    """HYPOTHESES as distinct bets in hindsight: H4 and H2·F are H3 and H2 at
+    the first snapshot, which reconstructed rows lack, so each pair is one
+    set of bets there. [(label, hypothesis)], e.g. ("H3 / H4", H3), in
+    registration order."""
+    out = {}
+    for h in HYPOTHESES:
+        k = (h.get("market"), h["early"], h["favourite"], h["min_edge"],
+             h.get("sigma"))
+        out.setdefault(k, []).append(h)
+    return [(" / ".join(h["key"] for h in hs), hs[0]) for hs in out.values()]
+
+
+def reprice_at_close(g, d, hyp):
+    """Bets `d` (hypothesis_picks at the open, rows of `g`) re-priced at the
+    close: same side, the close's price (and, for ATS, its line and the
+    cover at that line). `move` is how far the market moved toward each
+    bet from open to close: no-vig pp (moneyline) or points (ATS). Drops
+    the open's favourite baseline (it priced the open)."""
+    if not len(d):
+        return d
+    m = g.assign(game_id=g["game_id"].astype(str)).set_index("game_id")
+    gid = d["game_id"].astype(str)
+    home = (d["side"].to_numpy() == m.loc[gid, "home"].to_numpy())
+    num = lambda c: pd.to_numeric(m.loc[gid, c], errors="coerce").to_numpy()  # noqa: E731
+    out = d.drop(columns=["fav_units"], errors="ignore")
+    if hyp.get("market") == "ats":
+        line, hso, aso = (num(c) for c in ("close_spread", "close_home_spread_odds",
+                                            "close_away_spread_odds"))
+        res = np.array([market.ats_result(x, s) for x, s in
+                        zip(num("home_pts") - num("away_pts"), line)])
+        out["move"] = d["line"].to_numpy() - np.where(home, line, -line)
+        out["ml"] = np.where(home, hso, aso)
+        qh = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
+        out["q"] = np.where(home, qh, 1 - qh)
+        out["result"] = np.where(home, res, 1 - res)
+        out["units"] = [0.0 if r == 0.5 else market.unit_profit(x, r == 1)
+                        for x, r in zip(out["ml"], out["result"])]
+    else:
+        qh = num("close_q_home")
+        q_side = np.where(home, qh, 1 - qh)
+        out["move"] = 100 * (q_side - d["q"].to_numpy())
+        out["ml"] = np.where(home, num("close_home_ml"), num("close_away_ml"))
+        out["q"] = q_side
+        out["units"] = [market.unit_profit(x, w) for x, w in zip(out["ml"], out["won"])]
+    out = out[np.isfinite(out["q"]) & out["ml"].notna()]
+    out["breakeven"] = market.breakeven_prob(out["ml"])
+    out["units_null"] = out["q"] * [market.decimal_payout(x) for x in out["ml"]] - 1
+    return out
+
+
+HALF_SEASON = "-02-01"   # the backtest's split: before / from 1 Feb of the end year
+
+
+def hypothesis_backtest(recon, book):
+    """The hypotheses' hindsight on one book's reconstructed rows (the
+    Ledger's DraftKings backtest; research/dk_hypotheses.py). Per distinct
+    rule (hypothesis_groups): dict(label, hyp, open, close, open_at_close,
+    move, halves). open / close: roi rows of its bets at that price;
+    open_at_close: the open bets re-priced at the close (reprice_at_close),
+    move = dict(mean, se, toward, unit) of the market's move toward them;
+    halves: [(name, roi row)] at the registered hindsight price, split at
+    1 Feb. Rows are None without bets. Hindsight: these games were in the
+    scans that chose the rules."""
+    base = on_book(recon, "close", book)
+    out = []
+    for label, hyp in hypothesis_groups():
+        ats = hyp.get("market") == "ats"
+        g = with_open_spreads(base) if ats else base
+        row_fn = ats_row if ats else roi_row
+
+        def grade(x, price):
+            d = hypothesis_picks(x, hyp, price) if x is not None and len(x) else None
+            if d is None or not len(d):
+                return None, None
+            r = row_fn("", d)
+            r["z"] = z_vs_null(r)
+            return d, r
+        d_open, r_open = grade(g, "open")
+        r_moved = move = None
+        if r_open:
+            c = reprice_at_close(g, d_open, hyp)
+            if len(c):
+                r_moved = row_fn("", c)
+                r_moved["z"] = z_vs_null(r_moved)
+                v = c["move"].to_numpy(float)
+                move = dict(mean=float(v.mean()),
+                            se=float(v.std(ddof=1) / np.sqrt(len(v))) if len(v) > 1
+                            else float("nan"),
+                            toward=float((v > 0).mean()), unit="pts" if ats else "pp")
+        halves = []
+        if g is not None and len(g):
+            end = pd.to_numeric(g["season"], errors="coerce").astype("Int64").astype(str)
+            first = (g["slate_date"].astype(str) < end + HALF_SEASON).to_numpy()
+            halves = [(name, grade(g[m], hyp["hindsight"])[1])
+                      for name, m in (("to 31 Jan", first), ("from 1 Feb", ~first))]
+        out.append(dict(label=label, hyp=hyp, open=r_open, close=grade(g, "close")[1],
+                        open_at_close=r_moved, move=move, halves=halves))
     return out
 
 

@@ -140,7 +140,9 @@ def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
     grades = (tmp_path / "grades.html").read_text()
     for page_ in (cal, grades):
         assert "Reconstructed (leave-one-season-out, hindsight) · DraftKings close · 2026-27" in page_
-        assert "Reconstructed (leave-one-season-out, hindsight) · ESPN BET close · 2026-27" in page_
+    # ESPN BET is no longer offered: the Ledger leaves its section out
+    assert "Reconstructed (leave-one-season-out, hindsight) · ESPN BET close · 2026-27" in cal
+    assert "ESPN BET close" not in grades
     assert "120 games (0 native, 120 reconstructed;" in cal
     assert "80 games (0 native, 80 reconstructed;" in cal
     assert "200 games" not in cal
@@ -229,14 +231,14 @@ def test_single_bet_band_shows_a_dash_not_nan(tmp_path, monkeypatch):
 
 def test_seasons_get_separate_sections_never_pooled(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    recon = pd.concat([synth(120, 3, "reconstructed", book="espnbet").assign(season=2025),
-                       synth(50, 4, "reconstructed", book="espnbet")
+    recon = pd.concat([synth(120, 3, "reconstructed").assign(season=2025),
+                       synth(50, 4, "reconstructed")
                        .assign(season=2026, game_id=lambda d: "s" + d["game_id"])],
                       ignore_index=True)
     build_site.write_pages(ledger.empty(), recon, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
-    assert "ESPN BET close · 2024-25" in grades and "120 graded games" in grades
-    assert "ESPN BET close · 2025-26" in grades and "50 graded games" in grades
+    assert "DraftKings close · 2024-25" in grades and "120 graded games" in grades
+    assert "DraftKings close · 2025-26" in grades and "50 graded games" in grades
     assert "170 graded games" not in grades
 
 
@@ -475,12 +477,55 @@ def test_h5_h6_by_season_partition_the_pooled_scoreboard(tmp_path, monkeypatch):
                                                    reverse=True)
     h5 = [(p["book"], p["season"]) for p in by["H5"] if p["row"]]
     assert h5 == [("dk", 2026), ("espnbet", 2026), ("espnbet", 2025)]
-    # the page and the report show the split beside the pooled scoreboard
+    # on one book: the DraftKings bets alone, the same as the pooled DK part
+    dk = {h["key"]: hind for h, hind, _ in
+          analysis.hypothesis_rows(nat, rec, book="dk")}
+    by_dk = {h["key"]: parts for h, parts in
+             analysis.hypothesis_by_season(nat, rec, book="dk")}
+    dk_part = next(p["row"] for p in by["H5"] if p["book"] == "dk")
+    assert dk["H5"]["n"] == dk_part["n"] == 3 and dk["H6"] is None
+    assert [(p["book"], p["season"]) for p in by_dk["H5"] if p["row"]] == [("dk", 2026)]
+    # the page and the report show DraftKings only (ESPN BET is not offered)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "H5 / H6 by season — never pooled" in grades
-    assert "DraftKings 2025-26" in grades and "ESPN BET 2024-25" in grades
-    assert "no graded bets yet" in grades
+    assert "DraftKings 2025-26" in grades and "ESPN BET 2024-25" not in grades
+    assert "ESPN BET 2025-26" not in grades
+    assert "no graded bets yet" in grades and "DraftKings backtest" in grades
     txt = (tmp_path / "ledger_report.txt").read_text()
     assert "By season, never pooled" in txt and "H5   DraftKings 2025-26 @ open" in txt
+    assert "ESPN BET 2024-25 @ open" not in txt and "DraftKings backtest" in txt
+
+
+def test_dk_backtest_reads_one_book_and_reprices_the_open_bets(tmp_path, monkeypatch):
+    rec = _ats_rows(8).assign(basis="reconstructed", season=2026)
+    rec["close_book"] = ["dk"] * 5 + ["espnbet"] * 3
+    rec["slate_date"] = ["2026-01-10"] * 2 + ["2026-03-10"] * 6
+    rec["p_home"] = 0.8                                # margin +11.4 vs -5.5
+    rec["close_spread"] = -6.5                         # one point toward home
+    cache = tmp_path / "open.csv"
+    rec[["game_id", "open_spread", "open_home_spread_odds",
+         "open_away_spread_odds"]].to_csv(cache, index=False)
+    monkeypatch.setattr(analysis, "OPEN_SPREADS", str(cache))
+    rec = rec.drop(columns=["open_spread", "open_home_spread_odds",
+                            "open_away_spread_odds"])
+    bt = {b["label"]: b for b in analysis.hypothesis_backtest(rec, "dk")}
+    assert list(bt) == ["H1", "H2 / H2·F", "H3 / H4", "H5", "H6"]
+    h5 = bt["H5"]
+    assert h5["open"]["n"] == 5 and h5["close"]["n"] == 5      # DraftKings only
+    assert h5["open_at_close"]["n"] == 5
+    assert h5["move"]["mean"] == 1.0 and h5["move"]["unit"] == "pts"
+    assert "fav_roi" not in h5["open_at_close"]                 # priced the open
+    assert [(name, r["n"]) for name, r in h5["halves"]] == [("to 31 Jan", 2),
+                                                             ("from 1 Feb", 3)]
+    assert bt["H6"]["open"] is None and bt["H6"]["close"] is None
+
+
+def test_ledger_ats_fold_reads_draftkings_spreads_only():
+    h = analysis.with_close(ledger.graded(_ats_rows(6)))
+    h["spread_book"] = ["dk"] * 4 + ["espnbet"] * 2     # as market_view keeps it
+    body = []
+    build_site._ats_section(body, h)
+    html = "".join(body)
+    assert "<td class=''>4</td>" in html and "DraftKings closing spread" in html

@@ -99,11 +99,13 @@ def test_market_view_prices_each_row_by_one_market():
     assert (v.loc[k, "first_book"] == "kalshi").all()
     assert (v.loc[k, "close_q_home"] == df.loc[k, "kalshi_close_q_home"]).all()
     assert (v.loc[k, "pre_home_ml"] == df.loc[k, "kalshi_pre_home_ml"]).all()
-    pd.testing.assert_frame_equal(v.loc[~k], df.loc[~k].astype(v.dtypes.to_dict()),
+    w = v.drop(columns="spread_book")                 # the one added column
+    pd.testing.assert_frame_equal(w.loc[~k], df.loc[~k].astype(w.dtypes.to_dict()),
                                   check_dtype=False)
     # model, result and the input frame are untouched
     assert (v["p_home"] == df["p_home"]).all() and (v["home_won"] == df["home_won"]).all()
     assert (df.loc[k, "close_book"] == "dk").all()
+    assert (v["spread_book"] == df["close_book"]).all()   # the ATS line's book
     # pages split by book: Kalshi rows form their own section, never pooled
     books = dict(analysis.book_split(analysis.with_close(ledger.graded(v))))
     assert set(books) == {"dk", "kalshi"} and len(books["kalshi"]) == k.sum()
@@ -124,7 +126,7 @@ def test_hypotheses_stay_on_sportsbook_prices(tmp_path, monkeypatch):
     rec = with_kalshi(synth(300, 4, "reconstructed"), shift=0.2)
     for df in (nat, rec):
         df["open_home_ml"], df["open_away_ml"] = df["close_home_ml"], df["close_away_ml"]
-    raw = analysis.hypothesis_rows(nat, rec)
+    raw = analysis.hypothesis_rows(nat, rec, book=analysis.HYPOTHESIS_BOOK)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
