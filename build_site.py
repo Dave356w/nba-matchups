@@ -2024,6 +2024,50 @@ def _hypothesis_backtest(recon):
                if halves else ""))
 
 
+def _hypothesis_ats_bands(native, recon):
+    """H5 / H6 by the picked side's spread and price, native beside the
+    DraftKings hindsight (analysis.hypothesis_ats_bands): descriptive."""
+    order = {"line": [b[2] for b in analysis.ATS_LINE_BANDS],
+             "price": [b[2] for b in analysis.ATS_PRICE_BANDS]}
+    out = []
+    for hyp, parts in analysis.hypothesis_ats_bands(
+            native, recon, book=analysis.HYPOTHESIS_BOOK):
+        nat, hind = parts["native"], parts["hindsight"]
+        if not any(nat[k] or hind[k] for k in order):
+            continue
+        for key, title in (("line", "the picked side's spread"),
+                           ("price", "spread price")):
+            by_n = {r["label"]: r for r in nat[key]}
+            by_h = {r["label"]: r for r in hind[key]}
+            rows = []
+            for label in order[key]:
+                if label not in by_n and label not in by_h:
+                    continue
+                cells = [esc(label)]
+                for r in (by_n.get(label), by_h.get(label)):
+                    cells += ([r["n"], pct(r["actual"]), *_roi_cells(r)[::2]]
+                              if r else ["0", "—", "—", "—"])
+                rows.append(cells)
+            out.append(f"<h3>{hyp['key']} by {title}</h3>" + table(
+                ["Band", "Native n", "Cover %", "ROI", "vs null (± 1 SE)",
+                 "Hindsight n", "Cover %", "ROI", "vs null (± 1 SE)"],
+                rows, left=(0,), key=(3, 4, 7, 8)))
+    if not out:
+        return ""
+    h5 = next(x for x in analysis.HYPOTHESES if x["key"] == "H5")
+    return fold(
+        "H5 / H6 by spread and price <span class='mut'>— descriptive, not a "
+        "filter</span>",
+        f"<p class='note'>The same bets as the scoreboard, split by the picked "
+        f"side's line (negative = laying points) and its spread price: native "
+        f"at the {analysis.PRICE_NAMES[h5['native']]}, hindsight on the "
+        f"rebuilt DraftKings games at the {analysis.PRICE_NAMES[h5['hindsight']]}. "
+        "The rules are not re-chosen from these cells; with a dozen of them a "
+        "|z| near 2 somewhere happens by chance, and below "
+        f"{analysis.BAND_MIN_N} bets a band shows no SE.</p>"
+        + "".join(out))
+
+
 def _hypotheses(native, recon):
     book = analysis.HYPOTHESIS_BOOK
     name = market.BOOK_NAMES[book]
@@ -2052,6 +2096,7 @@ def _hypotheses(native, recon):
                 rows, left=(0, 1), key=(3, 5))
         + _hypothesis_backtest(recon)
         + _hypotheses_by_season(native, recon)
+        + _hypothesis_ats_bands(native, recon)
         + fold("About these hypotheses <span class='mut'>— dates, prices, what was retired</span>",
         "<p class='note'>H1–H3 fixed on 2026-09-30, H4 and amendment A1 "
         "(H2·F: H2's rule at the first snapshot) on 2026-10-01, all "
@@ -2081,8 +2126,11 @@ def _hypotheses(native, recon):
         "game, the side with model P > no-vig q) and its ATS twin. On the "
         "reconstructed rows at the close its claimed EV was +11 to +16% in "
         "every book and season while it returned −6 to −11% (null about −4%; "
-        "ATS −3 to −7% vs −4.5%). The value-side rules still under test are "
-        "the frozen hypotheses in this table.</p>"))
+        "ATS −3 to −7% vs −4.5%). Re-checked 2026-10-21 on the current "
+        "model: unchanged (DraftKings 2025-26 claimed +16.2%, returned −11.0%, "
+        "null −4.1%; ATS −6.1% vs −4.5%; "
+        "<code>research/dk_hypotheses.py</code> §7). The value-side rules still "
+        "under test are the frozen hypotheses in this table.</p>"))
 
 
 def _lean_line(h, price):
@@ -2225,6 +2273,17 @@ def _band_section(body, h, native):
     body.append("</details>")
 
 
+def _ats_band_table(rows, head):
+    """One ATS band table: cover rate and ROI beside its null per band."""
+    return table(
+        [head, "n", "W–L–P", "ROI", "Null", "vs null (± 1 SE)", "z", "Cover %",
+         "Break-even", "Model cover %", "Market cover %"],
+        [[esc(r["label"]), r["n"], f"{r['w']}–{r['l']}–{r['push']}",
+          *_roi_cells(r), z_txt(r["z"]), pct(r["actual"]), pct(r["breakeven"]),
+          pct(r["model_p"]), pct(r["q"])] for r in rows],
+        left=(0,), key=(3, 5))
+
+
 def _ats_section(body, h):
     """1u flat spread bets at the closing spread, beside the moneyline ROI.
     Only spreads from books the pages show (analysis.HIDDEN_BOOKS); the
@@ -2247,9 +2306,22 @@ def _ats_section(body, h):
               *_roi_cells(r), pct(r["actual"]), pct(r["breakeven"]),
               pct(r["model_p"]), pct(r["q"])]
              for r in rows], left=(0,), key=(3, 5)))
+    bands = analysis.ats_lean_by_band(h)
+    for key, title in (("line", "By the picked side's spread"),
+                       ("price", "By spread price")):
+        if bands[key]:
+            out.append(f"<h3>{title} <span class='mut'>— lean ATS, at the "
+                       "closing spread</span></h3>")
+            out.append(_ats_band_table(bands[key], "Spread" if key == "line"
+                                       else "Price"))
     body.append("".join(out))
     body.append("<p class='note'>Only rows with a recorded DraftKings closing "
-                "spread. <b>Model cover %</b> maps "
+                "spread. The spread and price bands are the picked side's "
+                "(negative = laying points); they are descriptive monitoring "
+                "dimensions, not a filter, and with a dozen cells a |z| near 2 "
+                "somewhere happens by chance; below "
+                f"{analysis.BAND_MIN_N} bets a band shows no SE or z. "
+                "<b>Model cover %</b> maps "
                 "the model's win probability to a margin with σ = "
                 f"{analysis.ATS_SIGMA:g} pts; it is a display mapping, not a "
                 "new prediction. <b>Cover %</b> is covers ÷ (covers + misses); "

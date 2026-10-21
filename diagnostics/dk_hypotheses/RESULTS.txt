@@ -109,3 +109,14 @@ Not an independent test: these games were in the scans that chose the rules. Nat
   H5         ESPN BET 2024-25  @open   n=743    398-345    +15.50u  ROI   +2.1% ±  6.8  null -4.5%  vs null   +6.6 ±  6.8  z +1.9  win 53.6% vs q 50.1%  model 59.1%  | fav +0.0%
   H6         ESPN BET 2025-26  @open   n=115      60-55     -0.62u  ROI   -0.5% ± 17.5  null -4.5%  vs null   +4.0 ± 17.5  z +0.4  win 52.2% vs q 50.2%  model 61.3%  | fav +3.6%
   H6         ESPN BET 2024-25  @open   n=86       49-37     +7.79u  ROI   +9.1% ± 20.2  null -4.5%  vs null  +13.6 ± 20.2  z +1.3  win 57.0% vs q 49.9%  model 60.9%  | fav -12.9%
+
+== 7. The retired blanket value bet, re-checked at the close (retired 2026-10-06; analysis.SHOWN_RULES)
+  Every game, the side with model P > no-vig q (exact ties P == q: 0, so P >= q bets the same games), and its ATS twin. claimed EV = mean(model P x payout - 1).
+  moneyline value side:
+    ESPN BET 2024-25  claimed EV +11.5%  n=1209   588-621    -73.87u  ROI   -6.1% ±  6.9  null -4.2%  vs null   -1.9 ±  6.9  z -0.5  win 48.6% vs q 48.7%  model 54.5%  | fav -4.3%
+    DraftKings 2025-26  claimed EV +16.2%  n=964    413-551   -106.34u  ROI  -11.0% ±  8.0  null -4.1%  vs null   -7.0 ±  8.0  z -1.7  win 42.8% vs q 44.0%  model 50.1%  | fav -4.7%
+    ESPN BET 2025-26  claimed EV +16.0%  n=245    118-127    -17.01u  ROI   -6.9% ± 14.2  null -4.2%  vs null   -2.8 ± 14.2  z -0.4  win 48.2% vs q 46.5%  model 54.1%  | fav -1.5%
+  ATS twin:
+    ESPN BET 2024-25  claimed EV  +8.4%  n=1208   587-621    -88.95u  ROI   -7.4% ±  5.4  null -4.5%  vs null   -2.9 ±  5.4  z -1.0  win 48.6% vs q 50.1%  model 56.8%  | fav -4.6%
+    DraftKings 2025-26  claimed EV  +8.7%  n=964    475-489    -59.23u  ROI   -6.1% ±  6.0  null -4.5%  vs null   -1.6 ±  6.0  z -0.5  win 49.3% vs q 50.1%  model 57.0%  | fav -5.3%
+    ESPN BET 2025-26  claimed EV +11.9%  n=244    124-120     -7.82u  ROI   -3.2% ± 12.0  null -4.5%  vs null   +1.3 ± 12.0  z +0.2  win 50.8% vs q 50.1%  model 58.7%  | fav -6.8%

@@ -216,14 +216,23 @@ Before a PR, run:
   from the pages and report 2026-10-06, owner's decision: at the close its
   claimed EV was +11 to +16% per book-season while it returned −6 to −11%,
   null ≈ −4%; ATS −2.7 to −7.4% vs −4.5%; `analysis.SHOWN_RULES`; value-side
-  rules are tested only as the frozen hypotheses below), with model WP, market WP,
+  rules are tested only as the frozen hypotheses below; re-checked 2026-10-21
+  on the v6 rows, owner's request, `research/dk_hypotheses.py` §7: claimed
+  +11.5 / +16.2 / +16.0%, returned −6.1 / −11.0 / −6.9% (2024-25 ESPN BET /
+  2025-26 DK / 2025-26 ESPN BET), null −4.1 to −4.2%; ATS −7.4 / −6.1 /
+  −3.2% vs −4.5%; no exact P = q ties), with model WP, market WP,
   actual, and the ROI null beside every ROI. Graded rows now also record the
   closing spread (`close_spread`, home line, plus both spread prices, same
   book as the moneyline close), and the ledger page grades ATS the same way
   (lean and value side, break-even and ROI null beside each ROI).
   It also grades both sides by the picked price band (EV beside its null,
   z vs the ROI null); native rows are banded at the pregame price and the
-  v3 rows are shown alone. The earlier band hypothesis (DraftKings leans at
+  v3 rows are shown alone. ATS is banded the same way (owner's request,
+  2026-10-21): the Ledger's ATS folds (lean, closing spread) and the H5/H6
+  bets (native beside the DraftKings hindsight; the report likewise) by the
+  picked side's line and spread price (`analysis.ATS_LINE_BANDS`,
+  `ATS_PRICE_BANDS`, `ats_by_band`; descriptive, never a filter; no SE or z
+  below `BAND_MIN_N` = 10 bets). The earlier band hypothesis (DraftKings leans at
   −249 to −130) did not survive v4: −1.8% at the close, −3.2% at the open,
   both at the ROI null (2025-26); it is retired.
 - **Pre-registered forward hypotheses** (fixed 2026-09-30, before any native

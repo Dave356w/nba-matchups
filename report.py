@@ -143,6 +143,20 @@ def hypotheses_block(native, recon):
         if m:
             lines.append(f"    {'':<10} line moved toward the open bets "
                          f"{m['mean']:+.2f} {m['unit']} +/- {m['se']:.2f}")
+    bands = [(hyp, parts) for hyp, parts in
+             analysis.hypothesis_ats_bands(native, recon, book=book)
+             if any(parts[b][k] for b in parts for k in ("line", "price"))]
+    if bands:
+        lines.append("  H5 / H6 by the picked side's spread and spread price "
+                     "(descriptive, not filters; win = cover rate):")
+    for hyp, parts in bands:
+        for basis, price in (("native", hyp["native"]),
+                             ("hindsight", hyp["hindsight"])):
+            for key in ("line", "price"):
+                for r in parts[basis][key]:
+                    lines.append(f"    {hyp['key']:<4} " + roi_line(
+                        f"{basis} @ {analysis.PRICE_NAMES[price]} · {r['label']}",
+                        r, 46))
     by = analysis.hypothesis_by_season(native, recon, book=book)
     if by:
         lines.append("  By season, never pooled (basis · the graded price's book · "
