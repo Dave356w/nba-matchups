@@ -96,7 +96,14 @@ owner directs the product.
   One colour rule on every page (`build_site.sig_cls`): colour marks a
   gap of ≥ 2 SE from its null (ROI vs the ROI null, a forecast vs the
   diagonal, the model vs the close), never sign alone (a single game's
-  W/L is a result, not an estimate). Sections split basis × closing book × season. The lean
+  W/L is a result, not an estimate). Sections split basis × closing book × season.
+  The Ledger page shows nothing priced by ESPN BET, which is no longer
+  offered (owner's decision, 2026-10-21): no ESPN BET section
+  (`build_site.LEDGER_HIDDEN_BOOKS`), DraftKings closing spreads only in
+  its ATS folds (`spread_book`, kept by `analysis.market_view`), and the
+  hypotheses on DraftKings prices (`analysis.HYPOTHESIS_BOOK`; the
+  report's hypothesis block likewise). The Model and Calibration pages
+  and the report's season table keep 2024-25 ESPN BET. The lean
   is the recorded `lean` column everywhere (`analysis.lean_is_home`).
   Times on the pages are Pacific (`build_site.PT`, labelled PT; owner's
   request 2026-10-20); slate dates, the build schedule and the injury
@@ -300,7 +307,13 @@ Before a PR, run:
     36754366300, v4 rows) H3 at the DK open is +15.2 ± 22.1 (v4 +11.2 ±
     23.0) and H2 +2.1 ± 7.8 (v4 +4.2 ± 7.7): not lost to injury timing on
     DK, unresolved. Not an independent test: these games were in the scans
-    that chose the rules; native rows are the test.
+    that chose the rules; native rows are the test. The Ledger page (and
+    the report) show it as the "DraftKings backtest"
+    (`analysis.hypothesis_backtest`: open, close, the open bets at the
+    close with the line move, by half-season), and since 2026-10-21 the
+    scoreboard's hindsight and the H5/H6 by-season rows are DraftKings
+    only (owner's decision; ESPN BET is no longer offered), so H1 and H6
+    show no hindsight there. The registered pooled figures above stand.
 - Open vs close (hindsight, 2025-26 DK, games 10+): at the close the model
   adds nothing (w = −0.13 ± 0.41, the outcome's weight on the model's
   disagreement with q); at the open w = +0.29 ± 0.37, about the ~0.27 a

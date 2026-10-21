@@ -59,15 +59,10 @@ def season_name(y):
 
 
 def rules():
-    """HYPOTHESES grouped by rule: H4 and H2·F are H3 and H2 at the first
-    snapshot, which reconstructed rows do not have, so in hindsight each
-    pair is one set of bets. [(label, hyp)] in registration order."""
-    out = {}
-    for h in analysis.HYPOTHESES:
-        k = (h.get("market"), h["early"], h["favourite"], h["min_edge"],
-             h.get("sigma"))
-        out.setdefault(k, []).append(h)
-    return [(" / ".join(h["key"] for h in hs), hs[0]) for hs in out.values()]
+    """HYPOTHESES grouped by rule (analysis.hypothesis_groups): H4 and H2·F
+    are H3 and H2 at the first snapshot, which reconstructed rows do not
+    have, so in hindsight each pair is one set of bets."""
+    return analysis.hypothesis_groups()
 
 
 def is_ats(hyp):
@@ -107,40 +102,8 @@ def fmt(r):
 
 
 def at_close(g, d, hyp):
-    """The open bets `d` re-priced at the close: same side, the close's
-    price (and line, for ATS). Adds `move`: no-vig pp (moneyline) or points
-    (ATS) the market moved toward the side from open to close."""
-    if not len(d):
-        return d
-    m = g.assign(game_id=g["game_id"].astype(str)).set_index("game_id")
-    gid = d["game_id"].astype(str)
-    home = (d["side"].to_numpy() == m.loc[gid, "home"].to_numpy())
-    num = lambda c: pd.to_numeric(m.loc[gid, c], errors="coerce").to_numpy()  # noqa: E731
-    out = d.drop(columns=["fav_units"], errors="ignore")
-    if is_ats(hyp):
-        line, hso, aso = (num(c) for c in ("close_spread", "close_home_spread_odds",
-                                            "close_away_spread_odds"))
-        margin = num("home_pts") - num("away_pts")
-        res = np.array([market.ats_result(x, s) for x, s in zip(margin, line)])
-        side_line = np.where(home, line, -line)
-        out["move"] = d["line"].to_numpy() - side_line
-        out["ml"] = np.where(home, hso, aso)
-        qh = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
-        out["q"] = np.where(home, qh, 1 - qh)
-        out["result"] = np.where(home, res, 1 - res)
-        out["units"] = [0.0 if r == 0.5 else market.unit_profit(x, r == 1)
-                        for x, r in zip(out["ml"], out["result"])]
-    else:
-        qh = num("close_q_home")
-        q_side = np.where(home, qh, 1 - qh)
-        out["move"] = 100 * (q_side - d["q"].to_numpy())
-        out["ml"] = np.where(home, num("close_home_ml"), num("close_away_ml"))
-        out["q"] = q_side
-        out["units"] = [market.unit_profit(x, w) for x, w in zip(out["ml"], out["won"])]
-    out = out[np.isfinite(out["q"]) & out["ml"].notna()]
-    out["breakeven"] = market.breakeven_prob(out["ml"])
-    out["units_null"] = out["q"] * [market.decimal_payout(x) for x in out["ml"]] - 1
-    return out
+    """The open bets `d` re-priced at the close (analysis.reprice_at_close)."""
+    return analysis.reprice_at_close(g, d, hyp)
 
 
 def move_line(d, unit):
