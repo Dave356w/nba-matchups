@@ -129,25 +129,46 @@ def test_pages_render_empty(tmp_path, monkeypatch):
     assert "No graded" in (tmp_path / "market-calibration.html").read_text()
 
 
+def _two_books():
+    return pd.concat([synth(120, 3, "reconstructed", book="espnbet"),
+                      synth(80, 4, "reconstructed", book="dk")
+                      .assign(game_id=lambda d: "dk" + d["game_id"])],
+                     ignore_index=True)
+
+
 def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    recon = pd.concat([synth(120, 3, "reconstructed", book="espnbet"),
-                       synth(80, 4, "reconstructed", book="dk")
-                       .assign(game_id=lambda d: "dk" + d["game_id"])],
-                      ignore_index=True)
+    monkeypatch.setattr(build_site, "HIDDEN_BOOKS", ())     # every book shown
+    recon = _two_books()
     build_site.write_pages(ledger.empty(), recon, "2026-11-19", model_ok=True)
     cal = (tmp_path / "market-calibration.html").read_text()
     grades = (tmp_path / "grades.html").read_text()
     for page_ in (cal, grades):
         assert "Reconstructed (leave-one-season-out, hindsight) · DraftKings close · 2026-27" in page_
-    # ESPN BET is no longer offered: the Ledger leaves its section out
-    assert "Reconstructed (leave-one-season-out, hindsight) · ESPN BET close · 2026-27" in cal
-    assert "ESPN BET close" not in grades
+        assert "Reconstructed (leave-one-season-out, hindsight) · ESPN BET close · 2026-27" in page_
     assert "120 games (0 native, 120 reconstructed;" in cal
     assert "80 games (0 native, 80 reconstructed;" in cal
     assert "200 games" not in cal
     parts = dict(analysis.book_split(analysis.with_close(ledger.graded(recon))))
     assert len(parts["espnbet"]) == 120 and len(parts["dk"]) == 80
+
+
+def test_research_pages_leave_out_espn_bet_and_the_report_keeps_it(tmp_path, monkeypatch):
+    # ESPN BET is no longer offered (owner's decision, 2026-10-21)
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    txt = build_site.write_pages(ledger.empty(), _two_books(), "2026-11-19",
+                                 model_ok=True)
+    pages = {f: (tmp_path / f).read_text() for f in
+             ("grades.html", "market-calibration.html", "model.html")}
+    for f, html in pages.items():
+        assert "ESPN BET close" not in html and "Recon ESPN BET" not in html, f
+        assert "Market · ESPN BET" not in html, f
+        assert "DraftKings" in html and "no longer offered" in html, f
+    cal = pages["market-calibration.html"]
+    assert "80 games (0 native, 80 reconstructed;" in cal and "120 games" not in cal
+    model = pages["model.html"]
+    assert "DraftKings 2026-27" in model and "ESPN BET 2026-27" not in model
+    assert "ESPN BET 2026-27" in txt                      # the report keeps it
 
 
 def test_clv_only_within_one_book():

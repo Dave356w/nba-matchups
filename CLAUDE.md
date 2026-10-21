@@ -39,7 +39,8 @@ owner directs the product.
   Kalshi close (or pending with a Kalshi pregame price), else by its
   sportsbook; the Ledger, Calibration, Model pages, the public record
   (Picks tiles, Results, Performance) and the report read that view, so
-  2024-25 stays on ESPN BET. The Picks page's game cards read the raw rows
+  2024-25 stays on ESPN BET (in the report only: the research pages leave
+  ESPN BET out, see Pages below). The Picks page's game cards read the raw rows
   instead (owner's decision, 2026-10-20): one sportsbook's moneyline and
   spread (DraftKings), with Kalshi's pregame pair in each card's detail.
   The sportsbook columns are
@@ -97,13 +98,14 @@ owner directs the product.
   gap of ≥ 2 SE from its null (ROI vs the ROI null, a forecast vs the
   diagonal, the model vs the close), never sign alone (a single game's
   W/L is a result, not an estimate). Sections split basis × closing book × season.
-  The Ledger page shows nothing priced by ESPN BET, which is no longer
-  offered (owner's decision, 2026-10-21): no ESPN BET section
-  (`build_site.LEDGER_HIDDEN_BOOKS`), DraftKings closing spreads only in
-  its ATS folds (`spread_book`, kept by `analysis.market_view`), and the
-  hypotheses on DraftKings prices (`analysis.HYPOTHESIS_BOOK`; the
-  report's hypothesis block likewise). The Model and Calibration pages
-  and the report's season table keep 2024-25 ESPN BET. The lean
+  The research pages (Ledger, Calibration, Model) show nothing priced by
+  ESPN BET, which is no longer offered (owner's decisions, 2026-10-21): no
+  ESPN BET section, market fold or season row (`build_site.HIDDEN_BOOKS`,
+  `_shown`; each page says so), DraftKings closing spreads only in the
+  Ledger's ATS folds (`spread_book`, kept by `analysis.market_view`), and
+  the hypotheses on DraftKings prices (`analysis.HYPOTHESIS_BOOK`; the
+  report's hypothesis block likewise). The report (`ledger_report.txt`)
+  keeps 2024-25 ESPN BET in its season table and sections. The lean
   is the recorded `lean` column everywhere (`analysis.lean_is_home`).
   Times on the pages are Pacific (`build_site.PT`, labelled PT; owner's
   request 2026-10-20); slate dates, the build schedule and the injury
