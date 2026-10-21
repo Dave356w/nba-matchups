@@ -1,0 +1,99 @@
+History backtest -- the current model against outcomes only (no market prices), games 10+. ± is 95%.
+
+== A. Walk-forward, production v6 routing, games 10+ (every fit on earlier seasons only)
+  A1. Log loss by season (lower is better); v6 minus each simpler arm ± 95%
+    season        n  home only  v1 core  v4 core       v6         v6 - v4 core     v6 - home only
+    2016-17    1074     0.6792   0.6400   0.6382   0.6328   -0.0054 ± 0.0085   -0.0465 ± 0.0259
+    2017-18    1075     0.6793   0.6145   0.6117   0.6012   -0.0105 ± 0.0092   -0.0781 ± 0.0215
+    2018-19    1074     0.6768   0.6210   0.6186   0.6055   -0.0132 ± 0.0085   -0.0713 ± 0.0229
+    2020-21     924     0.6896   0.6299   0.6282   0.6233   -0.0050 ± 0.0104   -0.0663 ± 0.0239
+    2021-22    1073     0.6927   0.6376   0.6353   0.6278   -0.0075 ± 0.0102   -0.0649 ± 0.0219
+    2022-23    1073     0.6816   0.6464   0.6464   0.6326   -0.0139 ± 0.0092   -0.0490 ± 0.0199
+    2023-24    1074     0.6933   0.6124   0.6137   0.5953   -0.0184 ± 0.0102   -0.0980 ± 0.0214
+    2024-25    1071     0.6911   0.6042   0.6006   0.5936   -0.0070 ± 0.0121   -0.0975 ± 0.0245
+    2025-26    1071     0.6890   0.5983   0.5928   0.5843   -0.0085 ± 0.0107   -0.1047 ± 0.0238
+    pooled     9509     0.6858   0.6226   0.6205   0.6105   -0.0100 ± 0.0033   -0.0753 ± 0.0076
+    Brier v6 - v4 core, pooled: -0.0045 ± 0.0015
+
+  A2. Calibration of v6 against outcomes: slope (1 = calibrated shape) and intercept (0), ± 95%; predicted vs actual home win %
+    2016-17   n=1074  slope 0.70 ± 0.14  intercept +0.06 ± 0.14  home won 58.4% vs predicted 59.2%
+    2017-18   n=1075  slope 1.01 ± 0.17  intercept -0.04 ± 0.14  home won 58.3% vs predicted 59.1%
+    2018-19   n=1074  slope 0.93 ± 0.16  intercept +0.05 ± 0.14  home won 59.0% vs predicted 58.4%
+    2020-21   n=924   slope 0.93 ± 0.18  intercept -0.13 ± 0.15  home won 55.4% vs predicted 58.7%
+    2021-22   n=1073  slope 0.94 ± 0.17  intercept -0.16 ± 0.14  home won 54.2% vs predicted 58.1%
+    2022-23   n=1073  slope 0.90 ± 0.18  intercept +0.05 ± 0.14  home won 57.6% vs predicted 57.2%
+    2023-24   n=1074  slope 1.17 ± 0.18  intercept -0.20 ± 0.14  home won 53.7% vs predicted 56.9%
+    2024-25   n=1071  slope 0.99 ± 0.15  intercept -0.06 ± 0.14  home won 54.2% vs predicted 55.5%
+    2025-26   n=1071  slope 1.05 ± 0.16  intercept -0.02 ± 0.14  home won 54.9% vs predicted 55.1%
+    pooled: n=9509  slope 0.95 ± 0.05  intercept -0.05 ± 0.05  home won 56.2% vs predicted 57.6%
+    pooled, without the first fold (one training season): n=8435  slope 0.99 ± 0.06  intercept -0.07 ± 0.05  home won 55.9% vs predicted 57.4%
+
+  A3. Calibration slope by season phase, pooled seasons (the v1 core has no phase term; v4 and v6 do)
+    opening third  n=2365  v1 core 0.81 ± 0.11   v4 core 1.00 ± 0.13   v6 0.92 ± 0.11
+    middle third   n=3734  v1 core 0.90 ± 0.10   v4 core 0.92 ± 0.10   v6 0.88 ± 0.09
+    last third     n=3410  v1 core 1.24 ± 0.11   v4 core 1.01 ± 0.09   v6 1.04 ± 0.09
+
+  A4. Reliability of v6, the favourite's side, pooled (Wilson 95%)
+    0.50-0.55  n=1526  predicted  52.5%  won  52.1% (49.6-54.6)
+    0.55-0.60  n=1440  predicted  57.5%  won  58.1% (55.6-60.6)
+    0.60-0.65  n=1410  predicted  62.5%  won  61.9% (59.4-64.4)
+    0.65-0.70  n=1373  predicted  67.5%  won  64.8% (62.3-67.3)
+    0.70-0.75  n=1189  predicted  72.4%  won  71.2% (68.5-73.7)
+    0.75-0.80  n=975   predicted  77.4%  won  77.5% (74.8-80.0)
+    0.80-0.85  n=839   predicted  82.3%  won  81.2% (78.4-83.7)
+    0.85-0.90  n=531   predicted  87.3%  won  84.4% (81.0-87.2)
+    0.90-0.95  n=206   predicted  91.9%  won  89.8% (84.9-93.2)
+    0.95-1.00  n=20    predicted  95.8%  won  85.0% (64.0-94.8)
+
+  A5. By route (production routing), pooled
+    avail  n=3216  log loss 0.5911  slope 1.06 ± 0.09
+    base   n=6009  log loss 0.6187  slope 0.90 ± 0.07
+    v4     n=284   log loss 0.6564  slope 0.69 ± 0.35
+
+  A6. Back-to-back games: home win % actual vs v6 predicted, pooled
+    away team on a back-to-back    n=1520  won  61.8% (59.4-64.3)  predicted  62.5%
+    home team on a back-to-back    n=981   won  48.3% (45.2-51.4)  predicted  51.7%
+    neither or both                n=7008  won  56.1% (54.9-57.3)  predicted  57.3%
+
+  A7. Each v6 term dropped in turn (refit without it): log loss without - with, ± 95% (positive = the term helps out of sample), on the games the term reaches (v6 terms: base and availability routes; availability: its own route, which exists from the first season with a report season to train on)
+    back-to-back                 +0.0024 ± 0.0012  n=9225  (helps in 8 of 9 seasons)
+    delta x season phase         +0.0009 ± 0.0006  n=9225  (helps in 8 of 9 seasons)
+    opponent 3P% luck            +0.0002 ± 0.0009  n=9225  (helps in 6 of 9 seasons)
+    roster talent                +0.0059 ± 0.0026  n=9225  (helps in 8 of 9 seasons)
+    own FT%                      +0.0004 ± 0.0005  n=9225  (helps in 8 of 9 seasons)
+    injury-report availability   +0.0029 ± 0.0033  n=3216  (helps in 3 of 3 seasons)
+
+== B. Out of era, the core (delta, b2b, delta*phase), games 10+
+  frozen = the committed weights (2015-2026, no 2020) and v4 logit (2016-2026), never refitted; logit refit = committed weights, logit fitted on the era's earlier seasons; full refit = composite weights and logit both fitted on the era's earlier seasons; home = the earlier era seasons' home win rate.
+  Log loss per game; differences ± 95% (positive = frozen worse).
+    season        n  home won frozen pred   frozen   logit    full    home    frozen slope  frozen - full refit
+    2004-05    1069     60.6%       57.3%   0.6001     nan     nan     nan    1.03 ± 0.18   +nan ± nan
+    2005-06    1070     60.0%       57.2%   0.6177  0.6175  0.6205  0.6731    0.97 ± 0.19   -0.0027 ± 0.0072
+    2006-07    1071     58.8%       57.3%   0.6299  0.6300  0.6319  0.6780    0.90 ± 0.19   -0.0021 ± 0.0050
+    2007-08    1072     60.3%       57.2%   0.5884  0.5854  0.5855  0.6720    1.01 ± 0.16   +0.0029 ± 0.0048
+    2008-09    1074     61.5%       57.1%   0.5748  0.5695  0.5715  0.6668    1.09 ± 0.17   +0.0034 ± 0.0051
+    2009-10    1071     59.7%       56.8%   0.5909  0.5902  0.5902  0.6744    1.08 ± 0.18   +0.0006 ± 0.0053
+    2010-11    1075     61.2%       56.9%   0.5852  0.5788  0.5780  0.6680    1.16 ± 0.19   +0.0072 ± 0.0045
+    2011-12     832     57.6%       57.4%   0.6144  0.6190  0.6226  0.6832    1.00 ± 0.21   -0.0082 ± 0.0070
+    2012-13    1072     61.4%       57.2%   0.5954  0.5912  0.5909  0.6674    1.01 ± 0.17   +0.0045 ± 0.0047
+    2013-14    1074     57.1%       57.1%   0.6042  0.6066  0.6075  0.6851    1.05 ± 0.18   -0.0033 ± 0.0052
+    pooled: n=10480  frozen slope 1.03 ± 0.06  intercept +0.12 ± 0.04  home won 59.9% vs predicted 57.1%
+      frozen - logit refit  +0.0016 ± 0.0015  (n=9411, seasons after the first)
+      frozen - full refit   +0.0005 ± 0.0018  (n=9411, seasons after the first)
+      frozen - home only    -0.0743 ± 0.0073  (n=9411, seasons after the first)
+      opening third  n=2718  frozen slope 1.17 ± 0.13
+      middle third   n=4072  frozen slope 1.01 ± 0.09
+      last third     n=3690  frozen slope 0.99 ± 0.09
+      away team on a back-to-back    n=2543  home won  64.1% (62.3-66.0)  frozen predicted  62.2%
+      home team on a back-to-back    n=728   home won  54.5% (50.9-58.1)  frozen predicted  49.7%
+
+  B2. Composite weights, wins per +1 SD over 82 games: committed vs fitted on 2004-05 to 2013-14 (in-sample R2 0.921 vs 0.918)
+    off eFG%          +7.57   +7.04
+    -off TOV          +2.93   +3.14
+    off ORB           +3.09   +3.19
+    off FTA/FGA       +1.19   +1.86
+    -opp eFG%         +5.42   +6.84
+    opp TOV forced    +2.77   +2.44
+    -opp ORB          +1.55   +1.49
+    -opp FTA/FGA      +1.38   +1.88
+    correlation of the two weight vectors: +0.96

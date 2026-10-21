@@ -199,6 +199,60 @@ on 45 games, so it abstains.
 The composite correlates 0.98 with season-to-date margin: an interpretable
 decomposition, not a stronger rating.
 
+### 6.4 Outcomes only, every season (history backtest)
+
+`research/history_backtest.py` (workflow "History backtest", run
+39693643467, 2026-10-21, owner's question; `diagnostics/history_backtest/
+RESULTS.txt`). With no prices it cannot say whether the model beats the
+market. It tests whether the logic and calibration hold on every season the
+game logs reach. Games 10+. Source: Basketball-Reference and ESPN, the
+model's own feeds; stats.nba.com does not answer from the runners.
+
+Walk-forward, the production v6 routing, 2016-17 to 2025-26 (9,509 games;
+every fit on earlier seasons; the availability logit from 2023-24):
+
+| Arm | Log loss | v6 − arm |
+|---|---:|---:|
+| Home edge only | 0.6858 | −0.0753 ± 0.0076 |
+| v1 core (Δ, b2b) | 0.6226 | — |
+| v4 core (+ Δ·phase) | 0.6205 | −0.0100 ± 0.0033 (better in 9 of 9 seasons; Brier −0.0045 ± 0.0015) |
+| v6 | 0.6105 | |
+
+Each v6 term dropped and refitted, on the games it reaches (positive = the
+term helps): roster talent +0.0059 ± 0.0026, back-to-back +0.0024 ± 0.0012,
+Δ·phase +0.0009 ± 0.0006 (each 8 of 9 seasons); availability +0.0029 ±
+0.0033 (3 of 3); own FT% +0.0004 ± 0.0005 (8 of 9); opponent 3P% luck
++0.0002 ± 0.0009 (6 of 9, the least supported term).
+
+Calibration against outcomes: slope 0.99 ± 0.06 from the second fold on
+(0.95 ± 0.05 with 2016-17, whose fit had one season: 0.70); 0.90 to 1.17 by
+season. By season third the v1 core runs 0.81 / 0.90 / 1.24 and v6 0.92 /
+0.88 / 1.04, so Δ·phase removes the late-season flatness out of sample.
+Reliability is within Wilson 95% in 8 of 10 favourite bins (65–70%: 67.5
+predicted, 64.8 won; 85–90%: 87.3, 84.4).
+
+The home edge follows the training seasons. Home teams won 55.9% against
+57.4% predicted from 2017-18 on (intercept −0.07 ± 0.05); 2020-21, 2021-22
+and 2023-24 were 3–4 pts below the prediction, 2024-25 and 2025-26 within
+1.3. The recency-weighted intercept was tested and bought nothing
+([`docs/model_guidelines.md`](docs/model_guidelines.md) §4).
+
+Out of era, 2004-05 to 2013-14 (10,480 games no fit has seen), the frozen
+core as committed (weights and `logit_v4.json`): slope 1.03 ± 0.06
+(opening third 1.17 ± 0.13, then 1.01 and 0.99); home won 59.9% against
+57.1% (intercept +0.12 ± 0.04, a larger home edge then). Frozen − logit
+refit on the era's earlier seasons +0.0016 ± 0.0015 (mostly the larger home
+edge); frozen − full refit (weights too) +0.0005 ± 0.0018. Weights fitted
+on 2004–14 correlate +0.96 with the committed ones (more weight on
+opponents' eFG% and both FTA/FGA terms then). The four-factor composite and the logit's shape
+carry across eras; only the home edge moves.
+
+Back-to-backs: in 2016–26 home teams on a back-to-back won 48.3% (45.2–51.4)
+against 51.7% predicted, about 2 pts below the season's general home
+over-prediction; in 2004–14 they won 54.5% against 49.7%, about 2 pts above
+it. The residual flips sign between eras, so a separate home back-to-back
+term is not a lead.
+
 ## 7. Known limitations
 
 The aggregate review of every result, with the rules for using and
@@ -220,6 +274,12 @@ changing the model, is [`docs/model_guidelines.md`](docs/model_guidelines.md)
   favourites too flat" reading was against the close or an older model (v5
   audit, Task C). Heavy favourites (≥ 0.90 at the close) trail the DK close
   in 2025-26 (+0.050 ± 0.013, n = 39) but not the ESPN BET close in 2024-25.
+  Against outcomes alone the slope is 0.99 ± 0.06 walk-forward (2017-18 to
+  2025-26) and 1.03 ± 0.06 for the frozen core on 2004–14 (§6.4).
+- **The home edge is the training seasons' edge.** It ran 1.5 pts above
+  the actual home rate walk-forward, 2017-18 to 2025-26 (3–4 pts in 2020-21,
+  2021-22 and 2023-24) and 2.8 pts below it on 2004–14 (§6.4); within 1.3
+  pts in the last two seasons.
 - **Reconstructed rows are hindsight**: priced at the close, with design
   choices (half-life, B2B, phase) made on overlapping seasons.
 - **Not modelled**: travel, altitude, lineups beyond the report's
@@ -238,6 +298,7 @@ changing the model, is [`docs/model_guidelines.md`](docs/model_guidelines.md)
 | Open vs close, H1–H3 | Open vs close | `python research/open_price.py --seasons 2025 2026` |
 | H1–H6 on DraftKings | — (repo data) | `python research/dk_hypotheses.py [--open-price research/output/open_price.csv]` |
 | Model review, §7 and the guidelines | — (repo data) | `python research/model_review.py` |
+| §6.4 outcomes only | History backtest | `python research/history_backtest.py --seasons 2017 2018 2019 2021 2022 2023 2024 2025 2026 --era 2005-2014` |
 
 The 2026-09-30 refit and re-score after the coverage fix reproduced the
 committed `logit_avail.json` and reconstructed rows exactly (nothing to
