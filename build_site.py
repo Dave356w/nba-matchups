@@ -620,8 +620,8 @@ def score_preseason(today, weights, now=None):
     """Exhibition tracking (data/nba_preseason.csv): every NBA-vs-NBA
     preseason game on today's scoreboard that has not tipped, scored by the
     early-season carryover logit (model/logit_early_v6.json; before v7
-    model/logit_early.json) on LAST SEASON's
-    games only, i.e. the game-0 case the regular-season card abstains on.
+    model/logit_early.json) on LAST SEASON's games only (no rosters: v8's
+    game-0 roster is these games' box scores, read once the season opens).
 
     No new fit: the delta and logit are the shipped carryover ones (the
     offseason discount rho cancels when every row is last season's). b2b_net
@@ -1510,9 +1510,10 @@ def injury_block(r, injuries):
     snap = g["snapshot_utc"].max()
     return ("<h3>Injuries</h3><div class='inj'>" + "".join(cols) + "</div>"
             f"<p>ESPN's injury list as of {tip_pt(snap)}, refreshed each build "
-            "until tip and frozen after. The model does not read it: from game "
-            "10 it reads the NBA's official injury report (Out and Doubtful count "
-            "as out); games 1–9 have no injury terms.</p>")
+            "until tip and frozen after. The model does not read it: from each "
+            "team's second game it reads the NBA's official injury report (Out "
+            "and Doubtful count as out); a team's first game has no injury "
+            "terms.</p>")
 
 
 def game_card(r, injuries=None):

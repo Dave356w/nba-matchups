@@ -178,8 +178,8 @@ owner directs the product.
   list as recorded (owner's request, 2026-10-22; `build_site.injury_block`:
   the game's last pregame snapshot in `data/nba_injuries.csv`, frozen at
   tip, most serious status first, its time in PT), display only: the model
-  reads the NBA's official report from game 10, not this list, and the
-  card says so.
+  reads the NBA's official report (from each team's second game, v8), not
+  this list, and the card says so.
 - First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with
