@@ -581,6 +581,22 @@ Before a PR, run:
   beat last-season BPM; in-season box-score value adds nothing resolved.
   Dropped. (The outline's season-level MAE of 0.31 wins was fitted on the
   same season's outcomes, which Win Shares are built from.)
+- In-season BPM (owner's question, 2026-10-22; `research/bpm_live.py`,
+  `research/team_quality.py --bpm`, workflow "Team quality" with args
+  `--bpm`, run 39823000315; `diagnostics/bpm_live/RESULTS.txt`):
+  production's player values are last season's BPM, frozen (minutes
+  update, values do not). BPM to date is rebuilt from ESPN box lines
+  (league-relative per-100 rates + team net rating, mapped on BBR's BPM of
+  2016–2024: held-out corr 0.954–0.969, MAE 0.57–0.67, no bias) and blended
+  walk-forward. Games 10+, log loss vs v6_base, ± 95% (2024-25 ESPN BET n =
+  1,071 / 2025-26 DK n = 964): Bayes (prior M0 = 750 min) `v6_bpmb`
+  +0.0049 ± 0.0038 / −0.0002 ± 0.0038 (worse on 2024-25, Brier agrees);
+  season only `v6_bpmo` +0.0039 ± 0.0066 / −0.0010 ± 0.0062; frozen +
+  in-season, free weights `v6_bpm_bpmo` +0.0011 ± 0.0012 / −0.0004 ±
+  0.0008 (in-season weight 0.013–0.021 vs the frozen term's 0.054). BPM to
+  date overlaps the team rating (delta's weight 0.017 → 0.011–0.012); what
+  talent_diff adds is the pre-season roster view. Base route only. Dropped,
+  like on/off and Win Shares.
 - Home-court drift (2026-10-01, reconstructed rows, mean home P, ± 95%):
   none. Games 10+: model − market +0.26 ± 0.46 pp (2024-25) / +0.26 ±
   0.49 pp (2025-26), logit +0.016 ± 0.023 / +0.014 ± 0.024; model and
