@@ -236,6 +236,16 @@ Before a PR, run:
     unresolved. Not pursued; a truly pregame roster (e.g. the
     `data/nba_injuries.csv` snapshots) is the only open variant, with
     little upside per the hindsight ceiling.
+  Sleeper projections (owner's request, 2026-10-22; `research/sleeper.py`,
+  research only, writes `research/output/sleeper/`): RotoWire's projected
+  minutes per player per game, Sleeper's depth chart and injury
+  designations. Archive from 2019-20, complete (team-games 240 ± 1–8 min)
+  from 2022-23. Each week's rows carry one `last_modified` after the week,
+  so the archive is hindsight; against the ESPN box it does not look
+  edited after the game (2025-26, 1,231 games: minutes played corr 0.82,
+  MAE 4.7; 911 DNPs kept a projection, 2,781 players listed at 0 played).
+  `snapshot` + `pregame` (fetch-stamped, read only before the ledger's
+  tip) are the clean version; not wired into the build.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains

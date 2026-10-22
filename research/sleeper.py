@@ -34,13 +34,15 @@ What the archive is (checked 2026-10-22):
   timing    Every row of a week carries one ``last_modified``, stamped after
             the week's last game (2025-26 week 10: 2025-12-29 07:40Z), so
             the archive cannot show when a value was set. Treat it as
-            HINDSIGHT, like the reconstructed rows. On this season's first
-            two dates (385 box rows) it looks pregame: whole-minute values,
-            corr 0.78 with minutes played (MAE 5.0); 25 players projected
-            4-20 minutes did not play (not zeroed after the fact); no player
-            ESPN listed Out before tip (data/nba_injuries.csv) had minutes
-            (an empty line, or no row). Consistent with a pregame value, not
-            proof.
+            HINDSIGHT, like the reconstructed rows. Against the ESPN box it
+            does not look edited after the game (`check`): 2025-26, 1,231
+            games, 99.4% of box rows listed, minutes played corr 0.82 (MAE
+            4.7); 911 players who did not play kept a projection (mean 10
+            min, 72 at 20+) and 2,781 listed at 0 did play (mean 7 min, 140
+            at 20+, 3.3% of minutes). This season's first two dates: corr
+            0.78, 25 of 27 listed DNPs projected 4-20 min, and no player
+            ESPN listed Out before tip (data/nba_injuries.csv) had minutes.
+            Consistent with a pregame value; how long before tip is unknown.
   pregame   `snapshot` stamps each fetch (``fetched_utc``) and `pregame`
             keeps the last one before the ledger's tip, the same lock as the
             injury snapshots. That is the clean version.
