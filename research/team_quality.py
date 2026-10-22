@@ -97,6 +97,12 @@ before the first test season:
               shrunk prior) updated by BPM to date, M0 = 750 minutes
   v6_bpmo     talent_diff with this season's BPM to date only
   v6_bpm_bpmo v6_base + talent_bpmo (the frozen term kept; free weights)
+  v6_bpmp     talent_diff with minutes-pooled values: production's shrinkage
+              extended by this season's minutes, (500 R + MP0 BPM0 + MP obs)
+              / (500 + MP0 + MP), every player
+  v6_bpmn     the same for players under 500 last-season minutes (rookies,
+              new and small-sample players); production's frozen value for
+              the rest
 All vs v6_base; --bpm runs only these box arms.
 
 Every feature uses games strictly before the date. Reported per test season
@@ -179,8 +185,10 @@ BPM_ARMS = {
     "v6_bpmb": _swap(V6, ["talent_bpmb"]),
     "v6_bpmo": _swap(V6, ["talent_bpmo"]),
     "v6_bpm_bpmo": V6 + ["talent_bpmo"],
+    "v6_bpmp": _swap(V6, ["talent_bpmp"]),
+    "v6_bpmn": _swap(V6, ["talent_bpmn"]),
 }
-BPM_COLS = ["talent_bpmb", "talent_bpmo"]
+BPM_COLS = ["talent_bpmb", "talent_bpmo", "talent_bpmp", "talent_bpmn"]
 BOX_ARMS.update(BPM_ARMS)
 REF = {**{a: "base" for a in ARMS}, **{a: "base_box" for a in BOX_ARMS},
        **{a: "v6_base" for a in WS_ARMS}, **{a: "v6_base" for a in BPM_ARMS},

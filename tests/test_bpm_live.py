@@ -74,3 +74,28 @@ def test_prior_bpm_is_production_shrinkage():
     assert pri["2"] == bl.R
     vals, _, _ = bl.pav.player_values(box.assign(minutes=30.0), {"star guy": (6.0, 2500.0, 70.0)})
     assert np.isclose(pri["1"] - bl.R, vals["1"])                  # same value as production
+
+
+def test_pooled_bpm_extends_production_shrinkage():
+    k, r = bl.pav.BPM_SHRINK_MP, bl.R
+    # no in-season minutes: production's shrunk value
+    assert np.isclose(bl.pooled_bpm(6.0, 2500.0, 0.0, 0.0), r + (6.0 - r) * 2500 / (2500 + k))
+    # a rookie moves with his own minutes: (k R + MP obs) / (k + MP)
+    assert np.isclose(bl.pooled_bpm(r, 0.0, 3.0, 500.0), (k * r + 500 * 3.0) / (k + 500))
+    # a veteran barely moves on a small sample
+    vet, frozen = bl.pooled_bpm(6.0, 2500.0, -4.0, 100.0), bl.pooled_bpm(6.0, 2500.0, 0.0, 0.0)
+    assert frozen - 0.5 < vet < frozen                             # 4.39 vs 4.67
+
+
+def test_pooled_value_freezes_players_with_enough_prior_minutes():
+    hist = {"vet": (np.array([np.datetime64("2026-01-02")]), np.array([-4.0]), np.array([800.0])),
+            "kid": (np.array([np.datetime64("2026-01-02")]), np.array([3.0]), np.array([800.0]))}
+    rec = {"vet": (6.0, 2500.0), "kid": (1.0, 200.0)}
+    k, r = bl.pav.BPM_SHRINK_MP, bl.R
+    allv = bl.pooled_value(hist, rec)
+    newv = bl.pooled_value(hist, rec, frozen_from=k)
+    assert np.isclose(allv("vet", "2026-01-05"), bl.pooled_bpm(6.0, 2500.0, -4.0, 800.0) - r)
+    assert np.isclose(newv("vet", "2026-01-05"), bl.pooled_bpm(6.0, 2500.0, 0.0, 0.0) - r)
+    assert np.isclose(newv("kid", "2026-01-05"), bl.pooled_bpm(1.0, 200.0, 3.0, 800.0) - r)
+    assert np.isclose(newv("kid", "2026-01-01"), bl.pooled_bpm(1.0, 200.0, 0.0, 0.0) - r)
+    assert np.isclose(allv("rookie", "2026-01-05"), 0.0)          # no record, no box lines

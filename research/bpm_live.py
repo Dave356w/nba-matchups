@@ -174,17 +174,121 @@ def dated_value(hist, prior, m0=BPM_PRIOR_MP, use_prior=True):
     return v
 
 
+def prior_records(box, bpm):
+    """player_id -> (last-season BPM, MP); unmatched (rookies) (R, 0)."""
+    names = box.drop_duplicates("player_id").set_index("player_id")["name"]
+    out = {}
+    for pid, nm in names.items():
+        rec = bpm.get(pav.norm_name(nm))
+        out[pid] = (R, 0.0) if rec is None else (float(rec[0]), float(rec[1]))
+    return out
+
+
+def _to_date(h, date):
+    """(BPM, MP) over games strictly before date from a bpm_history entry."""
+    if h is None:
+        return 0.0, 0.0
+    k = int(np.searchsorted(h[0], np.datetime64(pd.Timestamp(date)), "right")) - 1
+    return (float(h[1][k]), float(h[2][k])) if k >= 0 else (0.0, 0.0)
+
+
+def pooled_bpm(b0, mp0, obs, mp, k=None):
+    """Production's shrinkage extended by this season's minutes: (k R + mp0
+    b0 + mp obs) / (k + mp0 + mp), k = BPM_SHRINK_MP. With mp = 0 it is
+    production's value; a rookie (mp0 = 0) moves with his own minutes."""
+    k = pav.BPM_SHRINK_MP if k is None else k
+    return (k * R + mp0 * b0 + mp * obs) / (k + mp0 + mp)
+
+
+def pooled_value(hist, records, frozen_from=None):
+    """(player_id, date) -> value above replacement from pooled_bpm.
+    frozen_from: players with at least this many last-season minutes keep
+    production's frozen value; only those below it are updated."""
+    memo = {}
+
+    def v(pid, date):
+        key = (pid, date)
+        if key not in memo:
+            b0, mp0 = records.get(pid, (R, 0.0))
+            if frozen_from is not None and mp0 >= frozen_from:
+                memo[key] = pooled_bpm(b0, mp0, 0.0, 0.0) - R
+            else:
+                obs, mp = _to_date(hist.get(pid), date)
+                memo[key] = pooled_bpm(b0, mp0, obs, mp) - R
+        return memo[key]
+    return v
+
+
 def season_terms(t, box, role, beta, cache_dir=pav.DEFAULT_CACHE):
-    """{column: (team, date) -> talent} for season t: talent_bpmb (Bayes) and
-    talent_bpmo (this season only); plus a summary line."""
+    """{column: (team, date) -> talent} for season t: talent_bpmb (Bayes),
+    talent_bpmo (this season only), talent_bpmp (minutes pooled, every
+    player) and talent_bpmn (pooled for players under BPM_SHRINK_MP
+    last-season minutes, frozen for the rest); plus a summary line."""
     if not os.path.exists(os.path.join(cache_dir, f"box_full_{t}.csv")):
         return {}, "no box lines"
     hist = bpm_history(ws.load_full(t, cache_dir), beta)
-    prior = prior_bpm(box, pav.load_bpm(t - 1))
+    table = pav.load_bpm(t - 1)
+    prior, records = prior_bpm(box, table), prior_records(box, table)
     return ({"talent_bpmb": ws.dyn_talent_fn(box, dated_value(hist, prior), role),
              "talent_bpmo": ws.dyn_talent_fn(box, dated_value(hist, prior, use_prior=False),
-                                             role)},
+                                             role),
+             "talent_bpmp": ws.dyn_talent_fn(box, pooled_value(hist, records), role),
+             "talent_bpmn": ws.dyn_talent_fn(
+                 box, pooled_value(hist, records, frozen_from=pav.BPM_SHRINK_MP), role)},
             f"BPM to date for {len(hist)} players")
+
+
+def small_sample(seasons, beta, cache_dir=pav.DEFAULT_CACHE, min_second=300.0):
+    """Player level: does first-half BPM predict second-half BPM for players
+    with little last-season data? Each season splits at its median game
+    date; players with min_second+ second-half minutes; target = rebuilt BPM
+    over the second half. Estimates from the first half: production's prior
+    (frozen), pooled_bpm, and the first half alone. Grouped by last-season
+    minutes. -> DataFrame of player rows."""
+    rows = []
+    for s in seasons:
+        full = ws.load_full(s, cache_dir)
+        mid = pd.Timestamp(full["date"].median()).normalize()
+        first = player_rates(full[full["date"] < mid])
+        second = player_rates(full[full["date"] >= mid])
+        first["obs"] = design(first) @ beta
+        second["target"] = design(second) @ beta
+        table = pav.load_bpm(s - 1)
+        m = first.merge(second[["player_id", "target", "minutes"]].rename(
+            columns={"minutes": "mp2"}), on="player_id")
+        m = m[m["mp2"] >= min_second]
+        for r in m.itertuples(index=False):
+            rec = table.get(pav.norm_name(r.name))
+            b0, mp0 = (R, 0.0) if rec is None else (float(rec[0]), float(rec[1]))
+            rows.append({"season": s, "player_id": r.player_id, "mp0": mp0,
+                         "mp1": r.minutes, "mp2": r.mp2, "target": r.target,
+                         "frozen": pooled_bpm(b0, mp0, 0.0, 0.0),
+                         "pooled": pooled_bpm(b0, mp0, r.obs, r.minutes),
+                         "season_only": r.obs})
+    return pd.DataFrame(rows)
+
+
+def small_report(d):
+    """MAE (second-half minutes weighted) and corr of each estimate with the
+    second-half BPM, by last-season minutes group."""
+    lines = []
+    groups = (("no last-season BPM (rookies, new)", d["mp0"] == 0),
+              ("1-499 last-season MP", (d["mp0"] > 0) & (d["mp0"] < 500)),
+              ("500-1,499", (d["mp0"] >= 500) & (d["mp0"] < 1500)),
+              ("1,500+", d["mp0"] >= 1500))
+    for label, ok in groups:
+        x = d[ok]
+        if len(x) < 20:
+            continue
+        w = x["mp2"].to_numpy(float)
+        parts = []
+        for c in ("frozen", "pooled", "season_only"):
+            err = np.abs(x[c] - x["target"]).to_numpy(float)
+            r = np.corrcoef(x[c], x["target"])[0, 1] if x[c].std() > 0 else np.nan
+            parts.append(f"{c} MAE {(w * err).sum() / w.sum():.2f} corr "
+                         + (f"{r:+.2f}" if np.isfinite(r) else "  n/a"))
+        lines.append(f"  {label:<34} n {len(x):>4}  " + "; ".join(parts))
+    return "\n".join(lines)
 
 
 def check(fit, test, cache_dir=pav.DEFAULT_CACHE):
@@ -211,8 +315,23 @@ def main(argv=None):
     c.add_argument("--fit", nargs="+", default=["2016-2019", "2021-2024"])
     c.add_argument("--test", nargs="+", type=int, default=[2025, 2026])
     c.add_argument("--cache", default=pav.DEFAULT_CACHE)
+    sm = sub.add_parser("small", help="first half vs second half by last-season minutes")
+    sm.add_argument("--fit", nargs="+", default=["2016-2019", "2021-2024"])
+    sm.add_argument("--seasons", nargs="+", default=["2017-2019", "2021-2026"])
+    sm.add_argument("--cache", default=pav.DEFAULT_CACHE)
     a = ap.parse_args(argv)
-    check(nc.parse_years(a.fit), a.test, a.cache)
+    if a.cmd == "check":
+        check(nc.parse_years(a.fit), a.test, a.cache)
+    else:
+        beta, _ = fit_beta(nc.parse_years(a.fit), a.cache)
+        d = small_sample(nc.parse_years(a.seasons), beta, a.cache)
+        print("First half -> second half rebuilt BPM, players with 300+ second-half "
+              "minutes (MAE weighted by second-half minutes)")
+        print(small_report(d))
+        held = d[d["season"] > max(nc.parse_years(a.fit))]
+        if len(held):
+            print("Seasons after the mapping's fit seasons only:")
+            print(small_report(held))
     return 0
 
 
