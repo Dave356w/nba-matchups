@@ -62,7 +62,8 @@ jobs:
           restore-keys: injury-reports-
       - name: Download seasons and logs
         if: ${{ !inputs.kalshi }}
-        run: python nba_composite.py download --years 2015-2019 2021-2026
+        # 2020: the season before 2021 (the v7 early logit's carryover)
+        run: python nba_composite.py download --years 2015-2026
       - name: Reconstruct
         if: ${{ !inputs.kalshi }}
         run: python backfill_history.py --seasons ${{ inputs.seasons }} ${{ inputs.rescore && '--rescore' || '' }}

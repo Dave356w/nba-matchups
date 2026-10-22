@@ -3,6 +3,7 @@
 import os
 import sys
 
+import numpy as np
 import pandas as pd
 
 import ledger
@@ -36,9 +37,13 @@ def check(path):
     elif list(df.columns) == ledger.PRE_PREGAME_SPREAD_COLUMNS:
         print(f"note {path}: pre-pregame-spread schema; pre_spread / "
               "first_spread columns added (blank) on the next write")
+    elif list(df.columns) == ledger.PRE_CARRY_COLUMNS:
+        print(f"note {path}: pre-v7 schema; carry_p_home / first_carry_p_home "
+              "added (blank) on the next write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_PREGAME_SPREAD_COLUMNS,
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_CARRY_COLUMNS,
+                            ledger.PRE_PREGAME_SPREAD_COLUMNS,
                             ledger.PRE_KALSHI_COLUMNS, ledger.PRE_SEEN_COLUMNS,
                             ledger.PRE_FIRST_COLUMNS, ledger.PRE_SPREAD_COLUMNS):
         books = {b for _, b in market.BOOKS} | set(market.EXCHANGES)
@@ -90,6 +95,15 @@ def check(path):
     p = pd.to_numeric(df["p_home"], errors="coerce").dropna()
     if not p.between(0, 1).all():
         errs.append(f"{path}: p_home outside [0,1]")
+    for c in ledger.CARRY_COLUMNS + ledger.FIRST_CARRY_COLUMNS:
+        if c in df.columns:
+            cp = pd.to_numeric(df[c], errors="coerce")
+            if not cp.dropna().between(0, 1).all():
+                errs.append(f"{path}: {c} outside [0,1]")
+            gp = np.fmin(pd.to_numeric(df["gp_home"], errors="coerce"),
+                         pd.to_numeric(df["gp_away"], errors="coerce"))
+            if (cp.notna() & ~(gp < 10)).any():
+                errs.append(f"{path}: {c} on a game outside games 1-9")
     return errs
 
 

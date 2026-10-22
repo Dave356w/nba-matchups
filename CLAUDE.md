@@ -308,8 +308,15 @@ Before a PR, run:
   0.0220 / −0.0057 ± 0.0248). The market's correction of the early model
   follows talent_diff (corr +0.42 ± 0.12, n = 276). H1's hindsight profit
   sat in bets roster talent was against (n 77, +32.4% ± 33.2) more than
-  those it backed (n 38, −11.8% ± 33.3), unresolved; shipping it would change
-  H1's and H6's bets. Candidate model change (early route), owner's call.
+  those it backed (n 38, −11.8% ± 33.3), unresolved. **Model v7** (owner's
+  decision, 2026-10-22; not the rejected v7 candidate of PR #80): shipped for games 1–9 (tag `..._carry25_talent_
+  early_v7`; games 10+ keep v6), with **H1 and H6 kept on the carryover
+  model**: every early row records the carryover logit's P
+  (`ledger.CARRY_COLUMNS` `carry_p_home`, refreshed until tip;
+  `first_carry_p_home`, written once with `first_*`; reconstructed rows via
+  the rescore), and `analysis.carry_view` hands it to H1 / H6 (and the H6
+  card badge). The carryover logit is frozen in `model/logit_early_v6.json`
+  (also preseason, and early games without talent). MODEL.md "v7".
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean
   (the blanket value side, model P > no-vig q, and its ATS twin were retired
   from the pages and report 2026-10-06, owner's decision: at the close its

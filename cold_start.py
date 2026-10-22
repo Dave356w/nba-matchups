@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
-"""Early-season model: last-season carryover for games 1-9 (MODEL_TAG v2).
+"""Early-season model: last-season carryover for games 1-9 (MODEL_TAG v2),
+plus roster talent from v7.
 
-  python cold_start.py fit --years 2023-2026     # writes model/logit_early.json
+  python cold_start.py fit --talent --years 2016-2019 2021-2026   # v7: model/logit_early.json
+  python cold_start.py fit --years 2023-2026      # the carryover logit alone (v2-v6)
+
+v7 (owner's decision 2026-10-22; research/early_roster.py): the early logit
+adds talent_diff, the games-10+ roster term (player_availability.talent_fn:
+the previous box score's players x minutes role x last-season BPM), so
+offseason roster changes count from game 1. The v2-v6 carryover logit is
+frozen in model/logit_early_v6.json (FROZEN_FILE): it scores the games whose
+talent cannot be computed, the preseason rows and, recorded beside the v7 P
+(carry_p_home), hypotheses H1 and H6, which were registered on it.
 
 The composite model abstains until both teams have nc.MIN_GAMES (10) games.
 research/cold_start_probe.py backtested replacements against the market on
@@ -36,7 +46,9 @@ import nba_composite as nc
 RHO = 0.25           # weight on last season's games (offseason discount)
 WINDOW = 20          # early-logit training window: min(games played) < WINDOW
 FEATURES = ["delta", "b2b_net"]
+FEATURES_TALENT = FEATURES + ["talent_diff"]       # v7
 MODEL_FILE = "logit_early.json"
+FROZEN_FILE = "logit_early_v6.json"                # the carryover logit, v2-v6
 
 
 def cold_features(cur, i, half_life=nc.HALF_LIFE, prior=None, rho=0.0,
@@ -78,9 +90,11 @@ def carry_delta(cur_h, ih, prior_h, cur_a, ia, prior_a, weights,
 
 
 def early_games(y, weights, logs=None, prior_logs=None, window=WINDOW,
-                rho=RHO, min_gp=0):
+                rho=RHO, min_gp=0, talent=None):
     """One row per home game of season y with min(games played) in
-    [min_gp, window): carryover delta, b2b_net, result, games played."""
+    [min_gp, window): carryover delta, b2b_net, result, games played; with
+    `talent` ((team, date) -> value, player_availability.talent_fn) also
+    talent_diff, home - away (NaN before a team's first box score)."""
     logs = nc.load_logs(y) if logs is None else logs
     prior_logs = nc.load_logs(y - 1) if prior_logs is None else prior_logs
     rows = []
@@ -107,12 +121,27 @@ def early_games(y, weights, logs=None, prior_logs=None, window=WINDOW,
                          "h_b2b": int(rh == 0), "a_b2b": int(ra == 0),
                          "b2b_net": int(ra == 0) - int(rh == 0), "delta": d,
                          "win": int(r["pts"] > r["opp_pts"])})
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    if talent is not None and len(out):
+        out["talent_diff"] = [talent(h, d) - talent(a, d) for h, a, d in
+                              zip(out["home"], out["away"], out["date"])]
+    return out
 
 
-def fit_early(years, weights, rho=RHO, window=WINDOW):
-    G = pd.concat([early_games(y, weights, rho=rho, window=window) for y in years])
-    m = nc.fit_logit(G[FEATURES].to_numpy(float), G["win"], FEATURES)
+def fit_early(years, weights, rho=RHO, window=WINDOW, talent=None, logs=None):
+    """The early logit on every game with min(gp) < window of `years`.
+    talent: {year: talent function} fits the v7 logit (FEATURES_TALENT) on
+    the games whose talent_diff is known (from game 1); None the carryover
+    logit (FEATURES). logs: {year: game logs}, read from the cache if
+    absent."""
+    logs = logs or {}
+    feats = FEATURES_TALENT if talent is not None else FEATURES
+    G = pd.concat([early_games(y, weights, logs=logs.get(y), prior_logs=logs.get(y - 1),
+                               rho=rho, window=window,
+                               talent=None if talent is None else talent[y])
+                   for y in years])
+    G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
+    m = nc.fit_logit(G[feats].to_numpy(float), G["win"], feats)
     m.update({"rho": rho, "window": window, "half_life": nc.HALF_LIFE,
               "n_games": int(len(G)), "years": list(years)})
     return m
@@ -123,9 +152,16 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["fit"])
     ap.add_argument("--years", nargs="+", default=["2023-2026"])
+    ap.add_argument("--talent", action="store_true",
+                    help="v7: add talent_diff (box scores and last-season BPM per year)")
     a = ap.parse_args(argv)
     weights = nc.load_json("weights.json")
-    m = fit_early(nc.parse_years(a.years), weights)
+    years = nc.parse_years(a.years)
+    talent = None
+    if a.talent:
+        import player_availability as pav
+        talent = {y: pav.season_talent(y) for y in years}
+    m = fit_early(years, weights, talent=talent)
     nc.save_json(m, MODEL_FILE)
     coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
     print(f"saved model/{MODEL_FILE}  intercept={m['intercept']:.3f}  {coefs}  "

@@ -572,11 +572,30 @@ PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
                "close": "close"}
 
 
+def carry_view(g):
+    """Rows with the carryover model's P in place of p_home / first_p_home
+    wherever it was recorded (carry_p_home, first_carry_p_home; games 1-9 from
+    model v7 on). H1 and H6 were registered on the carryover model and stay
+    on it (owner's decision 2026-10-22); rows written before v7 have no carry
+    column filled and their P already is the carryover model's."""
+    if g is None or not len(g):
+        return g
+    g = g.copy()
+    for col, carry in (("p_home", "carry_p_home"), ("first_p_home", "first_carry_p_home")):
+        if carry in g.columns and col in g.columns:
+            c = pd.to_numeric(g[carry], errors="coerce")
+            g[col] = c.where(c.notna(), pd.to_numeric(g[col], errors="coerce"))
+    return g
+
+
 def hypothesis_picks(g, hyp, price):
     """The value-side bets one pre-registered rule makes, graded at `price`.
     The edge and "favourite" (q > 0.5) are read at that same price. An ATS
     rule (market "ats") bets the model's side against that price's spread,
-    its edge in points (ats_side_picks)."""
+    its edge in points (ats_side_picks). The games 1-9 rules (H1, H6) read
+    the carryover model's P (carry_view)."""
+    if hyp["early"]:
+        g = carry_view(g)
     if hyp.get("market") == "ats":
         p = ats_side_picks(g, price, hyp["sigma"])
         if not len(p):
@@ -993,7 +1012,7 @@ def ats_card(row):
     for hyp in HYPOTHESES:
         if hyp.get("market") != "ats":
             continue
-        s = ats_sides(g, hyp["native"], hyp["sigma"])
+        s = ats_sides(carry_view(g) if hyp["early"] else g, hyp["native"], hyp["sigma"])
         if not len(s) or bool(s["early"].iloc[0]) != hyp["early"]:
             continue
         r = s.iloc[0]
