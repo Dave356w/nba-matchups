@@ -1,0 +1,115 @@
+In-game Kalshi: strength prior vs market reaction -- 2025-26, reconstructed model rows (HINDSIGHT model; Kalshi prices are real). ± is 95%, game-clustered.
+p* = Phi(delta / (sigma sqrt(tau)) + z0 sqrt(tau)); train 2025-10-24 to 2026-01-31 (sigma, w fitted here), test to 2026-04-12.
+No native row has a model P yet: nothing here is forward evidence.
+
+== 0. Data
+  reconstructed 2025-26 games with a Kalshi event: 1208; used 1161 (train 681, test 480); dropped: implausible wallclock 12, no candles 9, no live quotes 23, no pregame quote 3
+  live states (regulation minutes with a candle): 158,842; with a mid 133,761; median per game 123
+  first play after the scheduled tip: median 11.2 min; pregame quote 0.5 min before it (median)
+  live bid-ask spread: median 1.0c per game
+  pregame mid vs the benchmark's Kalshi close (both markets normalised, at the scheduled tip): mean |diff| 0.61 pp, corr 0.9965 (n 1161)
+  ESPN final agrees with the ledger result: 1161 of 1161; stray ESPN wallclock stamps replaced: 53 in 31 games
+
+== 1. Sigma (points per 48 min) and the blend weight
+  score process, train (quarter changes, no outcomes or prices): 17.30 ± 0.50 (681 games) -- the sigma every p* below uses (the notebook's choice).
+  Yardstick, all games: SD of the regulation margin around the closing spread 13.85 ± 0.56 (1161 games); consecutive quarters' margins net of the spread correlate -0.117 (negative = leads shrink, which lifts the within-game estimate above the game's SD).
+  Fitted to the outcome and to the live mid, MKT prior (same minutes, same p* form;
+  mid < outcome = the mid moves more per point than outcomes justify, over-reaction):
+    train all minutes  outcome 19.80 ± 2.34   mid 22.60 ± 0.16   mid - outcome +2.80 ± 2.33
+    train 1st half     outcome 21.00 ± 3.85   mid 24.00 ± 0.25   mid - outcome +3.00 ± 3.85
+    train 3rd quarter  outcome 18.50 ± 2.33   mid 21.75 ± 0.19   mid - outcome +3.25 ± 2.34
+    train 4th quarter  outcome 20.55 ± 2.77   mid 22.55 ± 0.28   mid - outcome +2.00 ± 2.73
+    test  all minutes  outcome 17.75 ± 2.47   mid 21.65 ± 0.20   mid - outcome +3.90 ± 2.42
+    test  1st half     outcome 16.85 ± 2.99   mid 22.95 ± 0.30   mid - outcome +6.10 ± 2.96
+    test  3rd quarter  outcome 17.20 ± 2.92   mid 20.85 ± 0.22   mid - outcome +3.65 ± 2.89
+    test  4th quarter  outcome 20.15 ± 3.69   mid 21.25 ± 0.39   mid - outcome +1.10 ± 3.55
+  The p* form fixes the prior's weight at sqrt(tau), so a prior that is itself too
+  confident or too timid (section 2, pregame slopes) moves these fits too: a gap
+  that is largest in the 1st half, where the prior weighs most, is not clean
+  evidence about the reaction to the score. Section 3 is the test that counts.
+  outcome fit, MODEL prior, train: 19.60 ± 2.29
+  blend w(model) on [0, 1], train: 0.32 ± 0.43;  unbounded: +0.32 ± 0.43  (0 = the pregame mid already holds the model)
+
+== 2. Pregame, test (480 games)
+  MKT (Kalshi pregame mid)   log loss 0.5095   Brier 0.1682
+  MODEL (v6)                 log loss 0.5436   Brier 0.1812
+  BLEND                      log loss 0.5150   Brier 0.1700
+  MODEL - MKT                log loss +0.0341 ± 0.0186   Brier +0.0130 ± 0.0078
+  BLEND - MKT                log loss +0.0055 ± 0.0060   Brier +0.0019 ± 0.0023
+  outcome's weight on the model's disagreement with the pregame mid: -0.25 ± 0.50
+  Calibration of the pregame mid (compare the live mid's slopes in section 3; the
+  test games are Feb-Apr, when outcomes run steeper than prices in hindsight):
+    train slope 0.82 ± 0.18   intercept +0.033 ± 0.165   games 681
+    test  slope 1.28 ± 0.24   intercept -0.065 ± 0.217   games 480
+
+== 3. In-game, test (480 games; negative = the first beats the second; each game weighted equally)
+  p*(MKT) - live mid                     log loss +0.0011 ± 0.0062   Brier +0.0012 ± 0.0022   games 480
+  p*(MODEL) - live mid                   log loss +0.0225 ± 0.0130   Brier +0.0085 ± 0.0051   games 480
+  p*(BLEND) - live mid                   log loss +0.0053 ± 0.0073   Brier +0.0025 ± 0.0028   games 480
+  p*(MKT, outcome sigma) - live mid      log loss +0.0020 ± 0.0040   Brier +0.0010 ± 0.0015   games 480
+  p*(BLEND) - p*(MKT)                    log loss +0.0025 ± 0.0033   Brier +0.0008 ± 0.0012   games 480
+  p*(MODEL) - p*(MKT)                    log loss +0.0145 ± 0.0101   Brier +0.0051 ± 0.0039   games 480
+  p*(MKT) - live mid, by part of the game:
+    1st half                               log loss +0.0009 ± 0.0064   Brier +0.0015 ± 0.0025   games 480
+    3rd quarter                            log loss +0.0026 ± 0.0086   Brier +0.0018 ± 0.0031   games 442
+    4th quarter                            log loss +0.0082 ± 0.0125   Brier +0.0026 ± 0.0030   games 337
+    quiet minutes only                     log loss +0.0016 ± 0.0068   Brier +0.0014 ± 0.0023   games 480
+  Outcome's weight on p*'s disagreement with the live mid (0 = adds nothing):
+    p*(MKT)                                w +0.40 ± 0.43
+    p*(MODEL)                              w -0.08 ± 0.32
+    p*(BLEND)                              w +0.18 ± 0.40
+    p*(MKT, outcome sigma)                 w +0.22 ± 0.48
+  Calibration of the live mid against the outcome (slope 1 = right; < 1 the mid is
+  too confident, > 1 too timid):
+    train, all minutes                     slope 1.04 ± 0.12   intercept +0.050 ± 0.175   games 681
+    train, 1st half                        slope 0.86 ± 0.15   intercept +0.046 ± 0.168   games 681
+    train, 3rd quarter                     slope 1.04 ± 0.14   intercept +0.010 ± 0.191   games 666
+    train, 4th quarter                     slope 1.23 ± 0.13   intercept +0.175 ± 0.224   games 578
+    test, all minutes                      slope 1.35 ± 0.17   intercept +0.015 ± 0.229   games 480
+    test, 1st half                         slope 1.27 ± 0.20   intercept -0.031 ± 0.225   games 480
+    test, 3rd quarter                      slope 1.27 ± 0.19   intercept +0.077 ± 0.259   games 442
+    test, 4th quarter                      slope 1.34 ± 0.19   intercept +0.154 ± 0.310   games 337
+  Timing (test): ESPN wallclock vs Kalshi mid, corr of minute changes:
+    L = -2 min   corr +0.000   (n 49916)
+    L = -1 min   corr +0.035   (n 50616)
+    L = +0 min   corr +0.688   (n 51353)
+    L = +1 min   corr +0.096   (n 50616)
+    L = +2 min   corr -0.016   (n 49916)
+
+== 4. Trades, test (one per game per prior; first quiet minute, tau 0.1-0.9, p* - ask - fee >= 4c; filled at the worst quote 2 min later; per $1 contract)
+  MKT            trades 337  YES/NO 164/173  fill 0.569  hit 0.540  claimed +5.5c  pnl -4.4c ± 4.7  null -3.2c  pnl - null -1.1c ± 4.7  ROI -7.5%  fav -1.6c
+    (0.04, 0.06]   n 250  claimed  +4.8c  realised  -2.4c ±  5.3  null  -3.1c
+    (0.06, 0.08]   n 70   claimed  +6.8c  realised -12.4c ± 11.3  null  -3.3c
+    (0.08, 0.12]   n 15   claimed  +9.6c  realised  -7.3c ± 26.4  null  -4.4c
+    (0.12, 1.0]    n 2    claimed +15.3c  realised +48.3c ±  0.0  null  -2.5c
+  MODEL          trades 418  YES/NO 204/214  fill 0.427  hit 0.385  claimed +8.1c  pnl -5.5c ± 4.0  null -2.9c  pnl - null -2.7c ± 3.9  ROI -12.6%  fav +1.4c
+    (0.04, 0.06]   n 199  claimed  +4.9c  realised  -5.6c ±  5.4  null  -2.8c
+    (0.06, 0.08]   n 88   claimed  +6.9c  realised -10.0c ±  8.9  null  -2.9c
+    (0.08, 0.12]   n 73   claimed  +9.9c  realised  -0.3c ± 10.2  null  -2.8c
+    (0.12, 1.0]    n 58   claimed +18.4c  realised  -4.9c ± 11.2  null  -2.8c
+  BLEND          trades 354  YES/NO 172/182  fill 0.497  hit 0.466  claimed +5.8c  pnl -4.5c ± 4.5  null -3.1c  pnl - null -1.4c ± 4.5  ROI -8.9%  fav +0.1c
+    (0.04, 0.06]   n 232  claimed  +4.8c  realised  -5.2c ±  5.3  null  -3.1c
+    (0.06, 0.08]   n 85   claimed  +6.8c  realised  -7.9c ±  9.9  null  -3.3c
+    (0.08, 0.12]   n 31   claimed  +9.2c  realised  +2.8c ± 17.8  null  -3.2c
+    (0.12, 1.0]    n 6    claimed +13.7c  realised +30.5c ± 36.5  null  -2.4c
+  MKT out-sig    trades 226  YES/NO 117/109  fill 0.483  hit 0.425  claimed +5.1c  pnl -7.3c ± 5.8  null -4.0c  pnl - null -3.3c ± 5.8  ROI -14.6%  fav -1.5c
+    (0.04, 0.06]   n 191  claimed  +4.7c  realised  -6.8c ±  6.2  null  -3.8c
+    (0.06, 0.08]   n 30   claimed  +6.7c  realised -16.6c ± 17.5  null  -5.4c
+    (0.08, 0.12]   n 4    claimed  +9.0c  realised +23.8c ± 50.9  null  -3.3c
+    (0.12, 1.0]    n 1    claimed +16.6c  realised +48.3c ±  nan  null  -2.7c
+  null = the same contract at the fill minute's mid (what a fair mid says it is worth) less price and fee; fav = the live favourite bought at the same minute.
+
+== 4. Trades, train (one per game per prior; first quiet minute, tau 0.1-0.9, p* - ask - fee >= 4c; filled at the worst quote 2 min later; per $1 contract)
+  (sigma and w were fitted on these games: MKT and MODEL use no fitted outcome here, BLEND's w does.)
+  MKT            trades 562  YES/NO 270/292  fill 0.582  hit 0.580  claimed +5.5c  pnl -1.6c ± 3.9  null -3.5c  pnl - null +1.9c ± 3.9  ROI -2.7%  fav -6.7c
+  MODEL          trades 601  YES/NO 301/300  fill 0.508  hit 0.519  claimed +7.3c  pnl -0.4c ± 3.8  null -3.3c  pnl - null +3.0c ± 3.8  ROI -0.7%  fav -7.3c
+  BLEND          trades 573  YES/NO 281/292  fill 0.556  hit 0.555  claimed +5.7c  pnl -1.6c ± 3.8  null -3.4c  pnl - null +1.9c ± 3.8  ROI -2.7%  fav -6.9c
+  MKT out-sig    trades 401  YES/NO 193/208  fill 0.523  hit 0.536  claimed +5.2c  pnl -0.2c ± 4.7  null -4.1c  pnl - null +3.8c ± 4.7  ROI -0.4%  fav -6.7c
+  null = the same contract at the fill minute's mid (what a fair mid says it is worth) less price and fee; fav = the live favourite bought at the same minute.
+
+== 5. The notebook's decision rules (test)
+  pregame : MODEL or BLEND log loss < MKT -> MODEL no, BLEND no
+  in-game : BLEND vs MKT < 0 with the interval below 0 -> +0.0025 ± 0.0033: fail
+  tradable: MODEL pnl lower bound > 0 and above MKT -> lower bound -9.5c, mean -5.5c vs MKT -4.4c: fail
+  tradable: BLEND pnl lower bound > 0 and above MKT -> lower bound -9.1c, mean -4.5c vs MKT -4.4c: fail
+  reaction: MKT-prior pnl lower bound > 0 -> -9.1c: fail
