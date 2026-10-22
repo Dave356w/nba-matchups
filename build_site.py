@@ -1031,8 +1031,8 @@ THEME_BUTTON = (
 
 
 def model_version(tags=None):
-    """'v7' from the active model tags: the highest version among them (the
-    brand's version pill; v7 changed only the early route's tag)."""
+    """'v8' from the active model tags: the highest version among them (the
+    brand's version pill)."""
     import re
     vs = [int(m.group(1)) for t in (tags or ACTIVE_TAGS or [""])
           for m in [re.search(r"_v(\d+)$", str(t))] if m]
@@ -1438,16 +1438,18 @@ HOW_INDEX = (
     "are estimates, not verified edges; Results and Performance track whether "
     "they hold up.</p>"
     "<p class='note'><b>Composite Δ</b> is 100 × the standardised four-factor gap "
-    "(ridge weights, home − away, in win-% points). <b>early · carryover</b>: a "
-    f"team has fewer than {nc.MIN_GAMES} games, so last season's log "
-    f"(×{cold_start.RHO}) is carried in with its own early-season logit. "
-    "<b>injury report</b>: from game 10 the latest NBA injury report is folded "
-    "in (Out/Doubtful players, weighted by last season's BPM). The games-10+ "
-    "logits also grow the rating's weight through the season, discount "
-    "opponents' 3-point shooting (mostly luck), add roster talent (minutes "
-    "share × last season's BPM) and each team's free-throw percentage; see "
+    "(ridge weights, home − away, in win-% points). One model scores every "
+    "game, opening night included. <b>early season</b>: until a team's game "
+    f"{nc.FADE_GAMES} its rating still blends in last season (weight "
+    f"{nc.FADE_RHO:g} × (1 − games played ÷ {nc.FADE_GAMES})), and before its "
+    "first game its roster is its preseason box scores. <b>injury report</b>: "
+    "from each team's second game the latest NBA injury report is folded in "
+    "(Out/Doubtful players, weighted by last season's BPM). The model also "
+    "grows the rating's weight through the season, discounts opponents' "
+    "3-point shooting (mostly luck), adds roster talent (minutes share × last "
+    "season's BPM) and each team's free-throw percentage; see "
     "<a href='model.html'>Model</a>. Prices are refreshed each build until tip "
-    "and frozen after. A game abstains only while a team has no games yet.</p>"
+    "and frozen after.</p>"
     "<p class='note'><b>Spread pick (H5 / H6)</b>: the pre-registered spread "
     "rules (H6 games 1–9, H5 games 10+; see the <a href='grades.html#hypotheses'>"
     "Ledger</a>). From the first snapshot with a model probability and a "
@@ -1532,14 +1534,12 @@ def game_card(r, injuries=None):
     flags, lines = [], []
     det = [f"<p><b>{esc(away)} @ {esc(home)}</b> · tip {tip_pt(r['tip_utc'])}</p>"]
     if not np.isfinite(p):
-        why = (f"{r['gp_away']:.0f}/{r['gp_home']:.0f} games played"
-               if pd.notna(r["gp_home"]) else "no games yet")
         lines.append("<div class='pick-lines'><span class='kind'>Lean</span>"
-                     "<span class='pk na'>No pick: the model needs a game from "
-                     "both teams</span></div>")
-        flags.append(f"<span class='badge'>Abstain · {esc(why)}</span>")
-        det.append("<p>No probability: a team has no games yet (or the early "
-                   "model is not fitted).</p>")
+                     "<span class='pk na'>No pick: no model probability</span></div>")
+        flags.append("<span class='badge'>No probability</span>")
+        det.append("<p>No probability for this game: an input the model needs "
+                   "was missing at the last build (rows written before v8, which "
+                   "projects every game, skipped each team's first game).</p>")
     else:
         lean_home = r["lean"] == home
         ml = r["pre_home_ml"] if lean_home else r["pre_away_ml"]
@@ -1673,8 +1673,9 @@ def render_index(led, today, built, model_ok, recon=None, injuries=None):
     n_abs = int(pd.to_numeric(day["p_home"], errors="coerce").isna().sum())
     note = (f"<div class='flag-note'>{n_abs} of {len(day)} game"
             f"{'s' if len(day) != 1 else ''} {'have' if n_abs != 1 else 'has'} no "
-            "model probability yet: the model needs at least one game from both "
-            "teams this season.</div>" if n_abs else "")
+            "model probability: an input the model needs (last season's games, "
+            "this season's box scores or a fitted model) was missing at the "
+            "last build. The next build retries until tip.</div>" if n_abs else "")
     seg = ("<div class='seg' data-filter role='group' aria-label='Filter games' hidden>"
            + "".join(f"<button type='button' data-show='{k}' aria-pressed="
                      f"'{'true' if k == 'all' else 'false'}'>{t}<span class='ct'></span>"
@@ -2577,8 +2578,9 @@ def _hypotheses(native, recon):
     for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
         def cell(r):
             if not r:
-                return ["0", "—", "—", "—"]
-            return [str(r["n"]), *_roi_cells(r)]
+                return ["0", "—", "—"]
+            roi, null, vs = _roi_cells(r)
+            return [str(r["n"]), f"{roi}<br><span class='mut'>null {null}</span>", vs]
         h, n = cell(hind), cell(nat)
         h[0] = (f"{h[0]}<br><span class='mut'>at the "
                 f"{analysis.PRICE_NAMES[hyp['hindsight']]}</span>" if hind else
@@ -2593,9 +2595,9 @@ def _hypotheses(native, recon):
         f"the forward test, on {esc(name)} prices; hindsight is the same rule "
         f"on the {_dk_scope(recon)} that {esc(name)} priced (ESPN BET is no "
         "longer offered, so its prices are left out).</p>"
-        + table(["", "Rule", "Native n", "ROI", "Null", "vs null (± 1 SE)",
-                 f"Hindsight n ({esc(name)})", "ROI", "Null", "vs null (± 1 SE)"],
-                rows, left=(0, 1), key=(3, 5))
+        + table(["", "Rule", "Native n", "ROI", "vs null (± 1 SE)",
+                 f"Hindsight n ({esc(name)})", "ROI", "vs null (± 1 SE)"],
+                rows, left=(0, 1), key=(3, 4))
         + _hypothesis_backtest(recon)
         + _hypotheses_by_season(native, recon)
         + _hypothesis_ats_bands(native, recon)
@@ -2619,8 +2621,9 @@ def _hypotheses(native, recon):
         "model's win probability as a home margin, 13.5 × Φ⁻¹(P) points, bet "
         "on its side when it differs from the line by at least 1 point, at "
         "main-line prices (both sides −135 to +115). H5 is games 10+, H6 the "
-        "same rule on games 1–9 (the carryover model; about 100 bets a "
-        "season, so it needs several). Native bets use the first snapshot's "
+        "same rule on games 1–9 (on the carryover model it was registered on, "
+        "whose probability every early row records; about 100 bets a season, so "
+        "it needs several). Native bets use the first snapshot's "
         "spread, prices and probability; hindsight uses the same book's "
         "opening spread. Their ROI, null and win rate are per spread bet "
         "(cover rate).</p>"

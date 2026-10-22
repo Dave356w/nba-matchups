@@ -162,7 +162,7 @@ def test_index_card_abstains_without_a_probability():
     r = _slate(1).iloc[0].copy()
     r["p_home"] = np.nan
     card = build_site.game_card(r)
-    assert "Abstain" in card and "Lean " not in card and "probbar" not in card
+    assert "No probability" in card and "Lean " not in card and "probbar" not in card
 
 
 def _injuries(r, home_rows, away_rows, snap="2026-11-19T19:05:00Z"):
@@ -227,7 +227,7 @@ def test_tip_times_are_pacific_across_dst_and_openers_have_no_games_yet():
     r[["p_home", "gp_home", "gp_away"]] = np.nan     # a team not in the logs yet
     card = build_site.game_card(r)
     assert "4:30 PM PT" in card and " ET" not in card
-    assert "Abstain · no games yet" in card
+    assert "No pick: no model probability" in card
 
 
 def test_rebuilt_history_is_folded_and_forward_rows_open(tmp_path, monkeypatch):
@@ -415,7 +415,7 @@ def test_card_rows_show_each_sides_moneyline_and_spread():
     # an abstaining game still shows its prices
     r[["p_home", "gp_home", "gp_away", "first_p_home"]] = np.nan
     card = build_site.game_card(r)
-    assert "Abstain" in card and f"<span class='px'>{home}<small>-5.5</small></span>" in card
+    assert "No probability" in card and f"<span class='px'>{home}<small>-5.5</small></span>" in card
 
 
 def test_performance_charts_each_spread_rule(tmp_path, monkeypatch):
