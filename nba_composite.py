@@ -7,7 +7,8 @@ Pipeline
   1. download    Cache Basketball-Reference season pages and team game logs.
   2. fit-weights Ridge-fit 8 four-factor features to win% on team-season data.
   3. backtest    Fit logit on one season, score another (both directions).
-  4. fit-logit   Fit P(home win) on completed seasons (delta, b2b; --phase adds delta*phase).
+  4. fit-logit   Fit P(home win) on completed seasons (delta, b2b; --phase adds delta*phase;
+                 --v8 the production logit: v6 terms on the faded rating, every game).
   5. score       Score a day's slate from decayed pre-game composites.
 
 Model
@@ -74,6 +75,15 @@ V5_FEATURES = PHASE_FEATURES + ["luck_def", "talent_diff"]
 # (FTM/FTA, percentage points), home - away. The four factors read free
 # throws only as FTA/FGA, so a team's free-throw skill was missing.
 V6_FEATURES = V5_FEATURES + ["ft_diff"]
+# v8 (owner's decision 2026-10-22; research/unified.py): one rating for every
+# game, opening night included. A team's totals are [last season x rho(i)]
+# [this season], one decay running across the offseason (cold_start's
+# carryover weighting), rho(i) = FADE_RHO x max(0, 1 - i / FADE_GAMES), i =
+# that team's games played: game 0 is last season's rating, and from game 10
+# the rating is this season's alone (decayed_features). Luck and FT% read the
+# same totals; the logits keep V6_FEATURES (fade_v8_games builds them).
+FADE_RHO = 0.25
+FADE_GAMES = 10
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
@@ -366,6 +376,118 @@ def own_ft_pct(log, i, half_life=HALF_LIFE):
     return float(100.0 * ftm / fta) if fta > 0 else float("nan")
 
 
+def fade_rho(i, rho=FADE_RHO, games=FADE_GAMES):
+    """v8: last season's weight for a team with i games played."""
+    return rho * max(0.0, 1.0 - i / games) if games > 0 else 0.0
+
+
+def fade_totals(log, i, prior=None, rho=0.0, half_life=HALF_LIFE):
+    """Decayed totals over [prior x rho][log[:i]] for COLS and X3 (X3 None
+    when a row lacks 3PA), one decay across the offseason; None when nothing
+    is weighted. rho = 0 is decayed_features' window."""
+    cols = COLS + X3
+    parts, mult = [], []
+    if prior is not None and rho > 0 and len(prior):
+        parts.append(prior.reindex(columns=cols).to_numpy(float))
+        mult.append(np.full(len(prior), float(rho)))
+    if i > 0:
+        parts.append(log.reindex(columns=cols).to_numpy(float)[:i])
+        mult.append(np.ones(i))
+    if not parts:
+        return None
+    A = np.vstack(parts)
+    w = 0.5 ** (np.arange(len(A))[::-1] / half_life) * np.concatenate(mult)
+    t = dict(zip(COLS, (A[:, :len(COLS)] * w[:, None]).sum(0)))
+    x3 = A[:, len(COLS):]
+    if np.isfinite(x3).all():
+        t.update(zip(X3, (x3 * w[:, None]).sum(0)))
+    return t
+
+
+def fade_side(log, i, prior, lg_pct, weights, half_life=HALF_LIFE):
+    """v8 inputs for one team before its game i: (features, luck, own FT%),
+    luck as in opp_luck (the composite change if its opponents' 3P% were
+    lg_pct; NaN without 3PA or a league rate), or None without data."""
+    t = fade_totals(log, i, prior, fade_rho(i), half_life)
+    if t is None:
+        return None
+    f = features_from_totals(np.array([t[c] for c in COLS], float))
+    luck = float("nan")
+    if set(X3) <= set(t) and np.isfinite(lg_pct):
+        r = regress_3p(t, "O", lg_pct)
+        fr = features_from_totals(np.array([r[c] for c in COLS], float))
+        luck = composite(fr, weights["sd"], weights["w"]) - composite(f, weights["sd"], weights["w"])
+    ft = 100.0 * t["TFT"] / t["TFTA"] if t["TFTA"] > 0 else float("nan")
+    return f, luck, ft
+
+
+def fade_inputs(lh, ih, ph, la, ia, pa, lg_pct, weights, half_life=HALF_LIFE):
+    """v8 delta, luck_def and ft_diff (home - away) for a game, or None."""
+    sh = fade_side(lh, ih, ph, lg_pct, weights, half_life)
+    sa = fade_side(la, ia, pa, lg_pct, weights, half_life)
+    if sh is None or sa is None:
+        return None
+    return dict(delta=composite(sh[0] - sa[0], weights["sd"], weights["w"]),
+                luck_def=sh[1] - sa[1], ft_diff=sh[2] - sa[2])
+
+
+def last_season_3p(prior_logs):
+    """League 3P% over a completed season's logs (v8's rate before any game)."""
+    return league_3p_before(prior_logs, pd.Timestamp("2100-01-01")) if prior_logs \
+        else float("nan")
+
+
+def fade_v8_games(y, weights, half_life=HALF_LIFE, refresh=False, talent=None,
+                  talent0=None, prior_logs=None):
+    """Every game of season y (game 0 included) with the v8 inputs:
+    logit_inputs on the faded rating, luck_def, ft_diff and talent_diff
+    (talent(team, date) once a team has played, else talent0[team], its
+    preseason roster; NaN without them), gp_home / gp_away and the result."""
+    logs = load_logs(y, refresh)
+    if prior_logs is None:
+        try:
+            prior_logs = load_logs(y - 1)
+        except Exception:  # noqa: BLE001 - no carryover: games before 10 need it
+            prior_logs = {}
+    opening = season_opening(logs)
+    lg3 = league_3p(logs)
+    pct0 = last_season_3p(prior_logs)
+    talent0 = talent0 or {}
+
+    def tal(tm, i, date):
+        if i >= 1:
+            return talent(tm, date) if talent else float("nan")
+        return talent0.get(tm, float("nan"))
+
+    rows = []
+    for tm, c in logs.items():
+        for i in np.where(c["home"].values)[0]:
+            r = c.iloc[i]
+            opp = r["opp"]
+            if opp not in logs:
+                continue
+            c2 = logs[opp]
+            j = np.where(c2["date"].values == r["date"])[0]
+            if len(j) == 0:
+                continue
+            j = int(j[0])
+            pct = lg3.get(pd.Timestamp(r["date"]), float("nan"))
+            x = fade_inputs(c, i, prior_logs.get(tm), c2, j, prior_logs.get(opp),
+                            pct if np.isfinite(pct) else pct0, weights, half_life)
+            if x is None:
+                continue
+            rh, ra = rest_days(c, i), rest_days(c2, j)
+            rows.append({"year": y, "date": r["date"], "home": tm, "away": opp,
+                         "gp_home": i, "gp_away": j,
+                         "h_b2b": int(rh == 0), "a_b2b": int(ra == 0),
+                         **logit_inputs(x["delta"], rh, ra, r["date"], opening),
+                         "luck_def": x["luck_def"],
+                         "talent_diff": tal(tm, i, r["date"]) - tal(opp, j, r["date"]),
+                         "ft_diff": x["ft_diff"],
+                         "win": int(r["pts"] > r["opp_pts"])})
+    return pd.DataFrame(rows)
+
+
 def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=False,
                 talent=None):
     """Games 10+ of season y: v4 features (logit_inputs) plus the v5 terms
@@ -547,6 +669,9 @@ def main():
                             "needs player box scores, player_availability.season_talent)")
         s.add_argument("--v6", action="store_true",
                        help="fit-logit: v6 features (v5 + ft_diff, own FT%% gap)")
+        s.add_argument("--v8", action="store_true",
+                       help="fit-logit: v8, the v6 features on the faded rating, "
+                            "every game from game 0 (preseason rosters at game 0)")
         s.add_argument("--box-cache", default=None,
                        help="--v5: directory of box_<season>.csv (default research/output)")
     a = ap.parse_args()
@@ -594,7 +719,15 @@ def main():
         weights = load_json("weights.json") if (MODEL_DIR / "weights.json").exists() \
             else fit_weights(parse_years(a.train_years))
         save_json(weights, "weights.json")
-        if a.v5 or a.v6:
+        if a.v8:
+            import player_availability as pav   # lazy: it imports this module
+            G = pd.concat([fade_v8_games(y, weights, a.half_life,
+                                         talent=pav.season_talent(y, a.box_cache),
+                                         talent0=pav.preseason_talent(y, cache_dir=a.box_cache))
+                           for y in parse_years(a.years)])
+            feats = V6_FEATURES
+            G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
+        elif a.v5 or a.v6:
             import player_availability as pav   # lazy: it imports this module
             G = pd.concat([build_games(y, weights, a.half_life,
                                        talent=pav.season_talent(y, a.box_cache))
@@ -606,8 +739,10 @@ def main():
             feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
         m = fit_logit(G[feats].values, G["win"], feats)
         m.update({"half_life": a.half_life, "n_games": int(len(G)), "years": parse_years(a.years)})
-        if a.phase or a.v5 or a.v6:
+        if a.phase or a.v5 or a.v6 or a.v8:
             m["season_days"] = SEASON_DAYS
+        if a.v8:
+            m.update({"fade_rho": FADE_RHO, "fade_games": FADE_GAMES})
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
         print(f"saved model/logit.json  intercept={m['intercept']:.3f} (home edge)  {coefs}  n={m['n_games']}")

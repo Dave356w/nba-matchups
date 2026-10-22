@@ -299,6 +299,134 @@ def talent_fn(box, value, role):
     return f
 
 
+# ------------------------------------------------- v8: game-0 rosters ----
+PRE_COLUMNS = ["game_id", "date", "team", "player_id", "name", "minutes"]
+PRE_DAYS = 40            # the preseason window before opening night
+
+
+def pre_box_file(y, cache_dir=None, data_dir=None):
+    """Season y's preseason box rows on disk, or None: the committed
+    data/nba_box_pre_<y>.csv before the research cache's box_pre_<y>.csv."""
+    for path in (os.path.join(data_dir or DATA_DIR, f"nba_box_pre_{y}.csv"),
+                 os.path.join(cache_dir or DEFAULT_CACHE, f"box_pre_{y}.csv")):
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def read_pre_box(path):
+    return pd.read_csv(path, dtype={"game_id": str, "player_id": str, "name": str},
+                       keep_default_na=False, parse_dates=["date"])
+
+
+def save_pre_box(df, path):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    df[PRE_COLUMNS].sort_values(["date", "game_id", "team", "player_id"]) \
+        .to_csv(path, index=False)
+
+
+def preseason_rows(dates, sleep=0.15):
+    """Box rows (PRE_COLUMNS) of every completed NBA preseason game on `dates`
+    (ESPN), and how many scoreboards failed."""
+    rows, failed = [], 0
+    for d in dates:
+        ds = pd.Timestamp(d).strftime("%Y-%m-%d")
+        try:
+            games = market.scoreboard(ds)
+        except Exception as e:  # noqa: BLE001
+            print(f"{ds}: scoreboard failed {e!r}", flush=True)
+            failed += 1
+            continue
+        for g in games:
+            if g["season_type"] != market.PRESEASON or not g["completed"]:
+                continue
+            try:
+                js = market.get_json(SUMMARY.format(eid=g["game_id"]))
+            except Exception as e:  # noqa: BLE001
+                print(f"{g['game_id']}: summary failed {e!r}", flush=True)
+                failed += 1
+                continue
+            time.sleep(sleep)
+            for pl in parse_players(js):
+                if pl["team"] in market.BBR_TEAMS and pl["team"] in (g["home"], g["away"]):
+                    rows.append(dict(game_id=g["game_id"], date=pd.Timestamp(ds),
+                                     team=pl["team"], player_id=pl["player_id"],
+                                     name=pl["name"], minutes=pl["minutes"]))
+    return pd.DataFrame(rows, columns=PRE_COLUMNS), failed
+
+
+def fetch_preseason_box(y, opening, cache_dir=None, data_dir=None, sleep=0.15):
+    """Season y's preseason box scores: from disk (pre_box_file), else every
+    completed exhibition in the PRE_DAYS before `opening` (opening night)
+    from ESPN, cached to the research cache only when no request failed and
+    some game was found (a partial fetch is used this once, then retried)."""
+    path = pre_box_file(y, cache_dir, data_dir)
+    if path:
+        return read_pre_box(path)
+    opening = pd.Timestamp(opening)
+    df, failed = preseason_rows(pd.date_range(opening - timedelta(days=PRE_DAYS),
+                                              opening - timedelta(days=1)), sleep)
+    if not failed and len(df):
+        save_pre_box(df, os.path.join(cache_dir or DEFAULT_CACHE, f"box_pre_{y}.csv"))
+    print(f"preseason {y}: {df['game_id'].nunique()} games, "
+          f"{df['team'].nunique()} teams, {failed} failed requests"
+          + ("" if not failed and len(df) else "; not cached"), flush=True)
+    return df
+
+
+def update_preseason_box(y, today, data_dir="data", sleep=0.15):
+    """This season's preseason box scores for the daily build, kept in
+    data/nba_box_pre_<y>.csv: fetched once, on the first build from opening
+    night on (the PRE_DAYS before today), and written only when no request
+    failed and some game was found, so a bad fetch is retried by the next
+    build. Frozen once written. A team ESPN lists no preseason box for has
+    no game-0 roster (the carryover logit scores its opener)."""
+    path = os.path.join(data_dir, f"nba_box_pre_{y}.csv")
+    if os.path.exists(path):
+        return read_pre_box(path)
+    today = pd.Timestamp(today)
+    df, failed = preseason_rows(pd.date_range(today - timedelta(days=PRE_DAYS),
+                                              today - timedelta(days=1)), sleep)
+    if not failed and len(df):
+        save_pre_box(df, path)
+    else:
+        print(f"preseason {y}: {df['team'].nunique()} teams, {failed} failed "
+              "requests; not saved (retried next build)", flush=True)
+    return df
+
+
+def roster_talent(pre, bpm):
+    """{team: talent before its first regular-season game} (v8, game 0): the
+    players who played in its preseason, each his last-season minutes role
+    (MP / G / 48, arrival_roles' fallback) x shrunk last-season BPM above
+    replacement (player_values); unmatched players count 0. The pregame
+    analogue of talent_fn's "previous box score"."""
+    out = {}
+    played = pre[pd.to_numeric(pre["minutes"], errors="coerce") > 0]
+    for tm, g in played.groupby("team"):
+        s = 0.0
+        for nm in g.drop_duplicates("player_id")["name"]:
+            rec = bpm.get(norm_name(nm))
+            if rec is None:
+                continue
+            b, mp, gp = rec
+            if not (gp and np.isfinite(gp) and gp > 0):
+                continue
+            shrunk = REPLACEMENT_BPM + (b - REPLACEMENT_BPM) * mp / (mp + BPM_SHRINK_MP)
+            s += (mp / gp / 48.0) * (shrunk - REPLACEMENT_BPM)
+        out[tm] = s
+    return out
+
+
+def preseason_talent(y, opening=None, cache_dir=None, data_dir=None):
+    """{team: game-0 talent} for season y from its preseason box scores and
+    season y - 1's BPM table; opening defaults to the season's first game."""
+    if opening is None and not pre_box_file(y, cache_dir, data_dir):
+        opening = nc.season_opening(nc.load_logs(y))
+    return roster_talent(fetch_preseason_box(y, opening, cache_dir, data_dir),
+                         load_bpm(y - 1))
+
+
 def season_talent(y, cache_dir=None):
     """talent_fn for season y from its box scores (fetch_box, cached) and
     season y - 1's BPM table (no lookahead)."""
@@ -988,6 +1116,11 @@ class LiveAvailability:
         bpm = load_bpm(season - 1)
         self.value, _, self.bpm_minutes = player_values(self.box, bpm)
         self.talent = talent_fn(self.box, self.value, arrival_roles(self.box, bpm))
+        self.talent0 = {}                    # v8: each team's game-0 roster
+        try:
+            self.talent0 = roster_talent(update_preseason_box(season, today, data_dir), bpm)
+        except Exception as e:  # noqa: BLE001 - game 0 falls back to the carryover
+            print(f"preseason rosters unavailable ({e!r})", flush=True)
         self.report_time, self.report = None, None
         try:
             archive = ReportArchive(report_dir, now=now_et)
@@ -1059,21 +1192,31 @@ def fit_fixed(G, base, fixed=FIXED_V5, features=None):
 
 
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
-        v5=True, v6=True):
+        v5=True, v6=True, v8=False):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
     phase=True (v4) adds delta * season phase to the v3 features; v5=True
     also adds luck_def and talent_diff (needs the seasons' box scores);
-    v6=True (with v5) also adds ft_diff, the own FT% gap."""
-    v6 = v6 and v5
+    v6=True (with v5) also adds ft_diff, the own FT% gap. v8=True: the v6
+    features on the faded rating (nba_composite.fade_v8_games), every
+    covered game from game 1 (at game 0 no player has a share of the window,
+    so those games use the base logit)."""
+    v6 = (v6 and v5) or v8
+    v5 = v5 or v8
     weights = nc.load_json("weights.json")
     archive = ReportArchive(os.path.join(cache_dir, "injury_reports"))
     frames = []
     try:
         for t in years:
             terms, s = season_terms(t, archive, cache_dir, lead_minutes)
-            g = with_terms(nc.build_games(
-                t, weights, talent=season_talent(t, cache_dir) if v5 else None), terms)
-            print(f"season {t}: {len(g)} games 10+ with terms; "
+            if v8:
+                g = with_terms(nc.fade_v8_games(
+                    t, weights, talent=season_talent(t, cache_dir),
+                    talent0=preseason_talent(t, cache_dir=cache_dir)), terms)
+                g = g[np.minimum(g["gp_home"], g["gp_away"]) >= 1]
+            else:
+                g = with_terms(nc.build_games(
+                    t, weights, talent=season_talent(t, cache_dir) if v5 else None), terms)
+            print(f"season {t}: {len(g)} games {'1' if v8 else '10'}+ with terms; "
                   f"{s['with_report']}/{s['games']} games with a report, "
                   f"{len(s['covered'])} covered",
                   flush=True)
@@ -1087,6 +1230,8 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     m = nc.fit_logit(G[feats].to_numpy(float), G["win"], feats)
     if phase or v5:
         m["season_days"] = nc.SEASON_DAYS
+    if v8:
+        m.update({"fade_rho": nc.FADE_RHO, "fade_games": nc.FADE_GAMES})
     m.update({"half_life": nc.HALF_LIFE, "n_games": int(len(G)),
               "years": list(years), "lead_minutes": lead_minutes, "rule": "od",
               "replacement_bpm": REPLACEMENT_BPM, "bpm_shrink_mp": BPM_SHRINK_MP})
@@ -1110,9 +1255,11 @@ def main(argv=None):
                     help="fit the v4 features (no luck_def / talent_diff)")
     ap.add_argument("--v5", action="store_true",
                     help="fit the v5 features (no ft_diff)")
+    ap.add_argument("--v8", action="store_true",
+                    help="fit v8: the v6 features on the faded rating, games 1+")
     a = ap.parse_args(argv)
     fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
-        v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase))
+        v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase), v8=a.v8)
     return 0
 
 

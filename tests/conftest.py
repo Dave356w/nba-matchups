@@ -10,6 +10,7 @@ sys.path.insert(0, ROOT)
 
 import nba_composite as nc  # noqa: E402
 import kalshi  # noqa: E402
+import player_availability as pav  # noqa: E402
 import sleeper  # noqa: E402
 
 
@@ -30,6 +31,16 @@ def no_sleeper_network(monkeypatch):
                         lambda timeout=30: {"season": "2026", "week": 1})
     monkeypatch.setattr(sleeper, "fetch_projections",
                         lambda season, week, timeout=60: [])
+
+
+@pytest.fixture(autouse=True)
+def no_preseason_network(monkeypatch):
+    """ESPN lists no preseason games unless a test supplies its own: the
+    daily build fetches this season's preseason box scores (v8's game-0
+    rosters), and tests never touch the network or write to data/ (an empty
+    fetch is never saved)."""
+    monkeypatch.setattr(pav, "preseason_rows",
+                        lambda dates, sleep=0.15: (pd.DataFrame(columns=pav.PRE_COLUMNS), 0))
 
 
 def make_log(n, start="2026-10-21", seed=0, gap_days=2, strength=0.0):

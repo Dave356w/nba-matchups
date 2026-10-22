@@ -467,7 +467,7 @@ def roi_summary(g, price="close"):
         rows = [roi_row("All picks", d)]
         if d["early"].any() and (~d["early"]).any():
             rows += [roi_row("Games 10+", d[~d["early"]]),
-                     roi_row("Games 1–9 (carryover)", d[d["early"]])]
+                     roi_row("Games 1–9", d[d["early"]])]
         out.append((label, [r for r in rows if r]))
     return out
 

@@ -1,9 +1,18 @@
-# Model v7 (games 1–9) / v6 (games 10+)
+# Model v8
 
-**v7** (owner's decision 2026-10-22; "v7" below): v6 plus roster talent in
-the games 1–9 logit. Games 10+ are unchanged and keep the v6 tags; early
-rows scored with talent are tagged `fourfactors_hl25_b2b_carry25_talent_early_v7`.
-H1 and H6 stay on the carryover model (`carry_p_home`).
+**v8** (owner's decision 2026-10-22; "v8" below): one model for every game,
+opening night included. Each team's rating carries last season in at 0.25 ×
+(1 − games played ÷ 10), so it fades out by game 10; the base and
+availability logits keep v6's terms and are fitted on every game
+(availability from game 1); game 0's roster is the preseason box scores.
+Tags: `fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_avail_v8` (the
+injury report covers the game, from game 1) and
+`fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_v8` (every other game);
+a game whose terms are missing keeps the carryover logit before game 10
+(`fourfactors_hl25_b2b_carry25_v2`) or the frozen v4 logit after
+(`fourfactors_hl25_b2b_carry25_phase_v4`). H1 and H6 stay on the carryover
+model (`carry_p_home`, games 1–9). §1–§4 below describe the v6/v7 pieces v8
+reuses; "v8" at the end gives the changes and the test.
 
 v6: active since 2026-10-01 (owner's decision after the gate, "v6" below;
 refit `f299ac6`, from which the daily build scores v6; reconstructed rows
@@ -19,7 +28,7 @@ one term, the own free-throw percentage gap (§2). Full technical report of the 
 | Module | Role |
 |---|---|
 | `nba_composite.py` | Four-factor composite, decayed game features, `logit_inputs` (every logit feature), base logit fit |
-| `cold_start.py` | Games 1–9: last-season carryover and its logit |
+| `cold_start.py` | The carryover rating and logit (H1 / H6's P, v8's fallback before game 10, preseason) |
 | `player_availability.py` | Injury-report parsing, report coverage, availability terms and their logit |
 | `build_site.py` | `score_game`: routes each game to one formula and records it; changes no math |
 | `backfill_history.py` | `reconstruct_season`: the same routing on completed seasons (leave-one-season-out, or `walk_forward=True`) |
@@ -30,7 +39,19 @@ thing everywhere.
 
 ## 1. Routing
 
-For a game on date D, with g = min(games played before D by either team):
+v8 (active): for a game on date D, with g = min(games played before D by
+either team):
+
+| Condition | Formula | Model file | Tag |
+|---|---|---|---|
+| g ≥ 1, report covers the game | availability logit on the faded rating (v8) | `model/logit_avail.json` | `..._fade10_..._avail_v8` |
+| every other game, g = 0 included | base logit on the faded rating (v8) | `model/logit.json` | `..._fade10_..._ft_v8` |
+| a term missing, g ≤ 9 | carryover logit (§3) | `model/logit_early_v6.json` | `..._carry25_v2` |
+| a term missing, g ≥ 10 | frozen v4 base logit | `model/logit_v4.json` | `..._phase_v4` |
+
+Games 1–9 also record the carryover logit's P (`carry_p_home`) for H1 / H6.
+
+Before v8 (v7, until 2026-10-22):
 
 | Condition | Formula | Model file | Tag |
 |---|---|---|---|
@@ -335,8 +356,10 @@ changing the model, is [`docs/model_guidelines.md`](docs/model_guidelines.md)
 
 | Step | Workflow | Command |
 |---|---|---|
-| Weights, base, early and availability logits | Fit model | `nba_composite.py fit-weights`, `fit-logit --v6`, `cold_start.py fit`, `player_availability.py fit` |
-| Availability logit alone | Fit availability | `python player_availability.py fit --years 2023-2026` |
+| Weights, base and availability logits (v8) | Fit model | `nba_composite.py fit-weights`, `fit-logit --v8`, `player_availability.py fit --v8` |
+| Availability logit alone | Fit availability | `python player_availability.py fit --v8 --years 2023-2026` |
+| Box scores and preseason box scores | Box-score history | `python research/box_history.py --seasons 2016-2019 2021-2026 --commit` |
+| v8 test | Unified model (v8) | `python research/unified.py` |
 | Reconstructed rows | Backfill history | `python backfill_history.py --seasons 2025 2026 --rescore` |
 | §6.1 | Walk-forward backtest | `python research/walk_forward.py --seasons 2025 2026 --avail --v5` (v6 gate: `--v6`) |
 | §6.2 phase | Calibration shape | `python research/calibration_shape.py --seasons 2025 2026` |
@@ -369,6 +392,11 @@ commit), because every historical test game was covered.
 - `fourfactors_hl25_b2b_carry25_talent_early_v7`: games 1–9 add roster
   talent to the carryover logit ("v7" below). Games 10+ keep the v6 tags;
   early games without talent keep the carryover logit and the v6 tag.
+- `fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_v8` /
+  `..._fade10_phase_luck_talent_ft_avail_v8`: one faded rating and one pair
+  of logits for every game, game 0 included ("v8" below). Missing terms
+  fall back to the carryover logit (v2 tag) before game 10 and the v4 logit
+  after; v7's `model/logit_early.json` is retired.
 
 ## v5 (active since 2026-09-30)
 
@@ -466,6 +494,67 @@ Activation: (1) the test above; (2) "Fit model" refits
 `model/logit_early.json` with talent; (3) "Backfill history" `--rescore`
 re-tags the reconstructed games 1–9 v7 and fills `carry_p_home` (H1 / H6
 hindsight unchanged). The build follows the model files.
+
+## v8 (owner's decision, 2026-10-22)
+
+Origin: the owner's request for one model from day 1 to the end of the
+season. Under v7 game 0 abstained (~16 games a season) and at game 10 a
+team's rating dropped last season at once (sd of the game 9 → 10 change in
+a team's composite 7.4 win-% points, against ~2.9 from one game to the next
+later on).
+
+Changes:
+- **Rating** (`nba_composite.fade_v8_games`, `fade_inputs`): each team's 16
+  raw totals are [last season × ρ(i)][this season], one decay (half-life
+  25) running across the offseason, ρ(i) = 0.25 × max(0, 1 − i ÷ 10), i =
+  the team's games played. Game 0 is last season's rating; from game 10
+  the rating is this season's alone, as in v6. Opponent 3-point luck
+  (league 3P% before the date, else last season's) and the own FT% gap read
+  the same totals.
+- **Logits**: v6's base terms (Δ, b2b_net, Δ·phase, luck_def, talent_diff,
+  ft_diff) fitted on every game of the game-log seasons (`fit-logit
+  --v8`); the availability logit (+ av_min, av_bpm) on every covered game
+  from game 1 (`player_availability.py fit --v8`). At game 0 no player has a
+  share of the rating window, so those games use the base logit.
+- **Game-0 roster** (`player_availability.roster_talent`): talent before a
+  team's first game sums its preseason players (ESPN box scores,
+  `data/nba_box_pre_<season>.csv`): last season's minutes role × shrunk BPM
+  above replacement, the pregame analogue of "the previous box score".
+  Against the roster each team actually opened with: corr +0.94 (285
+  team-seasons, 2015-16 to 2025-26), mean +0.10 pts/48.
+- **Fallbacks**: a game whose terms are missing gets the carryover logit
+  before game 10 and the frozen v4 logit after. H1 and H6 keep the
+  carryover P (`carry_p_home`, games 1–9).
+
+Test (`research/unified.py`, workflow "Unified model (v8)", run 39867001658,
+`diagnostics/unified/RESULTS.txt`), walk-forward 2016-17 to 2025-26 against
+v7's routing rebuilt on the same games (rebuilt inputs match the production
+builders to 1e-14); the fade point (10, 20, 40 or none) was chosen by a rule
+fixed before the run, the lowest pooled log loss on games 1+. ± is 95%:
+
+| Games | n | v8 − v7 (log loss) | Brier | Seasons better |
+|---|---:|---:|---:|---|
+| 1+ | 10,767 | −0.0003 ± 0.0008 | −0.0001 ± 0.0003 | 6 of 9 |
+| 1–9 | 1,258 | −0.0015 ± 0.0056 | −0.0007 ± 0.0025 | 6 of 9 |
+| 10–19 | 1,375 | −0.0011 ± 0.0017 | −0.0003 ± 0.0007 | 6 of 9 |
+| 20+ | 8,134 | +0.0001 ± 0.0004 | +0.0000 ± 0.0002 | 4 of 9 |
+
+Against the close, same games: ESPN BET 2024-25 (n = 1,209) −0.0011 ±
+0.0025 (Brier −0.0004), DraftKings 2025-26 (n = 964) −0.0009 ± 0.0010
+(Brier −0.0003): not worse on either large book-season (G7); ESPN BET
+2025-26 games 10+ (n = 107) +0.0057 ± 0.0051, its games 1–9 −0.0077 ±
+0.0199. Game 0 (n = 143, v7 abstained): −0.0145 ± 0.0214 vs the carryover
+logit without a roster, −0.067 ± 0.047 vs the home edge; no game-0 row is
+priced. No season gains more than 0.008. The game 9 → 10 jump falls from
+sd 7.4 to 4.1 points. Equal accuracy, one formula, every game projected:
+a simplification and a coverage fix, not an edge.
+
+Activation: (1) "Box-score history" commits each finished season's
+preseason box scores; (2) "Fit model" fits the v8 logits (and retires
+`model/logit_early.json`); (3) "Backfill history" `--rescore` re-scores the
+reconstructed rows with v8 and adds the game-0 rows v7 never wrote (with
+their prices); H1 / H6 hindsight unchanged. The build follows the model
+files.
 
 ## Version rule
 

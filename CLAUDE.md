@@ -27,7 +27,10 @@ owner directs the product.
   finished seasons the model trains on (2016–2019, 2021–2026) are committed
   by the "Box-score history" workflow (`research/box_history.py --commit`,
   from main only; owner's decision 2026-10-22, after a refit on main spent
-  ~1 h refetching them because the Actions cache had expired).
+  ~1 h refetching them because the Actions cache had expired), with each
+  season's preseason box scores (`data/nba_box_pre_<season>.csv`, model
+  v8's game-0 rosters; this season's written once by the build,
+  `validate_data_files.check_pre_box`).
   `player_availability.box_file` reads them before the research cache
   (`research/output/box_<season>.csv`); the full per-player lines
   (`box_full_*`, research only) stay in the cache. Validated
@@ -175,8 +178,8 @@ owner directs the product.
   list as recorded (owner's request, 2026-10-22; `build_site.injury_block`:
   the game's last pregame snapshot in `data/nba_injuries.csv`, frozen at
   tip, most serious status first, its time in PT), display only: the model
-  reads the NBA's official report from game 10, not this list, and the
-  card says so.
+  reads the NBA's official report (from each team's second game, v8), not
+  this list, and the card says so.
 - First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with
@@ -328,6 +331,45 @@ Before a PR, run:
   the rescore), and `analysis.carry_view` hands it to H1 / H6 (and the H6
   card badge). The carryover logit is frozen in `model/logit_early_v6.json`
   (also preseason, and early games without talent). MODEL.md "v7".
+  **Unified model, v8 candidate** (owner's request, 2026-10-22: one model
+  from day 1 to the end of the season; `research/unified.py`, workflow
+  "Unified model (v8)", run 39867001658, `diagnostics/unified/RESULTS.txt`,
+  PR Dave356w/nba-matchups#93): one rating for every game, last season's
+  totals × rho(i) = 0.25 × max(0, 1 − i/K) with one decay across the
+  offseason (i = the team's games played; game 0 = last season's rating),
+  luck and FT% on the same totals; v6's base and availability logits fitted
+  on every game (availability from g = 1); game 0's roster from the
+  preseason box scores (ESPN, last-season role × BPM; corr +0.94 with the
+  opener's roster talent, 285 team-seasons). Walk-forward 2016–26 against
+  production's routing rebuilt on the same games (the rebuilt inputs match
+  the production builders to 1e-14). The rule fixed before the run (lowest
+  pooled log loss on games 1+) picks K = 10: games 1+ −0.0003 ± 0.0008
+  (Brier −0.0001 ± 0.0003, n = 10,767, better in 6 of 9 seasons); games
+  1–9 −0.0015 ± 0.0056, 10–19 −0.0011 ± 0.0017, 20+ +0.0001 ± 0.0004;
+  no tripwire. Close, same games: 2024-25 ESPN BET −0.0011 ± 0.0025
+  (Brier −0.0004), 2025-26 DK −0.0009 ± 0.0010 (Brier −0.0003): passes
+  G7; 2025-26 ESPN BET games 10+ (n = 107) +0.0057 ± 0.0051 (Brier
+  +0.0028 ± 0.0020), its games 1–9 −0.0077 ± 0.0199. Game 0 (n = 143,
+  production abstains): −0.0145 ± 0.0214 vs the carryover logit without a
+  roster, −0.067 ± 0.047 vs the home edge; no game-0 row is priced. The
+  game-10 jump in a team's rating shrinks (sd of the game 9 → 10 change 7.4
+  → 4.1 win-% points; K = 20 / 40 smoother still, 3.1 / 2.7, within 0.0002 in
+  accuracy). talent × last season's share adds nothing. Equal accuracy, one
+  formula, every game projected. **Model v8** (owner's decision,
+  2026-10-22; MODEL.md "v8"): shipped as tested (K = 10). One route for
+  every game (`build_site.score_game_v8`, `nba_composite.fade_v8_games`):
+  the availability logit on covered games from game 1, the base logit
+  elsewhere (game 0 included), both fitted on every game (`fit-logit --v8`,
+  `player_availability.py fit --v8`); a missing term falls back to the
+  carryover logit before game 10 (v2 tag) or the frozen v4 logit after.
+  Game 0's roster is this season's preseason box scores
+  (`player_availability.update_preseason_box`, `data/nba_box_pre_<season>
+  .csv`, fetched once by the build from opening night, frozen). H1 / H6
+  stay on the carryover P (`carry_p_home`, games 1–9); v7's
+  `model/logit_early.json` is retired. Tags `..._fade10_phase_luck_talent_
+  ft_v8` / `..._ft_avail_v8`. Data note: in 2015-16 to 2017-18, 161–163 ESPN box scores a season
+  record no minutes; talent then reads the team's last box with minutes
+  (both arms, every fit since v5).
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean
   (the blanket value side, model P > no-vig q, and its ATS twin were retired
   from the pages and report 2026-10-06, owner's decision: at the close its

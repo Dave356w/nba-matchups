@@ -236,9 +236,19 @@ def test_box_history_commits_finished_seasons_only(tmp_path):
             margin=[3, 5, -5], player_id=["p1", "p1", "p2"], name=["A B", "A B", "C D"],
             minutes=[30.0, 28.0, 18.0], pm=[2.0, 4.0, -4.0]))
     data = tmp_path / "data"
+    seen = []
+
+    def fetch_pre(t, opening, cache_dir=None, data_dir=None):
+        seen.append((t, opening))
+        return pd.DataFrame(dict(game_id=["p1"], date=[opening - pd.Timedelta(days=5)],
+                                 team=["T"], player_id=["p1"], name=["A B"], minutes=[20.0]))
     out = bh.build([2026, 2027], str(tmp_path / "cache"), fetch=fetch, bpm=lambda t: {},
-                   data_dir=str(data), commit=True, today=pd.Timestamp("2026-10-22"))
-    assert "written to data/nba_box_2026.csv" in out[2026]
+                   data_dir=str(data), commit=True, today=pd.Timestamp("2026-10-22"),
+                   fetch_pre=fetch_pre)
+    assert "written to data/nba_box_2026.csv" in out[2026] and "preseason 1 games" in out[2026]
+    assert seen == [(2026, pd.Timestamp("2025-11-01"))]          # opening = first box
+    assert (data / "nba_box_pre_2026.csv").exists() and not (data / "nba_box_pre_2027.csv").exists()
+    assert v.check_pre_box(str(data / "nba_box_pre_2026.csv")) == []
     assert "not finished" in out[2027] and not (data / "nba_box_2027.csv").exists()
     path = str(data / "nba_box_2026.csv")
     assert v.check_box(path) == []

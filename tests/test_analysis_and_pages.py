@@ -95,7 +95,7 @@ def test_roi_splits_early_games_when_present():
     df.loc[50:, ["gp_home", "gp_away"]] = 30
     labels = [r["label"] for r in dict(analysis.roi_summary(
         ledger.graded(df), "close"))[analysis.PICK_RULES[0][1]]]
-    assert labels[:3] == ["All picks", "Games 10+", "Games 1–9 (carryover)"]
+    assert labels[:3] == ["All picks", "Games 10+", "Games 1–9"]
 
 
 def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):

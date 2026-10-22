@@ -1,0 +1,107 @@
+v8 candidate: one model from opening night (research/unified.py). Walk-forward, every fit on earlier seasons only. ± is 95%.
+
+== 0. Check: rebuilt production inputs vs the production builders (2025-26, committed weights; max |difference|)
+  games 10+ n 1071 of 1071, delta 2.1e-14, luck_def 1.6e-13, ft_diff 0, talent_full 0, b2b_net 0
+  games 0-9 n 154 of 154, carryover delta 1.4e-14, talent 0
+
+== 1. Against outcomes, walk-forward (log loss; v8 arm - production on the same games, ± 95%)
+  game 0 (n 143): production abstains. home edge 0.6834, carryover logit without a roster 0.6313
+    fade10       0.6168  - home edge -0.0666 ± 0.0466  - carryover -0.0145 ± 0.0214  slope 1.25
+    fade10+tp    0.6165  - home edge -0.0670 ± 0.0538  - carryover -0.0149 ± 0.0269  slope 1.04
+    fade20       0.6162  - home edge -0.0672 ± 0.0476  - carryover -0.0151 ± 0.0209  slope 1.22
+    fade20+tp    0.6149  - home edge -0.0686 ± 0.0521  - carryover -0.0165 ± 0.0253  slope 1.10
+    fade40       0.6157  - home edge -0.0677 ± 0.0484  - carryover -0.0156 ± 0.0204  slope 1.20
+    fade40+tp    0.6144  - home edge -0.0690 ± 0.0534  - carryover -0.0170 ± 0.0259  slope 1.07
+    carry        0.6154  - home edge -0.0681 ± 0.0490  - carryover -0.0160 ± 0.0197  slope 1.19
+    carry+tp     0.6138  - home edge -0.0696 ± 0.0545  - carryover -0.0175 ± 0.0263  slope 1.04
+  games 1-9 (n 1258): production 0.6347, slope 0.86
+    fade10       0.6332  diff -0.0015 ± 0.0056  Brier -0.0007 ± 0.0025  better in 6 of 9 seasons  slope 0.88
+    fade10+tp    0.6337  diff -0.0011 ± 0.0054  Brier -0.0007 ± 0.0024  better in 6 of 9 seasons  slope 0.85
+    fade20       0.6334  diff -0.0013 ± 0.0050  Brier -0.0006 ± 0.0022  better in 6 of 9 seasons  slope 0.88
+    fade20+tp    0.6343  diff -0.0005 ± 0.0048  Brier -0.0003 ± 0.0022  better in 5 of 9 seasons  slope 0.85
+    fade40       0.6339  diff -0.0008 ± 0.0049  Brier -0.0004 ± 0.0022  better in 5 of 9 seasons  slope 0.86
+    fade40+tp    0.6350  diff +0.0003 ± 0.0048  Brier -0.0000 ± 0.0021  better in 5 of 9 seasons  slope 0.83
+    carry        0.6347  diff -0.0000 ± 0.0051  Brier -0.0001 ± 0.0023  better in 5 of 9 seasons  slope 0.85
+    carry+tp     0.6358  diff +0.0011 ± 0.0049  Brier +0.0003 ± 0.0022  better in 5 of 9 seasons  slope 0.82
+  games 10-19 (n 1375): production 0.6235, slope 0.85
+    fade10       0.6224  diff -0.0011 ± 0.0017  Brier -0.0003 ± 0.0007  better in 6 of 9 seasons  slope 0.89
+    fade10+tp    0.6223  diff -0.0012 ± 0.0018  Brier -0.0003 ± 0.0007  better in 6 of 9 seasons  slope 0.90
+    fade20       0.6229  diff -0.0006 ± 0.0022  Brier -0.0001 ± 0.0009  better in 4 of 9 seasons  slope 0.88
+    fade20+tp    0.6228  diff -0.0007 ± 0.0023  Brier -0.0001 ± 0.0009  better in 5 of 9 seasons  slope 0.89
+    fade40       0.6229  diff -0.0006 ± 0.0030  Brier -0.0000 ± 0.0012  better in 3 of 9 seasons  slope 0.89
+    fade40+tp    0.6229  diff -0.0006 ± 0.0030  Brier -0.0000 ± 0.0013  better in 3 of 9 seasons  slope 0.89
+    carry        0.6235  diff +0.0000 ± 0.0037  Brier +0.0002 ± 0.0016  better in 3 of 9 seasons  slope 0.89
+    carry+tp     0.6235  diff +0.0000 ± 0.0037  Brier +0.0002 ± 0.0016  better in 3 of 9 seasons  slope 0.89
+  games 20+ (n 8134): production 0.6083, slope 0.97
+    fade10       0.6084  diff +0.0001 ± 0.0004  Brier +0.0000 ± 0.0002  better in 4 of 9 seasons  slope 0.97
+    fade10+tp    0.6084  diff +0.0000 ± 0.0005  Brier +0.0000 ± 0.0002  better in 4 of 9 seasons  slope 0.97
+    fade20       0.6084  diff +0.0001 ± 0.0004  Brier +0.0000 ± 0.0002  better in 6 of 9 seasons  slope 0.97
+    fade20+tp    0.6083  diff +0.0000 ± 0.0004  Brier +0.0000 ± 0.0002  better in 4 of 9 seasons  slope 0.97
+    fade40       0.6084  diff +0.0001 ± 0.0005  Brier +0.0000 ± 0.0002  better in 5 of 9 seasons  slope 0.97
+    fade40+tp    0.6083  diff -0.0000 ± 0.0005  Brier -0.0000 ± 0.0002  better in 6 of 9 seasons  slope 0.97
+    carry        0.6086  diff +0.0003 ± 0.0006  Brier +0.0001 ± 0.0003  better in 6 of 9 seasons  slope 0.97
+    carry+tp     0.6085  diff +0.0002 ± 0.0007  Brier +0.0001 ± 0.0003  better in 5 of 9 seasons  slope 0.97
+  games 1+ (n 10767): production 0.6133, slope 0.94
+    fade10       0.6131  diff -0.0003 ± 0.0008  Brier -0.0001 ± 0.0003  better in 6 of 9 seasons  slope 0.95
+    fade10+tp    0.6131  diff -0.0002 ± 0.0008  Brier -0.0001 ± 0.0003  better in 6 of 9 seasons  slope 0.95
+    fade20       0.6132  diff -0.0002 ± 0.0007  Brier -0.0000 ± 0.0003  better in 6 of 9 seasons  slope 0.95
+    fade20+tp    0.6132  diff -0.0001 ± 0.0007  Brier -0.0000 ± 0.0003  better in 6 of 9 seasons  slope 0.95
+    fade40       0.6132  diff -0.0001 ± 0.0008  Brier -0.0000 ± 0.0003  better in 6 of 9 seasons  slope 0.95
+    fade40+tp    0.6133  diff -0.0000 ± 0.0008  Brier -0.0000 ± 0.0003  better in 6 of 9 seasons  slope 0.95
+    carry        0.6136  diff +0.0002 ± 0.0009  Brier +0.0001 ± 0.0004  better in 3 of 9 seasons  slope 0.95
+    carry+tp     0.6136  diff +0.0003 ± 0.0009  Brier +0.0001 ± 0.0004  better in 3 of 9 seasons  slope 0.94
+
+  Schedule chosen by the pre-set rule (lowest pooled log loss on games 1+, without +tp): fade10
+
+== 2. By season, fade10 - production (log loss, ± 95%; games 1+ and games 10+ alone; the G7 leakage tripwire is a gain above 0.008)
+    2016-17  games 1+ n  1214 -0.0012 ± 0.0027   1-9 n  140 +0.0030 ± 0.0180   10+ n  1074 -0.0018 ± 0.0020
+    2017-18  games 1+ n  1214 +0.0014 ± 0.0023   1-9 n  139 +0.0098 ± 0.0193   10+ n  1075 +0.0003 ± 0.0009
+    2018-19  games 1+ n  1214 -0.0009 ± 0.0020   1-9 n  140 -0.0063 ± 0.0156   10+ n  1074 -0.0002 ± 0.0010
+    2020-21  games 1+ n  1064 +0.0015 ± 0.0022   1-9 n  140 +0.0164 ± 0.0152   10+ n   924 -0.0007 ± 0.0010
+    2021-22  games 1+ n  1214 -0.0008 ± 0.0015   1-9 n  141 -0.0020 ± 0.0106   10+ n  1073 -0.0006 ± 0.0011
+    2022-23  games 1+ n  1214 -0.0007 ± 0.0015   1-9 n  141 -0.0069 ± 0.0111   10+ n  1073 +0.0001 ± 0.0008
+    2023-24  games 1+ n  1215 +0.0009 ± 0.0029   1-9 n  141 -0.0116 ± 0.0209   10+ n  1074 +0.0025 ± 0.0018
+    2024-25  games 1+ n  1209 -0.0011 ± 0.0025   1-9 n  138 -0.0085 ± 0.0162   10+ n  1071 -0.0002 ± 0.0018
+    2025-26  games 1+ n  1209 -0.0011 ± 0.0025   1-9 n  138 -0.0077 ± 0.0199   10+ n  1071 -0.0003 ± 0.0011
+
+== 3. Against the close, priced seasons (each book x season alone; fade10 vs production on the same games, ± 95%)
+  ESPN BET 2024-25
+    games 1-9  n   138  production - close -0.0124 ± 0.0252  v8 - close -0.0210 ± 0.0237  v8 - production -0.0085 ± 0.0162 (Brier -0.0037 ± 0.0074)
+    games 10+  n  1071  production - close +0.0160 ± 0.0098  v8 - close +0.0158 ± 0.0099  v8 - production -0.0002 ± 0.0018 (Brier +0.0000 ± 0.0007)
+    games 1+   n  1209  production - close +0.0127 ± 0.0092  v8 - close +0.0116 ± 0.0092  v8 - production -0.0011 ± 0.0025 (Brier -0.0004 ± 0.0011)
+  DraftKings 2025-26
+    games 10+  n   964  production - close +0.0184 ± 0.0110  v8 - close +0.0174 ± 0.0112  v8 - production -0.0009 ± 0.0010 (Brier -0.0003 ± 0.0004)
+    games 1+   n   964  production - close +0.0184 ± 0.0110  v8 - close +0.0174 ± 0.0112  v8 - production -0.0009 ± 0.0010 (Brier -0.0003 ± 0.0004)
+  ESPN BET 2025-26
+    games 1-9  n   138  production - close +0.0068 ± 0.0299  v8 - close -0.0009 ± 0.0260  v8 - production -0.0077 ± 0.0199 (Brier -0.0026 ± 0.0092)
+    games 10+  n   107  production - close -0.0089 ± 0.0332  v8 - close -0.0032 ± 0.0332  v8 - production +0.0057 ± 0.0051 (Brier +0.0028 ± 0.0020)
+    games 1+   n   245  production - close -0.0000 ± 0.0222  v8 - close -0.0019 ± 0.0206  v8 - production -0.0018 ± 0.0114 (Brier -0.0002 ± 0.0052)
+
+== 4. Continuity: sd of the change in a team's own composite (win-% points) from one game to the next (committed weights)
+  production  games 1->9  3.49   game 9->10  7.43   games 10->30  2.89
+  fade10      games 1->9  4.88   game 9->10  4.11   games 10->30  2.89
+  fade20      games 1->9  4.05   game 9->10  3.05   games 10->30  2.65
+  fade40      games 1->9  3.74   game 9->10  2.70   games 10->30  2.36
+  carry       games 1->9  3.49   game 9->10  2.43   games 10->30  2.09
+
+== 5. Coefficients, the last fold (trained on seasons before 2025-26)
+  production early (v7)  n   2516  int +0.310  delta +0.0128  b2b_net +0.2924  talent_diff +0.0721
+  production base (v6)   n   9121  int +0.302  delta +0.0168  b2b_net +0.3296  d_phase +0.0181  luck_def +0.0132  talent_diff +0.0582  ft_diff +0.0129
+  production avail (v6)  n   3218  int +0.247  delta +0.0221  b2b_net +0.3300  av_min +0.0695  av_bpm +0.0527  d_phase +0.0135  luck_def +0.0179  talent_diff +0.0445  ft_diff +0.0104
+  fade10     base   n  10462  int +0.297  delta +0.0151  b2b_net +0.3200  d_phase +0.0200  luck_def +0.0132  talent_diff +0.0604  ft_diff +0.0113
+  fade10     avail  n   3638  int +0.270  delta +0.0198  b2b_net +0.3313  av_min +0.0927  av_bpm +0.0462  d_phase +0.0165  luck_def +0.0198  talent_diff +0.0480  ft_diff +0.0073
+  fade10+tp  base   n  10462  int +0.296  delta +0.0143  b2b_net +0.3195  d_phase +0.0217  luck_def +0.0133  talent_diff +0.0590  ft_diff +0.0112  tal_prior +0.0228
+  fade10+tp  avail  n   3638  int +0.270  delta +0.0197  b2b_net +0.3311  av_min +0.0925  av_bpm +0.0463  d_phase +0.0168  luck_def +0.0198  talent_diff +0.0476  ft_diff +0.0073  tal_prior +0.0056
+
+== 6. Game-0 rosters: preseason talent vs the opening-night roster's (points per 48 above replacement, team level)
+    2015-16  teams 24  corr +0.98  mean pre - opener +0.39  sd 1.17  (opener sd 4.87)
+    2016-17  teams 27  corr +0.97  mean pre - opener +0.67  sd 1.32  (opener sd 5.25)
+    2017-18  teams 26  corr +0.95  mean pre - opener +0.56  sd 1.52  (opener sd 4.82)
+    2018-19  teams 30  corr +0.97  mean pre - opener -0.06  sd 1.17  (opener sd 4.47)
+    2020-21  teams 30  corr +0.90  mean pre - opener -0.26  sd 1.96  (opener sd 4.36)
+    2021-22  teams 28  corr +0.97  mean pre - opener -0.04  sd 1.21  (opener sd 4.71)
+    2022-23  teams 30  corr +0.94  mean pre - opener +0.01  sd 1.78  (opener sd 4.81)
+    2023-24  teams 30  corr +0.93  mean pre - opener -0.17  sd 1.76  (opener sd 4.26)
+    2024-25  teams 30  corr +0.93  mean pre - opener +0.27  sd 2.10  (opener sd 5.22)
+    2025-26  teams 30  corr +0.92  mean pre - opener -0.24  sd 2.13  (opener sd 5.47)
+    pooled   teams 285  corr +0.94  mean pre - opener +0.10  sd 1.67

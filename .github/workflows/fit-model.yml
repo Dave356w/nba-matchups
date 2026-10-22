@@ -1,11 +1,16 @@
 name: Fit model
 
 # Preseason refit (report §8): download Basketball-Reference season tables and
-# game logs, fit composite weights on completed seasons, fit the logit on the
-# game-log seasons, fit the early-season carryover logit (cold_start.py),
-# fit the v4 availability logit (player_availability.py), commit
-# model/weights.json, model/logit.json, model/logit_early.json and
-# model/logit_avail.json.
+# game logs, fit composite weights on completed seasons, fit the v8 base logit
+# on every game of the game-log seasons and the v8 availability logit on the
+# covered games 1+ of the injury-report seasons (both on the faded rating,
+# nba_composite.fade_v8_games), commit model/weights.json, model/logit.json
+# and model/logit_avail.json. The frozen logits are not refitted:
+# model/logit_v4.json (the v4 fallback, games 10+) and model/logit_early_v6.json
+# (the carryover logit: H1 / H6's P, the fallback before game 10, preseason).
+# v7's model/logit_early.json is retired (removed by the first v8 refit).
+# Box scores and preseason box scores come from data/ (committed by
+# "Box-score history"), else the espn-box cache, else ESPN.
 # `download` fetches every listed year's season page and 30 game logs:
 # ~350 requests at 4 s each (the site allows ~20/min), about 25 minutes.
 
@@ -16,13 +21,10 @@ on:
         description: 'Team-season years for composite weights'
         default: '2015-2019 2021-2026'
       logit_years:
-        description: 'Game-log years for the v4 logit (delta, b2b, delta*phase)'
-        default: '2016-2019 2021-2026'
-      early_years:
-        description: 'Box-score seasons for the games 1-9 logit (v7: carryover + talent)'
+        description: 'Game-log years for the v8 base logit (every game)'
         default: '2016-2019 2021-2026'
       avail_years:
-        description: 'Box-score / injury-report seasons for the v4 availability logit'
+        description: 'Box-score / injury-report seasons for the v8 availability logit'
         default: '2023-2026'
 
 # Its own queue, not site-build: GitHub keeps one *pending* run per group,
@@ -69,7 +71,7 @@ jobs:
           key: injury-reports-${{ github.run_id }}
           restore-keys: injury-reports-
       - name: Download
-        # 2020: the season before 2021 (the v7 early logit's carryover)
+        # 2020: the season before 2021 (last season in the v8 rating)
         run: python nba_composite.py download --years ${{ inputs.weight_years }} ${{ inputs.logit_years }} 2020
       - name: Backtest (report reproduction, printed only)
         run: python nba_composite.py backtest --years 2023-2026 --train-years 2015-2019 2021-2022
@@ -77,24 +79,16 @@ jobs:
         run: |
           rm -f model/weights.json model/logit.json model/logit_early.json
           python nba_composite.py fit-weights --years ${{ inputs.weight_years }}
-          # v6: delta, b2b_net, delta * season phase, opponent 3-point luck,
-          # roster talent and the own FT% gap (MODEL.md; box scores from
-          # data/nba_box_<y>.csv or the espn-box cache). model/logit_v4.json, the frozen v4 fallback, is
-          # not refitted.
-          python nba_composite.py fit-logit --v6 --years ${{ inputs.logit_years }}
-          # Early-season (games 1-9) logit, v7: the carryover delta and b2b_net
-          # plus roster talent (box scores and the BPM table of the season
-          # before each year; the season before the first early year is in
-          # weight_years). model/logit_early_v6.json, the frozen carryover
-          # logit (H1 / H6, preseason, early games without talent), is not
-          # refitted.
-          python cold_start.py fit --talent --years ${{ inputs.early_years }}
-      - name: Fit availability logit (v6)
+          # v8: the v6 terms (delta, b2b_net, delta * season phase, opponent
+          # 3-point luck, roster talent, own FT% gap) on the faded rating, every
+          # game from game 0 (MODEL.md "v8").
+          python nba_composite.py fit-logit --v8 --years ${{ inputs.logit_years }}
+      - name: Fit availability logit (v8)
         run: |
-          # Games 10+ of the box-score seasons with an NBA injury report; the
-          # first box season needs the BPM table of the season before it.
+          # Covered games 1+ of the box-score seasons with an NBA injury report;
+          # the first box season needs the BPM table of the season before it.
           rm -f model/logit_avail.json
-          python player_availability.py fit --years ${{ inputs.avail_years }}
+          python player_availability.py fit --v8 --years ${{ inputs.avail_years }}
       - name: Commit model
         run: |
           git config user.name  "github-actions[bot]"

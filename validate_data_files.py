@@ -182,11 +182,35 @@ def check_box(path):
     return errs
 
 
+def check_pre_box(path):
+    """data/nba_box_pre_<y>.csv: preseason box scores (model v8's game-0
+    rosters), written once per season."""
+    text = open(path, encoding="utf-8").read()
+    if any(m in text for m in ("<<<<<<<", ">>>>>>>", "\n=======\n")):
+        return [f"{path}: merge-conflict marker"]
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    if list(df.columns) != pav.PRE_COLUMNS:
+        return [f"{path}: columns differ from player_availability.PRE_COLUMNS"]
+    errs = []
+    if df["player_id"].str.strip().isin(["", "None", "nan", "NaN"]).any():
+        errs.append(f"{path}: a row without a player id")
+    if df.duplicated(["game_id", "player_id"]).any():
+        errs.append(f"{path}: a player twice in one game")
+    y = int(re.search(r"nba_box_pre_(\d{4})\.csv$", path).group(1))
+    d = pd.to_datetime(df["date"], errors="coerce")
+    if d.isna().any() or (d < pd.Timestamp(f"{y - 1}-09-01")).any() \
+            or (d > pd.Timestamp(f"{y - 1}-12-31")).any():
+        errs.append(f"{path}: a date outside the {y - 1}-{y % 100:02d} preseason")
+    return errs
+
+
 def main():
     errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
     errs += check_sleeper()
     for path in sorted(glob.glob(os.path.join("data", "nba_box_[0-9][0-9][0-9][0-9].csv"))):
         errs += check_box(path)
+    for path in sorted(glob.glob(os.path.join("data", "nba_box_pre_[0-9][0-9][0-9][0-9].csv"))):
+        errs += check_pre_box(path)
     errs += check(ledger.PRESEASON_PATH)
     for path in (ledger.NATIVE_PATH, ledger.RECON_PATH):     # exchanges: preseason only
         if os.path.exists(path):

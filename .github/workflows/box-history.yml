@@ -4,7 +4,8 @@ name: Box-score history
 # (research/box_history.py). Seasons already on disk (data/nba_box_<y>.csv or
 # the espn-box cache) are skipped; the caches are saved even when the job
 # stops, so a rerun resumes. With `commit` (the default) each finished season
-# is written to data/nba_box_<y>.csv and committed, so Fit model, Backfill
+# is written to data/nba_box_<y>.csv, with its preseason box scores (model
+# v8's game-0 rosters) in data/nba_box_pre_<y>.csv, and committed, so Fit model, Backfill
 # history and the research workflows read it from the repo instead of an
 # Actions cache that is kept per branch and evicted after 7 days unused.
 # The current season's file is the daily build's, never written here.
