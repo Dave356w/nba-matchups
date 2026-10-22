@@ -251,6 +251,22 @@ on 2004–14 correlate +0.96 with the committed ones (more weight on
 opponents' eFG% and both FTA/FGA terms then). The four-factor composite and the logit's shape
 carry across eras; only the home edge moves.
 
+Follow-ups (2026-10-22, the same run; `RESULTS.txt` A8, A9, C):
+
+- In-season home edge (A8): each game's logit shifted by this season's own
+  residual on earlier dates, empirical-Bayes prior. The true season-to-season
+  spread of the offset is ~0.04 logit (tau), mostly noise: −0.0001 ± 0.0002
+  pooled (helps in 2 of 9), +0.0000 / +0.0001 against the close; out of era
+  −0.0005 ± 0.0002. Not worth a change.
+- Rookies by draft slot (A9): drafted rookies at the rookie BPM their pick
+  predicts (about −1.26 − 0.45 log pick, earlier seasons only) instead of at
+  replacement: −0.0002 ± 0.0002, better in 9 of 9 seasons; against the
+  close −0.0001 ± 0.0006 / −0.0002 ± 0.0006. Real but small.
+- Games 1–9 (C): the carryover, walk-forward 2016–26 (n = 1,258): home lean
+  +0.2 ± 2.6 pts, slope 0.88 ± 0.18, −0.040 ± 0.017 vs the home edge; the
+  frozen early logit on 2005–14 (n = 1,257): −0.1 ± 2.6 pts, slope 0.90 ±
+  0.17. 2020-21 (no crowds) is the outlier (+10.7 pts).
+
 Back-to-backs: in 2016–26 home teams on a back-to-back won 48.3% (45.2–51.4)
 against 51.7% predicted, about 2 pts below the season's general home
 over-prediction; in 2004–14 they won 54.5% against 49.7%, about 2 pts above

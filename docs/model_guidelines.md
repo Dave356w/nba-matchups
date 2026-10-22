@@ -71,7 +71,7 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 | W2 | Loses most where it disagrees most | Gap by \|logit P − logit q\| at the close: +0.002 (< 0.1), +0.004 to +0.006 (0.1–0.25), +0.015 to +0.023 (0.25–0.5), +0.050 to +0.052 (> 0.5), same pattern in both seasons. Its big disagreements at the close are model error | model_review §2 |
 | W3 | A persistent team-level view it cannot see | The market's correction is team-level (team-season R² 0.23–0.33), carries across seasons (r +0.40) and is present at the open; the factor gaps plus FT% explain 46–63% of it, the rest is outside the box score | CLAUDE.md team quality; v5 audit D |
 | W4 | Coarse player information | Talent is last season's BPM (rookies at replacement) over the previous box score; the report gives Out/Doubtful only; newly-out players are double counted (≈ −1× the talent coefficient). Even perfect "who played" adds little over v5 (−0.0028 ± 0.0078 / +0.0014 ± 0.0079) | v5 audit E; roster minutes |
-| W5 | Early season unresolved | Games 1–9: −0.0073 ± 0.0395 and +0.0092 ± 0.0420 vs the close (138 games each, ESPN BET); the carryover leans home +2.5 to +3.2 pp beyond the market. DraftKings priced no game 1–9, so H1 and H6 have no DraftKings hindsight | model_review §1; home-court; dk_hypotheses |
+| W5 | Early season unresolved against the market | Games 1–9: −0.0073 ± 0.0395 and +0.0092 ± 0.0420 vs the close (138 games each, ESPN BET). DraftKings priced no game 1–9, so H1 and H6 have no DraftKings hindsight. Against outcomes the carryover is sound: walk-forward 2016–26 (n = 1,258) its home lean is +0.2 ± 2.6 pts, slope 0.88 ± 0.18, and it beats the home edge by −0.040 ± 0.017; the frozen early logit on 2005–14 (n = 1,257) leans −0.1 ± 2.6 pts, slope 0.90 ± 0.17. Its lean beyond the market is not a home bias against outcomes | model_review §1; dk_hypotheses; history_backtest C |
 | W6 | Thin, in-sample evidence for the rules | Two priced seasons, one DraftKings season; the hypotheses came from a 271-cell scan where 3 passed (about 7 expected by chance); the DraftKings backtest re-reads the same games | CLAUDE.md hypotheses |
 | W8 | The home edge is the training seasons' edge | Walk-forward 2017-18 to 2025-26 it ran 1.5 pts above the actual home rate (3–4 pts in 2020-21, 2021-22, 2023-24; within 1.3 in the last two); on 2004–14 the frozen core ran 2.8 pts below it. Recency weighting bought nothing (§4) | history_backtest A2, B |
 | W9 | Opponent luck is small, but it stays | Pooled over 2016–26 and every route, dropped and refitted: +0.0002 ± 0.0009, helps in 6 of 9 seasons (talent +0.0059, back-to-back +0.0024). On the priced seasons, all on the availability route, dropping it fails the gate: v7 − v6 +0.0018 ± 0.0017 (2024-25 ESPN BET), +0.0013 ± 0.0028 (2025-26 DK). Owner kept v6, 2026-10-22 | history_backtest A7; walk-forward run 39698425564 |
@@ -89,6 +89,7 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 | Recency-weighted intercept | within 0.0005 of v5 |
 | A separate home back-to-back term | the residual flips sign between eras: −2 pts (2016–26), +2 pts (2004–14) |
 | Dropping opponent luck (v7) | +0.0018 ± 0.0017 / +0.0013 ± 0.0028 vs v6 (worse; failed the gate) |
+| In-season home-edge update (this season's residual, empirical-Bayes prior) | −0.0001 ± 0.0002 over 2016–26 (helps 2 of 9); vs the close +0.0000 / +0.0001; the true season-to-season spread is ~0.04 logit, mostly noise. Out of era −0.0005 ± 0.0002 |
 | Probit link | +0.0004 / +0.0003 (slightly worse) |
 | Δ·\|Δ\| (curvature) | +0.0005 / −0.0007 |
 | Eight free factor weights instead of Δ | +0.0004 / +0.0001 |
@@ -114,7 +115,16 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
   of the model's disagreement is borne out (share +0.34 ± 0.47 / +0.37 ±
   0.45). Treat a claimed edge of x pp as roughly x/3, and expect part of it
   to be gone by the first snapshot (the line closes ~25% of the opening
-  spread edge by tip).
+  spread edge by tip). `research/open_shrinkage.py` makes this exact:
+  P* = σ(logit q_open + w·(logit P − logit q_open)) with w fitted on the
+  other season (+0.43 from 2024-25, +0.36 from 2025-26) ties the opener
+  (P* − open −0.0009 ± 0.0046 DraftKings 2025-26, walk-forward; −0.0026 ±
+  0.0037 ESPN BET 2024-25), beats the raw P (−0.0081 ± 0.0067 / −0.0047 ±
+  0.0064) and claims honestly (realised / claimed 0.81 / 1.02, raw P 0.34
+  / 0.37). Its claimed EV prices no resolved bet at the posted open
+  (EV* > 0: −7.5% ± 12.0 / +5.7% ± 13.2, null −4.1%), but the line moves
+  toward its side in step with the claim (+0.7 to +2.1 pp DraftKings, +0.7
+  to +4.1 pp ESPN BET, EV* ≤ 0 to ≥ 5%). Read edges as P* − q, not P − q.
 - **G4. Bet only the frozen pre-registered rules, at their registered
   prices.** Bands, splits and cells (by price, spread, month, side) are
   descriptive monitoring, never filters (evidence rule 4).
@@ -186,15 +196,23 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
    with native CLV per rule (G5, G6). H5 has the power to resolve in about
    a season.
 2. **A pregame roster** from the injury snapshots, then the newly-out arm
-   on it (G8.1).
-3. **Disagreement shrinkage, as research only.** σ(logit q + w·(logit P −
-   logit q)) with w fitted walk-forward at the open, against the raw P on
-   the same games. It would quantify G3 per game; shipping it changes
-   prediction math (a new tag).
-4. **Early-season home lean** once a third priced season of games 1–9
-   exists (W5).
+   on it (G8.1). Blocked until the snapshots cover enough games (14 on
+   2026-10-22); test it walk-forward on the native rows mid-season.
+3. **Shrunk edges on the pages** (G3, done as research 2026-10-22): show
+   P* − q beside P − q. A display change, not prediction math; any bet
+   rule on P* would be a new pre-registered hypothesis.
+4. **Rookies by draft slot** (history backtest A9, 2026-10-22): drafted
+   rookies valued by the rookie BPM their pick predicts (−1.26 − 0.45
+   log pick) instead of at replacement. −0.0002 ± 0.0002, better in 9 of
+   9 seasons; vs the close −0.0001 ± 0.0006 (2024-25 ESPN BET), −0.0002 ±
+   0.0006 (2025-26 DK). Passes G7 but is ~1% of the gap to the close: fold
+   it into the next model version rather than ship it alone (new tag; the
+   build would read one draft page a season).
+5. **Early-season slope** (W5): 0.88 ± 0.18 / 0.90 ± 0.17, same sign in
+   both eras; watch, do not fit.
 
 Reproduce: `python research/model_review.py` (§1–4 above),
 `python research/dk_hypotheses.py --open-price research/output/open_price.csv`
 (DraftKings backtest and the retired-bet re-check), and the "History
-backtest" workflow (`research/history_backtest.py`; S8, W8, W9).
+backtest" workflow (`research/history_backtest.py`; S8, W5, W8, W9) and
+`python research/open_shrinkage.py` (G3).
