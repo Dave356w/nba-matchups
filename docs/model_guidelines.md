@@ -96,7 +96,7 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 | Assists | +0.0006 / +0.0005 |
 | In-season on/off | +0.0004 / −0.0003 |
 | Win Shares (four variants) | none narrows the gap |
-| In-season BPM (BPM to date rebuilt from box lines, Bayes-blended with last season's) | +0.0049 ± 0.0038 / −0.0002 ± 0.0038 (worse on 2024-25); frozen + in-season, free weights +0.0011 / −0.0004 (`research/bpm_live.py`) |
+| In-season BPM (BPM to date rebuilt from box lines, Bayes-blended with last season's) | +0.0049 ± 0.0038 / −0.0002 ± 0.0038 (worse on 2024-25); frozen + in-season, free weights +0.0011 / −0.0004; minutes-pooled for everyone +0.0033 ± 0.0025 / −0.0004, for rookies and players under 500 last-season minutes only +0.0002 / −0.0000 (`research/bpm_live.py`) |
 | Lineup minutes by position or role | within 0.0007 of proportional; one lineup term in place of v5's three: worse |
 | Sleeper/RotoWire projected minutes × v6's player values, added to v6 (hindsight archive) | −0.0006 ± 0.0018 / −0.0004 ± 0.0017; nothing beyond the close (`research/sleeper_signal.py`) |
 | RotoWire projected points margin | the market (corr +0.98 with the closing spread, follows the close over the open); adds nothing to the close; its gain over v6 is the price imported |

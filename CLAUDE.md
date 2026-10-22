@@ -596,7 +596,15 @@ Before a PR, run:
   0.0008 (in-season weight 0.013–0.021 vs the frozen term's 0.054). BPM to
   date overlaps the team rating (delta's weight 0.017 → 0.011–0.012); what
   talent_diff adds is the pre-season roster view. Base route only. Dropped,
-  like on/off and Win Shares.
+  like on/off and Win Shares. Small-sample players (owner's follow-up, run
+  39826197099): production's shrinkage extended by this season's minutes,
+  (500 R + MP0 BPM0 + MP obs) / (500 + MP0 + MP), predicts a player's own
+  second-half rebuilt BPM better than the frozen value in every group
+  (rookies MAE 1.95 → 1.66, under 500 last-season MP 1.97 → 1.62; same box
+  metric, so flattering), but not games: updated for players under 500
+  last-season minutes only `v6_bpmn` +0.0002 ± 0.0016 / −0.0000 ± 0.0018
+  (corr 0.986 with talent_diff: small minutes shares); for everyone
+  `v6_bpmp` +0.0033 ± 0.0025 / −0.0004 ± 0.0026 (worse on 2024-25).
 - Home-court drift (2026-10-01, reconstructed rows, mean home P, ± 95%):
   none. Games 10+: model − market +0.26 ± 0.46 pp (2024-25) / +0.26 ±
   0.49 pp (2025-26), logit +0.016 ± 0.023 / +0.014 ± 0.024; model and
