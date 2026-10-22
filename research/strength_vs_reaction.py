@@ -58,7 +58,9 @@ band, the same as loss counts per game with exact Poisson intervals, and a
 buy-the-favourite trade by ask band. Three late-game tests were then
 pre-registered for the 2025 and 2026 play-in and playoff games
 (diagnostics/strength_vs_reaction/PREREG_holdout.md) before any of that
-data was read.
+data was read; `--holdout` runs them (HOLDOUT.txt), followed by a post hoc
+block marked as such. Section 11: each team the first time its price
+reaches 90c, won against the price then, by when.
 
 Data (2025-26, the first season Kalshi lists): every reconstructed game with
 a Kalshi event (diagnostics/kalshi_benchmark/games.csv), ESPN's play-by-play
@@ -1246,6 +1248,65 @@ def fav_trades(s, lo, hi):
                 edge=mr.mean_ci(pnl - null))
 
 
+def first_touch(P, kal, espn, level=0.90):
+    """Each team's first candle (pregame included, overtime too) whose raw
+    mid reaches `level`: did it win? One row per team-game, with the price
+    then and when (before tip, Q1-Q4, OT, from ESPN's cleaned play times)."""
+    rows = []
+    for g in P.itertuples():
+        c = pd.DataFrame(kal[g.game_id]["candles"],
+                         columns=["ts", "ask", "ask_h", "bid", "bid_l", "vol"])
+        c = c.dropna(subset=["ts", "ask", "bid"])
+        c = c[c["ask"] > c["bid"]].sort_values("ts")
+        if c.empty:
+            continue
+        mid = ((c["ask"] + c["bid"]) / 2).to_numpy()
+        pl = np.array(espn[g.game_id]["plays"], float)
+        t, _ = clean_wallclock(pl[:, 0])
+        for side, m, won in (("home", mid, g.y), ("away", 1 - mid, 1 - g.y)):
+            hit = np.flatnonzero(m >= level - 1e-9)
+            if not len(hit):
+                continue
+            ts = c["ts"].iloc[hit[0]]
+            if ts <= g.tip_ts:
+                when = "before tip"
+            else:
+                per = int(pl[max(0, np.searchsorted(t, ts, side="right") - 1), 1])
+                when = f"Q{per}" if per <= 4 else "OT"
+            rows.append(dict(game_id=g.game_id, slate_date=g.slate_date, side=side, won=won,
+                             price=m[hit[0]], when=when))
+    return pd.DataFrame(rows)
+
+
+def first_touch_lines(R, by_year=False):
+    """Win rate of teams at their first 90c against their price then, all
+    and by when; losses against expected with exact Poisson 95%; and the
+    other side of the same moments (the underdog near 10c)."""
+    out = []
+
+    def line(x, name):
+        m, ci = cluster_mean_ci(x["won"] - x["price"], x["game_id"])
+        k, lam = int((1 - x["won"]).sum()), float((1 - x["price"]).sum())
+        lo, hi = poisson_ci(k)
+        return (f"    {name:<11} teams {len(x):>4}  won {100 * x['won'].mean():5.1f}%  price then "
+                f"{100 * x['price'].mean():5.1f}c  won - price {100 * m:+5.1f} pp ± {100 * ci:.1f}   "
+                f"lost {k} vs {lam:.1f} expected (ratio {k / lam:.2f}, {lo / lam:.2f}-{hi / lam:.2f})")
+    out.append(f"  {R['game_id'].nunique()} games with a team at 90c; both teams in "
+               f"{int((R.groupby('game_id').size() == 2).sum())}")
+    out.append(line(R, "all"))
+    if by_year:
+        for y_, x in R.groupby(R["slate_date"].str[:4]):
+            out.append(line(x, y_))
+    for when in ("before tip", "Q1", "Q2", "Q3", "Q4", "OT"):
+        x = R[R["when"] == when]
+        if len(x) >= 5:
+            out.append(line(x, when))
+    dog = 1 - R["price"]
+    out.append(f"  The other side at the same moments: won {100 * (1 - R['won']).mean():.1f}% at a "
+               f"mean {100 * dog.mean():.1f}c (fee {100 * fee(dog).mean():.2f}c, spread ~1c)")
+    return out
+
+
 # --------------------------------------------------------------- report ----
 def report(S, P, drops, espn, kal, n_games):
     L = []
@@ -1508,6 +1569,11 @@ def report(S, P, drops, espn, kal, n_games):
     w("  a late lead (section 3, a > 0 in the 4th quarter) is that bias seen from the")
     w("  favourite's side. won - price > 0 = the favourite is underpriced.")
     L += longshot_lines(pd.concat([S_tr, S_te], ignore_index=True))
+    w("")
+    w("== 11. Teams the first time they are priced at 90c (owner's question; raw quotes,")
+    w("  before tip to the end, overtime included): won vs the price then, by when; ± is")
+    w("  95% clustered by game, the loss ratio exact Poisson.")
+    L += first_touch_lines(first_touch(P, kal, espn))
     return "\n".join(L), T
 
 
@@ -1561,7 +1627,7 @@ def holdout_kalshi(row, start, end):
     return res
 
 
-def holdout_report(games, S, P, drops):
+def holdout_report(games, S, P, drops, espn, kal):
     """The three pre-registered tests (PREREG_holdout.md), exactly as fixed."""
     L = []
     w = L.append
@@ -1603,6 +1669,11 @@ def holdout_report(games, S, P, drops):
     w("")
     w("Power was stated in advance: only a large effect can pass here, and a miss is not a")
     w("refutation. The decisive test is the 2026-27 regular season from Kalshi's archive.")
+    w("")
+    w("POST HOC, NOT PRE-REGISTERED (owner's question after the tests above were read):")
+    w("teams the first time they are priced at 90c, as section 11 of RESULTS.txt. A lead")
+    w("for a later playoff, not a finding.")
+    L += first_touch_lines(first_touch(P, kal, espn), by_year=True)
     return "\n".join(L)
 
 
@@ -1622,7 +1693,7 @@ def holdout_main(workers):
             kal[row.game_id] = _safe(holdout_kalshi, row, min(ts) - PRE_WINDOW,
                                      max(ts) + POST_WINDOW)
     S, P, drops = assemble(games, espn, kal)
-    text = holdout_report(games, S, P, drops)
+    text = holdout_report(games, S, P, drops, espn, kal)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "HOLDOUT.txt").write_text(text + "\n")
     print(text)

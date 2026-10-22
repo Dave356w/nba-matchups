@@ -696,7 +696,20 @@ Before a PR, run:
   (`diagnostics/strength_vs_reaction/PREREG_holdout.md`): H-L1 this bias,
   H-L2 the 4th-quarter score term, H-L3 the trade, on the 2025 and 2026
   play-in and playoff games; underpowered by design, the 2026-27 regular
-  season is the decisive test. The score-process σ overstates the game's (regulation margin
+  season is the decisive test. **Holdout read** (`HOLDOUT.txt`, 168 of
+  181 games; 8 have no Kalshi candles, 4 no ESPN summary, 1 no live
+  quotes): none passes. H-L1 reverses: favourites at 93–99.5c lost 12
+  against 6.04 expected (ratio 1.99, exact 95% 1.03–3.47; 2025 5 vs 3.0,
+  2026 7 vs 3.0); H-L2 a −0.0033 ± 0.0180; H-L3 pnl −6.68c ± 5.23 (pnl −
+  null −4.89 ± 5.25). The late-game regular-season edge is not
+  established; the playoffs may be another game or the in-sample lean
+  chance. Post hoc (owner's question, not pre-registered): teams the first
+  time they are priced at 90c (RESULTS §11) win as priced in the regular
+  season (92.9% at a 92.0c price; lost 86 vs 97.2 expected, ratio 0.88,
+  0.71–1.09) but not in the playoffs (86.3%; 25 vs 14.5, ratio 1.72,
+  1.12–2.54; 2025 1.54, 2026 1.90), where the other side, at about 8c,
+  won 13.7%. A lead to fix in advance for a later playoff, not a finding.
+  The score-process σ overstates the game's (regulation margin
   around the spread 13.85 ± 0.56) because consecutive quarters correlate
   −0.12 (leads shrink). ESPN's wallclock and the mid agree within a minute
   (corr of minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.

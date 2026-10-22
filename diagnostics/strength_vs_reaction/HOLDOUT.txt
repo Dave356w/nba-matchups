@@ -13,3 +13,18 @@ H-L3 the trade: 122 trades; pnl -6.68c ± 5.23, null -1.79c, pnl - null -4.89c �
 
 Power was stated in advance: only a large effect can pass here, and a miss is not a
 refutation. The decisive test is the 2026-27 regular season from Kalshi's archive.
+
+POST HOC, NOT PRE-REGISTERED (owner's question after the tests above were read):
+teams the first time they are priced at 90c, as section 11 of RESULTS.txt. A lead
+for a later playoff, not a finding.
+  164 games with a team at 90c; both teams in 18
+    all         teams  182  won  86.3%  price then  92.0c  won - price  -5.8 pp ± 4.5   lost 25 vs 14.5 expected (ratio 1.72, 1.12-2.54)
+    2025        teams   89  won  87.6%  price then  92.0c  won - price  -4.3 pp ± 6.4   lost 11 vs 7.1 expected (ratio 1.54, 0.77-2.75)
+    2026        teams   93  won  84.9%  price then  92.1c  won - price  -7.1 pp ± 6.3   lost 14 vs 7.4 expected (ratio 1.90, 1.04-3.19)
+    before tip  teams    5  won 100.0%  price then  90.9c  won - price  +9.1 pp ± 0.3   lost 0 vs 0.5 expected (ratio 0.00, 0.00-8.11)
+    Q1          teams   17  won  82.4%  price then  90.8c  won - price  -8.4 pp ± 18.1   lost 3 vs 1.6 expected (ratio 1.92, 0.40-5.60)
+    Q2          teams   39  won  79.5%  price then  90.9c  won - price -11.4 pp ± 12.7   lost 8 vs 3.5 expected (ratio 2.26, 0.98-4.45)
+    Q3          teams   37  won  91.9%  price then  91.7c  won - price  +0.2 pp ± 8.7   lost 3 vs 3.1 expected (ratio 0.98, 0.20-2.86)
+    Q4          teams   75  won  88.0%  price then  92.9c  won - price  -4.9 pp ± 6.8   lost 9 vs 5.3 expected (ratio 1.69, 0.77-3.21)
+    OT          teams    9  won  77.8%  price then  93.7c  won - price -15.9 pp ± 24.2   lost 2 vs 0.6 expected (ratio 3.54, 0.43-12.79)
+  The other side at the same moments: won 13.7% at a mean 8.0c (fee 0.51c, spread ~1c)
