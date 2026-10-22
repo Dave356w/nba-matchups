@@ -217,3 +217,31 @@ No native row has a model P yet: nothing here is forward evidence.
   4th quarter  minutes 13,806  SD mid move 6.50c  SD score move 8.12c  spread 1.0c  within spread  44%
                per cent of score move: same minute 0.60 ± 0.02, next +0.10 ± 0.02, minutes 2-6 -0.07 ± 0.04;  noise SD 1.86c (half-spread 0.50c)
                after score moves >= 3c (4,526): next minute +0.89c ± 0.20, minutes 2-6 -0.19c ± 0.40 the score's way; cost to cross 2.05c
+
+== 7. Both sides at tip, each with a resting sell at entry + up (owner's question)
+  Per $1 pair: home YES bought at the last pregame ask, the away side at 1 - the home
+  bid, taker fee on both; a side's sell fills when its bid reaches the target (candle
+  closes, through settlement); an unsold side settles at 0 or 1. Hold both = the
+  pair held to settlement (always pays $1): the pair's cost. If prices are fair the
+  exit rule cannot change the expected result, so profit - hold should be ~0 (less
+  the maker fee, 0.0175 P (1 - P), where it applies). ± is 95% across games.
+  + 5c all      games 1161  both sold  65%  one  34%  none   1%   profit -7.87c ± 1.42 (maker fee -8.43c ± 1.41)   hold both -3.93c   profit - hold -3.94c ± 1.42
+  + 5c Oct-Jan  games 681   both sold  68%  one  32%  none   0%   profit -7.92c ± 1.89 (maker fee -8.51c ± 1.88)   hold both -4.11c   profit - hold -3.80c ± 1.88
+  + 5c Feb-Apr  games 480   both sold  61%  one  38%  none   1%   profit -7.80c ± 2.16 (maker fee -8.32c ± 2.15)   hold both -3.66c   profit - hold -4.13c ± 2.15
+        mean profit per pair: both sold +7.2c;  one sold -36.9c;  none sold -1.7c;  one sold and it won 98% (-37.7c) / it lost (+8.8c)
+        the mid was already past the target at the fill minute by +2.08c a sold side (1915 sales, 1904 with a mid); +3.42c ± 0.19 a pair, against profit - hold -3.94c
+  +10c all      games 1161  both sold  48%  one  47%  none   4%   profit -7.83c ± 1.70 (maker fee -8.31c ± 1.69)   hold both -3.93c   profit - hold -3.90c ± 1.70
+  +10c Oct-Jan  games 681   both sold  52%  one  47%  none   2%   profit -8.05c ± 2.28 (maker fee -8.56c ± 2.27)   hold both -4.11c   profit - hold -3.93c ± 2.28
+  +10c Feb-Apr  games 480   both sold  44%  one  49%  none   8%   profit -7.51c ± 2.55 (maker fee -7.95c ± 2.54)   hold both -3.66c   profit - hold -3.85c ± 2.54
+        mean profit per pair: both sold +17.1c;  one sold -33.7c;  none sold -2.1c;  one sold and it won 96% (-35.9c) / it lost (+16.7c)
+        the mid was already past the target at the fill minute by +2.39c a sold side (1675 sales, 1655 with a mid); +3.41c ± 0.21 a pair, against profit - hold -3.90c
+  +15c all      games 1161  both sold  34%  one  56%  none  10%   profit -8.25c ± 1.85 (maker fee -8.65c ± 1.84)   hold both -3.93c   profit - hold -4.32c ± 1.85
+  +15c Oct-Jan  games 681   both sold  38%  one  56%  none   6%   profit -8.89c ± 2.52 (maker fee -9.32c ± 2.51)   hold both -4.11c   profit - hold -4.78c ± 2.52
+  +15c Feb-Apr  games 480   both sold  29%  one  55%  none  16%   profit -7.33c ± 2.69 (maker fee -7.69c ± 2.68)   hold both -3.66c   profit - hold -3.67c ± 2.68
+        mean profit per pair: both sold +27.0c;  one sold -31.1c;  none sold -2.4c;  one sold and it won 94% (-34.8c) / it lost (+24.6c)
+        the mid was already past the target at the fill minute by +2.73c a sold side (1443 sales, 1402 with a mid); +3.30c ± 0.24 a pair, against profit - hold -4.32c
+  +20c all      games 1161  both sold  23%  one  59%  none  17%   profit -8.19c ± 1.87 (maker fee -8.52c ± 1.86)   hold both -3.93c   profit - hold -4.26c ± 1.86
+  +20c Oct-Jan  games 681   both sold  26%  one  61%  none  13%   profit -8.91c ± 2.56 (maker fee -9.27c ± 2.55)   hold both -4.11c   profit - hold -4.80c ± 2.56
+  +20c Feb-Apr  games 480   both sold  20%  one  57%  none  23%   profit -7.17c ± 2.69 (maker fee -7.46c ± 2.68)   hold both -3.66c   profit - hold -3.51c ± 2.68
+        mean profit per pair: both sold +36.9c;  one sold -27.4c;  none sold -2.8c;  one sold and it won 92% (-32.5c) / it lost (+32.2c)
+        the mid was already past the target at the fill minute by +2.82c a sold side (1229 sales, 1191 with a mid); +2.89c ± 0.22 a pair, against profit - hold -4.26c

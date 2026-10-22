@@ -660,7 +660,15 @@ Before a PR, run:
   half-spread (0.4–0.5c) through three quarters, 1.6–1.9c in the 4th
   (possession and free-throw states the margin misses). After score moves
   ≥ 3c the next-minute catch-up (+0.6–0.7c) and later drift (+0.1–0.3c)
-  sit well under the ~2c cost to cross. The score-process σ overstates the game's (regulation margin
+  sit well under the ~2c cost to cross. Both sides bought at tip with a
+  resting sell at entry + 10c on each (owner's question, same day; 1,161
+  games, per $1 pair): −7.8c ± 1.7 against −3.9c for holding both (the
+  pair's spread and fees); both sides sell in 48% of games (+17c), one in
+  47% (−34c: it is the eventual winner 96% of the time). The extra −3.9c ±
+  1.7 is the jump past the order: the mid is already +2.4c beyond the
+  target when a sell fills (+3.4c ± 0.2 a pair), so the price is otherwise
+  fair. Every target from 5c to 20c and both periods lose about the same.
+  The score-process σ overstates the game's (regulation margin
   around the spread 13.85 ± 0.56) because consecutive quarters correlate
   −0.12 (leads shrink). ESPN's wallclock and the mid agree within a minute
   (corr of minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.

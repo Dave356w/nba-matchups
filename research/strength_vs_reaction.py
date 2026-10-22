@@ -42,6 +42,11 @@ and minutes 2-6 after (the last is 0 for a fair price, whatever p*'s scale);
 the bounce when the margin does not move; and the drift after big score
 moves against the cost to cross.
 
+Both sides at tip (owner's question, 2026-10-22): buy home and away at the
+last pregame quotes, rest a sell on each at entry + 5 / 10 / 15 / 20c, let an
+unsold side settle; profit per $1 pair beside holding both, and how far the
+mid had already passed the target when a sell filled.
+
 Data (2025-26, the first season Kalshi lists): every reconstructed game with
 a Kalshi event (diagnostics/kalshi_benchmark/games.csv), ESPN's play-by-play
 with wallclock times (summary endpoint) and the home market's 1-minute
@@ -121,6 +126,8 @@ MIN_PRICE, MAX_PRICE = 0.03, 0.97 # ignore dead quotes
 PRE_WINDOW = 3 * 3600             # candles read before the first play
 POST_WINDOW = 600                 # and after the last
 EDGE_BINS = [ENTRY_EDGE, 0.06, 0.08, 0.12, 1.0]
+STRADDLE_TARGETS = (0.05, 0.10, 0.15, 0.20)   # sell each side this far above entry
+MAKER_FEE = 0.0175                # Kalshi's maker fee coefficient, where it applies
 TAU_BUCKETS = ((0.5, 1.0, "1st half"), (0.25, 0.5, "3rd quarter"),
                (0.0, 0.25, "4th quarter"))
 PRIORS = (("z_mkt", "MKT"), ("z_model", "MODEL"), ("z_blend", "BLEND"))
@@ -375,7 +382,7 @@ def game_states(row, espn, kal):
                away=row.away, y=int(row.home_won), p_model=float(row.p_home),
                p_close=p_close, kalshi_close_q_home=row.kalshi_close_q_home,
                close_book=row.close_book, close_spread=float(row.close_spread),
-               tip_delay_min=round((tip - sched) / 60, 1),
+               tip_ts=tip, tip_delay_min=round((tip - sched) / 60, 1),
                pre_quote_min=round((tip - pre["ts"].iloc[-1]) / 60, 1),
                live_spread=float((st["ask_c"] - st["bid_c"]).median()),
                n_states=int(st["mid"].notna().sum()), stray_stamps=stray,
@@ -832,8 +839,92 @@ def fluctuation_lines(S, pcol):
     return out
 
 
+def straddle_game(candles, tip, y, up):
+    """Both sides bought at the last pregame candle at or before the first
+    play (home YES at its ask; the away side at 1 - the home bid, Kalshi's
+    other market priced through the home book), each with a resting sell at
+    its entry price + `up`, filled at the first later candle whose bid for
+    that side (home: bid; away: 1 - ask) reaches it; an unsold side settles.
+    Raw candles, so late quotes near 0 or 1 count. Per $1 pair: dict or None."""
+    c = pd.DataFrame(candles, columns=["ts", "ask_c", "ask_h", "bid_c", "bid_l", "vol"])
+    c = c.dropna(subset=["ts"]).sort_values("ts")
+    pre = c[(c["ts"] <= tip) & c["ask_c"].notna() & c["bid_c"].notna()]
+    if pre.empty:
+        return None
+    e = pre.iloc[-1]
+    live = c[c["ts"] > e["ts"]]
+    mid = (live["ask_c"] + live["bid_c"]) / 2
+    legs = (("home", float(e["ask_c"]), live["bid_c"], mid, y),
+            ("away", 1 - float(e["bid_c"]), 1 - live["ask_c"], 1 - mid, 1 - y))
+    out = dict(cost=sum(market.kalshi_cost(a) for _, a, _, _, _ in legs), sold=[], won_sold=[],
+               overshoot=[], proceeds=0.0, maker=0.0)
+    for side, a, bid, fair, pays in legs:
+        target = round(a + up, 2)
+        hit = (bid >= target - 1e-9).to_numpy()
+        if target <= 0.99 and hit.any():
+            out["proceeds"] += target
+            out["maker"] += MAKER_FEE * target * (1 - target)
+            out["sold"].append(side)
+            out["won_sold"].append(pays)
+            out["overshoot"].append(float(fair.to_numpy()[hit.argmax()]) - target)
+        else:
+            out["proceeds"] += pays
+    out["profit"] = out["proceeds"] - out["cost"]
+    out["profit_maker"] = out["profit"] - out["maker"]
+    out["hold"] = 1 - out["cost"]
+    return out
+
+
+def straddle_lines(P, kal):
+    """Buy both sides at tip, sell each at +up: profit per $1 pair beside
+    holding both (the cost of the pair), all games and each period."""
+    out = []
+    rows = []
+    for up in STRADDLE_TARGETS:
+        for g in P.itertuples():
+            r = straddle_game(kal[g.game_id]["candles"], g.tip_ts, g.y, up)
+            if r:
+                rows.append(dict(up=up, split=g.split, n_sold=len(r["sold"]),
+                                 sold_winner=int(len(r["sold"]) == 1 and r["won_sold"][0] == 1),
+                                 overshoot=sum(v for v in r["overshoot"] if v == v),
+                                 n_over=sum(1 for v in r["overshoot"] if v == v),
+                                 **{k: r[k] for k in ("profit", "profit_maker", "hold")}))
+    R = pd.DataFrame(rows)
+    for up in STRADDLE_TARGETS:
+        for lab, x in (("all", R[R["up"] == up]),
+                       ("Oct-Jan", R[(R["up"] == up) & (R["split"] == "train")]),
+                       ("Feb-Apr", R[(R["up"] == up) & (R["split"] == "test")])):
+            m, ci = mr.mean_ci(x["profit"])
+            mm, cim = mr.mean_ci(x["profit_maker"])
+            d, cid = mr.mean_ci(x["profit"] - x["hold"])
+            share = [100 * (x["n_sold"] == k).mean() for k in (2, 1, 0)]
+            out.append(f"  +{100 * up:2.0f}c {lab:<8} games {len(x):<5} both sold {share[0]:3.0f}%  "
+                       f"one {share[1]:3.0f}%  none {share[2]:3.0f}%   profit {100 * m:+5.2f}c ± "
+                       f"{100 * ci:4.2f} (maker fee {100 * mm:+5.2f}c ± {100 * cim:4.2f})   hold both "
+                       f"{100 * x['hold'].mean():+5.2f}c   profit - hold {100 * d:+5.2f}c ± {100 * cid:4.2f}")
+        x = R[R["up"] == up]
+        parts = []
+        for k, name in ((2, "both sold"), (1, "one sold"), (0, "none sold")):
+            xx = x[x["n_sold"] == k]
+            if len(xx):
+                parts.append(f"{name} {100 * xx['profit'].mean():+.1f}c")
+        one = x[x["n_sold"] == 1]
+        if len(one):
+            parts.append(f"one sold and it won {100 * one['sold_winner'].mean():.0f}% "
+                         f"({100 * one[one['sold_winner'] == 1]['profit'].mean():+.1f}c) / it lost "
+                         f"({100 * one[one['sold_winner'] == 0]['profit'].mean():+.1f}c)")
+        out.append("        mean profit per pair: " + ";  ".join(parts))
+        mo, cio = mr.mean_ci(x["overshoot"])
+        out.append(f"        the mid was already past the target at the fill minute by "
+                   f"{100 * x['overshoot'].sum() / x['n_over'].sum():+.2f}c a sold side "
+                   f"({x['n_sold'].sum()} sales, {x['n_over'].sum()} with a mid); "
+                   f"{100 * mo:+.2f}c ± {100 * cio:.2f} a pair, against profit - hold "
+                   f"{100 * (x['profit'] - x['hold']).mean():+.2f}c")
+    return out
+
+
 # --------------------------------------------------------------- report ----
-def report(S, P, drops, espn, n_games):
+def report(S, P, drops, espn, kal, n_games):
     L = []
     w = L.append
     tr, te = P[P["split"] == "train"], P[P["split"] == "test"]
@@ -1063,6 +1154,15 @@ def report(S, P, drops, espn, n_games):
     for lab, x in (("test", S_te), ("train", S_tr)):
         w(f"  -- {lab}")
         L += fluctuation_lines(x, "p_z_mkt_fk")
+    w("")
+    w("== 7. Both sides at tip, each with a resting sell at entry + up (owner's question)")
+    w("  Per $1 pair: home YES bought at the last pregame ask, the away side at 1 - the home")
+    w("  bid, taker fee on both; a side's sell fills when its bid reaches the target (candle")
+    w("  closes, through settlement); an unsold side settles at 0 or 1. Hold both = the")
+    w("  pair held to settlement (always pays $1): the pair's cost. If prices are fair the")
+    w("  exit rule cannot change the expected result, so profit - hold should be ~0 (less")
+    w(f"  the maker fee, {MAKER_FEE} P (1 - P), where it applies). ± is 95% across games.")
+    L += straddle_lines(P, kal)
     return "\n".join(L), T
 
 
@@ -1078,7 +1178,7 @@ def main():
     if a.fetch_only:
         return
     S, P, drops = assemble(games, espn, kal)
-    text, T = report(S, P, drops, espn, len(games))
+    text, T = report(S, P, drops, espn, kal, len(games))
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "RESULTS.txt").write_text(text + "\n")
     P.drop(columns=["z_mkt", "z_model", "z_blend"]).round(5).to_csv(OUT / "games.csv",
