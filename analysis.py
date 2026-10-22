@@ -1078,3 +1078,159 @@ def hypothesis_ats_bands(native, recon, book=None):
             parts[basis] = ats_by_band(d)
         out.append((hyp, parts))
     return out
+
+
+# ------------------------------------------------------ market performance --
+# The market alone (owner's request, 2026-10-22; build_site's Performance
+# page): how the closing prices themselves did, read from the graded rows'
+# prices and results only, never a model column. Favourite = the side the
+# no-vig close makes more likely (a 50/50 close has none); the spread
+# favourite is the side giving points (a pick'em line falls back to the
+# moneyline favourite).
+FAV_LINE_BANDS = ATS_LINE_BANDS[:4]   # the favourite's line: −10+ ... pick'em
+
+
+def _se_mean(x):
+    x = np.asarray(x, float)
+    return float(x.std(ddof=1) / np.sqrt(len(x))) if len(x) > 1 else float("nan")
+
+
+def market_games(g):
+    """One row per graded game with a usable close: the moneyline favourite
+    (fav_home, fav_ml, fav_q, fav_won), flat 1-unit P/L at the close for the
+    favourite and the underdog with their nulls (q x decimal - 1), and,
+    where the closing spread and both its prices are recorded from the same
+    book as the moneyline, the spread favourite's line (fav_line <= 0), its
+    cover (1 / 0 / 0.5 push), units and null at its spread price, the home
+    side's cover, and the line's error (home margin + home line: > 0 means
+    home beat the line). Empty frame without rows."""
+    if g is None or not len(g):
+        return pd.DataFrame()
+    num = lambda c: pd.to_numeric(g[c], errors="coerce").to_numpy(float)  # noqa: E731
+    q, y = num("close_q_home"), num("home_won")
+    hml, aml = num("close_home_ml"), num("close_away_ml")
+    margin = num("home_pts") - num("away_pts")
+    ok = np.isfinite(q) & np.isfinite(y) & np.isfinite(hml) & np.isfinite(aml) & (q != 0.5)
+    fav_home = q > 0.5
+    fav_ml = np.where(fav_home, hml, aml)
+    dog_ml = np.where(fav_home, aml, hml)
+    fav_q = np.where(fav_home, q, 1 - q)
+    fav_won = np.where(fav_home, y, 1 - y)
+    dec = np.array([market.decimal_payout(m) for m in fav_ml])
+    ddec = np.array([market.decimal_payout(m) for m in dog_ml])
+    out = pd.DataFrame(dict(
+        game_id=g["game_id"].astype(str).to_numpy(),
+        slate_date=g["slate_date"].astype(str).to_numpy(),
+        fav_home=fav_home, fav_ml=fav_ml, fav_q=fav_q, fav_won=fav_won,
+        fav_units=[market.unit_profit(m, w == 1) for m, w in zip(fav_ml, fav_won)],
+        fav_null=fav_q * dec - 1,
+        dog_units=[market.unit_profit(m, w == 0) for m, w in zip(dog_ml, fav_won)],
+        dog_null=(1 - fav_q) * ddec - 1,
+        home_won=y))
+    hs = num("close_spread") if "close_spread" in g else np.full(len(g), np.nan)
+    hso = num("close_home_spread_odds") if "close_home_spread_odds" in g else hs * np.nan
+    aso = num("close_away_spread_odds") if "close_away_spread_odds" in g else hs * np.nan
+    same = np.ones(len(g), bool)
+    if "spread_book" in g and "close_book" in g:
+        same = (g["spread_book"].astype(str) == g["close_book"].astype(str)).to_numpy()
+    has = np.isfinite(hs) & np.isfinite(hso) & np.isfinite(aso) & np.isfinite(margin) & same
+    home_cover = np.array([market.ats_result(mg, s) if h else np.nan
+                           for mg, s, h in zip(margin, hs, has)])
+    sfav_home = np.where(hs != 0, hs < 0, fav_home)
+    sml = np.where(sfav_home, hso, aso)
+    sq = np.array([market.devig(h_, a_) if h else np.nan
+                   for h_, a_, h in zip(hso, aso, has)])
+    sq_fav = np.where(sfav_home, sq, 1 - sq)
+    cover = np.where(sfav_home, home_cover, 1 - home_cover)
+    out["has_spread"] = has
+    out["fav_line"] = np.where(has, -np.abs(hs), np.nan)
+    out["fav_cover"] = np.where(has, cover, np.nan)
+    out["home_cover"] = home_cover
+    out["fav_margin_vs_line"] = np.where(
+        has, np.where(sfav_home, margin + hs, -margin - hs), np.nan)
+    out["ats_units"] = [0.0 if c == 0.5 else market.unit_profit(m, c == 1) if h else np.nan
+                        for c, m, h in zip(cover, sml, has)]
+    out["ats_null"] = np.where(has, sq_fav * np.array(
+        [market.decimal_payout(m) if h else np.nan for m, h in zip(sml, has)]) - 1, np.nan)
+    out["line_error"] = np.where(has, margin + hs, np.nan)
+    return out[ok].reset_index(drop=True)
+
+
+def _su_row(m):
+    n = len(m)
+    p, w = m["fav_q"].to_numpy(float), m["fav_won"].to_numpy(float)
+    return dict(n=n, w=int(w.sum()), l=n - int(w.sum()), actual=float(w.mean()),
+                implied=float(p.mean()), diff=float(w.mean() - p.mean()),
+                se=float(np.sqrt((p * (1 - p)).sum()) / n),
+                fav_roi=float(m["fav_units"].mean()), fav_se=_se_mean(m["fav_units"]),
+                fav_null=float(m["fav_null"].mean()),
+                dog_roi=float(m["dog_units"].mean()), dog_se=_se_mean(m["dog_units"]),
+                dog_null=float(m["dog_null"].mean()))
+
+
+def _ats_row(m, col="fav_cover"):
+    s = m[m["has_spread"]]
+    c = s[col].to_numpy(float)
+    w, l = int((c == 1).sum()), int((c == 0).sum())
+    out = dict(n=len(s), w=w, l=l, push=len(s) - w - l,
+               rate=w / (w + l) if w + l else float("nan"),
+               se=float(np.sqrt(0.25 / (w + l))) if w + l else float("nan"))
+    if col == "fav_cover" and len(s):
+        out.update(roi=float(s["ats_units"].mean()), roi_se=_se_mean(s["ats_units"]),
+                   null=float(s["ats_null"].mean()),
+                   margin=float(s["fav_margin_vs_line"].mean()),
+                   margin_se=_se_mean(s["fav_margin_vs_line"]))
+    return out
+
+
+def market_summary(m):
+    """The market's season in one dict (market_games rows): su (favourites
+    straight up and at the moneyline, underdogs at the moneyline), ats
+    (spread favourites), home_ats (home sides) and line (closing line vs the
+    final margin: mae, rmse, bias = mean home margin + home line, its se).
+    None without rows."""
+    if m is None or not len(m):
+        return None
+    s = m[m["has_spread"]]
+    e = s["line_error"].to_numpy(float)
+    line = (dict(n=len(e), mae=float(np.abs(e).mean()), rmse=float(np.sqrt((e ** 2).mean())),
+                 bias=float(e.mean()), bias_se=_se_mean(e)) if len(e) else None)
+    return dict(su=_su_row(m), ats=_ats_row(m) if len(s) else None,
+                home_ats=_ats_row(m, "home_cover") if len(s) else None, line=line)
+
+
+def market_ml_bands(m):
+    """[(rung, su row)] by the favourite's closing price (market.ODDS_LADDER),
+    empty rungs left out. Descriptive, never a filter."""
+    if m is None or not len(m):
+        return []
+    rung = np.array([market.ladder_rung(x) for x in m["fav_ml"]], dtype=object)
+    return [(label, _su_row(m[rung == label])) for _lo, _hi, label in market.ODDS_LADDER
+            if (rung == label).any()]
+
+
+def market_ats_bands(m):
+    """[(band, ats row)] by the spread favourite's closing line
+    (FAV_LINE_BANDS), empty bands left out."""
+    if m is None or not len(m):
+        return []
+    s = m[m["has_spread"]]
+    out = []
+    for lo, hi, label in FAV_LINE_BANDS:
+        x = s[(s["fav_line"] >= lo) & (s["fav_line"] <= hi)]
+        if len(x):
+            out.append((label, _ats_row(x)))
+    return out
+
+
+def market_by_side(m):
+    """[(label, su row, ats row)] for home and road moneyline favourites."""
+    if m is None or not len(m):
+        return []
+    out = []
+    for label, k in (("Home favourites", m["fav_home"]), ("Road favourites", ~m["fav_home"])):
+        x = m[k.to_numpy(bool)]
+        if len(x):
+            out.append((label, _su_row(x),
+                        _ats_row(x) if x["has_spread"].any() else None))
+    return out

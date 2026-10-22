@@ -403,3 +403,85 @@ def test_shrink_p_keeps_the_side_and_the_ends():
     assert np.allclose(analysis.shrink_p(p, q, 1.0), p)
     assert np.allclose(analysis.shrink_p(p, q, 0.0), q)
     assert np.isnan(analysis.shrink_p(0.6, np.nan))
+
+
+# ------------------------------------------------------- market performance
+def _market_rows():
+    """Three graded DraftKings games (the opening night's shape)."""
+    base = dict(season=2027, basis="native", close_book="dk", game_id="", slate_date="2026-10-20",
+                tip_utc="2026-10-20T23:30Z", model_tag="t", p_home=np.nan, lean=np.nan,
+                p_lean=np.nan, gp_home=0, gp_away=0)
+    rows = [  # home, away, home ML, away ML, home line, home odds, away odds, pts
+        ("DET", "BOS", 105, -125, 1.5, -108, -112, 121, 113),
+        ("NYK", "PHI", -175, 145, -4.5, -108, -112, 100, 106),
+        ("SAS", "OKC", -102, -118, 1.5, -112, -108, 104, 116)]
+    out = []
+    for i, (h, a, hml, aml, hs, hso, aso, hp, ap) in enumerate(rows):
+        out.append({**base, "game_id": str(401 + i), "home": h, "away": a,
+                    "close_home_ml": hml, "close_away_ml": aml,
+                    "close_q_home": market.devig(hml, aml), "close_spread": hs,
+                    "close_home_spread_odds": hso, "close_away_spread_odds": aso,
+                    "home_pts": hp, "away_pts": ap, "home_won": int(hp > ap)})
+    e = ledger.empty()
+    return pd.concat([e, pd.DataFrame(out)], ignore_index=True)[list(e.columns)]
+
+
+def test_market_games_reads_prices_and_results_only():
+    m = analysis.market_games(_market_rows())
+    assert len(m) == 3
+    # DET +1.5 vs BOS (-125): favourite BOS lost by 8; home covered by 9.5
+    r = m.iloc[0]
+    assert not r["fav_home"] and r["fav_won"] == 0 and r["fav_units"] == -1
+    assert r["fav_line"] == -1.5 and r["fav_cover"] == 0 and r["home_cover"] == 1
+    assert r["line_error"] == 9.5 and r["fav_margin_vs_line"] == -9.5
+    # SAS -102 / OKC -118: OKC favourite won by 12 at -118, covered -1.5 at -108
+    r = m.iloc[2]
+    assert not r["fav_home"] and r["fav_won"] == 1
+    assert np.isclose(r["fav_units"], 100 / 118) and np.isclose(r["ats_units"], 100 / 108)
+    assert np.isclose(r["fav_null"], r["fav_q"] * market.decimal_payout(-118) - 1)
+    s = analysis.market_summary(m)
+    assert (s["su"]["w"], s["su"]["l"]) == (1, 2)
+    assert (s["ats"]["w"], s["ats"]["l"], s["ats"]["push"]) == (1, 2, 0)
+    assert (s["home_ats"]["w"], s["home_ats"]["l"]) == (1, 2)
+    assert np.isclose(s["line"]["mae"], (9.5 + 10.5 + 10.5) / 3)
+    assert np.isclose(s["line"]["bias"], (9.5 - 10.5 - 10.5) / 3)
+    assert [lab for lab, _ in analysis.market_ml_bands(m)] == ["-249 to -175", "-129 to -100"]
+    assert [lab for lab, _ in analysis.market_ats_bands(m)] == ["Fav −3 to −5.5",
+                                                                "Pick'em −2.5 to +2.5"]
+    sides = analysis.market_by_side(m)
+    assert [lab for lab, _, _ in sides] == ["Home favourites", "Road favourites"]
+    assert sides[1][1]["n"] == 2
+
+
+def test_a_push_counts_neither_way_and_returns_the_stake():
+    g = _market_rows().iloc[[1]].copy()
+    g["home_pts"], g["away_pts"], g["close_spread"] = 104, 100, -4.0     # wins by 4 on -4
+    m = analysis.market_games(g)
+    assert m.iloc[0]["fav_cover"] == 0.5 and m.iloc[0]["ats_units"] == 0.0
+    a = analysis.market_summary(m)["ats"]
+    assert (a["w"], a["l"], a["push"]) == (0, 0, 1) and np.isnan(a["rate"])
+
+
+def test_performance_shows_the_market_on_its_own(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(_market_rows(), synth(50, 57, "reconstructed"),
+                           "2026-10-21", model_ok=True)
+    perf = (tmp_path / "performance.html").read_text()
+    for t in ("Market performance", "Favourites straight up", "Favourites · moneyline ROI",
+              "Favourites against the spread", "Home sides against the spread",
+              "Closing line vs final margin", "Moneyline by the favourite's closing price",
+              "Against the spread by the favourite's closing line",
+              "Home and road favourites", "DraftKings 2026-27 close"):
+        assert t in perf, t
+    assert "10.2 pts" in perf                       # mean miss of the closing line
+    # games the model abstained on still count for the market
+    assert "every graded game this season (3 games)" in perf
+
+
+def test_market_view_waits_for_a_graded_close(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    build_site.write_pages(ledger.empty(), synth(50, 58, "reconstructed"), "2026-10-21",
+                           model_ok=True)
+    perf = (tmp_path / "performance.html").read_text()
+    assert "Starts with the first graded game with a DraftKings close." in perf
+    assert "Favourites straight up" not in perf     # never the rebuilt rows
