@@ -87,7 +87,7 @@ FULL_FROM_SEASON = 2023    # first season whose team-games sum to ~240 minutes
 MAX_WEEKS = 30             # a season is ~25 weeks (All-Star break folded in)
 SEASON_TYPE = "regular"
 STATS = ("pts", "reb", "ast", "stl", "blk", "to", "fga", "fgm", "fta", "ftm",
-         "tpa", "tpm")
+         "tpa", "tpm", "dd", "td")     # dd / td: double- and triple-double chance
 DEPTH_SLOTS = ("PG", "SG", "SF", "PF", "C")
 ET = ZoneInfo("America/New_York")
 
