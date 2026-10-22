@@ -1,24 +1,32 @@
 name: Box-score history
 
-# Research data: ESPN player box scores for earlier seasons, so the
-# roster-talent arm of research/team_quality.py trains on the same seasons
-# as the base model (research/box_history.py). Seasons already cached are
-# skipped; the caches are saved even when the job stops, so a rerun resumes.
-# Writes nothing to the repo.
+# ESPN player box scores for the seasons the model trains on
+# (research/box_history.py). Seasons already on disk (data/nba_box_<y>.csv or
+# the espn-box cache) are skipped; the caches are saved even when the job
+# stops, so a rerun resumes. With `commit` (the default) each finished season
+# is written to data/nba_box_<y>.csv and committed, so Fit model, Backfill
+# history and the research workflows read it from the repo instead of an
+# Actions cache that is kept per branch and evicted after 7 days unused.
+# The current season's file is the daily build's, never written here.
+# Commits only from main (a branch run would push its own commits there).
 
 on:
   workflow_dispatch:
     inputs:
       seasons:
         description: 'Seasons to build (BBR years; 2016 = 2015-16)'
-        default: '2016-2019 2021-2022'
+        default: '2016-2019 2021-2026'
+      commit:
+        description: 'Commit finished seasons to data/nba_box_<season>.csv'
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   box-history:
@@ -44,8 +52,23 @@ jobs:
       - name: Build box-score history
         run: |
           set -o pipefail
-          python research/box_history.py --seasons ${{ inputs.seasons }} | tee box_history.txt
+          python research/box_history.py --seasons ${{ inputs.seasons }} ${{ inputs.commit && '--commit' || '' }} | tee box_history.txt
           { echo '```'; cat box_history.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - run: python validate_data_files.py
+        if: ${{ inputs.commit }}
+      - name: Commit
+        if: ${{ inputs.commit && github.ref == 'refs/heads/main' }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/nba_box_*.csv
+          git diff --cached --quiet && exit 0
+          git commit -m "box-score history ${{ inputs.seasons }}"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "::error::box-score history push failed"; exit 1
       - uses: actions/cache/save@v4
         if: always()
         with:

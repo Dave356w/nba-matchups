@@ -219,6 +219,56 @@ def test_box_history_fetches_each_season_and_reports_coverage(tmp_path):
     assert "1 games, 2 player rows" in out[2016] and "BPM covers 62%" in out[2016]
 
 
+def test_box_history_commits_finished_seasons_only(tmp_path):
+    import importlib.util as iu
+    import player_availability as pav
+    import validate_data_files as v
+    spec = iu.spec_from_file_location(
+        "box_history", os.path.join(os.path.dirname(__file__), "..", "research",
+                                    "box_history.py"))
+    bh = iu.module_from_spec(spec)
+    spec.loader.exec_module(bh)
+
+    def fetch(t, cache_dir=None):
+        return pd.DataFrame(dict(
+            game_id=["g2", "g1", "g1"], date=pd.to_datetime([f"{t - 1}-11-03"] + [f"{t - 1}-11-01"] * 2),
+            team=["T", "T", "O"], opp=["O", "O", "T"], home=[True, True, False],
+            margin=[3, 5, -5], player_id=["p1", "p1", "p2"], name=["A B", "A B", "C D"],
+            minutes=[30.0, 28.0, 18.0], pm=[2.0, 4.0, -4.0]))
+    data = tmp_path / "data"
+    out = bh.build([2026, 2027], str(tmp_path / "cache"), fetch=fetch, bpm=lambda t: {},
+                   data_dir=str(data), commit=True, today=pd.Timestamp("2026-10-22"))
+    assert "written to data/nba_box_2026.csv" in out[2026]
+    assert "not finished" in out[2027] and not (data / "nba_box_2027.csv").exists()
+    path = str(data / "nba_box_2026.csv")
+    assert v.check_box(path) == []
+    back = pav.read_box(path)
+    assert list(back["game_id"]) == ["g1", "g1", "g2"]           # sorted by date
+    assert list(back.columns) == pav.BOX_COLUMNS
+    bh.build([2026], str(tmp_path / "cache"), fetch=fetch, bpm=lambda t: {},
+             data_dir=str(data), today=pd.Timestamp("2026-10-22"))
+    assert pav.read_box(path).equals(back)                       # no commit: untouched
+    assert bh.finished(2021, "2021-05-21") and not bh.finished(2021, "2021-05-20")
+
+
+def test_validator_flags_a_broken_box_file(tmp_path):
+    import player_availability as pav
+    import validate_data_files as v
+    box = pd.DataFrame(dict(
+        game_id=["g1", "g1"], date=pd.to_datetime(["2025-11-01"] * 2), team=["T", "O"],
+        opp=["O", "T"], home=[True, False], margin=[5, -5], player_id=["p1", "p2"],
+        name=["A", "B"], minutes=[30.0, 20.0], pm=[1.0, -1.0]))
+    path = str(tmp_path / "nba_box_2026.csv")
+    pav.save_box(box, path)
+    assert v.check_box(path) == []
+    pav.save_box(pd.concat([box, box.iloc[:1]]), path)
+    assert any("twice in one game" in e for e in v.check_box(path))
+    pav.save_box(box.assign(date=pd.to_datetime(["2026-11-01"] * 2)), path)
+    assert any("outside the 2025-26 season" in e for e in v.check_box(path))
+    box.drop(columns="pm").to_csv(path, index=False)
+    assert any("columns differ" in e for e in v.check_box(path))
+
+
 def test_season_dates_cover_the_delayed_seasons():
     import player_availability as pav
     assert pav.season_dates(2021)[-1] == pd.Timestamp("2021-05-20")

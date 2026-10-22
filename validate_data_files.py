@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Fail fast on a broken committed CSV (conflict markers, bad schema, dup ids)."""
+import glob
 import os
+import re
 import sys
 
 import numpy as np
@@ -8,6 +10,7 @@ import pandas as pd
 
 import ledger
 import market
+import player_availability as pav
 
 
 def check(path):
@@ -157,9 +160,33 @@ def check_sleeper(path=ledger.SLEEPER_PATH):
     return errs
 
 
+def check_box(path):
+    """data/nba_box_<y>.csv: past seasons (Box-score history) and this
+    season's (the daily build)."""
+    text = open(path, encoding="utf-8").read()
+    if any(m in text for m in ("<<<<<<<", ">>>>>>>", "\n=======\n")):
+        return [f"{path}: merge-conflict marker"]
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    if list(df.columns) != pav.BOX_COLUMNS:
+        return [f"{path}: columns differ from player_availability.BOX_COLUMNS"]
+    errs = []
+    if df["player_id"].str.strip().isin(["", "None", "nan", "NaN"]).any():
+        errs.append(f"{path}: a row without a player id")
+    if df.duplicated(["game_id", "player_id"]).any():
+        errs.append(f"{path}: a player twice in one game")
+    y = int(re.search(r"nba_box_(\d{4})\.csv$", path).group(1))
+    d = pd.to_datetime(df["date"], errors="coerce")
+    if d.isna().any() or (d < pd.Timestamp(f"{y - 1}-10-01")).any() \
+            or (d > pd.Timestamp(f"{y}-08-31")).any():
+        errs.append(f"{path}: a date outside the {y - 1}-{y % 100:02d} season")
+    return errs
+
+
 def main():
     errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
     errs += check_sleeper()
+    for path in sorted(glob.glob(os.path.join("data", "nba_box_[0-9][0-9][0-9][0-9].csv"))):
+        errs += check_box(path)
     errs += check(ledger.PRESEASON_PATH)
     for path in (ledger.NATIVE_PATH, ledger.RECON_PATH):     # exchanges: preseason only
         if os.path.exists(path):

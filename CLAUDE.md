@@ -21,6 +21,17 @@ owner directs the product.
 - `data/nba_ledger.csv`: **native** rows, pregame-locked (snapshot < tip).
 - `data/nba_reconstructed.csv`: **reconstructed** rows (leave-one-season-out,
   closing price). This is hindsight and is not forward evidence.
+- `data/nba_box_<season>.csv`: ESPN player box scores (minutes, +/-), the
+  input to roster talent and the availability terms. This season's is
+  extended daily by the build (`player_availability.update_box`); the
+  finished seasons the model trains on (2016–2019, 2021–2026) are committed
+  by the "Box-score history" workflow (`research/box_history.py --commit`,
+  from main only; owner's decision 2026-10-22, after a refit on main spent
+  ~1 h refetching them because the Actions cache had expired).
+  `player_availability.box_file` reads them before the research cache
+  (`research/output/box_<season>.csv`); the full per-player lines
+  (`box_full_*`, research only) stay in the cache. Validated
+  (`validate_data_files.check_box`).
 - `data/nba_sleeper.csv`: Sleeper's (RotoWire's) pregame projections per
   game (owner's decision, 2026-10-22; `build_site.snapshot_sleeper`,
   `sleeper.live_projections`, `ledger.upsert_sleeper`): every player Sleeper

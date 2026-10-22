@@ -131,6 +131,25 @@ def test_bpm_term_weights_value_and_counts_arrivals():
     assert got["T011"][0] == 0.0                       # v1 ignores arrivals
 
 
+def test_committed_box_season_is_read_before_the_cache(tmp_path):
+    import player_availability as pav
+    def rows(pid):
+        return pd.DataFrame(dict(
+            game_id=["1"], date=pd.to_datetime(["2025-11-01"]), team=["T"],
+            opp=["O"], home=[True], margin=[5], player_id=[pid], name=["A"],
+            minutes=[30.0], pm=[3.0]))
+    cache, data = tmp_path / "cache", tmp_path / "data"
+    assert pav.box_file(2025, str(cache), str(data)) is None
+    cache.mkdir()
+    rows("from_cache").to_csv(cache / "box_2025.csv", index=False)
+    assert pav.box_file(2025, str(cache), str(data)) == str(cache / "box_2025.csv")
+    pav.save_box(rows("committed"), str(data / "nba_box_2025.csv"))
+    assert pav.box_file(2025, str(cache), str(data)) == str(data / "nba_box_2025.csv")
+    back = pav.fetch_box(2025, cache_dir=str(cache), data_dir=str(data))
+    assert list(back["player_id"]) == ["committed"]
+    assert back["home"].dtype == bool and back["date"].iloc[0] == pd.Timestamp("2025-11-01")
+
+
 def test_arrival_role_uses_only_earlier_games():
     box = pd.DataFrame(dict(
         player_id=["9", "9", "9"], name=["X"] * 3, minutes=[20.0, 30.0, 40.0],
@@ -148,7 +167,7 @@ def test_box_cache_round_trip_drops_missing_ids(tmp_path):
         player_id=["11", "None", ""], name=["A", "B", "C"],
         minutes=[30.0, 20.0, 10.0], pm=[3.0, 1.0, 0.0]))
     df.to_csv(tmp_path / "box_2025.csv", index=False)
-    back = av.fetch_box(2025, cache_dir=str(tmp_path))
+    back = av.fetch_box(2025, cache_dir=str(tmp_path), data_dir=str(tmp_path / "data"))
     assert list(back["player_id"]) == ["11"]
     assert back["home"].dtype == bool and back["home"].all()
     av.team_availability(back)                         # sorts ids without error
