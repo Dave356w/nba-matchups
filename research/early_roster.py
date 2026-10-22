@@ -109,9 +109,9 @@ def build(seasons, cache_dir=pav.DEFAULT_CACHE):
     """Walk-forward predictions for every test season's games 1-9."""
     talents, shares, out = {}, {}, []
     for t in BOX_YEARS:
-        if os.path.exists(os.path.join(cache_dir, f"box_{t}.csv")):
+        if pav.box_file(t, cache_dir):
             talents[t] = pav.season_talent(t, cache_dir)
-            if t - 1 in BOX_YEARS and os.path.exists(os.path.join(cache_dir, f"box_{t - 1}.csv")):
+            if t - 1 in BOX_YEARS and pav.box_file(t - 1, cache_dir):
                 shares[t] = returning_share(pav.fetch_box(t - 1, cache_dir=cache_dir),
                                             pav.fetch_box(t, cache_dir=cache_dir))
     for y in seasons:

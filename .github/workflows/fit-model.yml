@@ -54,6 +54,8 @@ jobs:
           restore-keys: bbr-
       # ESPN box scores, tip times and NBA injury reports for the v3
       # availability logit (shared with the research workflows' caches).
+      # Finished box seasons are read from data/nba_box_<y>.csv first
+      # (committed by "Box-score history"); the cache covers any other.
       - uses: actions/cache@v4
         with:
           path: research/output/box_*.csv
@@ -76,8 +78,8 @@ jobs:
           rm -f model/weights.json model/logit.json model/logit_early.json
           python nba_composite.py fit-weights --years ${{ inputs.weight_years }}
           # v6: delta, b2b_net, delta * season phase, opponent 3-point luck,
-          # roster talent and the own FT% gap (MODEL.md; box scores from the
-          # espn-box cache). model/logit_v4.json, the frozen v4 fallback, is
+          # roster talent and the own FT% gap (MODEL.md; box scores from
+          # data/nba_box_<y>.csv or the espn-box cache). model/logit_v4.json, the frozen v4 fallback, is
           # not refitted.
           python nba_composite.py fit-logit --v6 --years ${{ inputs.logit_years }}
           # Early-season (games 1-9) logit, v7: the carryover delta and b2b_net

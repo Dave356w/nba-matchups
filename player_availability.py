@@ -36,6 +36,7 @@ import market
 import nba_composite as nc
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(ROOT, "data")
 DEFAULT_CACHE = os.path.join(ROOT, "research", "output")
 REPORT_DIR = os.path.join(DEFAULT_CACHE, "injury_reports")
 
@@ -147,15 +148,40 @@ def box_rows_for_date(d, sleep=0.15):
     return rows, n_games, pending
 
 
-def fetch_box(y, sleep=0.15, cache_dir=None):
-    """Player minutes and +/- for every regular-season game of season y."""
+def box_file(y, cache_dir=None, data_dir=None):
+    """Season y's box rows on disk, or None: the committed data/nba_box_<y>.csv
+    (past seasons, committed by the "Box-score history" workflow; this
+    season's, extended daily by update_box) before the research cache's
+    box_<y>.csv (an Actions cache, kept per branch and evicted when unused)."""
+    for path in (os.path.join(data_dir or DATA_DIR, f"nba_box_{y}.csv"),
+                 os.path.join(cache_dir or DEFAULT_CACHE, f"box_{y}.csv")):
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def read_box(path):
+    # keep_default_na=False: ids like "None" must stay strings, never NaN
+    return clean_box(pd.read_csv(path, dtype={"game_id": str, "player_id": str,
+                                              "name": str},
+                                 keep_default_na=False, parse_dates=["date"]))
+
+
+def save_box(df, path):
+    """Box rows in the committed layout: BOX_COLUMNS, sorted."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    df[BOX_COLUMNS].sort_values(["date", "game_id", "team", "player_id"]) \
+        .to_csv(path, index=False)
+
+
+def fetch_box(y, sleep=0.15, cache_dir=None, data_dir=None):
+    """Player minutes and +/- for every regular-season game of season y, from
+    disk (box_file) or else fetched from ESPN into the cache."""
+    path = box_file(y, cache_dir, data_dir)
+    if path:
+        return read_box(path)
     cache_dir = cache_dir or DEFAULT_CACHE
     path = os.path.join(cache_dir, f"box_{y}.csv")
-    if os.path.exists(path):
-        # keep_default_na=False: ids like "None" must stay strings, never NaN
-        df = pd.read_csv(path, dtype={"game_id": str, "player_id": str, "name": str},
-                         keep_default_na=False, parse_dates=["date"])
-        return clean_box(df)
     rows, n_games = [], 0
     for d in season_dates(y):
         got, n, _ = box_rows_for_date(d, sleep)
@@ -896,9 +922,7 @@ def update_box(y, today, data_dir="data", sleep=0.15):
     path = os.path.join(data_dir, f"nba_box_{y}.csv")
     done_path = os.path.join(data_dir, f"nba_box_{y}_dates.txt")
     if os.path.exists(path):
-        df = clean_box(pd.read_csv(path, dtype={"game_id": str, "player_id": str,
-                                                "name": str},
-                                   keep_default_na=False, parse_dates=["date"]))
+        df = read_box(path)
     else:
         df = pd.DataFrame(columns=BOX_COLUMNS)
     done = set(open(done_path).read().split()) if os.path.exists(done_path) else set()
@@ -916,9 +940,7 @@ def update_box(y, today, data_dir="data", sleep=0.15):
     if new:
         df = clean_box(pd.concat([d for d in (df, pd.DataFrame(new)) if len(d)],
                                  ignore_index=True))
-    os.makedirs(data_dir, exist_ok=True)
-    df[BOX_COLUMNS].sort_values(["date", "game_id", "team", "player_id"]) \
-        .to_csv(path, index=False)
+    save_box(df, path)
     open(done_path, "w").write("\n".join(sorted(done)) + "\n")
     return df
 

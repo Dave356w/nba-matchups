@@ -587,7 +587,7 @@ def main(argv=None):
         for t in box_years:
             if t > max(a.seasons):
                 continue
-            if not os.path.exists(os.path.join(a.cache, f"box_{t}.csv")):
+            if not pav.box_file(t, a.cache):
                 print(f"box season {t}: not cached (run research/box_history.py); "
                       "talent skipped", flush=True)
                 continue
