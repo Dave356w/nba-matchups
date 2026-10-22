@@ -3,10 +3,10 @@
 
   python research/sleeper_signal.py
 
-Owner's question, 2026-10-22: does the Sleeper data (research/sleeper.py)
+Owner's question, 2026-10-22: does the Sleeper data (sleeper.py)
 offer a model update? Two features, fixed before looking at outcomes, per
 game, home - away, from the archived projections (set at an unknown time
-before tip, so hindsight; research/sleeper.py "timing"):
+before tip, so hindsight; sleeper.py "timing"):
 
   s_tal     sum over projected players of minutes / 48 x last-season value
             (BBR BPM shrunk by minutes, minus replacement:
@@ -116,7 +116,7 @@ def diff_line(label, a, b, y, width=34):
 def report(g, ok):
     L = ["Sleeper's projected lineup against v6 and the close (HINDSIGHT screen)",
          "research/sleeper_signal.py; games 10+; ± is 95%; reconstructed v6 rows;",
-         "Sleeper archive set at an unknown time before tip (research/sleeper.py).",
+         "Sleeper archive set at an unknown time before tip (sleeper.py).",
          ""]
     L.append("== Coverage")
     for label, x in mr.groups(g):

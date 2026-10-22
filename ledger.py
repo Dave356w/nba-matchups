@@ -36,6 +36,9 @@ Invariants (tests/test_ledger.py pins each one):
   * A pending (unfinished) game never receives a closing line.
   * Injury snapshots (data/nba_injuries.csv) follow the same pregame lock:
     replaced only before tip, frozen after.
+  * Sleeper/RotoWire projection snapshots (data/nba_sleeper.csv) too: the
+    "first" snapshot is written once, the "pre" snapshot is replaced only
+    before tip, and both are frozen after. The model does not read them.
   * Every price names its book (`pre_book`, `close_book`: see market.BOOKS).
     Open and close come from one book; rows priced by different books are
     reported separately, never pooled.
@@ -281,6 +284,19 @@ def upsert_pregame(led, rows, now=None, basis="native"):
     return led, accepted, rejected
 
 
+# Sleeper / RotoWire pregame projections (owner's decision 2026-10-22; sleeper.py):
+# one row per player Sleeper lists for the game (minutes 0 = listed, not
+# expected to play) with his projected line and injury status at the snapshot.
+# kind "first": the first snapshot that captured the game, written once;
+# kind "pre": the latest snapshot before tip, replaced each build. Both frozen
+# at tip. Research data; the model and the pages do not read it.
+SLEEPER_PATH = os.path.join("data", "nba_sleeper.csv")
+SLEEPER_COLUMNS = ["game_id", "tip_utc", "snapshot_utc", "kind", "team", "sleeper_id",
+                   "name", "minutes", "pts", "reb", "ast", "stl", "blk", "to", "tpm",
+                   "dd", "td", "injury_status", "injury_body_part"]
+SLEEPER_KINDS = ("first", "pre")
+
+
 def load_injuries(path=INJURY_PATH):
     if not os.path.exists(path):
         return pd.DataFrame(columns=INJURY_COLUMNS)
@@ -329,6 +345,62 @@ def upsert_injuries(inj, snaps, now=None):
         accepted.append(gid)
     return inj[INJURY_COLUMNS] if len(inj) else pd.DataFrame(columns=INJURY_COLUMNS), \
         accepted, rejected
+
+
+def load_sleeper(path=SLEEPER_PATH):
+    if not os.path.exists(path):
+        return pd.DataFrame(columns=SLEEPER_COLUMNS)
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    return df[SLEEPER_COLUMNS]
+
+
+def save_sleeper(df, path=SLEEPER_PATH):
+    """Atomic write, sorted by tip, game, kind, team and projected minutes."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".", suffix=".tmp",
+                               dir=os.path.dirname(path) or ".")
+    os.close(fd)
+    df = df[SLEEPER_COLUMNS].assign(_m=pd.to_numeric(df["minutes"], errors="coerce"))
+    df = df.sort_values(["tip_utc", "game_id", "kind", "team", "_m", "name"],
+                        ascending=[True, True, True, True, False, True], kind="stable")
+    df.drop(columns="_m").to_csv(tmp, index=False)
+    os.replace(tmp, path)
+
+
+def upsert_sleeper(df, snaps, now=None):
+    """Record a pregame Sleeper snapshot per game.
+
+    snaps: {game_id: (tip_utc, rows or None)}. Accepted only while now < tip;
+    None or [] (fetch failed, nothing listed) keeps the existing rows. The
+    rows become the game's "pre" snapshot (replacing the previous one) and,
+    if the game has none yet, its "first". Returns (frame, accepted,
+    rejected).
+    """
+    now = now or utc_now()
+    df = df.copy()
+    accepted, rejected = [], []
+    for gid, (tip_s, rows) in snaps.items():
+        gid = str(gid)
+        tip = parse_utc(tip_s)
+        if tip is None or now >= tip:
+            rejected.append((gid, "at or after tip"))
+            continue
+        if not rows:
+            rejected.append((gid, "no projections"))
+            continue
+        base = [{**{c: "" for c in SLEEPER_COLUMNS}, **r, "game_id": gid,
+                 "tip_utc": str(tip_s), "snapshot_utc": fmt_utc(now)} for r in rows]
+        game = df["game_id"].astype(str) == gid
+        has_first = (game & (df["kind"] == "first")).any()
+        new = [{**r, "kind": "pre"} for r in base]
+        if not has_first:
+            new += [{**r, "kind": "first"} for r in base]
+        keep = df[~(game & (df["kind"] == "pre"))]
+        add = pd.DataFrame(new, columns=SLEEPER_COLUMNS)
+        df = pd.concat([d for d in (keep, add) if len(d)], ignore_index=True)
+        accepted.append(gid)
+    return (df[SLEEPER_COLUMNS] if len(df) else pd.DataFrame(columns=SLEEPER_COLUMNS),
+            accepted, rejected)
 
 
 def apply_result(led, game_id, game, odds, kalshi_odds=None):

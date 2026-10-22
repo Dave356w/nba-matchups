@@ -1,6 +1,6 @@
 Sleeper's projected lineup against v6 and the close (HINDSIGHT screen)
 research/sleeper_signal.py; games 10+; ± is 95%; reconstructed v6 rows;
-Sleeper archive set at an unknown time before tip (research/sleeper.py).
+Sleeper archive set at an unknown time before tip (sleeper.py).
 
 == Coverage
     DraftKings 2025-26       games   964, with both teams' projections   964; projected minutes with a BPM value 88.0%

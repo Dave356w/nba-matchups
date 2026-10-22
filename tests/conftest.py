@@ -10,6 +10,7 @@ sys.path.insert(0, ROOT)
 
 import nba_composite as nc  # noqa: E402
 import kalshi  # noqa: E402
+import sleeper  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -18,6 +19,17 @@ def no_kalshi_network(monkeypatch):
     build asks Kalshi for regular-season prices too, and tests never touch
     the network."""
     monkeypatch.setattr(kalshi, "get", lambda path, **params: {})
+
+
+@pytest.fixture(autouse=True)
+def no_sleeper_network(monkeypatch):
+    """Sleeper projects nothing unless a test supplies its own: the daily
+    build snapshots Sleeper's projections, and tests never touch the
+    network."""
+    monkeypatch.setattr(sleeper, "fetch_state",
+                        lambda timeout=30: {"season": "2026", "week": 1})
+    monkeypatch.setattr(sleeper, "fetch_projections",
+                        lambda season, week, timeout=60: [])
 
 
 def make_log(n, start="2026-10-21", seed=0, gap_days=2, strength=0.0):

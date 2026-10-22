@@ -21,6 +21,19 @@ owner directs the product.
 - `data/nba_ledger.csv`: **native** rows, pregame-locked (snapshot < tip).
 - `data/nba_reconstructed.csv`: **reconstructed** rows (leave-one-season-out,
   closing price). This is hindsight and is not forward evidence.
+- `data/nba_sleeper.csv`: Sleeper's (RotoWire's) pregame projections per
+  game (owner's decision, 2026-10-22; `build_site.snapshot_sleeper`,
+  `sleeper.live_projections`, `ledger.upsert_sleeper`): every player Sleeper
+  lists for either team, his projected minutes and line (minutes 0 = listed,
+  not expected to play) and his injury status at the snapshot. kind "first"
+  (the first build that captured the game, written once) and "pre" (the
+  latest before tip, replaced each build), both frozen at tip; validated
+  (`validate_data_files.check_sleeper`). Written for every accepted game,
+  games 0–9 included. Research data: the model and the pages read none of
+  it, and a Sleeper failure never stops the build. Its use is the
+  lead-lag test (does a change in RotoWire's lineup between the snapshots
+  lead the line?) and a pregame roster for the early-season route; any
+  model use goes through the gate first.
 - `data/nba_preseason.csv`: **preseason** rows (basis "preseason"):
   exhibitions, same schema and pregame lock as native, scored by the
   carryover logit on last season's games only (`build_site.PRESEASON_TAG`,
@@ -236,8 +249,8 @@ Before a PR, run:
     unresolved. Not pursued; a truly pregame roster (e.g. the
     `data/nba_injuries.csv` snapshots) is the only open variant, with
     little upside per the hindsight ceiling.
-  Sleeper projections (owner's request, 2026-10-22; `research/sleeper.py`,
-  research only, writes `research/output/sleeper/`): RotoWire's projected
+  Sleeper projections (owner's request, 2026-10-22; `sleeper.py`; its CLI
+  writes `research/output/sleeper/`): RotoWire's projected
   minutes per player per game, Sleeper's depth chart and injury
   designations. Archive from 2019-20, complete (team-games 240 ± 1–8 min)
   from 2022-23. Each week's rows carry one `last_modified` after the week,
@@ -245,7 +258,8 @@ Before a PR, run:
   edited after the game (2025-26, 1,231 games: minutes played corr 0.82,
   MAE 4.7; 911 DNPs kept a projection, 2,781 players listed at 0 played).
   `snapshot` + `pregame` (fetch-stamped, read only before the ledger's
-  tip) are the clean version; not wired into the build. Model update?
+  tip) are the clean version, and the daily build now records it
+  (`data/nba_sleeper.csv`, below). Model update?
   (owner's question; `research/sleeper_signal.py`, `diagnostics/
   sleeper_signal/RESULTS.txt`; stack on logit P or logit q, weights from
   the other priced season, games 10+, ± 95%, 2025-26 DK n = 964 / 2024-25
