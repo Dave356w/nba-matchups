@@ -182,3 +182,38 @@ No native row has a model P yet: nothing here is forward evidence.
   reaction (MID+score part): pnl lower bound > 0 -> -15.1c (mean -6.2c): fail
   reaction (MID+a): too few trades to judge
   reaction (MID+a part): pnl lower bound > 0 -> -18.8c (mean -7.9c): fail
+
+== 6. Live fluctuations vs the spread and time remaining (owner's question)
+  Each live minute: the mid's move against the move the score and clock justify
+  (p*(MKT, sigma and k), the train outcome fit) and against the bid-ask spread. Per cent
+  of score move: how far the mid follows it in the same minute, the next, and minutes
+  2-6 after (0 if the mid is a fair price by then, whatever p*'s scale: > 0 the mid
+  keeps drifting the score's way, under-reaction; < 0 it gives the move back,
+  over-reaction). Noise SD: the bounce in the mid when the margin does not move
+  (minus the covariance of consecutive moves). ±95 game-clustered.
+  -- test
+  all minutes  minutes 50,616  SD mid move 3.55c  SD score move 4.33c  spread 1.0c  within spread  61%
+               per cent of score move: same minute 0.64 ± 0.02, next +0.08 ± 0.02, minutes 2-6 +0.02 ± 0.03;  noise SD 0.74c (half-spread 0.50c)
+               after score moves >= 3c (13,998): next minute +0.59c ± 0.07, minutes 2-6 +0.18c ± 0.14 the score's way; cost to cross 2.00c
+  1st half     minutes 26,047  SD mid move 2.45c  SD score move 3.23c  spread 1.0c  within spread  61%
+               per cent of score move: same minute 0.57 ± 0.01, next +0.11 ± 0.01, minutes 2-6 +0.04 ± 0.02;  noise SD 0.47c (half-spread 0.50c)
+               after score moves >= 3c (7,557): next minute +0.58c ± 0.06, minutes 2-6 +0.25c ± 0.12 the score's way; cost to cross 2.03c
+  3rd quarter  minutes 16,936  SD mid move 2.94c  SD score move 3.50c  spread 1.0c  within spread  67%
+               per cent of score move: same minute 0.68 ± 0.01, next +0.09 ± 0.02, minutes 2-6 -0.00 ± 0.03;  noise SD 0.40c (half-spread 0.50c)
+               after score moves >= 3c (4,012): next minute +0.56c ± 0.13, minutes 2-6 +0.10c ± 0.25 the score's way; cost to cross 1.95c
+  4th quarter  minutes  7,633  SD mid move 6.64c  SD score move 7.84c  spread 1.0c  within spread  45%
+               per cent of score move: same minute 0.66 ± 0.03, next +0.05 ± 0.03, minutes 2-6 +0.03 ± 0.06;  noise SD 1.64c (half-spread 0.50c)
+               after score moves >= 3c (2,429): next minute +0.73c ± 0.27, minutes 2-6 +0.30c ± 0.57 the score's way; cost to cross 1.99c
+  -- train
+  all minutes  minutes 79,420  SD mid move 3.67c  SD score move 4.63c  spread 1.0c  within spread  59%
+               per cent of score move: same minute 0.59 ± 0.01, next +0.11 ± 0.01, minutes 2-6 -0.01 ± 0.02;  noise SD 0.88c (half-spread 0.50c)
+               after score moves >= 3c (23,406): next minute +0.74c ± 0.06, minutes 2-6 +0.11c ± 0.10 the score's way; cost to cross 2.09c
+  1st half     minutes 38,377  SD mid move 2.56c  SD score move 3.41c  spread 1.0c  within spread  59%
+               per cent of score move: same minute 0.54 ± 0.01, next +0.13 ± 0.01, minutes 2-6 +0.03 ± 0.02;  noise SD 0.57c (half-spread 0.50c)
+               after score moves >= 3c (12,270): next minute +0.73c ± 0.06, minutes 2-6 +0.24c ± 0.10 the score's way; cost to cross 2.13c
+  3rd quarter  minutes 27,237  SD mid move 2.95c  SD score move 3.56c  spread 1.0c  within spread  67%
+               per cent of score move: same minute 0.64 ± 0.01, next +0.10 ± 0.02, minutes 2-6 +0.02 ± 0.03;  noise SD 0.43c (half-spread 0.50c)
+               after score moves >= 3c (6,610): next minute +0.64c ± 0.10, minutes 2-6 +0.18c ± 0.18 the score's way; cost to cross 2.05c
+  4th quarter  minutes 13,806  SD mid move 6.50c  SD score move 8.12c  spread 1.0c  within spread  44%
+               per cent of score move: same minute 0.60 ± 0.02, next +0.10 ± 0.02, minutes 2-6 -0.07 ± 0.04;  noise SD 1.86c (half-spread 0.50c)
+               after score moves >= 3c (4,526): next minute +0.89c ± 0.20, minutes 2-6 -0.19c ± 0.40 the score's way; cost to cross 2.05c

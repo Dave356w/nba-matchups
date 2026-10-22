@@ -650,7 +650,17 @@ Before a PR, run:
   −4.1c null (the score-only correction clears the 4c entry in 2 of 480
   games). Several arms were tried on the same games, so the score term is
   a lead to pre-register on a later season's Kalshi archive, not a
-  finding. The score-process σ overstates the game's (regulation margin
+  finding. Minute by minute (owner's question, same day; test, 50,616
+  minutes): 61% of the mid's minute moves stay within the 1c spread (45%
+  in the 4th quarter); their SD grows with time running out (2.45c first
+  half → 6.64c 4th quarter) at ~0.8 of the score-implied move's. The mid
+  follows a score move 0.57–0.68 in the same minute, +0.05–0.13 the next,
+  then nothing (minutes 2–6 +0.02 ± 0.03; train −0.01 ± 0.02): no slow
+  drift, no reversal. With the margin unchanged it bounces about the
+  half-spread (0.4–0.5c) through three quarters, 1.6–1.9c in the 4th
+  (possession and free-throw states the margin misses). After score moves
+  ≥ 3c the next-minute catch-up (+0.6–0.7c) and later drift (+0.1–0.3c)
+  sit well under the ~2c cost to cross. The score-process σ overstates the game's (regulation margin
   around the spread 13.85 ± 0.56) because consecutive quarters correlate
   −0.12 (leads shrink). ESPN's wallclock and the mid agree within a minute
   (corr of minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.

@@ -35,6 +35,13 @@ joint clustered ±). And with no p* form: the outcome's weight on the score
 the arms above: p* with the train outcome fit's (sigma, k), and the mid
 corrected by the train fit's (a, b) or by a alone.
 
+Live fluctuations (owner's question, 2026-10-22): each minute's mid move
+against the spread and the move the score and clock justify, by time
+remaining; how far the mid follows a score move in that minute, the next
+and minutes 2-6 after (the last is 0 for a fair price, whatever p*'s scale);
+the bounce when the margin does not move; and the drift after big score
+moves against the cost to cross.
+
 Data (2025-26, the first season Kalshi lists): every reconstructed game with
 a Kalshi event (diagnostics/kalshi_benchmark/games.csv), ESPN's play-by-play
 with wallclock times (summary endpoint) and the home market's 1-minute
@@ -752,6 +759,79 @@ def timing_lines(S, pcol="p_z_mkt"):
     return out
 
 
+def ols_cluster(x, y, groups):
+    """Slope of y on x (with an intercept) and its game-clustered ±95."""
+    X = np.c_[np.ones(len(x)), np.asarray(x, float)]
+    y = np.asarray(y, float)
+    XtXi = np.linalg.inv(X.T @ X)
+    b = XtXi @ X.T @ y
+    U = pd.DataFrame(X * (y - X @ b)[:, None]).groupby(np.asarray(groups)).sum().to_numpy()
+    V = XtXi @ (U.T @ U) @ XtXi
+    return b[1], Z95 * math.sqrt(V[1, 1])
+
+
+def minute_panel(S, pcol):
+    """One row per live minute t (the candle ending at ts) with the minutes
+    around it, matched by time within the game: the mid's change over
+    minute t (dm), the next minute (dm1) and minutes t+2..t+6 (drift), the
+    score-implied change over minute t (dp, from pcol), the spread at t, and
+    whether the margin moved in minute t or t+1. Prices in cents."""
+    s = S[["game_id", "ts", "tau", "delta", "mid", "ask_c", "bid_c", pcol]].copy()
+    key = s.set_index(["game_id", "ts"])
+
+    def at(k, col):
+        idx = pd.MultiIndex.from_arrays([s["game_id"], s["ts"] + 60 * k])
+        return key[col].reindex(idx).to_numpy()
+    m = s["mid"].to_numpy()
+    s["dm"] = 100 * (m - at(-1, "mid"))
+    s["dm1"] = 100 * (at(1, "mid") - m)
+    s["drift"] = 100 * (at(6, "mid") - at(1, "mid"))
+    s["dp"] = 100 * (s[pcol].to_numpy() - at(-1, pcol))
+    s["spread"] = 100 * (s["ask_c"] - s["bid_c"])
+    d = s["delta"].to_numpy()
+    s["still"] = (d == at(-1, "delta")) & (d == at(1, "delta"))
+    return s.dropna(subset=["dm", "dm1", "dp", "spread"])
+
+
+def fluctuation_lines(S, pcol):
+    """The live mid's minute moves against the spread and the move the score
+    and clock justify (pcol), by time remaining; whether the mid keeps
+    following a score move after it (drift > 0: under-reaction) or gives it
+    back (< 0: over-reaction); and the drift after big score moves against
+    the cost of crossing (half-spread + fee)."""
+    panel = minute_panel(S, pcol)
+    out = []
+    for name, x in [("all minutes", panel)] + [
+            (n, panel[(panel["tau"] > lo) & (panel["tau"] <= hi)]) for lo, hi, n in TAU_BUCKETS]:
+        g = x["game_id"]
+        b0, c0 = ols_cluster(x["dp"], x["dm"], g)
+        b1, c1 = ols_cluster(x["dp"], x["dm1"], g)
+        xd = x.dropna(subset=["drift"])
+        b5, c5 = ols_cluster(xd["dp"], xd["drift"], xd["game_id"])
+        q = x[x["still"]]
+        cov = float(np.cov(q["dm"], q["dm1"])[0, 1])
+        within = (x["dm"].abs() <= x["spread"]).mean()
+        out.append(f"  {name:<12} minutes {len(x):>6,}  SD mid move {x['dm'].std():4.2f}c  "
+                   f"SD score move {x['dp'].std():4.2f}c  spread {x['spread'].median():.1f}c  "
+                   f"within spread {100 * within:3.0f}%")
+        out.append(f"  {'':<12} per cent of score move: same minute {b0:.2f} ± {c0:.2f}, next "
+                   f"{b1:+.2f} ± {c1:.2f}, minutes 2-6 {b5:+.2f} ± {c5:.2f};  noise SD "
+                   f"{math.sqrt(max(0.0, -cov)):.2f}c (half-spread "
+                   f"{x['spread'].median() / 2:.2f}c)")
+        big = xd[xd["dp"].abs() >= 3]
+        if len(big) >= 50:
+            sgn = np.sign(big["dp"])
+            dm1 = (sgn * big["dm1"]).groupby(big["game_id"]).mean()
+            dr = (sgn * big["drift"]).groupby(big["game_id"]).mean()
+            cost = (big["spread"] / 2 + 100 * fee(big["mid"])).mean()
+            m1, ci1 = mr.mean_ci(dm1)
+            m5, ci5 = mr.mean_ci(dr)
+            out.append(f"  {'':<12} after score moves >= 3c ({len(big):,}): next minute "
+                       f"{m1:+.2f}c ± {ci1:.2f}, minutes 2-6 {m5:+.2f}c ± {ci5:.2f} the score's "
+                       f"way; cost to cross {cost:.2f}c")
+    return out
+
+
 # --------------------------------------------------------------- report ----
 def report(S, P, drops, espn, n_games):
     L = []
@@ -971,6 +1051,18 @@ def report(S, P, drops, espn, n_games):
             continue
         w(f"  reaction ({prior}): pnl lower bound > 0 -> {100 * lo:+.1f}c "
           f"(mean {100 * m:+.1f}c): {'pass' if lo > 0 else 'fail'}")
+    w("")
+    w("== 6. Live fluctuations vs the spread and time remaining (owner's question)")
+    w("  Each live minute: the mid's move against the move the score and clock justify")
+    w("  (p*(MKT, sigma and k), the train outcome fit) and against the bid-ask spread. Per cent")
+    w("  of score move: how far the mid follows it in the same minute, the next, and minutes")
+    w("  2-6 after (0 if the mid is a fair price by then, whatever p*'s scale: > 0 the mid")
+    w("  keeps drifting the score's way, under-reaction; < 0 it gives the move back,")
+    w("  over-reaction). Noise SD: the bounce in the mid when the margin does not move")
+    w("  (minus the covariance of consecutive moves). ±95 game-clustered.")
+    for lab, x in (("test", S_te), ("train", S_tr)):
+        w(f"  -- {lab}")
+        L += fluctuation_lines(x, "p_z_mkt_fk")
     return "\n".join(L), T
 
 
