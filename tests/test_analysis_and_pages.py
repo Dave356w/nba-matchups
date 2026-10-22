@@ -604,3 +604,19 @@ def test_ats_bands_on_the_ledger_and_in_the_report(tmp_path, monkeypatch):
     assert "H5 / H6 by spread and price" in grades
     assert "H5 / H6 by the picked side's spread and spread price" in txt
     assert "hindsight @ open · Fav −3 to −5.5" in txt
+
+
+def test_calibration_slope_and_lean_calibration():
+    rng = np.random.default_rng(7)
+    x = rng.normal(0, 1, 8000)
+    y = (rng.uniform(size=x.size) < 1 / (1 + np.exp(-x))).astype(float)
+    sl, se, ic, ise = analysis.calibration_slope(1 / (1 + np.exp(-x)), y)
+    assert abs(sl - 1) < 3 * se and abs(ic) < 3 * ise
+    assert abs(analysis.calibration_slope(1 / (1 + np.exp(-2 * x)), y)[0] - 0.5) < 0.05
+    assert np.isnan(analysis.calibration_slope([0.6] * 10, [1] * 10)[0])   # too few
+    h = pd.DataFrame(dict(p_home=[0.7, 0.4, 0.55, 0.2], home_won=[1, 1, 0, 0],
+                          lean=["H", "A", "H", "A"], home=["H"] * 4, away=["A"] * 4))
+    lc = analysis.lean_calibration(h)
+    # leans: home 0.7 (won), away 0.6 (lost), home 0.55 (lost), away 0.8 (won)
+    assert lc["n"] == 4 and np.isclose(lc["predicted"], (0.7 + 0.6 + 0.55 + 0.8) / 4)
+    assert np.isclose(lc["actual"], 0.5) and np.isclose(lc["diff"], 0.5 - lc["predicted"])

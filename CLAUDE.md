@@ -101,6 +101,12 @@ owner directs the product.
   forward record, one closing book × season (`build_site.public_scope`):
   the lean's ROI beside its null and the market favourite, and the H5/H6
   spread picks at their registered price; never the reconstructed rows.
+  Performance also scores and calibrates the model and the market on the
+  record's games (owner's request, 2026-10-22; `build_site._forecast_section`):
+  log loss and Brier with model − market ± 1 SE, picked-the-winner rates,
+  each forecast's calibration slope (`analysis.calibration_slope`), the lean
+  won vs stated (`analysis.lean_calibration`) and the favourite won vs
+  implied, closing-line value, a reliability chart and forecasts by week.
   One colour rule on every page (`build_site.sig_cls`): colour marks a
   gap of ≥ 2 SE from its null (ROI vs the ROI null, a forecast vs the
   diagonal, the model vs the close), never sign alone (a single game's
