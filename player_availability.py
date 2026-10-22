@@ -358,16 +358,19 @@ def preseason_rows(dates, sleep=0.15):
 def fetch_preseason_box(y, opening, cache_dir=None, data_dir=None, sleep=0.15):
     """Season y's preseason box scores: from disk (pre_box_file), else every
     completed exhibition in the PRE_DAYS before `opening` (opening night)
-    from ESPN, cached to the research cache."""
+    from ESPN, cached to the research cache only when no request failed and
+    some game was found (a partial fetch is used this once, then retried)."""
     path = pre_box_file(y, cache_dir, data_dir)
     if path:
         return read_pre_box(path)
     opening = pd.Timestamp(opening)
-    df, _ = preseason_rows(pd.date_range(opening - timedelta(days=PRE_DAYS),
-                                         opening - timedelta(days=1)), sleep)
-    save_pre_box(df, os.path.join(cache_dir or DEFAULT_CACHE, f"box_pre_{y}.csv"))
+    df, failed = preseason_rows(pd.date_range(opening - timedelta(days=PRE_DAYS),
+                                              opening - timedelta(days=1)), sleep)
+    if not failed and len(df):
+        save_pre_box(df, os.path.join(cache_dir or DEFAULT_CACHE, f"box_pre_{y}.csv"))
     print(f"preseason {y}: {df['game_id'].nunique()} games, "
-          f"{df['team'].nunique()} teams", flush=True)
+          f"{df['team'].nunique()} teams, {failed} failed requests"
+          + ("" if not failed and len(df) else "; not cached"), flush=True)
     return df
 
 

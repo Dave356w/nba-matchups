@@ -6,12 +6,6 @@ name: Fit availability
 # tip times and NBA injury reports (cached; first run downloads them). The
 # "Fit model" run refits it too, after new weights.
 
-on: the v4 terms
-# plus opponent 3-point luck and roster talent) against the committed
-# model/weights.json, from ESPN
-# box scores, tip times and NBA injury reports (cached; first run downloads them). The preseason
-# "Fit model" run refits it too, after new weights.
-
 on:
   workflow_dispatch:
     inputs:

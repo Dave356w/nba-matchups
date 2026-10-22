@@ -171,3 +171,15 @@ def test_validator_flags_a_broken_preseason_box(tmp_path):
     assert any("twice in one game" in e for e in v.check_pre_box(path))
     pav.save_pre_box(df.assign(date=pd.to_datetime(["2026-03-01"] * 2)), path)
     assert any("outside the 2025-26 preseason" in e for e in v.check_pre_box(path))
+
+
+def test_research_preseason_cache_keeps_only_a_clean_fetch(tmp_path, monkeypatch):
+    rows = pd.DataFrame(dict(game_id=["1"], date=[pd.Timestamp("2025-10-10")], team=["BOS"],
+                             player_id=["p"], name=["A B"], minutes=[20.0]))
+    cache, data = tmp_path / "cache", tmp_path / "data"
+    monkeypatch.setattr(pav, "preseason_rows", lambda dates, sleep=0.15: (rows, 2))
+    got = pav.fetch_preseason_box(2026, "2025-10-21", str(cache), str(data))
+    assert len(got) == 1 and pav.pre_box_file(2026, str(cache), str(data)) is None
+    monkeypatch.setattr(pav, "preseason_rows", lambda dates, sleep=0.15: (rows, 0))
+    pav.fetch_preseason_box(2026, "2025-10-21", str(cache), str(data))
+    assert pav.pre_box_file(2026, str(cache), str(data)) == str(cache / "box_pre_2026.csv")
