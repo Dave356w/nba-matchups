@@ -236,6 +236,29 @@ Before a PR, run:
     unresolved. Not pursued; a truly pregame roster (e.g. the
     `data/nba_injuries.csv` snapshots) is the only open variant, with
     little upside per the hindsight ceiling.
+  Sleeper projections (owner's request, 2026-10-22; `research/sleeper.py`,
+  research only, writes `research/output/sleeper/`): RotoWire's projected
+  minutes per player per game, Sleeper's depth chart and injury
+  designations. Archive from 2019-20, complete (team-games 240 ± 1–8 min)
+  from 2022-23. Each week's rows carry one `last_modified` after the week,
+  so the archive is hindsight; against the ESPN box it does not look
+  edited after the game (2025-26, 1,231 games: minutes played corr 0.82,
+  MAE 4.7; 911 DNPs kept a projection, 2,781 players listed at 0 played).
+  `snapshot` + `pregame` (fetch-stamped, read only before the ledger's
+  tip) are the clean version; not wired into the build. Model update?
+  (owner's question; `research/sleeper_signal.py`, `diagnostics/
+  sleeper_signal/RESULTS.txt`; stack on logit P or logit q, weights from
+  the other priced season, games 10+, ± 95%, 2025-26 DK n = 964 / 2024-25
+  ESPN BET n = 1,060): projected minutes × v6's player values (`s_tal`)
+  adds −0.0006 ± 0.0018 / −0.0004 ± 0.0017 to v6 and nothing to the
+  close. RotoWire's projected points margin (`s_margin`) is the market:
+  corr +0.98 with the closing spread, weight on the close twice the open
+  (+3.8 vs +1.9, resolved), nothing added to the close (−0.0000 ±
+  0.0002); its −0.0134 ± 0.0093 / −0.0094 ± 0.0090 "gain" over v6 puts
+  0.05–0.16 of the weight on v6, i.e. it imports the price (above G7's
+  0.008 leakage tripwire). Neither is a model update; `s_tal` also
+  follows the close, not the open (+5.1 to +7.0 vs −0.8 to +0.4), so the
+  lineup news it carries is priced by tip.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains
