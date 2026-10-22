@@ -14,7 +14,7 @@ Steps
      of the first listed book in market.BOOKS (DraftKings, then ESPN BET);
      written to data/nba_ledger.csv only while before tip. Each game's ESPN
      injury list is snapshotted alongside to data/nba_injuries.csv under the
-     same pregame lock (research input; the model does not read it).
+     same pregame lock (shown on the Picks cards; the model does not read it).
      Preseason games go to data/nba_preseason.csv instead (score_preseason),
      graded the same way and never mixed with the native ledger.
   3. Render public/index.html, grades.html, market-calibration.html and
@@ -696,6 +696,12 @@ margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .g-detail p{margin:8px 0;font-size:13.5px;color:var(--muted)}
 .g-detail .gr-tablewrap{box-shadow:none}
 .g-detail table.gr{font-size:13px}.g-detail table.gr td,.g-detail table.gr th{padding:8px 11px}
+.inj{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 20px}
+.inj-t{font:700 13px/1.3 var(--sans);margin-bottom:2px}.inj-t small{color:var(--faint);margin-left:6px}
+.inj ul{list-style:none;margin:0;padding:0}
+.inj li{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid var(--line2);font-size:13px}
+.inj li .nm{flex:1;min-width:0}.inj li .nm small{display:block;color:var(--muted);font-size:12px}
+.inj li.none{color:var(--muted)}
 /* running-units chart (Performance) */
 .uchart{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px 10px;margin:0 0 12px}
 .uchart .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -1313,12 +1319,49 @@ def _team_row(r, code, side, p):
             "</span></div>")
 
 
-def game_card(r):
+# ESPN's statuses, most serious first; anything else sorts after them
+INJURY_ORDER = {"Out": 0, "Doubtful": 1, "Questionable": 2, "Day-To-Day": 3,
+                "Probable": 4}
+
+
+def injury_block(r, injuries):
+    """The game's ESPN injury list as recorded (data/nba_injuries.csv: the
+    last pregame snapshot, frozen at tip), one list per team, most serious
+    status first. Display only: the model does not read it. "" when no
+    injury frame is given."""
+    if injuries is None:
+        return ""
+    g = injuries[injuries["game_id"].astype(str) == str(r["game_id"])]
+    if not len(g):
+        return "<h3>Injuries</h3><p>No injury list was captured for this game.</p>"
+    cols = []
+    for code in (r["away"], r["home"]):
+        t = g[g["team"] == code]
+        listed = t[t["status"] != "NONE"]
+        listed = listed.assign(o=listed["status"].map(INJURY_ORDER).fillna(len(INJURY_ORDER)))
+        items = [f"<li><span class='nm'>{esc(x['name'])}"
+                 + (f"<small>{esc(x['detail'])}</small>" if x["detail"] else "")
+                 + f"</span><span class='badge'>{esc(x['status'])}</span></li>"
+                 for _, x in listed.sort_values(["o", "name"], kind="stable").iterrows()]
+        if not items:
+            items = ["<li class='none'>None listed</li>" if len(t)
+                     else "<li class='none'>Not captured</li>"]
+        cols.append(f"<div><div class='inj-t'>{esc(TEAM_NAMES.get(code, code))}"
+                    f"<small>{esc(code)}</small></div><ul>{''.join(items)}</ul></div>")
+    snap = g["snapshot_utc"].max()
+    return ("<h3>Injuries</h3><div class='inj'>" + "".join(cols) + "</div>"
+            f"<p>ESPN's injury list as of {tip_pt(snap)}, refreshed each build "
+            "until tip and frozen after. The model does not read it: from game "
+            "10 it reads the NBA's official injury report (Out and Doubtful count "
+            "as out); games 1–9 have no injury terms.</p>")
+
+
+def game_card(r, injuries=None):
     """One game (the NFL site's card): both teams with model WP, the lean
     and its price, the spread pick when H5/H6 bets; tap for the model
-    against the market. Reads only the row as recorded: the sportsbook's
-    moneyline and spread (one book); no Kalshi price (owner's decision,
-    2026-10-21)."""
+    against the market and each team's injury list (`injury_block`). Reads
+    only the row as recorded: the sportsbook's moneyline and spread (one
+    book); no Kalshi price (owner's decision, 2026-10-21)."""
     def book_name(b):
         return market.BOOK_NAMES.get(b, b) if pd.notna(b) and b else None
     away, home = r["away"], r["home"]
@@ -1394,6 +1437,7 @@ def game_card(r):
                 f"{side} {line_txt(ats['line'])}</span> · <span>at {ml_txt(ats['ml'])}"
                 "</span></div>")
         det.append("<h3>Spread rule</h3>" + ats_note(r, ats))
+    det.append(injury_block(r, injuries))
     b2b = [x for x, f in ((away, r["away_b2b"]), (home, r["home_b2b"])) if f == 1]
     if b2b:
         flags.append(f"<span class='badge warn'>B2B {esc('/'.join(b2b))}</span>")
@@ -1429,8 +1473,9 @@ document.querySelectorAll('.gcard[data-state]').forEach(function(c){
 c.hidden=f!=='all'&&c.getAttribute('data-state')!==f;});});})();</script>"""
 
 
-def render_index(led, today, built, model_ok, recon=None):
-    """Picks: today's slate as cards, under the season's lean record."""
+def render_index(led, today, built, model_ok, recon=None, injuries=None):
+    """Picks: today's slate as cards, under the season's lean record; each
+    card opens to its game's injury list when `injuries` is given."""
     scope = public_scope(led)
     # the cards read the raw rows: the sportsbook's moneyline and spread, one
     # book (owner's decision, 2026-10-20); no Kalshi price (2026-10-21)
@@ -1471,7 +1516,7 @@ def render_index(led, today, built, model_ok, recon=None):
                      "</button>" for k, t in (("all", "All"), ("upcoming", "Upcoming"),
                                                ("live", "Live"), ("final", "Final")))
            + "</div>")
-    cards = [game_card(r) for _, r in day.sort_values("tip_utc").iterrows()]
+    cards = [game_card(r, injuries) for _, r in day.sort_values("tip_utc").iterrows()]
     return page("NBA picks", "index.html",
                 head + tiles + note
                 + f"<div class='toolbar'><h2 class='sec'>Today’s games</h2>{seg}</div>"
@@ -2925,8 +2970,9 @@ def render_preseason(pre, built):
 def snapshot_injuries(rows):
     """Pregame injury lists for today's accepted rows -> data/nba_injuries.csv.
 
-    Recorded for research (the model does not use them). The snapshot time is
-    taken after the fetch, and a game at or after tip is never touched.
+    Shown on the Picks cards (`injury_block`); the model does not use them.
+    The snapshot time is taken after the fetch, and a game at or after tip
+    is never touched.
     """
     if not rows:
         return
@@ -2947,7 +2993,7 @@ def write_pages(native, recon, today, model_ok, pre=None):
     OUT_DIR.mkdir(exist_ok=True)
     built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
     (OUT_DIR / "index.html").write_text(render_index(native, today, built, model_ok,
-                                                     recon))
+                                                     recon, ledger.load_injuries()))
     (OUT_DIR / "results.html").write_text(render_results(native, built, today))
     (OUT_DIR / "performance.html").write_text(render_performance(native, built, today))
     (OUT_DIR / "grades.html").write_text(render_grades(native, recon, built))

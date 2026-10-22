@@ -147,7 +147,12 @@ owner directs the product.
   A Today card shows the H5/H6 pick that covers its game
   (`analysis.ats_card`, the same `ats_sides` the Ledger grades with, at the
   first snapshot; its sportsbook named): a badge when the rule bets, the
-  "no bet" edge otherwise.
+  "no bet" edge otherwise. An opened card lists each team's ESPN injury
+  list as recorded (owner's request, 2026-10-22; `build_site.injury_block`:
+  the game's last pregame snapshot in `data/nba_injuries.csv`, frozen at
+  tip, most serious status first, its time in PT), display only: the model
+  reads the NBA's official report from game 10, not this list, and the
+  card says so.
 - First snapshot (`ledger.FIRST_COLUMNS`): filled once from the first
   pregame snapshot with a model P and a price, never by a refresh or by
   grading, frozen at tip. `analysis.picks(price="first")` grades it with
@@ -195,7 +200,8 @@ Before a PR, run:
   The daily build snapshots each game's ESPN injury list to
   `data/nba_injuries.csv` under the pregame lock (replaced only before tip,
   frozen after; "NONE" rows mark teams with nobody listed). The model does
-  not read it yet.
+  not read it yet; an opened Picks card shows it (`build_site.injury_block`,
+  display only).
   `research/roster_minutes.py` (workflow "Roster minutes", 2026-10-01
   audit) tests one lineup term in place of v5's talent_diff + av_bpm +
   av_min, so nothing is counted twice: pregame roster (previous box, or

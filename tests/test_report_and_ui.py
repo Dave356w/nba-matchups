@@ -165,6 +165,58 @@ def test_index_card_abstains_without_a_probability():
     assert "Abstain" in card and "Lean " not in card and "probbar" not in card
 
 
+def _injuries(r, home_rows, away_rows, snap="2026-11-19T19:05:00Z"):
+    rows = [dict(team=r["home"], **x) for x in home_rows] + \
+        [dict(team=r["away"], **x) for x in away_rows]
+    return pd.DataFrame([{**{c: "" for c in ledger.INJURY_COLUMNS}, **x,
+                          "game_id": str(r["game_id"]), "tip_utc": r["tip_utc"],
+                          "snapshot_utc": snap} for x in rows],
+                        columns=ledger.INJURY_COLUMNS)
+
+
+def test_card_opens_to_each_teams_injury_list_as_recorded():
+    r = _slate(1).iloc[0].copy()
+    inj = _injuries(r, [dict(player_id="1", name="Zed <Ant>", status="Day-To-Day",
+                             detail="Ankle Sprain"),
+                        dict(player_id="2", name="Al Out", status="Out", detail="Knee"),
+                        dict(player_id="3", name="Bo Q", status="Questionable", detail="")],
+                    [dict(player_id="", name="", status="NONE", detail="")])
+    card = build_site.game_card(r, inj)
+    det = card.split("<div class='g-detail'>")[1]
+    assert "<h3>Injuries</h3>" in det                      # in the expanded part only
+    home = det.split(f"<small>{r['home']}</small>")[1]
+    # most serious status first; the reason under the name; names escaped
+    assert home.index("Al Out") < home.index("Bo Q") < home.index("Zed &lt;Ant&gt;")
+    assert "Al Out<small>Knee</small>" in home and "<span class='badge'>Out</span>" in home
+    assert "Bo Q</span>" in home                            # no empty reason line
+    away = det.split(f"<small>{r['away']}</small>")[1].split("</ul>")[0]
+    assert "None listed" in away
+    assert det.index(f"<small>{r['away']}</small>") < det.index(f"<small>{r['home']}</small>")
+    assert "as of 11:05 AM PT" in det and "The model does not read it" in det
+    # another game's list is not this card's; no frame, no section
+    other = inj.assign(game_id="999")
+    assert "No injury list was captured" in build_site.game_card(r, other)
+    assert "Injuries" not in build_site.game_card(r)
+    # a team missing from the snapshot says so, rather than "None listed"
+    only_home = inj[inj["team"] == r["home"]]
+    assert "Not captured" in build_site.game_card(r, only_home)
+
+
+def test_index_cards_read_the_injury_file(tmp_path, monkeypatch):
+    d = _slate(2)
+    inj = _injuries(d.iloc[1], [dict(player_id="7", name="Cy Hurt", status="Out",
+                                     detail="Hamstring")], [])
+    html = build_site.render_index(d, "2026-11-19", "built", True, injuries=inj)
+    assert html.count("<h3>Injuries</h3>") == 2 and html.count("Cy Hurt") == 1
+    assert html.count("No injury list was captured") == 1
+    # write_pages reads data/nba_injuries.csv through ledger.load_injuries
+    seen = []
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    monkeypatch.setattr(build_site.ledger, "load_injuries", lambda: seen.append(1) or inj)
+    build_site.write_pages(d, synth(100, 42, "reconstructed"), "2026-11-19", model_ok=True)
+    assert seen and "Cy Hurt" in (tmp_path / "index.html").read_text()
+
+
 def test_tip_times_are_pacific_across_dst_and_openers_have_no_games_yet():
     # 7:30 pm ET on 2026-10-21 (PDT, UTC-7) and 2026-11-19 (PST, UTC-8)
     assert build_site.tip_pt("2026-10-21T23:30Z") == "4:30 PM PT"
