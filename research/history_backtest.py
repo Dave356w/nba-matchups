@@ -37,7 +37,8 @@ season the game logs reach. Parts A and B are games 10+; C is games 1-9:
   C. Games 1-9 (2026-10-22, W5): the carryover model (cold_start.py),
      walk-forward with each fold's weights and an early logit fitted on the
      earlier seasons (production fits 2023-26 only), 2016-17 to 2025-26; and
-     out of era the frozen logit_early.json with the committed weights.
+     out of era the frozen carryover logit (logit_early_v6.json since v7;
+     no box scores there for talent) with the committed weights.
      Calibration and the early home lean against outcomes.
   A9. Rookies by draft slot (2026-10-22): talent_diff values players
      missing from last season's BPM table (rookies) at replacement. A9 gives
@@ -537,8 +538,10 @@ def part_c(folds, era):
         d = pd.concat(rows, ignore_index=True)
         L.append(early_lines("pooled", d["p"], d["y"], d["ph"]))
     w = json.load(open(os.path.join(ROOT, "model", "weights.json")))
-    em = json.load(open(os.path.join(ROOT, "model", cold_start.MODEL_FILE)))
-    L.append(f"  Out of era: the frozen early logit ({em['years'][0]}-{em['years'][-1]}, "
+    # v7's logit_early.json adds talent_diff, which needs box scores the
+    # out-of-era seasons lack: score them with the frozen carryover logit.
+    em = json.load(open(os.path.join(ROOT, "model", cold_start.FROZEN_FILE)))
+    L.append(f"  Out of era: the frozen carryover logit ({em['years'][0]}-{em['years'][-1]}, "
              f"intercept {em['intercept']:+.3f}) with the committed weights")
     rows = []
     for yr in era:
@@ -549,7 +552,7 @@ def part_c(folds, era):
             continue
         if not len(e):
             continue
-        p = nc.predict(em, e[cold_start.FEATURES].to_numpy(float))
+        p = nc.predict(em, e[em["features"]].to_numpy(float))
         y = e["win"].to_numpy(float)
         L.append(early_lines(season_name(yr), p, y))
         rows.append(pd.DataFrame(dict(p=p, y=y)))
