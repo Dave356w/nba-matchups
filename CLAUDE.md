@@ -676,7 +676,16 @@ Before a PR, run:
   the price. The "one sold, it won 96%" is hindsight: it presumes the other
   side never comes back. Swings are large both ways: half of eventual
   losers rise 10c+ above their tip price (14% 30c+), and 57% of eventual
-  winners dip 10c+ below it (17% 30c+). The score-process σ overstates the game's (regulation margin
+  winners dip 10c+ below it (17% 30c+). Nor does the quarter-by-quarter
+  path (owner's question; exploratory, ~1,160 games): at the end of Q1, Q2
+  and Q3 the price is calibrated (won − price +0.2 / +0.6 / +1.0 pp ±
+  2.0–2.5, slope 0.99 / 1.08 / 1.13 ± 0.11–0.13), and this quarter's move,
+  the previous quarter's, the move since tip and choppiness add nothing
+  resolved beyond it (largest: the previous quarter's move at Q3's end
+  +0.099 ± 0.103 logit per 10c; choppiness flips sign between periods). The
+  Q3-end favourite's up/down patterns all sit within ±2.7 pp of their
+  price. In hindsight the eventual winner's price rises in only 59–65% of
+  quarters. The score-process σ overstates the game's (regulation margin
   around the spread 13.85 ± 0.56) because consecutive quarters correlate
   −0.12 (leads shrink). ESPN's wallclock and the mid agree within a minute
   (corr of minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.

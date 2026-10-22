@@ -271,3 +271,33 @@ No native row has a model P yet: nothing here is forward evidence.
   How far each side runs from its entry price (its bid; all games):
     eventual winners  n 1161  reach +5c  99%  +10c  94%  +20c  78%  +30c  61%   median peak +36c;  dip -10c  57%  -20c  32%  -30c  17%   median low -12c
     eventual losers   n 1161  reach +5c  66%  +10c  50%  +20c  28%  +30c  14%   median peak +10c;  dip -10c  95%  -20c  79%  -30c  61%   median low -36c
+
+== 9. The quarter-by-quarter price path and the eventual winner (owner's question;
+  exploratory). Winners' prices rise by construction, so the question is whether the
+  path so far predicts the winner beyond the price at the end of Q1, Q2 and Q3: beta 0
+  = the path adds nothing (moves in cents of the home mid; choppiness = SD of its
+  minute moves from tip, times logit(price): beta < 0 = in choppy games the price is
+  too confident). ± is 95%, one row per game.
+  end of Q1: games 1160  home won 54.8%  price 54.6%  (won - price +0.2 pp ± 2.5)  price calibration slope 0.99 ± 0.13
+    this quarter's move         per 10c  all -0.039 ± 0.103   Oct-Jan -0.041 ± 0.138   Feb-Apr -0.037 ± 0.154
+    choppiness x logit(price)   per c    all -0.015 ± 0.065   Oct-Jan -0.077 ± 0.080   Feb-Apr +0.091 ± 0.114
+  end of Q2: games 1161  home won 54.8%  price 54.2%  (won - price +0.6 pp ± 2.2)  price calibration slope 1.08 ± 0.12
+    this quarter's move         per 10c  all +0.091 ± 0.096   Oct-Jan +0.113 ± 0.122   Feb-Apr +0.052 ± 0.157
+    previous quarter's move     per 10c  all -0.063 ± 0.113   Oct-Jan -0.060 ± 0.155   Feb-Apr -0.067 ± 0.161
+    move since tip              per 10c  all +0.034 ± 0.077   Oct-Jan +0.054 ± 0.100   Feb-Apr +0.001 ± 0.121
+    choppiness x logit(price)   per c    all +0.029 ± 0.059   Oct-Jan -0.003 ± 0.072   Feb-Apr +0.081 ± 0.102
+  end of Q3: games 1161  home won 54.8%  price 53.8%  (won - price +1.0 pp ± 2.0)  price calibration slope 1.13 ± 0.11
+    this quarter's move         per 10c  all +0.016 ± 0.084   Oct-Jan +0.015 ± 0.108   Feb-Apr +0.019 ± 0.135
+    previous quarter's move     per 10c  all +0.099 ± 0.103   Oct-Jan +0.124 ± 0.126   Feb-Apr +0.054 ± 0.179
+    move since tip              per 10c  all +0.030 ± 0.066   Oct-Jan +0.027 ± 0.082   Feb-Apr +0.035 ± 0.111
+    choppiness x logit(price)   per c    all +0.036 ± 0.047   Oct-Jan +0.004 ± 0.056   Feb-Apr +0.092 ± 0.084
+  The Q3-end favourite's price by quarter (+ up, - down or flat: Q1 Q2 Q3), won vs
+  its price then:
+    +++  games 289  won 91.0%  price 89.2%  gap  +1.8 pp ± 3.0
+    ++-  games 173  won 80.3%  price 81.4%  gap  -1.1 pp ± 5.3
+    +-+  games 193  won 77.7%  price 80.5%  gap  -2.7 pp ± 5.5
+    +--  games 75   won 80.0%  price 78.1%  gap  +1.9 pp ± 8.1
+    -++  games 218  won 85.8%  price 83.4%  gap  +2.4 pp ± 4.3
+    -+-  games 99   won 76.8%  price 74.3%  gap  +2.5 pp ± 7.8
+    --+  games 95   won 77.9%  price 76.4%  gap  +1.5 pp ± 7.5
+  Hindsight: the eventual winner's price move by quarter, mean (share up): Q1 +2.9c (59%),  Q2 +5.5c (64%),  Q3 +6.7c (65%)

@@ -49,7 +49,10 @@ mid had already passed the target when a sell filled. Then, at each +10c
 fill, whether the side wins more often than its price says and whether the
 overshoot, the minute's jump, the price - p* residual, the lead, time left or
 a second fill adds anything; and how far eventual winners and losers run
-from their entry price.
+from their entry price. Last, the quarter-by-quarter price path: whether
+the moves so far and the choppiness predict the winner beyond the price at
+the end of Q1, Q2 and Q3, and the Q3-end favourite's up/down patterns
+against its price.
 
 Data (2025-26, the first season Kalshi lists): every reconstructed game with
 a Kalshi event (diagnostics/kalshi_benchmark/games.csv), ESPN's play-by-play
@@ -132,6 +135,7 @@ POST_WINDOW = 600                 # and after the last
 EDGE_BINS = [ENTRY_EDGE, 0.06, 0.08, 0.12, 1.0]
 STRADDLE_TARGETS = (0.05, 0.10, 0.15, 0.20)   # sell each side this far above entry
 MAKER_FEE = 0.0175                # Kalshi's maker fee coefficient, where it applies
+QUARTER_ENDS = (0.75, 0.5, 0.25)  # tau at the end of Q1, Q2, Q3
 TAU_BUCKETS = ((0.5, 1.0, "1st half"), (0.25, 0.5, "3rd quarter"),
                (0.0, 0.25, "4th quarter"))
 PRIORS = (("z_mkt", "MKT"), ("z_model", "MODEL"), ("z_blend", "BLEND"))
@@ -1026,6 +1030,83 @@ def trigger_lines(ev, paths):
     return out
 
 
+def quarter_frame(S, P):
+    """One row per game: the home mid at the tip (p_close) and at the end of
+    each of the first three quarters (the last live minute with a mid before
+    the next quarter's clock runs, the break included), and the SD of the
+    mid's minute moves (cents) from tip to each quarter's end."""
+    s = S.dropna(subset=["mid"]).sort_values(["game_id", "ts"]).copy()
+    g = s.groupby("game_id")
+    s["dm"] = (100 * g["mid"].diff()).where(g["ts"].diff() == 60)
+    rows = []
+    for gid, x in s.groupby("game_id"):
+        r = {"game_id": gid}
+        for q, b in enumerate(QUARTER_ENDS, 1):
+            xx = x[x["tau"] >= b - 1e-9]
+            r[f"mid{q}"] = xx["mid"].iloc[-1] if len(xx) else np.nan
+            r[f"vol{q}"] = xx["dm"].std() if xx["dm"].notna().sum() >= 10 else np.nan
+        rows.append(r)
+    return P[["game_id", "split", "y", "p_close"]].merge(pd.DataFrame(rows), on="game_id")
+
+
+def shape_lines(Q):
+    """Does the price path so far predict the winner beyond the price at the
+    end of Q1, Q2 and Q3? One feature at a time, home side's view: y ~
+    logit(home mid then) [offset] + beta x. Then the Q3-end favourite's
+    up/down quarters against its price, and (hindsight) winners' paths."""
+    out = []
+    mids = ["p_close", "mid1", "mid2", "mid3"]
+    for q in (1, 2, 3):
+        x = Q.dropna(subset=mids[:q + 1] + [f"vol{q}"])
+        x = x[np.logical_and.reduce([x[c].between(0, 1, inclusive="neither")
+                                      for c in mids[:q + 1]])].copy()
+        lm = mr.logit(x[f"mid{q}"])
+        x["last"] = 10 * (x[f"mid{q}"] - x[mids[q - 1]])
+        x["since"] = 10 * (x[f"mid{q}"] - x["p_close"])
+        x["chop"] = x[f"vol{q}"] * lm
+        feats = [("last", "this quarter's move", "per 10c"),
+                 ("chop", "choppiness x logit(price)", "per c")]
+        if q >= 2:                     # at Q1's end the move since tip is this quarter's
+            x["prev"] = 10 * (x[mids[q - 1]] - x[mids[q - 2]])
+            feats[1:1] = [("prev", "previous quarter's move", "per 10c"),
+                          ("since", "move since tip", "per 10c")]
+        X = np.c_[np.ones(len(x)), lm]
+        b, ci = offset_fit(X, x["y"], np.zeros(len(x)), np.ones(len(x)), x["game_id"])
+        m, cim = mr.mean_ci(x["y"] - x[f"mid{q}"])
+        out.append(f"  end of Q{q}: games {len(x)}  home won {100 * x['y'].mean():.1f}%  price "
+                   f"{100 * x[f'mid{q}'].mean():.1f}%  (won - price {100 * m:+.1f} pp ± "
+                   f"{100 * cim:.1f})  price calibration slope {b[1]:.2f} ± {ci[1]:.2f}")
+        for col, name, unit in feats:
+            parts = []
+            for lab, xx in (("all", x), ("Oct-Jan", x[x["split"] == "train"]),
+                            ("Feb-Apr", x[x["split"] == "test"])):
+                bb, cc = offset_fit(xx[[col]].to_numpy(float), xx["y"], mr.logit(xx[f"mid{q}"]),
+                                    np.ones(len(xx)), xx["game_id"])
+                parts.append(f"{lab} {bb[0]:+.3f} ± {cc[0]:.3f}")
+            out.append(f"    {name:<27} {unit:<8} " + "   ".join(parts))
+    x = Q.dropna(subset=mids)
+    x = x[np.logical_and.reduce([x[c].between(0, 1, inclusive="neither") for c in mids])]
+    fav = (x["mid3"] >= 0.5).to_numpy()
+    side = lambda c: np.where(fav, x[c], 1 - x[c])                 # noqa: E731
+    path = np.c_[side("mid1") - side("p_close"), side("mid2") - side("mid1"),
+                 side("mid3") - side("mid2")]
+    pat = ["".join("+" if v > 0 else "-" for v in r) for r in path]
+    t = pd.DataFrame(dict(pat=pat, won=np.where(fav, x["y"], 1 - x["y"]), price=side("mid3")))
+    out.append("  The Q3-end favourite's price by quarter (+ up, - down or flat: Q1 Q2 Q3), won vs")
+    out.append("  its price then:")
+    for p_, xx in t.groupby("pat"):
+        if len(xx) >= 20:
+            m, ci = mr.mean_ci(xx["won"] - xx["price"])
+            out.append(f"    {p_}  games {len(xx):<4} won {100 * xx['won'].mean():4.1f}%  price "
+                       f"{100 * xx['price'].mean():4.1f}%  gap {100 * m:+5.1f} pp ± {100 * ci:.1f}")
+    won = np.where(x["y"] == 1, 1.0, -1.0)[:, None] * np.c_[
+        x["mid1"] - x["p_close"], x["mid2"] - x["mid1"], x["mid3"] - x["mid2"]]
+    out.append("  Hindsight: the eventual winner's price move by quarter, mean (share up): " + ",  ".join(
+        f"Q{k + 1} {100 * won[:, k].mean():+.1f}c ({100 * (won[:, k] > 0).mean():.0f}%)"
+        for k in range(3)))
+    return out
+
+
 # --------------------------------------------------------------- report ----
 def report(S, P, drops, espn, kal, n_games):
     L = []
@@ -1274,6 +1355,14 @@ def report(S, P, drops, espn, kal, n_games):
     w("  price, then the spread and fee. Several looks at the same games: a lead, not a rule.")
     ev, paths = trigger_frames(P, kal, pd.concat([S_tr, S_te], ignore_index=True))
     L += trigger_lines(ev, paths)
+    w("")
+    w("== 9. The quarter-by-quarter price path and the eventual winner (owner's question;")
+    w("  exploratory). Winners' prices rise by construction, so the question is whether the")
+    w("  path so far predicts the winner beyond the price at the end of Q1, Q2 and Q3: beta 0")
+    w("  = the path adds nothing (moves in cents of the home mid; choppiness = SD of its")
+    w("  minute moves from tip, times logit(price): beta < 0 = in choppy games the price is")
+    w("  too confident). ± is 95%, one row per game.")
+    L += shape_lines(quarter_frame(pd.concat([S_tr, S_te], ignore_index=True), P))
     return "\n".join(L), T
 
 
