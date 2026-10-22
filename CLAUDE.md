@@ -615,6 +615,33 @@ Before a PR, run:
   and its underdog bets swing ~1.5 units each against ~0.7: ~5,800 bets
   (~10 seasons) to resolve its effect against ~1,100 (~2) for H2·F. H2·F
   stays.
+- In-game Kalshi, strength vs reaction (owner's notebook
+  `nba_strength_vs_reaction.ipynb`, 2026-10-22; `research/
+  strength_vs_reaction.py`, `diagnostics/strength_vs_reaction/RESULTS.txt`):
+  p* = Φ(Δ/(σ√τ) + z0√τ), a Brownian live price from ESPN play-by-play
+  (wallclock) with z0 from the Kalshi pregame mid (MKT), the model's P
+  (MODEL, reconstructed v6) or a z-blend fitted on train (w 0.32 ± 0.43),
+  σ = 17.3 from the score process, against the home market's live 1-minute
+  Kalshi mid. 2025-26, 1,161 games: train to 2026-01-31 (681), test Feb–Apr
+  (480); ± 95% game-clustered; hindsight model rows. Test: pregame MODEL −
+  MKT +0.0341 ± 0.0186 log loss, BLEND − MKT +0.0055 ± 0.0060; in-game
+  p*(MKT) − live mid +0.0011 ± 0.0062, p*(MODEL) − p*(MKT) +0.0145 ±
+  0.0101; the outcome's weight on p*'s disagreement with the mid +0.40 ±
+  0.43 (MKT), −0.08 ± 0.32 (MODEL). Trades (first quiet minute with p* −
+  ask − fee ≥ 4c, filled at the worst quote 2 min later, per $1 contract,
+  claimed +5.5 to +8.1c): MKT −4.4c ± 4.7 (n = 337), MODEL −5.5c ± 4.0
+  (n = 418), BLEND −4.5c ± 4.5 (n = 354), null −2.9 to −3.2c. Every
+  notebook rule fails: no strength edge (the model trails the pregame mid,
+  as at the close) and no reaction edge after the spread and fee. On the
+  same minutes the mid's fitted σ (21.7–22.6) exceeds the outcome's
+  (17.8–19.8; +2.8 ± 2.3 train, +3.9 ± 2.4 test), most in the first half
+  and unresolved in the 4th quarter, while the pregame mid's own slope moves
+  0.82 → 1.28 between the splits: not clean evidence that the mid
+  under-reacts to the score, and p* does not beat it either way. The
+  score-process σ overstates the game's (regulation margin around the
+  spread 13.85 ± 0.56) because consecutive quarters correlate −0.12 (leads
+  shrink). ESPN's wallclock and the mid agree within a minute (corr of
+  minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.
 - One feature builder: `nba_composite.logit_inputs` (delta, b2b_net, phase
   from opening night, d_phase) serves build_games, the CLI scorer and
   `build_site.score_game`; research scripts reuse the `phase` column.

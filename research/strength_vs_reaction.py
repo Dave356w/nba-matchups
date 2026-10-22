@@ -693,6 +693,10 @@ def report(S, P, drops, espn, n_games):
         for part, v in f.items():
             w(f"    {lab:<5} {part:<12} outcome {sigma_text(v[:2])}   mid {sigma_text(v[2:4])}"
               f"   mid - outcome {v[4]:+5.2f} ± {v[5]:4.2f}")
+    w("  The p* form fixes the prior's weight at sqrt(tau), so a prior that is itself too")
+    w("  confident or too timid (section 2, pregame slopes) moves these fits too: a gap")
+    w("  that is largest in the 1st half, where the prior weighs most, is not clean")
+    w("  evidence about the reaction to the score. Section 3 is the test that counts.")
     w(f"  outcome fit, MODEL prior, train: {sigma_text(so_mod[:2])}")
     w(f"  blend w(model) on [0, 1], train: {wb:.2f} ± {wb_ci:.2f};  unbounded: "
       f"{wu:+.2f} ± {wu_ci:.2f}  (0 = the pregame mid already holds the model)")
@@ -714,6 +718,13 @@ def report(S, P, drops, espn, n_games):
                        te["game_id"])
     w(f"  outcome's weight on the model's disagreement with the pregame mid: "
       f"{b[0]:+.2f} ± {ci[0]:.2f}")
+    w("  Calibration of the pregame mid (compare the live mid's slopes in section 3; the")
+    w("  test games are Feb-Apr, when outcomes run steeper than prices in hindsight):")
+    for lab, x in (("train", tr), ("test", te)):
+        X = np.c_[np.ones(len(x)), mr.logit(x["p_close"])]
+        b, ci = offset_fit(X, x["y"], np.zeros(len(x)), np.ones(len(x)), x["game_id"])
+        w(f"    {lab:<5} slope {b[1]:.2f} ± {ci[1]:.2f}   intercept {b[0]:+.3f} ± {ci[0]:.3f}"
+          f"   games {len(x)}")
     w("")
 
     for z, _ in PRIORS:
@@ -810,8 +821,9 @@ def main():
     text, T = report(S, P, drops, espn, len(games))
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "RESULTS.txt").write_text(text + "\n")
-    P.drop(columns=["z_mkt", "z_model", "z_blend"]).to_csv(OUT / "games.csv", index=False)
-    T.to_csv(OUT / "trades.csv", index=False)
+    P.drop(columns=["z_mkt", "z_model", "z_blend"]).round(5).to_csv(OUT / "games.csv",
+                                                                     index=False)
+    T.round(5).to_csv(OUT / "trades.csv", index=False)
     print(text)
 
 
