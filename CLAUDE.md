@@ -685,7 +685,18 @@ Before a PR, run:
   +0.099 ± 0.103 logit per 10c; choppiness flips sign between periods). The
   Q3-end favourite's up/down patterns all sit within ±2.7 pp of their
   price. In hindsight the eventual winner's price rises in only 59–65% of
-  quarters. The score-process σ overstates the game's (regulation margin
+  quarters. Favourite-longshot bias late in games (raw quotes, the
+  extremes kept; owner's "keep digging"): favourites priced 93–99.5c at
+  their first 4th-quarter minute in that band lost 27 of 927 games against
+  41.0 expected (ratio 0.66, exact 95% 0.43–0.96; Oct–Jan 0.70, Feb–Apr
+  0.58); 97–99.5c 6 against 16.9. Bought at the worst quote 2 min later
+  with the fee, hold to settlement: pnl −0.36c ± 1.25, pnl − null +1.48 ±
+  1.25 a contract: the bias, about break-even after costs. Pre-registered
+  before any holdout data was read
+  (`diagnostics/strength_vs_reaction/PREREG_holdout.md`): H-L1 this bias,
+  H-L2 the 4th-quarter score term, H-L3 the trade, on the 2025 and 2026
+  play-in and playoff games; underpowered by design, the 2026-27 regular
+  season is the decisive test. The score-process σ overstates the game's (regulation margin
   around the spread 13.85 ± 0.56) because consecutive quarters correlate
   −0.12 (leads shrink). ESPN's wallclock and the mid agree within a minute
   (corr of minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.

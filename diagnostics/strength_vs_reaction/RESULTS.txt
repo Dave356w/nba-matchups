@@ -301,3 +301,34 @@ No native row has a model P yet: nothing here is forward evidence.
     -+-  games 99   won 76.8%  price 74.3%  gap  +2.5 pp ± 7.8
     --+  games 95   won 77.9%  price 76.4%  gap  +1.5 pp ± 7.5
   Hindsight: the eventual winner's price move by quarter, mean (share up): Q1 +2.9c (59%),  Q2 +5.5c (64%),  Q3 +6.7c (65%)
+
+== 10. Favourite-longshot bias late in games (raw quotes, the extremes included)
+  Prediction markets classically overprice longshots; the mid's under-weighting of
+  a late lead (section 3, a > 0 in the 4th quarter) is that bias seen from the
+  favourite's side. won - price > 0 = the favourite is underpriced.
+  4th quarter: favourite won vs its price, by price (minutes; ± clustered by game)
+    0.500-0.700  all +0.22 pp ± 2.62 (520 g)   Oct-Jan -0.37 pp ± 3.21 (339 g)   Feb-Apr +1.36 pp ± 4.54 (181 g)
+    0.700-0.850  all -0.61 pp ± 3.34 (679 g)   Oct-Jan -1.57 pp ± 4.21 (430 g)   Feb-Apr +1.08 pp ± 5.46 (249 g)
+    0.850-0.930  all +0.37 pp ± 2.71 (750 g)   Oct-Jan -0.24 pp ± 3.46 (475 g)   Feb-Apr +1.49 pp ± 4.31 (275 g)
+    0.930-0.970  all +1.80 pp ± 1.35 (788 g)   Oct-Jan +1.41 pp ± 1.89 (497 g)   Feb-Apr +2.43 pp ± 1.73 (291 g)
+    0.970-0.995  all +1.19 pp ± 0.71 (802 g)   Oct-Jan +1.14 pp ± 0.82 (485 g)   Feb-Apr +1.27 pp ± 1.28 (317 g)
+  last 5 minutes: favourite won vs its price, by price (minutes; ± clustered by game)
+    0.500-0.700  all +0.46 pp ± 3.56 (334 g)   Oct-Jan +1.09 pp ± 4.43 (226 g)   Feb-Apr -0.91 pp ± 5.95 (108 g)
+    0.700-0.850  all +0.08 pp ± 4.32 (456 g)   Oct-Jan -0.21 pp ± 5.07 (292 g)   Feb-Apr +0.62 pp ± 7.98 (164 g)
+    0.850-0.930  all +1.26 pp ± 3.04 (467 g)   Oct-Jan +1.95 pp ± 3.30 (303 g)   Feb-Apr -0.04 pp ± 6.13 (164 g)
+    0.930-0.970  all +2.10 pp ± 1.40 (514 g)   Oct-Jan +2.18 pp ± 1.67 (338 g)   Feb-Apr +1.96 pp ± 2.52 (176 g)
+    0.970-0.995  all +1.45 pp ± 0.50 (538 g)   Oct-Jan +1.16 pp ± 0.82 (338 g)   Feb-Apr +1.92 pp ± 0.05 (200 g)
+  The same as counts, one entry per game (the first 4th-quarter minute the favourite's
+  mid is in the band): favourite losses, expected from its price vs actual, exact
+  Poisson 95% for actual / expected (the minute-level ± understates rare losses):
+    0.850-0.930  all 750 g: expected 84.3 lost 74 (ratio 0.88, 0.69-1.10)   Oct-Jan 475 g: expected 53.8 lost 52 (ratio 0.97, 0.72-1.27)   Feb-Apr 275 g: expected 30.5 lost 22 (ratio 0.72, 0.45-1.09)
+    0.930-0.970  all 788 g: expected 39.6 lost 27 (ratio 0.68, 0.45-0.99)   Oct-Jan 497 g: expected 24.9 lost 18 (ratio 0.72, 0.43-1.14)   Feb-Apr 291 g: expected 14.7 lost 9 (ratio 0.61, 0.28-1.17)
+    0.970-0.995  all 802 g: expected 16.9 lost 6 (ratio 0.36, 0.13-0.78)   Oct-Jan 485 g: expected 10.3 lost 5 (ratio 0.49, 0.16-1.14)   Feb-Apr 317 g: expected 6.6 lost 1 (ratio 0.15, 0.00-0.85)
+    0.930-0.995  all 927 g: expected 41.0 lost 27 (ratio 0.66, 0.43-0.96)   Oct-Jan 567 g: expected 25.5 lost 18 (ratio 0.70, 0.42-1.11)   Feb-Apr 360 g: expected 15.5 lost 9 (ratio 0.58, 0.27-1.10)
+  Trade: buy the favourite at the first 4th-quarter minute its ask is in the band, worst quote
+  2 min later, hold to settlement (per $1 contract; null = the fill minute's mid less price and fee):
+    ask 0.70-0.85  all n 677 pnl -4.50c ± 3.13 (null -4.01c; pnl - null -0.49 ± 3.10)   Oct-Jan n 429 pnl -5.90c ± 4.00 (null -4.03c; pnl - null -1.87 ± 3.95)   Feb-Apr n 248 pnl -2.07c ± 5.01 (null -3.97c; pnl - null +1.90 ± 5.00)
+    ask 0.85-0.93  all n 730 pnl -2.21c ± 2.20 (null -3.31c; pnl - null +1.10 ± 2.17)   Oct-Jan n 464 pnl -3.36c ± 2.86 (null -3.45c; pnl - null +0.10 ± 2.82)   Feb-Apr n 266 pnl -0.20c ± 3.39 (null -3.06c; pnl - null +2.86 ± 3.37)
+    ask 0.93-0.97  all n 700 pnl -0.57c ± 1.44 (null -1.99c; pnl - null +1.42 ± 1.42)   Oct-Jan n 436 pnl -0.70c ± 1.84 (null -2.13c; pnl - null +1.44 ± 1.82)   Feb-Apr n 264 pnl -0.37c ± 2.30 (null -1.76c; pnl - null +1.39 ± 2.28)
+    ask 0.97-0.99  all n 559 pnl +0.21c ± 0.99 (null -1.32c; pnl - null +1.52 ± 1.01)   Oct-Jan n 340 pnl -0.42c ± 1.52 (null -1.36c; pnl - null +0.93 ± 1.54)   Feb-Apr n 219 pnl +1.18c ± 0.90 (null -1.26c; pnl - null +2.44 ± 0.93)
+    ask 0.93-0.99  all n 809 pnl -0.36c ± 1.25 (null -1.84c; pnl - null +1.48 ± 1.25)   Oct-Jan n 495 pnl -0.48c ± 1.64 (null -1.99c; pnl - null +1.51 ± 1.64)   Feb-Apr n 314 pnl -0.17c ± 1.93 (null -1.61c; pnl - null +1.43 ± 1.91)

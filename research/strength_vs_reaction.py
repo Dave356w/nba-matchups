@@ -52,7 +52,13 @@ a second fill adds anything; and how far eventual winners and losers run
 from their entry price. Last, the quarter-by-quarter price path: whether
 the moves so far and the choppiness predict the winner beyond the price at
 the end of Q1, Q2 and Q3, and the Q3-end favourite's up/down patterns
-against its price.
+against its price. And the favourite-longshot bias late in games on raw
+quotes (the extremes kept): the favourite's win rate against its price by
+band, the same as loss counts per game with exact Poisson intervals, and a
+buy-the-favourite trade by ask band. Three late-game tests were then
+pre-registered for the 2025 and 2026 play-in and playoff games
+(diagnostics/strength_vs_reaction/PREREG_holdout.md) before any of that
+data was read.
 
 Data (2025-26, the first season Kalshi lists): every reconstructed game with
 a Kalshi event (diagnostics/kalshi_benchmark/games.csv), ESPN's play-by-play
@@ -136,6 +142,7 @@ EDGE_BINS = [ENTRY_EDGE, 0.06, 0.08, 0.12, 1.0]
 STRADDLE_TARGETS = (0.05, 0.10, 0.15, 0.20)   # sell each side this far above entry
 MAKER_FEE = 0.0175                # Kalshi's maker fee coefficient, where it applies
 QUARTER_ENDS = (0.75, 0.5, 0.25)  # tau at the end of Q1, Q2, Q3
+LONGSHOT_BANDS = ((0.50, 0.70), (0.70, 0.85), (0.85, 0.93), (0.93, 0.97), (0.97, 0.995))
 TAU_BUCKETS = ((0.5, 1.0, "1st half"), (0.25, 0.5, "3rd quarter"),
                (0.0, 0.25, "4th quarter"))
 PRIORS = (("z_mkt", "MKT"), ("z_model", "MODEL"), ("z_blend", "BLEND"))
@@ -357,6 +364,7 @@ def game_states(row, espn, kal):
     c = c.dropna(subset=["ts"]).drop_duplicates("ts").sort_values("ts").reset_index(drop=True)
     for col in ("ask_c", "ask_h", "bid_c", "bid_l"):
         c[col] = pd.to_numeric(c[col], errors="coerce")
+        c[col + "_r"] = c[col]                 # raw: the extremes, for section 10
         c.loc[(c[col] < MIN_PRICE) | (c[col] > MAX_PRICE), col] = np.nan
     pre = c[(c["ts"] <= tip) & c["ask_c"].notna() & c["bid_c"].notna()]
     if pre.empty:
@@ -380,6 +388,9 @@ def game_states(row, espn, kal):
         "ask_c": live["ask_c"].to_numpy(), "bid_c": live["bid_c"].to_numpy(),
         "fill_ask": fill["ask_h"].to_numpy(), "fill_bid": fill["bid_l"].to_numpy(),
         "fill_mid": ((fill["ask_c"] + fill["bid_c"]) / 2).to_numpy(),
+        "ask_r": live["ask_c_r"].to_numpy(), "bid_r": live["bid_c_r"].to_numpy(),
+        "fill_ask_r": fill["ask_h_r"].to_numpy(), "fill_bid_r": fill["bid_l_r"].to_numpy(),
+        "fill_mid_r": ((fill["ask_c_r"] + fill["bid_c_r"]) / 2).to_numpy(),
         "y": int(row.home_won)})
     st = st[st["reg"] & (st["tau"] > 0)].drop(columns="reg")
     st["mid"] = (st["ask_c"] + st["bid_c"]) / 2
@@ -1107,6 +1118,134 @@ def shape_lines(Q):
     return out
 
 
+def fav_frame(S, tau_max):
+    """Live minutes with tau <= tau_max and a raw two-sided quote, from the
+    favourite's side (the side with the raw mid >= .5): its price, whether
+    it won, its ask now and its worst quote and mid (1 + LAG) min later."""
+    s = S[(S["tau"] <= tau_max)].dropna(subset=["ask_r", "bid_r"])
+    s = s[s["ask_r"] > s["bid_r"]].copy()
+    mid = (s["ask_r"] + s["bid_r"]) / 2
+    home = (mid >= 0.5).to_numpy()
+    s["price"] = np.where(home, mid, 1 - mid)
+    s["won"] = np.where(home, s["y"], 1 - s["y"])
+    s["ask_f"] = np.where(home, s["ask_r"], 1 - s["bid_r"])
+    s["fill_f"] = np.where(home, s["fill_ask_r"], 1 - s["fill_bid_r"])
+    s["fill_mid_f"] = np.where(home, s["fill_mid_r"], 1 - s["fill_mid_r"])
+    return s
+
+
+def poisson_ci(k, conf=0.95):
+    """Exact interval for a Poisson mean given k events (Garwood), by
+    bisection on the Poisson CDF; no scipy."""
+    def cdf(n, lam):
+        term = total = math.exp(-lam)
+        for i in range(1, n + 1):
+            term *= lam / i
+            total += term
+        return total
+
+    def solve(f, lo, hi):
+        for _ in range(100):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if f(mid) > 0 else (lo, mid)
+        return (lo + hi) / 2
+    a = (1 - conf) / 2
+    lo = 0.0 if k == 0 else solve(lambda lam: a - (1 - cdf(k - 1, lam)), 0.0, 10.0 * k + 10)
+    hi = solve(lambda lam: cdf(k, lam) - a, 0.0, 10.0 * k + 20)
+    return lo, hi
+
+
+def poisson_p_low(k, lam):
+    """One-sided p-value: P(X <= k) for X ~ Poisson(lam)."""
+    term = total = math.exp(-lam)
+    for i in range(1, k + 1):
+        term *= lam / i
+        total += term
+    return total
+
+
+def entry_losses(S, lo, hi, tau_max=0.25):
+    """The first live minute in each game with tau <= tau_max whose raw
+    favourite mid is in (lo, hi]: games, the favourite's expected losses
+    (sum of 1 - price) and its actual losses."""
+    s = fav_frame(S, tau_max)
+    t = s[(s["price"] > lo) & (s["price"] <= hi)].sort_values("ts").groupby("game_id").head(1)
+    return len(t), float((1 - t["price"]).sum()), int((1 - t["won"]).sum())
+
+
+def longshot_lines(S):
+    """Favourite-longshot bias late in games: the favourite's win rate
+    against its price by price band (minutes, clustered by game), and one
+    trade per game per band, buying the favourite at the first 4th-quarter
+    minute its ask is in the band, filled at the worst quote (1 + LAG) min
+    later and held to settlement, beside its null (the fill minute's mid)."""
+    out = []
+    for tau_max, name in ((0.25, "4th quarter"), (5 / 48, "last 5 minutes")):
+        s = fav_frame(S, tau_max)
+        out.append(f"  {name}: favourite won vs its price, by price (minutes; ± clustered by game)")
+        for lo, hi in LONGSHOT_BANDS:
+            parts = []
+            for lab, x in (("all", s), ("Oct-Jan", s[s["split"] == "train"]),
+                           ("Feb-Apr", s[s["split"] == "test"])):
+                x = x[(x["price"] > lo) & (x["price"] <= hi)]
+                if len(x) < 50:
+                    parts.append(f"{lab} n/a")
+                    continue
+                m, ci = cluster_mean_ci(x["won"] - x["price"], x["game_id"])
+                parts.append(f"{lab} {100 * m:+5.2f} pp ± {100 * ci:.2f} ({x['game_id'].nunique()} g)")
+            out.append(f"    {lo:.3f}-{hi:.3f}  " + "   ".join(parts))
+    out.append("  The same as counts, one entry per game (the first 4th-quarter minute the favourite's")
+    out.append("  mid is in the band): favourite losses, expected from its price vs actual, exact")
+    out.append("  Poisson 95% for actual / expected (the minute-level ± understates rare losses):")
+    for lo, hi in LONGSHOT_BANDS[2:] + ((0.93, 0.995),):
+        parts = []
+        for lab, x in (("all", S), ("Oct-Jan", S[S["split"] == "train"]),
+                       ("Feb-Apr", S[S["split"] == "test"])):
+            n, exp_, k = entry_losses(x, lo, hi)
+            if n < 30:
+                parts.append(f"{lab} n/a")
+                continue
+            plo, phi = poisson_ci(k)
+            parts.append(f"{lab} {n} g: expected {exp_:.1f} lost {k} (ratio {k / exp_:.2f}, "
+                         f"{plo / exp_:.2f}-{phi / exp_:.2f})")
+        out.append(f"    {lo:.3f}-{hi:.3f}  " + "   ".join(parts))
+    s = fav_frame(S, 0.25)
+    out.append("  Trade: buy the favourite at the first 4th-quarter minute its ask is in the band, "
+               "worst quote")
+    out.append(f"  {1 + LAG_CANDLES} min later, hold to settlement (per $1 contract; null = the "
+               "fill minute's mid less price and fee):")
+    for lo, hi in ((0.70, 0.85), (0.85, 0.93), (0.93, 0.97), (0.97, 0.99), (0.93, 0.99)):
+        parts = []
+        for lab, x in (("all", s), ("Oct-Jan", s[s["split"] == "train"]),
+                       ("Feb-Apr", s[s["split"] == "test"])):
+            r = fav_trades(x, lo, hi)
+            if r is None:
+                parts.append(f"{lab} n/a")
+                continue
+            parts.append(f"{lab} n {r['n']} pnl {100 * r['pnl'][0]:+.2f}c ± {100 * r['pnl'][1]:.2f} "
+                         f"(null {100 * r['null']:+.2f}c; pnl - null {100 * r['edge'][0]:+.2f} ± "
+                         f"{100 * r['edge'][1]:.2f})")
+        out.append(f"    ask {lo:.2f}-{hi:.2f}  " + "   ".join(parts))
+    return out
+
+
+def fav_trades(s, lo, hi):
+    """One trade per game: buy the favourite at the first minute of `s` (a
+    fav_frame) its ask is in (lo, hi], worst quote (1 + LAG) min later, held
+    to settlement. {n, pnl: (mean, ±95), null, edge: pnl - null (mean, ±95)}
+    or None under 30 trades."""
+    x = s[(s["ask_f"] > lo) & (s["ask_f"] <= hi)]
+    x = x[x["fill_f"].between(0, 1, inclusive="neither") & x["fill_mid_f"].notna()]
+    t = x.sort_values("ts").groupby("game_id").head(1)
+    if len(t) < 30:
+        return None
+    f = fee(t["fill_f"])
+    pnl = t["won"] - t["fill_f"] - f
+    null = t["fill_mid_f"] - t["fill_f"] - f
+    return dict(n=len(t), pnl=mr.mean_ci(pnl), null=float(null.mean()),
+                edge=mr.mean_ci(pnl - null))
+
+
 # --------------------------------------------------------------- report ----
 def report(S, P, drops, espn, kal, n_games):
     L = []
@@ -1363,6 +1502,12 @@ def report(S, P, drops, espn, kal, n_games):
     w("  minute moves from tip, times logit(price): beta < 0 = in choppy games the price is")
     w("  too confident). ± is 95%, one row per game.")
     L += shape_lines(quarter_frame(pd.concat([S_tr, S_te], ignore_index=True), P))
+    w("")
+    w("== 10. Favourite-longshot bias late in games (raw quotes, the extremes included)")
+    w("  Prediction markets classically overprice longshots; the mid's under-weighting of")
+    w("  a late lead (section 3, a > 0 in the 4th quarter) is that bias seen from the")
+    w("  favourite's side. won - price > 0 = the favourite is underpriced.")
+    L += longshot_lines(pd.concat([S_tr, S_te], ignore_index=True))
     return "\n".join(L), T
 
 
