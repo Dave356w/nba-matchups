@@ -40,7 +40,11 @@ def test_player_rates_per_100_and_strictly_before():
     O = {c: tg[tg["team"] == "AAA"]["o_" + c].to_numpy(float) for c in ws.STATS + ["minutes"]}
     poss = ws.possessions(T, O).sum()
     assert np.isclose(r.loc["A0", "poss"], poss)
-    assert np.isclose(r.loc["A0", "pts"], 100 * 90 / poss)
+    # rates less the league's minute-weighted rate (equal minutes: the mean of
+    # 90 and nine players' 60 points over three games is 63)
+    assert np.isclose(r.loc["A0", "pts"], 100 * (90 - 63) / poss)
+    assert np.isclose(r.loc["A1", "pts"], 100 * (60 - 63) / poss)
+    assert np.isclose((r["pts"] * r["minutes"]).sum(), 0)
     assert np.isclose(r.loc["A0", "net"], 100 * 30 / poss) and np.isclose(r.loc["B0", "net"], -100 * 30 / poss)
     early = bl.player_rates(full, through="2026-01-02").set_index("player_id")
     assert np.isclose(early.loc["A0", "minutes"], 48)          # only the first game

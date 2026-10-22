@@ -12,7 +12,9 @@ research/team_quality.py --bpm tests, walk-forward:
                 box lines (research/win_shares.py box_full_<y>.csv): per-100-
                 possession rates (points, FGA, FTA, 3PM, AST, TOV, ORB, DRB,
                 STL, BLK, PF; possessions = the team's estimate x minutes /
-                (team minutes / 5)) and the team's net rating per 100, both
+                (team minutes / 5)), each less the league's minute-weighted
+                rate over the same games (BPM is league-relative; raw rates
+                drift with the era), and the team's net rating per 100, all
                 over games strictly before the date, mapped to BPM by a
                 minutes-weighted least-squares fit on BBR's full-season BPM
                 of FIT seasons only (default 2016-2024, before both priced
@@ -78,9 +80,11 @@ def player_rates(full, through=None):
     g = p.groupby("player_id").agg(name=("name", "last"), minutes=("minutes", "sum"),
                                    poss=("poss", "sum"), netm=("netm", "sum"),
                                    **{c: (c, "sum") for c in RATES})
+    w = g["minutes"].to_numpy(float)
     for c in RATES:
-        g[c] = 100 * ws._div(g[c].to_numpy(float), g["poss"].to_numpy(float))
-    g["net"] = ws._div(g["netm"].to_numpy(float), g["minutes"].to_numpy(float))
+        r = 100 * ws._div(g[c].to_numpy(float), g["poss"].to_numpy(float))
+        g[c] = r - (w * r).sum() / w.sum()      # BPM is relative to the league
+    g["net"] = ws._div(g["netm"].to_numpy(float), w)
     return g.reset_index()[cols]
 
 
