@@ -99,7 +99,7 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 | Lineup minutes by position or role | within 0.0007 of proportional; one lineup term in place of v5's three: worse |
 | Talent/luck fixed in the availability logit | worse (+0.0008 / +0.0016) |
 | Kalshi instead of the sportsbook | the two closes carry the same information (−0.0018 ± 0.0015) |
-| In-game Kalshi trades on a Brownian live price (Kalshi pregame mid, model or blend prior) | 2025-26 Feb–Apr, 480 games: p*(Kalshi prior) − live mid +0.0011 ± 0.0062; model prior − Kalshi prior +0.0145 ± 0.0101; trades −4.4 to −5.5c a contract vs a −3c null (`research/strength_vs_reaction.py`) |
+| In-game Kalshi trades on a Brownian live price (Kalshi pregame mid, model or blend prior) | 2025-26 Feb–Apr, 480 games: p*(Kalshi prior) − live mid +0.0011 ± 0.0062; model prior − Kalshi prior +0.0145 ± 0.0101; trades −4.4 to −5.5c a contract vs a −3c null. With the prior's weight free, or the mid corrected for its under-weighting of the score late in games (+0.02 logit per point/√τ in both periods), nothing beats the mid out of sample (best −0.0023 ± 0.0025) and every trade arm loses (`research/strength_vs_reaction.py`) |
 | Blanket value bet and ATS twin | retired: claimed +11 to +16%, returned −6 to −11% |
 | A winning in-sample price band as a filter | the DK −249 to −130 lean band did not survive the next model |
 

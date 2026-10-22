@@ -26,6 +26,15 @@ where p* clears the ask + taker fee by ENTRY_EDGE, filled at the worst
 quote of a LATER minute, beside the null (the same contract valued at the
 fill minute's mid) and the live favourite bought at the same minute.
 
+Reaction, two further tests (owner's request, 2026-10-22). The prior's
+weight set free: p* = Phi(delta / (sigma sqrt(tau)) + k z0 sqrt(tau)), a
+probit on delta / sqrt(tau) and z0 sqrt(tau), fitted to the outcome and to
+the live mid on the same minutes (sigma and k for each, and their gap with a
+joint clustered ±). And with no p* form: the outcome's weight on the score
+(a) and the prior (b) beyond the live mid. Both are scored out of sample like
+the arms above: p* with the train outcome fit's (sigma, k), and the mid
+corrected by the train fit's (a, b) or by a alone.
+
 Data (2025-26, the first season Kalshi lists): every reconstructed game with
 a Kalshi event (diagnostics/kalshi_benchmark/games.csv), ESPN's play-by-play
 with wallclock times (summary endpoint) and the home market's 1-minute
@@ -480,6 +489,111 @@ def sigma_text(f):
     return s + (" (grid edge)" if f[0] in (SIGMA_GRID[0], SIGMA_GRID[-1]) else "")
 
 
+def phi_tails(eta):
+    """(Phi(eta), 1 - Phi(eta), phi(eta)), each tail from erfc, so neither
+    rounds to 0 or 1 within |eta| <= 8."""
+    eta = np.clip(np.asarray(eta, float), -8, 8)
+    P = (0.5 * _erfc(-eta / math.sqrt(2))).astype(float)
+    Q = (0.5 * _erfc(eta / math.sqrt(2))).astype(float)
+    return P, Q, np.exp(-eta * eta / 2) / math.sqrt(2 * math.pi)
+
+
+def probit_fit(X, t, wts, start, iters=100):
+    """Weighted probit of t (0/1, or a price in (0, 1) as a soft label) on X,
+    no intercept, by Fisher scoring. (coefs, Fisher information, per-row
+    scores), the last two for a clustered covariance."""
+    b = np.asarray(start, float)
+    for _ in range(iters):
+        P, Q, f = phi_tails(X @ b)
+        info = X.T @ (X * (wts * f * f / (P * Q))[:, None])
+        step = np.linalg.solve(info, X.T @ (wts * f * (t - P) / (P * Q)))
+        b = b + step
+        if np.abs(step).max() < 1e-10:
+            break
+    P, Q, f = phi_tails(X @ b)
+    info = X.T @ (X * (wts * f * f / (P * Q))[:, None])
+    return b, info, X * (wts * f * (t - P) / (P * Q))[:, None]
+
+
+def free_fits(S, zcol):
+    """The prior's weight set free: p* = Phi(delta / (sigma sqrt(tau)) +
+    k z0 sqrt(tau)), a probit on delta / sqrt(tau) and z0 sqrt(tau) with
+    coefficients 1 / sigma and k (k = 1 is the notebook's form). Fitted to
+    the outcome and to the live mid on the same minutes, all minutes and
+    each part of the game, each game weighted equally; the two fits share a
+    game-clustered covariance, so mid - outcome carries its own ±95.
+    {part: {'out': (1/sigma, k) of the outcome fit, 'sig_y', 'k_y', 'sig_m',
+    'k_m', 'd_sig', 'd_k': (estimate, ±95)}}."""
+    s = S.dropna(subset=["mid", zcol])
+    X = np.c_[s["delta"] / np.sqrt(s["tau"]), s[zcol] * np.sqrt(s["tau"])]
+    y, mid, wt = s["y"].to_numpy(float), s["mid"].to_numpy(float), per_game(s)
+    part, games = part_of_game(s["tau"]), s["game_id"].to_numpy()
+    out = {}
+    for name, m in [("all minutes", np.ones(len(s), bool))] + [
+            (b[2], part == k) for k, b in enumerate(TAU_BUCKETS)]:
+        by, iy, uy = probit_fit(X[m], y[m], wt[m], (1 / 17.0, 1.0))
+        bm, im, um = probit_fit(X[m], mid[m], wt[m], (1 / 17.0, 1.0))
+        H = np.zeros((4, 4))
+        H[:2, :2], H[2:, 2:] = np.linalg.inv(iy), np.linalg.inv(im)
+        U = pd.DataFrame(np.c_[uy, um]).groupby(games[m]).sum().to_numpy()
+        V = H @ (U.T @ U) @ H
+        sy, sm = 1 / by[0], 1 / bm[0]
+
+        def ci(grad):
+            g = np.asarray(grad, float)
+            return Z95 * math.sqrt(float(g @ V @ g))
+        out[name] = dict(
+            out=by, sig_y=(sy, ci([-sy ** 2, 0, 0, 0])), k_y=(by[1], ci([0, 1, 0, 0])),
+            sig_m=(sm, ci([0, 0, -sm ** 2, 0])), k_m=(bm[1], ci([0, 0, 0, 1])),
+            d_sig=(sm - sy, ci([sy ** 2, 0, -sm ** 2, 0])), d_k=(bm[1] - by[1], ci([0, -1, 0, 1])))
+    return out
+
+
+def score_beyond_mid(S):
+    """The score's and the prior's weight beyond the live mid, no p* form:
+    y ~ logit(mid) [offset] + a delta / sqrt(tau) + b z0 sqrt(tau), each game
+    weighted equally, all minutes and each part of the game.
+    {part: ((a, b), ±95, games)}."""
+    s = S.dropna(subset=["mid"])
+    out = {}
+    for name, x in [("all minutes", s)] + [
+            (n, s[(s["tau"] > lo) & (s["tau"] <= hi)]) for lo, hi, n in TAU_BUCKETS]:
+        X = np.c_[x["delta"] / np.sqrt(x["tau"]), x["z_mkt"] * np.sqrt(x["tau"])]
+        b, ci = offset_fit(X, x["y"], mr.logit(x["mid"]), per_game(x), x["game_id"])
+        out[name] = (b, ci, x["game_id"].nunique())
+    return out
+
+
+def p_mid_adj(df, fit, by_part=False, score_only=False):
+    """The live mid corrected by a fit of score_beyond_mid: all minutes, or
+    each part of the game with its own (a, b); score_only drops b (the
+    prior's term, which flips with the season-phase calibration). NaN where
+    there is no mid."""
+    u = (df["delta"] / np.sqrt(df["tau"])).to_numpy()
+    v = (df["z_mkt"] * np.sqrt(df["tau"])).to_numpy()
+    if by_part:
+        coef = np.array([fit[b[2]][0] for b in TAU_BUCKETS])[part_of_game(df["tau"])]
+    else:
+        coef = np.tile(fit["all minutes"][0], (len(df), 1))
+    eta = mr.logit(df["mid"]) + coef[:, 0] * u + (0 if score_only else coef[:, 1] * v)
+    return np.where(df["mid"].notna(), 1 / (1 + np.exp(-eta)), np.nan)
+
+
+def p_free(df, fit, by_part=False):
+    """p* with the train outcome fit's (sigma, k): all minutes, or each part
+    of the game with its own pair."""
+    if not by_part:
+        s, k = fit["all minutes"]["out"]
+        return p_star(df["delta"], df["tau"], k * df["z_mkt"], 1 / s)
+    part = part_of_game(df["tau"])
+    out = np.full(len(df), np.nan)
+    for j, b in enumerate(TAU_BUCKETS):
+        s, k = fit[b[2]]["out"]
+        m = part == j
+        out[m] = p_star(df["delta"][m], df["tau"][m], k * df["z_mkt"][m], 1 / s)
+    return out
+
+
 def blend_w(P, lo=0.0, hi=1.0):
     """w maximising the pregame likelihood of Phi(w z_model + (1-w) z_mkt);
     (w, ±95) from the observed information (one row per game)."""
@@ -696,10 +810,27 @@ def report(S, P, drops, espn, n_games):
     w("  The p* form fixes the prior's weight at sqrt(tau), so a prior that is itself too")
     w("  confident or too timid (section 2, pregame slopes) moves these fits too: a gap")
     w("  that is largest in the 1st half, where the prior weighs most, is not clean")
-    w("  evidence about the reaction to the score. Section 3 is the test that counts.")
+    w("  evidence about the reaction to the score. Section 1b frees the prior's weight;")
+    w("  section 3 is the test that counts.")
     w(f"  outcome fit, MODEL prior, train: {sigma_text(so_mod[:2])}")
     w(f"  blend w(model) on [0, 1], train: {wb:.2f} ± {wb_ci:.2f};  unbounded: "
       f"{wu:+.2f} ± {wu_ci:.2f}  (0 = the pregame mid already holds the model)")
+    w("")
+
+    free = {lab: free_fits(x, "z_mkt") for lab, x in (("train", S_tr), ("test", S_te))}
+    w("== 1b. The prior's weight set free: p* = Phi(delta / (sigma sqrt(tau)) + k z0 sqrt(tau)),")
+    w("  MKT prior (k = 1 is the notebook's form; k > 1 = the pregame view counts for more than")
+    w("  a Brownian with its drift says). Fitted to the outcome and to the live mid on the same")
+    w("  minutes (a probit on delta / sqrt(tau) and z0 sqrt(tau)); ±95 game-clustered, the")
+    w("  difference from the two fits' joint covariance. mid - outcome sigma > 0 = the mid")
+    w("  moves less per point than outcomes justify (under-reaction); < 0 over-reaction.")
+    for lab, f in free.items():
+        for part, v in f.items():
+            w(f"    {lab:<5} {part:<12} outcome sigma {v['sig_y'][0]:5.2f} ± {v['sig_y'][1]:4.2f}"
+              f" k {v['k_y'][0]:.2f} ± {v['k_y'][1]:.2f}   mid sigma {v['sig_m'][0]:5.2f} ± "
+              f"{v['sig_m'][1]:4.2f} k {v['k_m'][0]:.2f} ± {v['k_m'][1]:.2f}   mid - outcome "
+              f"sigma {v['d_sig'][0]:+5.2f} ± {v['d_sig'][1]:4.2f} k {v['d_k'][0]:+.2f} ± "
+              f"{v['d_k'][1]:.2f}")
     w("")
 
     y = te["y"].to_numpy(float)
@@ -732,11 +863,23 @@ def report(S, P, drops, espn, n_games):
             df[f"p_{z}"] = p_star(df["delta"], df["tau"], df[z], sig)
     for df in (S_tr, S_te):
         df["p_z_mkt_out"] = p_star(df["delta"], df["tau"], df["z_mkt"], so_mkt)
+        df["p_z_mkt_fk"] = p_free(df, free["train"])
+        df["p_z_mkt_fkp"] = p_free(df, free["train"], by_part=True)
+    beyond = {lab: score_beyond_mid(x) for lab, x in (("train", S_tr), ("test", S_te))}
+    for df in (S_tr, S_te):
+        df["p_mid_adj"] = p_mid_adj(df, beyond["train"])
+        df["p_mid_adjp"] = p_mid_adj(df, beyond["train"], by_part=True)
+        df["p_mid_a"] = p_mid_adj(df, beyond["train"], score_only=True)
+        df["p_mid_ap"] = p_mid_adj(df, beyond["train"], by_part=True, score_only=True)
     w(f"== 3. In-game, test ({S_te['game_id'].nunique()} games; negative = the first beats "
       f"the second; each game weighted equally)")
     for z, name in PRIORS:
         w(diff_line(f"p*({name}) - live mid", S_te, f"p_{z}", "mid"))
     w(diff_line("p*(MKT, outcome sigma) - live mid", S_te, "p_z_mkt_out", "mid"))
+    w(diff_line("p*(MKT, sigma and k) - live mid", S_te, "p_z_mkt_fk", "mid"))
+    w(diff_line("p*(MKT, sigma and k by part) - mid", S_te, "p_z_mkt_fkp", "mid"))
+    w(diff_line("p*(MKT, sigma and k) - p*(MKT, out sig)", S_te, "p_z_mkt_fk", "p_z_mkt_out"))
+    w("  (sigma and k: the train outcome fit of section 1b, all minutes or each part.)")
     w(diff_line("p*(BLEND) - p*(MKT)", S_te, "p_z_blend", "p_z_mkt"))
     w(diff_line("p*(MODEL) - p*(MKT)", S_te, "p_z_model", "p_z_mkt"))
     w("  p*(MKT) - live mid, by part of the game:")
@@ -748,6 +891,20 @@ def report(S, P, drops, espn, n_games):
     for z, name in PRIORS:
         w("  " + weight_line(f"p*({name})", S_te, f"p_{z}"))
     w("  " + weight_line("p*(MKT, outcome sigma)", S_te, "p_z_mkt_out"))
+    w("  " + weight_line("p*(MKT, sigma and k)", S_te, "p_z_mkt_fk"))
+    w("  " + weight_line("p*(MKT, sigma and k by part)", S_te, "p_z_mkt_fkp"))
+    w("  The score and the prior beyond the live mid, no p* form: y ~ logit(mid) [offset] +")
+    w("  a delta / sqrt(tau) + b z0 sqrt(tau) (a > 0 = the mid under-weights the score, < 0")
+    w("  over-weights it; b likewise for the pregame view):")
+    for lab, f in beyond.items():
+        for name, (b, ci, n) in f.items():
+            w(f"    {lab:<5} {name:<12} a {b[0]:+.4f} ± {ci[0]:.4f}   b {b[1]:+.3f} ± {ci[1]:.3f}"
+              f"   games {n}")
+    w("  Scored out of sample, the mid corrected by the train fit's (a, b):")
+    w("  " + diff_line("mid + score - live mid", S_te, "p_mid_adj", "mid"))
+    w("  " + diff_line("mid + score by part - live mid", S_te, "p_mid_adjp", "mid"))
+    w("  " + diff_line("mid + a only - live mid", S_te, "p_mid_a", "mid"))
+    w("  " + diff_line("mid + a only by part - live mid", S_te, "p_mid_ap", "mid"))
     w("  Calibration of the live mid against the outcome (slope 1 = right; < 1 the mid is")
     w("  too confident, > 1 too timid):")
     for lab, x in (("train", S_tr), ("test", S_te)):
@@ -766,8 +923,11 @@ def report(S, P, drops, espn, n_games):
           f"{1 + LAG_CANDLES} min later; per $1 contract)")
         if lab == "train":
             w("  (sigma and w were fitted on these games: MKT and MODEL use no fitted "
-              "outcome here, BLEND's w does.)")
-        for z, name in PRIORS + (("z_mkt_out", "MKT out-sig"),):
+              "outcome here; BLEND's w, MKT out-sig, sigma-and-k and MID+score do.)")
+        for z, name in PRIORS + (("z_mkt_out", "MKT out-sig"), ("z_mkt_fk", "MKT sig,k"),
+                                 ("z_mkt_fkp", "MKT sig,k part"), ("mid_adj", "MID+score"),
+                                 ("mid_adjp", "MID+score part"), ("mid_a", "MID+a"),
+                                 ("mid_ap", "MID+a part")):
             t = run_trades(x, f"p_{z}", name)
             trades.append(t)
             w(trade_line(name, t))
@@ -803,6 +963,14 @@ def report(S, P, drops, espn, n_games):
           f"{'pass' if ok else 'fail'}")
     w(f"  reaction: MKT-prior pnl lower bound > 0 -> {100 * mkt_lo:+.1f}c: "
       f"{'pass' if mkt_lo > 0 else 'fail'}")
+    for prior in ("MKT sig,k", "MKT sig,k part", "MID+score", "MID+score part", "MID+a",
+                  "MID+a part"):
+        lo, m = ci_lo(prior)
+        if lo != lo:
+            w(f"  reaction ({prior}): too few trades to judge")
+            continue
+        w(f"  reaction ({prior}): pnl lower bound > 0 -> {100 * lo:+.1f}c "
+          f"(mean {100 * m:+.1f}c): {'pass' if lo > 0 else 'fail'}")
     return "\n".join(L), T
 
 

@@ -26,9 +26,25 @@ No native row has a model P yet: nothing here is forward evidence.
   The p* form fixes the prior's weight at sqrt(tau), so a prior that is itself too
   confident or too timid (section 2, pregame slopes) moves these fits too: a gap
   that is largest in the 1st half, where the prior weighs most, is not clean
-  evidence about the reaction to the score. Section 3 is the test that counts.
+  evidence about the reaction to the score. Section 1b frees the prior's weight;
+  section 3 is the test that counts.
   outcome fit, MODEL prior, train: 19.60 ± 2.29
   blend w(model) on [0, 1], train: 0.32 ± 0.43;  unbounded: +0.32 ± 0.43  (0 = the pregame mid already holds the model)
+
+== 1b. The prior's weight set free: p* = Phi(delta / (sigma sqrt(tau)) + k z0 sqrt(tau)),
+  MKT prior (k = 1 is the notebook's form; k > 1 = the pregame view counts for more than
+  a Brownian with its drift says). Fitted to the outcome and to the live mid on the same
+  minutes (a probit on delta / sqrt(tau) and z0 sqrt(tau)); ±95 game-clustered, the
+  difference from the two fits' joint covariance. mid - outcome sigma > 0 = the mid
+  moves less per point than outcomes justify (under-reaction); < 0 over-reaction.
+    train all minutes  outcome sigma 19.87 ± 2.25 k 0.99 ± 0.22   mid sigma 22.86 ± 0.24 k 1.05 ± 0.01   mid - outcome sigma +3.00 ± 2.23 k +0.06 ± 0.22
+    train 1st half     outcome sigma 21.03 ± 3.70 k 1.00 ± 0.19   mid sigma 24.13 ± 0.26 k 1.03 ± 0.01   mid - outcome sigma +3.10 ± 3.69 k +0.03 ± 0.19
+    train 3rd quarter  outcome sigma 18.50 ± 2.24 k 0.98 ± 0.29   mid sigma 21.85 ± 0.21 k 1.10 ± 0.01   mid - outcome sigma +3.35 ± 2.24 k +0.12 ± 0.29
+    train 4th quarter  outcome sigma 20.78 ± 2.79 k 0.91 ± 0.57   mid sigma 23.21 ± 0.61 k 1.23 ± 0.04   mid - outcome sigma +2.43 ± 2.77 k +0.32 ± 0.57
+    test  all minutes  outcome sigma 18.19 ± 2.72 k 1.51 ± 0.28   mid sigma 21.99 ± 0.33 k 1.03 ± 0.01   mid - outcome sigma +3.79 ± 2.65 k -0.47 ± 0.28
+    test  1st half     outcome sigma 17.63 ± 3.53 k 1.46 ± 0.25   mid sigma 23.03 ± 0.31 k 1.01 ± 0.01   mid - outcome sigma +5.40 ± 3.48 k -0.44 ± 0.25
+    test  3rd quarter  outcome sigma 17.37 ± 3.15 k 1.58 ± 0.37   mid sigma 21.02 ± 0.23 k 1.09 ± 0.02   mid - outcome sigma +3.64 ± 3.13 k -0.49 ± 0.36
+    test  4th quarter  outcome sigma 20.10 ± 3.68 k 1.98 ± 0.68   mid sigma 22.36 ± 1.02 k 1.27 ± 0.05   mid - outcome sigma +2.27 ± 3.63 k -0.71 ± 0.67
 
 == 2. Pregame, test (480 games)
   MKT (Kalshi pregame mid)   log loss 0.5095   Brier 0.1682
@@ -47,6 +63,10 @@ No native row has a model P yet: nothing here is forward evidence.
   p*(MODEL) - live mid                   log loss +0.0225 ± 0.0130   Brier +0.0085 ± 0.0051   games 480
   p*(BLEND) - live mid                   log loss +0.0053 ± 0.0073   Brier +0.0025 ± 0.0028   games 480
   p*(MKT, outcome sigma) - live mid      log loss +0.0020 ± 0.0040   Brier +0.0010 ± 0.0015   games 480
+  p*(MKT, sigma and k) - live mid        log loss +0.0025 ± 0.0040   Brier +0.0011 ± 0.0016   games 480
+  p*(MKT, sigma and k by part) - mid     log loss +0.0027 ± 0.0041   Brier +0.0011 ± 0.0016   games 480
+  p*(MKT, sigma and k) - p*(MKT, out sig) log loss +0.0003 ± 0.0002   Brier +0.0001 ± 0.0001   games 480
+  (sigma and k: the train outcome fit of section 1b, all minutes or each part.)
   p*(BLEND) - p*(MKT)                    log loss +0.0025 ± 0.0033   Brier +0.0008 ± 0.0012   games 480
   p*(MODEL) - p*(MKT)                    log loss +0.0145 ± 0.0101   Brier +0.0051 ± 0.0039   games 480
   p*(MKT) - live mid, by part of the game:
@@ -59,6 +79,24 @@ No native row has a model P yet: nothing here is forward evidence.
     p*(MODEL)                              w -0.08 ± 0.32
     p*(BLEND)                              w +0.18 ± 0.40
     p*(MKT, outcome sigma)                 w +0.22 ± 0.48
+    p*(MKT, sigma and k)                   w +0.16 ± 0.47
+    p*(MKT, sigma and k by part)           w +0.16 ± 0.47
+  The score and the prior beyond the live mid, no p* form: y ~ logit(mid) [offset] +
+  a delta / sqrt(tau) + b z0 sqrt(tau) (a > 0 = the mid under-weights the score, < 0
+  over-weights it; b likewise for the pregame view):
+    train all minutes  a +0.0108 ± 0.0107   b -0.110 ± 0.382   games 681
+    train 1st half     a -0.0012 ± 0.0151   b -0.307 ± 0.342   games 681
+    train 3rd quarter  a +0.0096 ± 0.0124   b -0.269 ± 0.501   games 666
+    train 4th quarter  a +0.0208 ± 0.0111   b -0.098 ± 0.962   games 578
+    test  all minutes  a +0.0180 ± 0.0158   b +0.861 ± 0.529   games 480
+    test  1st half     a +0.0113 ± 0.0210   b +0.561 ± 0.471   games 480
+    test  3rd quarter  a +0.0154 ± 0.0195   b +0.788 ± 0.667   games 442
+    test  4th quarter  a +0.0218 ± 0.0160   b +1.614 ± 1.170   games 337
+  Scored out of sample, the mid corrected by the train fit's (a, b):
+    mid + score - live mid                 log loss +0.0007 ± 0.0030   Brier +0.0005 ± 0.0011   games 480
+    mid + score by part - live mid         log loss +0.0089 ± 0.0043   Brier +0.0027 ± 0.0016   games 480
+    mid + a only - live mid                log loss -0.0023 ± 0.0025   Brier -0.0003 ± 0.0008   games 480
+    mid + a only by part - live mid        log loss -0.0002 ± 0.0020   Brier +0.0001 ± 0.0006   games 480
   Calibration of the live mid against the outcome (slope 1 = right; < 1 the mid is
   too confident, > 1 too timid):
     train, all minutes                     slope 1.04 ± 0.12   intercept +0.050 ± 0.175   games 681
@@ -97,14 +135,39 @@ No native row has a model P yet: nothing here is forward evidence.
     (0.06, 0.08]   n 30   claimed  +6.7c  realised -16.6c ± 17.5  null  -5.4c
     (0.08, 0.12]   n 4    claimed  +9.0c  realised +23.8c ± 50.9  null  -3.3c
     (0.12, 1.0]    n 1    claimed +16.6c  realised +48.3c ±  nan  null  -2.7c
+  MKT sig,k      trades 230  YES/NO 119/111  fill 0.475  hit 0.417  claimed +5.1c  pnl -7.3c ± 5.7  null -4.1c  pnl - null -3.1c ± 5.7  ROI -14.8%  fav -0.9c
+    (0.04, 0.06]   n 194  claimed  +4.7c  realised  -6.6c ±  6.1  null  -4.0c
+    (0.06, 0.08]   n 31   claimed  +6.7c  realised -17.3c ± 17.0  null  -5.3c
+    (0.08, 0.12]   n 4    claimed  +9.0c  realised +23.8c ± 50.9  null  -3.3c
+    (0.12, 1.0]    n 1    claimed +16.5c  realised +48.3c ±  nan  null  -2.7c
+  MKT sig,k part trades 242  YES/NO 119/123  fill 0.468  hit 0.405  claimed +5.1c  pnl -7.8c ± 5.4  null -3.9c  pnl - null -3.9c ± 5.3  ROI -16.1%  fav +0.3c
+    (0.04, 0.06]   n 201  claimed  +4.7c  realised  -7.3c ±  5.7  null  -3.8c
+    (0.06, 0.08]   n 37   claimed  +6.8c  realised -11.4c ± 15.2  null  -4.0c
+    (0.08, 0.12]   n 3    claimed  +8.4c  realised -11.7c ± 66.2  null  -5.5c
+    (0.12, 1.0]    n 1    claimed +15.9c  realised +48.3c ±  nan  null  -2.7c
+  MID+score      trades 22   YES/NO 7/15  fill 0.538  hit 0.500  claimed +4.4c  pnl -5.4c ± 19.2  null -3.6c  pnl - null -1.8c ± 19.2  ROI -9.7%  fav +9.8c
+    (0.04, 0.06]   n 22   claimed  +4.4c  realised  -5.4c ± 19.2  null  -3.6c
+  MID+score part trades 97   YES/NO 41/56  fill 0.584  hit 0.536  claimed +4.6c  pnl -6.2c ± 8.9  null -3.4c  pnl - null -2.7c ± 8.9  ROI -10.3%  fav -3.5c
+    (0.04, 0.06]   n 94   claimed  +4.6c  realised  -5.7c ±  9.0  null  -3.4c
+    (0.06, 0.08]   n 3    claimed  +6.1c  realised -19.6c ± 63.3  null  -2.5c
+  MID+a          trades 2    (too few)
+  MID+a part     trades 69   YES/NO 29/40  fill 0.748  hit 0.681  claimed +4.9c  pnl -7.9c ± 10.9  null -3.4c  pnl - null -4.5c ± 10.8  ROI -10.4%  fav -8.4c
+    (0.04, 0.06]   n 62   claimed  +4.7c  realised -11.0c ± 11.5  null  -3.5c
+    (0.06, 0.08]   n 7    claimed  +6.6c  realised +19.3c ± 28.0  null  -2.5c
   null = the same contract at the fill minute's mid (what a fair mid says it is worth) less price and fee; fav = the live favourite bought at the same minute.
 
 == 4. Trades, train (one per game per prior; first quiet minute, tau 0.1-0.9, p* - ask - fee >= 4c; filled at the worst quote 2 min later; per $1 contract)
-  (sigma and w were fitted on these games: MKT and MODEL use no fitted outcome here, BLEND's w does.)
+  (sigma and w were fitted on these games: MKT and MODEL use no fitted outcome here; BLEND's w, MKT out-sig, sigma-and-k and MID+score do.)
   MKT            trades 562  YES/NO 270/292  fill 0.582  hit 0.580  claimed +5.5c  pnl -1.6c ± 3.9  null -3.5c  pnl - null +1.9c ± 3.9  ROI -2.7%  fav -6.7c
   MODEL          trades 601  YES/NO 301/300  fill 0.508  hit 0.519  claimed +7.3c  pnl -0.4c ± 3.8  null -3.3c  pnl - null +3.0c ± 3.8  ROI -0.7%  fav -7.3c
   BLEND          trades 573  YES/NO 281/292  fill 0.556  hit 0.555  claimed +5.7c  pnl -1.6c ± 3.8  null -3.4c  pnl - null +1.9c ± 3.8  ROI -2.7%  fav -6.9c
   MKT out-sig    trades 401  YES/NO 193/208  fill 0.523  hit 0.536  claimed +5.2c  pnl -0.2c ± 4.7  null -4.1c  pnl - null +3.8c ± 4.7  ROI -0.4%  fav -6.7c
+  MKT sig,k      trades 406  YES/NO 195/211  fill 0.514  hit 0.537  claimed +5.1c  pnl +0.8c ± 4.6  null -4.1c  pnl - null +4.8c ± 4.6  ROI +1.4%  fav -6.1c
+  MKT sig,k part trades 398  YES/NO 192/206  fill 0.521  hit 0.545  claimed +5.3c  pnl +0.9c ± 4.6  null -4.0c  pnl - null +4.9c ± 4.6  ROI +1.7%  fav -7.7c
+  MID+score      trades 30   YES/NO 9/21  fill 0.570  hit 0.667  claimed +4.5c  pnl +8.1c ± 16.0  null -3.7c  pnl - null +11.8c ± 16.0  ROI +13.9%  fav +3.6c
+  MID+score part trades 167  YES/NO 62/105  fill 0.665  hit 0.677  claimed +4.7c  pnl -0.2c ± 6.9  null -3.6c  pnl - null +3.4c ± 6.9  ROI -0.3%  fav -4.7c
+  MID+a          trades 2    (too few)
+  MID+a part     trades 137  YES/NO 56/81  fill 0.754  hit 0.752  claimed +4.8c  pnl -1.4c ± 7.1  null -4.0c  pnl - null +2.5c ± 7.1  ROI -1.9%  fav -1.5c
   null = the same contract at the fill minute's mid (what a fair mid says it is worth) less price and fee; fav = the live favourite bought at the same minute.
 
 == 5. The notebook's decision rules (test)
@@ -113,3 +176,9 @@ No native row has a model P yet: nothing here is forward evidence.
   tradable: MODEL pnl lower bound > 0 and above MKT -> lower bound -9.5c, mean -5.5c vs MKT -4.4c: fail
   tradable: BLEND pnl lower bound > 0 and above MKT -> lower bound -9.1c, mean -4.5c vs MKT -4.4c: fail
   reaction: MKT-prior pnl lower bound > 0 -> -9.1c: fail
+  reaction (MKT sig,k): pnl lower bound > 0 -> -13.0c (mean -7.3c): fail
+  reaction (MKT sig,k part): pnl lower bound > 0 -> -13.1c (mean -7.8c): fail
+  reaction (MID+score): pnl lower bound > 0 -> -24.6c (mean -5.4c): fail
+  reaction (MID+score part): pnl lower bound > 0 -> -15.1c (mean -6.2c): fail
+  reaction (MID+a): too few trades to judge
+  reaction (MID+a part): pnl lower bound > 0 -> -18.8c (mean -7.9c): fail

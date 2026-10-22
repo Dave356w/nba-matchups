@@ -636,12 +636,24 @@ Before a PR, run:
   same minutes the mid's fitted σ (21.7–22.6) exceeds the outcome's
   (17.8–19.8; +2.8 ± 2.3 train, +3.9 ± 2.4 test), most in the first half
   and unresolved in the 4th quarter, while the pregame mid's own slope moves
-  0.82 → 1.28 between the splits: not clean evidence that the mid
-  under-reacts to the score, and p* does not beat it either way. The
-  score-process σ overstates the game's (regulation margin around the
-  spread 13.85 ± 0.56) because consecutive quarters correlate −0.12 (leads
-  shrink). ESPN's wallclock and the mid agree within a minute (corr of
-  minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.
+  0.82 → 1.28 between the splits. With the prior's weight set free (owner's
+  request, same day: p* = Φ(Δ/(σ√τ) + k z0√τ), a probit fitted to the
+  outcome and to the mid on the same minutes) the gap survives: outcome k
+  0.99 ± 0.22 (train) / 1.51 ± 0.28 (test, the Feb–Apr pregame timidity),
+  mid k 1.03–1.05; mid − outcome σ +3.0 ± 2.2 / +3.8 ± 2.7. With no p*
+  form, the outcome's weight on the score beyond the mid is positive in
+  both periods (+0.011 ± 0.011 / +0.018 ± 0.016 logit per point/√τ; 4th
+  quarter +0.021 ± 0.011 / +0.022 ± 0.016): the mid under-weights the
+  score, mostly late. Not usable: out of sample p*(σ, k) − mid +0.0025 ±
+  0.0040; the mid plus the train correction +0.0007 ± 0.0030 (score term
+  alone −0.0023 ± 0.0025); trades −5.4 to −7.9c a contract vs a −3.4 to
+  −4.1c null (the score-only correction clears the 4c entry in 2 of 480
+  games). Several arms were tried on the same games, so the score term is
+  a lead to pre-register on a later season's Kalshi archive, not a
+  finding. The score-process σ overstates the game's (regulation margin
+  around the spread 13.85 ± 0.56) because consecutive quarters correlate
+  −0.12 (leads shrink). ESPN's wallclock and the mid agree within a minute
+  (corr of minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.
 - One feature builder: `nba_composite.logit_inputs` (delta, b2b_net, phase
   from opening night, d_phase) serves build_games, the CLI scorer and
   `build_site.score_game`; research scripts reuse the `phase` column.
