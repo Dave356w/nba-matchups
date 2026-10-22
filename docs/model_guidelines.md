@@ -74,7 +74,7 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 | W5 | Early season unresolved | Games 1–9: −0.0073 ± 0.0395 and +0.0092 ± 0.0420 vs the close (138 games each, ESPN BET); the carryover leans home +2.5 to +3.2 pp beyond the market. DraftKings priced no game 1–9, so H1 and H6 have no DraftKings hindsight | model_review §1; home-court; dk_hypotheses |
 | W6 | Thin, in-sample evidence for the rules | Two priced seasons, one DraftKings season; the hypotheses came from a 271-cell scan where 3 passed (about 7 expected by chance); the DraftKings backtest re-reads the same games | CLAUDE.md hypotheses |
 | W8 | The home edge is the training seasons' edge | Walk-forward 2017-18 to 2025-26 it ran 1.5 pts above the actual home rate (3–4 pts in 2020-21, 2021-22, 2023-24; within 1.3 in the last two); on 2004–14 the frozen core ran 2.8 pts below it. Recency weighting bought nothing (§4) | history_backtest A2, B |
-| W9 | Opponent luck barely earns its place inside v6 | Dropped and refitted: +0.0002 ± 0.0009, helps in 6 of 9 seasons, against +0.0059 for talent and +0.0024 for back-to-back. It earned its gate against base v4 (−0.0022 pooled), before talent took the same information | history_backtest A7 |
+| W9 | Opponent luck is small, but it stays | Pooled over 2016–26 and every route, dropped and refitted: +0.0002 ± 0.0009, helps in 6 of 9 seasons (talent +0.0059, back-to-back +0.0024). On the priced seasons, all on the availability route, dropping it fails the gate: v7 − v6 +0.0018 ± 0.0017 (2024-25 ESPN BET), +0.0013 ± 0.0028 (2025-26 DK). Owner kept v6, 2026-10-22 | history_backtest A7; walk-forward run 39698425564 |
 | W7 | Segment results do not replicate | Heavy DK favourites (≥ 0.90) +0.050 ± 0.013 (n = 39) but −0.007 ± 0.034 in 2024-25; worst months differ by season. Treat single-season cells as noise until they replicate | model_review §2 |
 
 ## 4. Ruled out (do not retest without a new reason)
@@ -88,6 +88,7 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 | Last season past game 10 | +0.0028 ± 0.0055 / +0.0041 ± 0.0048 (worse) |
 | Recency-weighted intercept | within 0.0005 of v5 |
 | A separate home back-to-back term | the residual flips sign between eras: −2 pts (2016–26), +2 pts (2004–14) |
+| Dropping opponent luck (v7) | +0.0018 ± 0.0017 / +0.0013 ± 0.0028 vs v6 (worse; failed the gate) |
 | Probit link | +0.0004 / +0.0003 (slightly worse) |
 | Δ·\|Δ\| (curvature) | +0.0005 / −0.0007 |
 | Eight free factor weights instead of Δ | +0.0004 / +0.0001 |
@@ -144,7 +145,10 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 - **G7. One gate for every change.** Walk-forward with the production
   routing, the same games, not worse on either large book-season (log loss,
   Brier agreeing), then refit, rescore and a new `MODEL_TAG`. A gain of more
-  than 0.008 a season is a leakage tripwire, not a win.
+  than 0.008 a season is a leakage tripwire, not a win. Read an ablation on
+  the route and seasons production uses: the history backtest's pooled
+  figure for luck (+0.0002) hid a cost of +0.0013 to +0.0018 on the
+  availability route (W9).
 - **G8. Stop mining the box score.** Four shipped terms bought ~0.01 to
   0.015 per game and about fifteen more bought nothing (§4). New work should target what the
   market has and the model lacks:

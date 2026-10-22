@@ -222,7 +222,11 @@ Each v6 term dropped and refitted, on the games it reaches (positive = the
 term helps): roster talent +0.0059 ± 0.0026, back-to-back +0.0024 ± 0.0012,
 Δ·phase +0.0009 ± 0.0006 (each 8 of 9 seasons); availability +0.0029 ±
 0.0033 (3 of 3); own FT% +0.0004 ± 0.0005 (8 of 9); opponent 3P% luck
-+0.0002 ± 0.0009 (6 of 9, the least supported term).
++0.0002 ± 0.0009 (6 of 9, the least supported term pooled). That figure is
+mostly the base route of 2016-17 to 2022-23: on the priced seasons, where
+every game 10+ runs through the availability logit, dropping luck fails the
+gate (v7, walk-forward run 39698425564: v7 − v6 +0.0018 ± 0.0017 2024-25
+ESPN BET, +0.0013 ± 0.0028 2025-26 DK; owner kept v6, 2026-10-22).
 
 Calibration against outcomes: slope 0.99 ± 0.06 from the second fold on
 (0.95 ± 0.05 with 2016-17, whose fit had one season: 0.70); 0.90 to 1.17 by

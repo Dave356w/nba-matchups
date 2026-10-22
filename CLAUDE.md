@@ -445,6 +445,20 @@ Before a PR, run:
   forward test. **Active:** refit `f299ac6` (ft_diff 0.0151 base, 0.0175
   availability), rescore `f85e3ff` (2,418 rows re-tagged v6; leave-one-
   season-out v6 − v5 −0.0002 ± 0.0016 / −0.0010 ± 0.0011).
+- **v7 candidate rejected** (owner's request 2026-10-21 to drop opponent
+  luck after the history backtest; owner's decision 2026-10-22 to keep v6):
+  v6 without `luck_def`, closed PR Dave356w/nba-matchups#80 (code at
+  `79f6270`). Gate
+  (walk-forward `--avail --v7`, run 39698425564, v7 − v6 on the same games,
+  games 10+, ± 95%): +0.0018 ± 0.0017 (2024-25 ESPN BET), +0.0013 ± 0.0028
+  (2025-26 DK), −0.0094 ± 0.0151 (2025-26 ESPN BET, n = 107); Brier agrees
+  on both large book-seasons; v7 − close +0.0178 / +0.0197 (v6 +0.0160 /
+  +0.0184). Worse on both large book-seasons, resolved on 2024-25: fails
+  the gate. Every priced game 10+ runs through the availability logit,
+  where luck's coefficient is larger (0.016–0.018 vs 0.0125 base); the
+  history backtest's pooled ablation (+0.0002, below) is mostly the base
+  route of 2016-17 to 2022-23 and understated it. Judge a term on the
+  route and seasons production uses. Luck stays.
 - v5 audit (`HANDOFF_v5_audit.md`, results in `diagnostics/v5_audit/`,
   workflow "v5 audit"), 2026-10-01: home-court drift +1.56 ± 0.79 pts
   pooled over the last 3 seasons (rule not met; no change); v5 is not flat
@@ -533,7 +547,8 @@ Before a PR, run:
   better in 9 of 9 seasons. Terms dropped in turn (positive = helps):
   talent +0.0059 ± 0.0026, b2b +0.0024 ± 0.0012, Δ·phase +0.0009 ± 0.0006
   (8 of 9 each), availability +0.0029 ± 0.0033 (3 of 3), FT% +0.0004 ±
-  0.0005 (8 of 9), opponent luck +0.0002 ± 0.0009 (6 of 9, the weakest).
+  0.0005 (8 of 9), opponent luck +0.0002 ± 0.0009 (6 of 9, the weakest
+  pooled; but dropping it fails the gate on the priced seasons, v7 above).
   Calibration slope 0.99 ± 0.06 (folds with 2+ training seasons); Δ·phase
   takes the last third from 1.24 (v1) to 1.04. Predicted home rate 1.5 pts
   above the actual (2017-18 to 2025-26). Out of era 2004-05 to 2013-14
