@@ -1,0 +1,63 @@
+Sleeper's projected lineup against v6 and the close (HINDSIGHT screen)
+research/sleeper_signal.py; games 10+; ± is 95%; reconstructed v6 rows;
+Sleeper archive set at an unknown time before tip (research/sleeper.py).
+
+== Coverage
+    DraftKings 2025-26       games   964, with both teams' projections   964; projected minutes with a BPM value 88.0%
+    ESPN BET 2024-25         games  1071, with both teams' projections  1060; projected minutes with a BPM value 89.5%
+    ESPN BET 2025-26         games   107, with both teams' projections   107; projected minutes with a BPM value 91.8%
+
+== 1. What the features track (correlations; s_x on open and close together)
+  DraftKings 2025-26 (n = 964)
+    s_tal     corr with logit P +0.85, with the close +0.84
+              on open +0.41 ± 0.94, on close +5.07 ± 0.90 (n = 964)
+    s_margin  corr with logit P +0.94, with the close +0.98
+              on open +1.92 ± 0.27, on close +3.80 ± 0.26 (n = 964)
+    s_margin corr with the closing spread (home margin) +0.98
+  ESPN BET 2024-25 (n = 1060)
+    s_tal     corr with logit P +0.86, with the close +0.88
+              on open -0.78 ± 0.76, on close +6.97 ± 0.74 (n = 1060)
+    s_margin  corr with logit P +0.95, with the close +0.98
+              on open +1.83 ± 0.25, on close +3.78 ± 0.24 (n = 1060)
+    s_margin corr with the closing spread (home margin) +0.98
+  ESPN BET 2025-26 (n = 107)
+    s_tal     corr with logit P +0.84, with the close +0.91
+              on open +1.29 ± 2.64, on close +4.85 ± 2.61 (n = 107)
+    s_margin  corr with logit P +0.96, with the close +0.98
+              on open +1.05 ± 1.15, on close +5.30 ± 1.14 (n = 107)
+    s_margin corr with the closing spread (home margin) +0.98
+
+== 2. Screens (stack weights fitted on the other priced season)
+  DraftKings 2025-26 (n = 964; weights from 2024-25, n = 1060, walk-forward)
+    v6 + s_tal - v6                    log loss -0.0006 ± 0.0018   Brier -0.0003 ± 0.0008
+    v6 + s_margin - v6                 log loss -0.0134 ± 0.0093   Brier -0.0055 ± 0.0040
+    v6 + both - v6                     log loss -0.0134 ± 0.0094   Brier -0.0056 ± 0.0040
+    close + s_tal - close              log loss -0.0000 ± 0.0028   Brier +0.0004 ± 0.0012
+    close + s_margin - close           log loss -0.0000 ± 0.0002   Brier -0.0000 ± 0.0001
+    v6 - raw close                     log loss +0.0184 ± 0.0110   Brier +0.0071 ± 0.0047
+    v6 + both - raw close              log loss +0.0056 ± 0.0062   Brier +0.0018 ± 0.0025
+    close + s_margin - raw close       log loss +0.0001 ± 0.0022   Brier +0.0002 ± 0.0009
+    weights (train): v6 + s_tal: +0.872, +0.017; v6 + s_margin: +0.157, +0.155; v6 + both: +0.141, +0.004, +0.154; close + s_tal: +1.246, -0.028; close + s_margin: +1.099, -0.006
+    in-season fit y ~ close + s_tal + s_margin: s_tal -0.017 ± 0.039, s_margin -0.0290 ± 0.1271
+  ESPN BET 2024-25 (n = 1060; weights from 2025-26, n = 1071, hindsight)
+    v6 + s_tal - v6                    log loss -0.0004 ± 0.0017   Brier -0.0002 ± 0.0007
+    v6 + s_margin - v6                 log loss -0.0094 ± 0.0090   Brier -0.0037 ± 0.0039
+    v6 + both - v6                     log loss -0.0094 ± 0.0090   Brier -0.0037 ± 0.0039
+    close + s_tal - close              log loss -0.0008 ± 0.0018   Brier -0.0003 ± 0.0008
+    close + s_margin - close           log loss +0.0001 ± 0.0009   Brier +0.0001 ± 0.0004
+    v6 - raw close                     log loss +0.0145 ± 0.0098   Brier +0.0060 ± 0.0043
+    v6 + both - raw close              log loss +0.0054 ± 0.0059   Brier +0.0025 ± 0.0026
+    close + s_margin - raw close       log loss -0.0001 ± 0.0019   Brier +0.0001 ± 0.0007
+    weights (train): v6 + s_tal: +0.955, +0.017; v6 + s_margin: +0.054, +0.173; v6 + both: +0.057, -0.001, +0.174; close + s_tal: +1.188, -0.019; close + s_margin: +0.915, +0.028
+    in-season fit y ~ close + s_tal + s_margin: s_tal -0.030 ± 0.039, s_margin -0.0205 ± 0.1090
+  ESPN BET 2025-26 (n = 107; weights from 2024-25, n = 1060, walk-forward)
+    v6 + s_tal - v6                    log loss +0.0014 ± 0.0059   Brier +0.0008 ± 0.0026
+    v6 + s_margin - v6                 log loss -0.0115 ± 0.0261   Brier -0.0063 ± 0.0109
+    v6 + both - v6                     log loss -0.0111 ± 0.0265   Brier -0.0061 ± 0.0110
+    close + s_tal - close              log loss -0.0023 ± 0.0069   Brier -0.0007 ± 0.0031
+    close + s_margin - close           log loss +0.0009 ± 0.0008   Brier +0.0004 ± 0.0003
+    v6 - raw close                     log loss -0.0089 ± 0.0332   Brier -0.0036 ± 0.0148
+    v6 + both - raw close              log loss -0.0198 ± 0.0224   Brier -0.0098 ± 0.0085
+    close + s_margin - raw close       log loss -0.0011 ± 0.0068   Brier -0.0003 ± 0.0028
+    weights (train): v6 + s_tal: +0.872, +0.017; v6 + s_margin: +0.157, +0.155; v6 + both: +0.141, +0.004, +0.154; close + s_tal: +1.246, -0.028; close + s_margin: +1.099, -0.006
+    in-season fit y ~ close + s_tal + s_margin: s_tal +0.006 ± 0.156, s_margin +0.4111 ± 0.3875
