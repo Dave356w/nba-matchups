@@ -44,7 +44,8 @@ def build(seasons, cache_dir=pav.DEFAULT_CACHE, fetch=None, bpm=None,
     """Fetch (or reuse) each season's box scores and last season's BPM;
     with commit, write each finished season to data_dir/nba_box_<t>.csv and
     its preseason box scores (model v8's game-0 rosters; opening night =
-    the first regular-season box) to data_dir/nba_box_pre_<t>.csv.
+    the first regular-season box) to data_dir/nba_box_pre_<t>.csv, only from
+    a fetch with no failed request.
     Return {season: summary line}."""
     fetch = fetch or pav.fetch_box
     bpm = bpm or pav.load_bpm
@@ -67,11 +68,13 @@ def build(seasons, cache_dir=pav.DEFAULT_CACHE, fetch=None, bpm=None,
                 pav.save_box(box, os.path.join(data_dir, f"nba_box_{t}.csv"))
                 out[t] += f"; written to data/nba_box_{t}.csv"
                 pre = fetch_pre(t, pd.Timestamp(box["date"].min()), cache_dir=cache_dir,
-                                data_dir=data_dir)
+                                data_dir=data_dir, complete_only=True)
                 if len(pre):
                     pav.save_pre_box(pre, os.path.join(data_dir, f"nba_box_pre_{t}.csv"))
                     out[t] += (f"; preseason {pre['game_id'].nunique()} games, "
                                f"{pre['team'].nunique()} teams")
+                else:
+                    out[t] += "; preseason incomplete, not written (rerun)"
             else:
                 out[t] += "; not finished, not written"
         print(out[t], flush=True)

@@ -183,3 +183,27 @@ def test_research_preseason_cache_keeps_only_a_clean_fetch(tmp_path, monkeypatch
     monkeypatch.setattr(pav, "preseason_rows", lambda dates, sleep=0.15: (rows, 0))
     pav.fetch_preseason_box(2026, "2025-10-21", str(cache), str(data))
     assert pav.pre_box_file(2026, str(cache), str(data)) == str(cache / "box_pre_2026.csv")
+
+
+def test_box_history_never_commits_a_partial_preseason_fetch(tmp_path, monkeypatch):
+    import importlib.util as iu
+    import os
+    spec = iu.spec_from_file_location("box_history", os.path.join(
+        os.path.dirname(__file__), "..", "research", "box_history.py"))
+    bh = iu.module_from_spec(spec)
+    spec.loader.exec_module(bh)
+    box = pd.DataFrame(dict(game_id=["g1"], date=pd.to_datetime(["2025-10-21"]), team=["BOS"],
+                            opp=["NYK"], home=[True], margin=[3], player_id=["p"], name=["A B"],
+                            minutes=[30.0], pm=[3.0]))
+    rows = pd.DataFrame(dict(game_id=["1"], date=[pd.Timestamp("2025-10-10")], team=["BOS"],
+                             player_id=["p"], name=["A B"], minutes=[20.0]))
+    monkeypatch.setattr(pav, "preseason_rows", lambda dates, sleep=0.15: (rows, 1))
+    data = tmp_path / "data"
+    run = lambda: bh.build([2026], str(tmp_path / "cache"), fetch=lambda t, cache_dir=None: box,  # noqa: E731
+                           bpm=lambda t: {}, data_dir=str(data), commit=True,
+                           today=pd.Timestamp("2026-10-22"))
+    out = run()
+    assert "preseason incomplete" in out[2026] and not (data / "nba_box_pre_2026.csv").exists()
+    monkeypatch.setattr(pav, "preseason_rows", lambda dates, sleep=0.15: (rows, 0))
+    out = run()
+    assert "preseason 1 games" in out[2026] and (data / "nba_box_pre_2026.csv").exists()
