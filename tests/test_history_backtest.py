@@ -163,3 +163,20 @@ def test_part_c_games_1_to_9(monkeypatch):
     text = "\n".join(hb.part_c(folds, [2010, 2011]))
     assert "C. Games 1-9" in text and "2023-24" in text and "2024-25" in text
     assert "Out of era" in text and "2009-10" in text and "pooled" in text
+
+
+def test_rookie_curve_and_values(monkeypatch):
+    picks = {2014: {"a one": 1, "b ten": 10, "c thirty": 30},
+             2015: {"d two": 2, "e twenty": 20}}
+    bpms = {2015: {"a one": (1.0, 2000, 70), "b ten": (-2.0, 1500, 60),
+                   "c thirty": (-4.0, 500, 30)},
+            2016: {"d two": (0.0, 1800, 70), "e twenty": (-3.0, 900, 50)}}
+    monkeypatch.setattr(hb, "draft_picks", lambda y: picks[y])
+    monkeypatch.setattr(hb.pav, "load_bpm", lambda y: bpms[y])
+    a, b, n = hb.rookie_curve([2015, 2016])
+    assert n == 5 and b < 0                          # later picks, lower BPM
+    box = pd.DataFrame({"player_id": ["1", "2", "3"], "name": ["D Two", "Vet", "Undrafted"]})
+    value, k = hb.rookie_values({"1": 0.0, "2": 3.0, "3": 0.0}, box,
+                                {"vet": (1.0, 2000, 70)}, {"d two": 2}, (a, b, n))
+    assert k == 1 and value["2"] == 3.0 and value["3"] == 0.0
+    assert np.isclose(value["1"], a + b * np.log(2) - hb.pav.REPLACEMENT_BPM)

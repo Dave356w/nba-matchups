@@ -39,6 +39,12 @@ season the game logs reach. Parts A and B are games 10+; C is games 1-9:
      earlier seasons (production fits 2023-26 only), 2016-17 to 2025-26; and
      out of era the frozen logit_early.json with the committed weights.
      Calibration and the early home lean against outcomes.
+  A9. Rookies by draft slot (2026-10-22): talent_diff values players
+     missing from last season's BPM table (rookies) at replacement. A9 gives
+     each drafted rookie the rookie-season BPM his pick predicts, a + b
+     log(pick), minutes-weighted over earlier seasons' rookies only (BBR
+     draft pages), and refits v6 with that talent in place of talent_diff;
+     also against the close on the priced seasons.
 
 Research only: nothing here touches the ledgers, the pages or the model.
 Writes diagnostics/history_backtest/RESULTS.txt. ± is 95%.
@@ -46,8 +52,10 @@ Writes diagnostics/history_backtest/RESULTS.txt. ± is 95%.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -59,6 +67,7 @@ sys.path.insert(0, os.path.join(ROOT, "diagnostics", "v5_audit"))
 import cold_start                                 # noqa: E402
 import common as c                                # noqa: E402
 import nba_composite as nc                        # noqa: E402
+import player_availability as pav                 # noqa: E402
 
 OUT = os.path.join(ROOT, "diagnostics", "history_backtest")
 Z95 = 1.96
@@ -550,6 +559,111 @@ def part_c(folds, era):
     return L
 
 
+def draft_picks(year):
+    """norm_name -> pick in the year's NBA draft (BBR draft page, cached)."""
+    h = nc.fetch(f"{nc.BASE}/draft/NBA_{year}.html", nc.CACHE / f"draft_{year}.html")
+    m = re.search(r'<table[^>]*id="stats".*?</table>', nc.uncomment(h), re.S)
+    df = pd.read_html(io.StringIO(m.group(0)))[0]
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [x[-1] for x in df.columns]
+    df = df[pd.to_numeric(df["Pk"], errors="coerce").notna()]
+    return {pav.norm_name(n): int(k) for n, k in zip(df["Player"], df["Pk"])
+            if isinstance(n, str)}
+
+
+def rookie_curve(seasons):
+    """(a, b, n): rookie-season BPM ~ a + b log(pick), weighted by minutes,
+    over the rookies of `seasons` (drafted the summer before each)."""
+    X, Y, W = [], [], []
+    for t in seasons:
+        bpm = pav.load_bpm(t)
+        for name, pick in draft_picks(t - 1).items():
+            rec = bpm.get(name)
+            if rec is None or not (np.isfinite(rec[0]) and rec[1] > 0):
+                continue
+            X.append(np.log(pick))
+            Y.append(rec[0])
+            W.append(rec[1])
+    X, Y, sw = np.asarray(X), np.asarray(Y), np.sqrt(np.asarray(W, float))
+    A = np.column_stack([np.ones_like(X), X]) * sw[:, None]
+    a, b = np.linalg.lstsq(A, Y * sw, rcond=None)[0]
+    return float(a), float(b), len(X)
+
+
+def rookie_values(value, box, bpm, picks, curve):
+    """value with each drafted rookie (no BPM row last season) at the
+    rookie BPM his pick predicts, above replacement; (value, n rookies)."""
+    out, n = dict(value), 0
+    a, b = curve[:2]
+    for pid, name in box.drop_duplicates("player_id").set_index("player_id")["name"].items():
+        key = pav.norm_name(name)
+        if bpm.get(key) is None and key in picks:
+            out[pid] = a + b * np.log(picks[key]) - pav.REPLACEMENT_BPM
+            n += 1
+    return out, n
+
+
+def rookie_column(folds):
+    """{(slate_date, home, away): talent_diff with drafted rookies by pick},
+    each season's curve fitted on earlier seasons only; and the curve lines."""
+    seasons = sorted({int(t) for f in folds.values()
+                      for fr in (f.base_train, f.test) for t in fr["year"].unique()})
+    col, L = {}, []
+    for t in seasons:
+        curve = rookie_curve(range(2015, t))
+        box = pav.fetch_box(t)
+        bpm = pav.load_bpm(t - 1)
+        value, _, _ = pav.player_values(box, bpm)
+        value, n = rookie_values(value, box, bpm, draft_picks(t - 1), curve)
+        tal = pav.talent_fn(box, value, pav.arrival_roles(box, bpm))
+        keys = set()
+        for f in folds.values():
+            for fr in (f.base_train, f.test):
+                g = fr[fr["year"] == t]
+                keys |= set(zip(g["slate_date"], g["home"], g["away"]))
+        for sd, h, a in keys:
+            col[(sd, h, a)] = tal(h, sd) - tal(a, sd)
+        L.append(f"    {season_name(t):<9} curve BPM = {curve[0]:+.2f} {curve[1]:+.2f} "
+                 f"log(pick) (fit on {curve[2]} rookies of 2014-15 to "
+                 f"{season_name(t - 1)}); {n} rookies valued")
+    return col, L
+
+
+def part_a9(folds, d):
+    """v6 with drafted rookies valued by pick, refit, against v6."""
+    L = ["  A9. Rookies by draft slot: v6 refitted with talent valuing drafted "
+         "rookies by pick (instead of at replacement); log loss rookie - v6, ± 95%"]
+    try:
+        col, lines = rookie_column(folds)
+    except Exception as e:  # noqa: BLE001
+        return L + [f"    not built ({e!r})"]
+    L += lines
+    v6r = [x if x != "talent_diff" else "talent_rk" for x in V6]
+    av6r = [x if x != "talent_diff" else "talent_rk" for x in AV6]
+    ps = []
+    for yr, f in sorted(folds.items()):
+        for fr in (f.base_train, f.avail_train, f.v4_train, f.test):
+            if fr is not None:
+                fr["talent_rk"] = [col.get(k, np.nan) for k in
+                                   zip(fr["slate_date"], fr["home"], fr["away"])]
+        ps.append(routed(f, v6r, av6r))
+    d = d.assign(rookie=np.concatenate(ps))
+    k = (d["route"] != "v4").to_numpy()
+    y = d["win"].to_numpy(float)
+    v6 = d["p::v6 (production)"].to_numpy(float)
+    m, ci = paired(d["rookie"].to_numpy(float)[k], v6[k], y[k])
+    per = [paired(g["rookie"].to_numpy(float), g["p::v6 (production)"].to_numpy(float),
+                  g["win"].to_numpy(float))[0] for _, g in d[k].groupby("year")]
+    L.append(f"    pooled    n={int(k.sum()):<5} rookie - v6 {m:+.4f} ± {ci:.4f}  (better "
+             f"in {sum(x < 0 for x in per)} of {len(per)} seasons)")
+    L.append("    against the close, priced seasons (same games):")
+    try:
+        L += market_lines(d.rename(columns={"p::v6 (production)": "v6"}), ["v6", "rookie"])
+    except Exception as e:  # noqa: BLE001
+        L.append(f"    (no market rows: {e!r})")
+    return L
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--seasons", nargs="+", type=int, default=SEASONS)
@@ -564,7 +678,7 @@ def main(argv=None):
         folds = c.build_folds(a.seasons, with_e=False)
         la, d = part_a(folds)
         l8, tau = part_a8(d)
-        L += la + [""] + l8 + [""]
+        L += la + [""] + l8 + [""] + part_a9(folds, d) + [""]
     if era:
         L += part_b(era, tau if np.isfinite(tau) and tau > 0 else TAU_GRID[1]) + [""]
     if not a.skip_a:
