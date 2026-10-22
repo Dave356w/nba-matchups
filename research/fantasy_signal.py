@@ -18,7 +18,7 @@ pick of a 26-way search, and 70% is about what the closing favourite wins,
 so none of it shows information beyond the price. This tests it on every
 priced game of two seasons, scored against the closing moneyline.
 
-Projections: research/sleeper.py's archive (RotoWire via Sleeper; set at an
+Projections: sleeper.py's archive (RotoWire via Sleeper; set at an
 unknown time before tip, so HINDSIGHT), DraftKings scoring (Showdown uses
 it): pts 1, 3PM 0.5, reb 1.25, ast 1.5, stl 2, blk 2, TO -0.5, double-double
 1.5 x P(dd), triple-double 3 x P(td), with P clipped to [0, 1] (36 archived

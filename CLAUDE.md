@@ -21,6 +21,19 @@ owner directs the product.
 - `data/nba_ledger.csv`: **native** rows, pregame-locked (snapshot < tip).
 - `data/nba_reconstructed.csv`: **reconstructed** rows (leave-one-season-out,
   closing price). This is hindsight and is not forward evidence.
+- `data/nba_sleeper.csv`: Sleeper's (RotoWire's) pregame projections per
+  game (owner's decision, 2026-10-22; `build_site.snapshot_sleeper`,
+  `sleeper.live_projections`, `ledger.upsert_sleeper`): every player Sleeper
+  lists for either team, his projected minutes and line (minutes 0 = listed,
+  not expected to play) and his injury status at the snapshot. kind "first"
+  (the first build that captured the game, written once) and "pre" (the
+  latest before tip, replaced each build), both frozen at tip; validated
+  (`validate_data_files.check_sleeper`). Written for every accepted game,
+  games 0–9 included. Research data: the model and the pages read none of
+  it, and a Sleeper failure never stops the build. Its use is the
+  lead-lag test (does a change in RotoWire's lineup between the snapshots
+  lead the line?) and a pregame roster for the early-season route; any
+  model use goes through the gate first.
 - `data/nba_preseason.csv`: **preseason** rows (basis "preseason"):
   exhibitions, same schema and pregame lock as native, scored by the
   carryover logit on last season's games only (`build_site.PRESEASON_TAG`,
@@ -236,8 +249,8 @@ Before a PR, run:
     unresolved. Not pursued; a truly pregame roster (e.g. the
     `data/nba_injuries.csv` snapshots) is the only open variant, with
     little upside per the hindsight ceiling.
-  Sleeper projections (owner's request, 2026-10-22; `research/sleeper.py`,
-  research only, writes `research/output/sleeper/`): RotoWire's projected
+  Sleeper projections (owner's request, 2026-10-22; `sleeper.py`; its CLI
+  writes `research/output/sleeper/`): RotoWire's projected
   minutes per player per game, Sleeper's depth chart and injury
   designations. Archive from 2019-20, complete (team-games 240 ± 1–8 min)
   from 2022-23. Each week's rows carry one `last_modified` after the week,
@@ -245,7 +258,8 @@ Before a PR, run:
   edited after the game (2025-26, 1,231 games: minutes played corr 0.82,
   MAE 4.7; 911 DNPs kept a projection, 2,781 players listed at 0 played).
   `snapshot` + `pregame` (fetch-stamped, read only before the ledger's
-  tip) are the clean version; not wired into the build. Model update?
+  tip) are the clean version, and the daily build now records it
+  (`data/nba_sleeper.csv`, below). Model update?
   (owner's question; `research/sleeper_signal.py`, `diagnostics/
   sleeper_signal/RESULTS.txt`; stack on logit P or logit q, weights from
   the other priced season, games 10+, ± 95%, 2025-26 DK n = 964 / 2024-25
@@ -581,6 +595,30 @@ Before a PR, run:
   beat last-season BPM; in-season box-score value adds nothing resolved.
   Dropped. (The outline's season-level MAE of 0.31 wins was fitted on the
   same season's outcomes, which Win Shares are built from.)
+- In-season BPM (owner's question, 2026-10-22; `research/bpm_live.py`,
+  `research/team_quality.py --bpm`, workflow "Team quality" with args
+  `--bpm`, run 39823000315; `diagnostics/bpm_live/RESULTS.txt`):
+  production's player values are last season's BPM, frozen (minutes
+  update, values do not). BPM to date is rebuilt from ESPN box lines
+  (league-relative per-100 rates + team net rating, mapped on BBR's BPM of
+  2016–2024: held-out corr 0.954–0.969, MAE 0.57–0.67, no bias) and blended
+  walk-forward. Games 10+, log loss vs v6_base, ± 95% (2024-25 ESPN BET n =
+  1,071 / 2025-26 DK n = 964): Bayes (prior M0 = 750 min) `v6_bpmb`
+  +0.0049 ± 0.0038 / −0.0002 ± 0.0038 (worse on 2024-25, Brier agrees);
+  season only `v6_bpmo` +0.0039 ± 0.0066 / −0.0010 ± 0.0062; frozen +
+  in-season, free weights `v6_bpm_bpmo` +0.0011 ± 0.0012 / −0.0004 ±
+  0.0008 (in-season weight 0.013–0.021 vs the frozen term's 0.054). BPM to
+  date overlaps the team rating (delta's weight 0.017 → 0.011–0.012); what
+  talent_diff adds is the pre-season roster view. Base route only. Dropped,
+  like on/off and Win Shares. Small-sample players (owner's follow-up, run
+  39826197099): production's shrinkage extended by this season's minutes,
+  (500 R + MP0 BPM0 + MP obs) / (500 + MP0 + MP), predicts a player's own
+  second-half rebuilt BPM better than the frozen value in every group
+  (rookies MAE 1.95 → 1.66, under 500 last-season MP 1.97 → 1.62; same box
+  metric, so flattering), but not games: updated for players under 500
+  last-season minutes only `v6_bpmn` +0.0002 ± 0.0016 / −0.0000 ± 0.0018
+  (corr 0.986 with talent_diff: small minutes shares); for everyone
+  `v6_bpmp` +0.0033 ± 0.0025 / −0.0004 ± 0.0026 (worse on 2024-25).
 - Home-court drift (2026-10-01, reconstructed rows, mean home P, ± 95%):
   none. Games 10+: model − market +0.26 ± 0.46 pp (2024-25) / +0.26 ±
   0.49 pp (2025-26), logit +0.016 ± 0.023 / +0.014 ± 0.024; model and

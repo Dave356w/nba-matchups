@@ -114,8 +114,38 @@ def check_injuries(path=ledger.INJURY_PATH):
     return errs
 
 
+def check_sleeper(path=ledger.SLEEPER_PATH):
+    if not os.path.exists(path):
+        return []
+    text = open(path, encoding="utf-8").read()
+    if any(m in text for m in ("<<<<<<<", ">>>>>>>", "\n=======\n")):
+        return [f"{path}: merge-conflict marker"]
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    if list(df.columns) != ledger.SLEEPER_COLUMNS:
+        return [f"{path}: columns differ from ledger.SLEEPER_COLUMNS"]
+    errs = []
+    snap = pd.to_datetime(df["snapshot_utc"], utc=True, errors="coerce")
+    tip = pd.to_datetime(df["tip_utc"], utc=True, errors="coerce")
+    if snap.isna().any() or tip.isna().any():
+        errs.append(f"{path}: unparseable snapshot_utc or tip_utc")
+    elif (snap >= tip).any():
+        errs.append(f"{path}: Sleeper snapshot at or after tip")
+    if not df["kind"].isin(ledger.SLEEPER_KINDS).all():
+        errs.append(f"{path}: kind other than {ledger.SLEEPER_KINDS}")
+    if (df.groupby(["game_id", "kind"])["snapshot_utc"].nunique() > 1).any():
+        errs.append(f"{path}: a game's snapshot mixes snapshot times")
+    if df.duplicated(["game_id", "kind", "team", "sleeper_id"]).any():
+        errs.append(f"{path}: a player twice in one snapshot")
+    if not snap.isna().any():
+        t = df.assign(_s=snap).groupby(["game_id", "kind"])["_s"].first().unstack()
+        if {"first", "pre"} <= set(t.columns) and (t["first"] > t["pre"]).any():
+            errs.append(f"{path}: a first snapshot later than the latest one")
+    return errs
+
+
 def main():
     errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
+    errs += check_sleeper()
     errs += check(ledger.PRESEASON_PATH)
     for path in (ledger.NATIVE_PATH, ledger.RECON_PATH):     # exchanges: preseason only
         if os.path.exists(path):

@@ -151,6 +151,53 @@ def test_failed_injury_fetch_keeps_previous_snapshot(tmp_path):
     assert back.iloc[0]["player_id"] in ("7", "")
 
 
+
+SLP = [dict(team="GSW", sleeper_id="11", name="Star", minutes="34.0", pts="24.10",
+            injury_status=""),
+       dict(team="UTA", sleeper_id="21", name="Big", minutes="0.0", pts="",
+            injury_status="Out", injury_body_part="Knee")]
+
+
+def test_sleeper_snapshot_first_once_pre_replaced_frozen_at_tip(tmp_path):
+    df, acc, _ = ledger.upsert_sleeper(ledger.load_sleeper("nope.csv"),
+                                       {"401": (TIP, SLP)}, now=BEFORE)
+    assert acc == ["401"] and sorted(df["kind"].unique()) == ["first", "pre"]
+    assert len(df) == 4 and (df["snapshot_utc"] < TIP.replace("Z", ":00Z")).all()
+    first = df[df["kind"] == "first"].copy()
+    later = [dict(SLP[0], minutes="30.0")]
+    df2, acc, _ = ledger.upsert_sleeper(df, {"401": (TIP, later)}, now=LATER_BEFORE)
+    assert acc == ["401"]
+    pd.testing.assert_frame_equal(df2[df2["kind"] == "first"].reset_index(drop=True),
+                                  first.reset_index(drop=True))     # written once
+    pre = df2[df2["kind"] == "pre"]
+    assert list(pre["minutes"]) == ["30.0"]                        # replaced, not appended
+    assert pre["snapshot_utc"].iloc[0] == ledger.fmt_utc(LATER_BEFORE)
+    df3, acc, rej = ledger.upsert_sleeper(df2, {"401": (TIP, SLP)}, now=AFTER)
+    assert not acc and rej[0][1] == "at or after tip"
+    pd.testing.assert_frame_equal(df3, df2)
+    df4, acc, rej = ledger.upsert_sleeper(df2, {"401": (TIP, None), "402": (TIP, [])},
+                                          now=LATER_BEFORE)
+    assert not acc and {r[1] for r in rej} == {"no projections"}
+    pd.testing.assert_frame_equal(df4, df2)                       # failed fetch keeps rows
+    p = tmp_path / "data" / "slp.csv"
+    ledger.save_sleeper(df2, str(p))
+    back = ledger.load_sleeper(str(p))
+    assert list(back.columns) == ledger.SLEEPER_COLUMNS and len(back) == 3
+    assert list(back[back["kind"] == "first"]["name"]) == ["Star", "Big"]
+
+
+def test_validation_rejects_a_sleeper_snapshot_after_tip(tmp_path):
+    import validate_data_files as v
+    df, _, _ = ledger.upsert_sleeper(ledger.load_sleeper("nope.csv"),
+                                     {"401": (TIP, SLP)}, now=BEFORE)
+    p = tmp_path / "slp.csv"
+    ledger.save_sleeper(df, str(p))
+    assert v.check_sleeper(str(p)) == []
+    bad = df.copy()
+    bad.loc[bad["kind"] == "pre", "snapshot_utc"] = ledger.fmt_utc(AFTER)
+    ledger.save_sleeper(bad, str(p))
+    assert any("at or after tip" in e for e in v.check_sleeper(str(p)))
+
 # ---------------------------------------------------- first snapshot (H4)
 MIDDAY = datetime(2026, 11, 19, 20, 0, tzinfo=timezone.utc)
 

@@ -1,15 +1,10 @@
-import importlib.util
 import json
-import os
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
 
-_spec = importlib.util.spec_from_file_location(
-    "sleeper", os.path.join(os.path.dirname(__file__), "..", "research", "sleeper.py"))
-sl = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(sl)
+import sleeper as sl
 
 
 @pytest.fixture(autouse=True)
@@ -250,3 +245,39 @@ def test_snapshot_stamps_and_keeps_today_on(tmp_path, monkeypatch):
     saved = pd.read_csv(tmp_path / "snapshots.csv", dtype={"sleeper_id": str})
     assert len(saved) == 4 and saved["fetched_utc"].nunique() == 2
     assert json.dumps(sorted(saved["date"].unique().tolist())) == '["2026-10-23", "2026-10-27"]'
+
+
+def test_live_frame_keeps_status_and_snapshot_rows_are_one_game():
+    raw = [proj_row("1", "2026-10-22", "PHI", "CLE", sp=2100.0, first="Joel", last="Embiid",
+                    pts=20.47, dd=0.31),
+           proj_row("2", "2026-10-22", "CLE", "PHI", sp=1620.0, first="Jarrett", last="Allen",
+                    gid="g1"),
+           proj_row("3", "2026-10-22", "PHI", "CLE", first="Dominick", last="Barlow"),
+           proj_row("4", "2026-10-22", "OKC", "DEN", sp=1980.0, gid="g2")]
+    raw[1]["player"].update(injury_status="GTD", injury_body_part="Knee")
+    raw[2]["player"].update(injury_status="Out", injury_body_part="Back")
+    archive = sl.projection_frame(raw)
+    assert "injury_status" not in archive                     # never on archived games
+    live = sl.projection_frame(raw, live=True)
+    assert live.set_index("sleeper_id").loc["2", "injury_status"] == "GTD"
+    rows = sl.snapshot_rows(live, "PHI", "CLE")
+    assert [(r["team"], r["name"], r["minutes"]) for r in rows] == \
+        [("CLE", "Jarrett Allen", "27.0"), ("PHI", "Joel Embiid", "35.0"),
+         ("PHI", "Dominick Barlow", "0.0")]
+    joel = rows[1]
+    assert joel["pts"] == "20.47" and joel["dd"] == "0.31" and joel["reb"] == ""
+    assert rows[2]["injury_status"] == "Out" and rows[2]["injury_body_part"] == "Back"
+    assert sl.snapshot_rows(live, "BOS", "NYK") == []
+
+
+def test_live_projections_reads_this_week_and_next_for_the_date(monkeypatch):
+    weeks = {3: [proj_row("1", "2026-11-09", "BOS", "NYK", sp=1800.0),
+                 proj_row("2", "2026-11-08", "BOS", "MIA", sp=1800.0)],
+             4: [proj_row("3", "2026-11-09", "NYK", "BOS", sp=1500.0)]}
+    calls = []
+    monkeypatch.setattr(sl, "fetch_state", lambda timeout=30: {"season": "2026", "week": 3})
+    monkeypatch.setattr(sl, "fetch_projections",
+                        lambda s, w, timeout=60: calls.append((s, w)) or weeks.get(w, []))
+    got = sl.live_projections("2026-11-09")
+    assert calls == [(2026, 3), (2026, 4)]
+    assert sorted(got["sleeper_id"]) == ["1", "3"] and "injury_status" in got

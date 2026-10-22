@@ -17,6 +17,9 @@ on:
       phase_years:
         description: 'Logit seasons (only those before each test season are used)'
         default: '2016-2019 2021-2026'
+      args:
+        description: 'Extra arguments (--ws: Win Shares arms; --bpm: in-season BPM arms)'
+        default: ''
 
 permissions:
   contents: read
@@ -24,7 +27,7 @@ permissions:
 jobs:
   team-quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,10 +49,14 @@ jobs:
       # 2020 is the prior season of 2021 (last-season carryover arm).
       - name: Download (cached pages are skipped)
         run: python nba_composite.py download --years 2015-2026
+      # Full box lines for the --ws / --bpm arms (cached seasons are skipped).
+      - name: Full box lines
+        if: contains(inputs.args, '--ws') || contains(inputs.args, '--bpm')
+        run: python research/win_shares.py fetch --seasons 2016-2019 2021-2026
       - name: Run team quality
         run: |
           set -o pipefail
-          python research/team_quality.py --seasons ${{ inputs.seasons }} --phase-years ${{ inputs.phase_years }} | tee team_quality.txt
+          python research/team_quality.py --seasons ${{ inputs.seasons }} --phase-years ${{ inputs.phase_years }} ${{ inputs.args }} | tee team_quality.txt
           { echo '```'; cat team_quality.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()

@@ -90,6 +90,20 @@ replacement level mapped to WS/48), same roster and minutes share:
   v6_ws_wso   talent_ws + talent_wso, free weights (the fit picks the mix)
   v6_bpm_wsb  v6_base + talent_wsb (on top of the BPM term)
 All vs v6_base; --ws runs only these box arms.
+In-season BPM (owner's question, 2026-10-22; research/bpm_live.py): BPM
+rebuilt from box lines before the date, mapped on BBR's BPM of box seasons
+before the first test season:
+  v6_bpmb     talent_diff with Bayes values: last-season BPM (production's
+              shrunk prior) updated by BPM to date, M0 = 750 minutes
+  v6_bpmo     talent_diff with this season's BPM to date only
+  v6_bpm_bpmo v6_base + talent_bpmo (the frozen term kept; free weights)
+  v6_bpmp     talent_diff with minutes-pooled values: production's shrinkage
+              extended by this season's minutes, (500 R + MP0 BPM0 + MP obs)
+              / (500 + MP0 + MP), every player
+  v6_bpmn     the same for players under 500 last-season minutes (rookies,
+              new and small-sample players); production's frozen value for
+              the rest
+All vs v6_base; --bpm runs only these box arms.
 
 Every feature uses games strictly before the date. Reported per test season
 and closing book on identical games: log loss and Brier of each arm vs base
@@ -115,6 +129,7 @@ import market as mk  # noqa: E402
 import nba_composite as nc  # noqa: E402
 import player_availability as pav  # noqa: E402
 import win_shares as ws  # noqa: E402
+import bpm_live as bl  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output",
                    "team_quality.csv")
@@ -165,8 +180,18 @@ WS_ARMS = {
 }
 WS_COLS = ["talent_ws", "talent_wsb", "talent_wso"]
 BOX_ARMS.update(WS_ARMS)
+BPM_ARMS = {
+    "v6_base": V6,
+    "v6_bpmb": _swap(V6, ["talent_bpmb"]),
+    "v6_bpmo": _swap(V6, ["talent_bpmo"]),
+    "v6_bpm_bpmo": V6 + ["talent_bpmo"],
+    "v6_bpmp": _swap(V6, ["talent_bpmp"]),
+    "v6_bpmn": _swap(V6, ["talent_bpmn"]),
+}
+BPM_COLS = ["talent_bpmb", "talent_bpmo", "talent_bpmp", "talent_bpmn"]
+BOX_ARMS.update(BPM_ARMS)
 REF = {**{a: "base" for a in ARMS}, **{a: "base_box" for a in BOX_ARMS},
-       **{a: "v6_base" for a in WS_ARMS},
+       **{a: "v6_base" for a in WS_ARMS}, **{a: "v6_base" for a in BPM_ARMS},
        "v5_base": "v5_base", "v5_ast": "v5_base", "v5_oo": "v5_base",
        "oo_luck": "v5_base", **{f"v5_{v}": "v5_base" for v in MIN_VARIANTS}}
 BOX_YEARS = [2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026]
@@ -541,6 +566,8 @@ def main(argv=None):
                     help="skip the roster-talent arms (no box scores / BPM)")
     ap.add_argument("--ws", action="store_true",
                     help="only the Win Shares box arms (v6_*), vs v6_base")
+    ap.add_argument("--bpm", action="store_true",
+                    help="only the in-season BPM box arms (v6_bpm*), vs v6_base")
     ap.add_argument("--cache", default=os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "output"))
     a = ap.parse_args(argv)
@@ -549,9 +576,15 @@ def main(argv=None):
     recon = recon[["slate_date", "home", "away", "close_q_home", "close_book",
                    "home_won"]]
     talent, onoff, talent_x = {}, {}, {}
-    box_arms = WS_ARMS if a.ws else BOX_ARMS
+    box_arms = WS_ARMS if a.ws else BPM_ARMS if a.bpm else BOX_ARMS
+    box_years = nc.parse_years(a.box_seasons) if a.box_seasons else BOX_YEARS
+    beta = None
+    if a.bpm and not a.no_talent:
+        fit_on = [t for t in box_years if t < min(a.seasons)]
+        beta, n_fit = bl.fit_beta(fit_on, a.cache)
+        print(f"BPM to date: mapping fitted on {fit_on} ({n_fit} player-seasons)", flush=True)
     if not a.no_talent:
-        for t in nc.parse_years(a.box_seasons) if a.box_seasons else BOX_YEARS:
+        for t in box_years:
             if t > max(a.seasons):
                 continue
             if not os.path.exists(os.path.join(a.cache, f"box_{t}.csv")):
@@ -564,9 +597,12 @@ def main(argv=None):
                 value, cov, cov_min = pav.player_values(box, bpm)
                 role = pav.arrival_roles(box, bpm)
                 talent[t] = talent_fn(box, value, role)
-                ws_terms, ws_info = ws.season_terms(t, box, role, a.cache)
+                if a.bpm:
+                    ws_terms, ws_info = bl.season_terms(t, box, role, beta, a.cache)
+                else:
+                    ws_terms, ws_info = ws.season_terms(t, box, role, a.cache)
                 print(f"box season {t}: {ws_info}", flush=True)
-                if a.ws:
+                if a.ws or a.bpm:
                     talent_x[t] = ws_terms
                 else:
                     onoff[t] = onoff_fn(box, role)
@@ -603,7 +639,7 @@ def main(argv=None):
                              talent_x=talent_x.get(t))
              for t in gy + [y]}
         for t in g:                                 # a column for every arm
-            for c in WS_COLS:
+            for c in WS_COLS + BPM_COLS:
                 if c not in g[t]:
                     g[t][c] = np.nan
         tr = pd.concat([g[t] for t in gy], ignore_index=True)
@@ -629,7 +665,7 @@ def main(argv=None):
                 print(f"  {c}: corr with talent_diff {te[c].corr(te['talent_diff']):+.3f}, "
                       f"sd {te[c].std():.3f} vs {te['talent_diff'].std():.3f}, "
                       f"sd of the difference {(te[c] - te['talent_diff']).std():.3f}")
-        for c in WS_COLS:
+        for c in WS_COLS + BPM_COLS:
             if te[c].notna().any():
                 print(f"  {c}: for {int(te[c].notna().sum())} games, corr with "
                       f"talent_diff {te[c].corr(te['talent_diff']):+.3f}, sd {te[c].std():.3f}")

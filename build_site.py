@@ -14,7 +14,9 @@ Steps
      of the first listed book in market.BOOKS (DraftKings, then ESPN BET);
      written to data/nba_ledger.csv only while before tip. Each game's ESPN
      injury list is snapshotted alongside to data/nba_injuries.csv under the
-     same pregame lock (shown on the Picks cards; the model does not read it).
+     same pregame lock (shown on the Picks cards; the model does not read it),
+     and Sleeper's (RotoWire's) projected lineups to data/nba_sleeper.csv
+     (first and latest pregame snapshot; research data, read by nothing).
      Preseason games go to data/nba_preseason.csv instead (score_preseason),
      graded the same way and never mixed with the native ledger.
   3. Render public/index.html, grades.html, market-calibration.html and
@@ -46,6 +48,7 @@ import market
 import nba_composite as nc
 import player_availability as pav
 import report
+import sleeper
 
 ET = ZoneInfo("America/New_York")
 # Pages show times in Pacific (PDT/PST, labelled PT); slate dates, the build
@@ -2989,6 +2992,29 @@ def snapshot_injuries(rows):
     log(f"injury snapshots: {len(acc)} written, {len(rej)} skipped {rej}")
 
 
+def snapshot_sleeper(rows, today):
+    """Sleeper / RotoWire pregame projections for today's accepted rows ->
+    data/nba_sleeper.csv (owner's decision 2026-10-22): each listed player's
+    projected minutes and line and his injury status, the game's first
+    snapshot kept and its latest replaced until tip, frozen after. Research
+    data: the model and the pages do not read it, and a Sleeper failure
+    never stops the build.
+    """
+    if not rows:
+        return
+    try:
+        proj = sleeper.live_projections(today)
+    except Exception as e:  # noqa: BLE001 - research data, never blocks the build
+        log(f"sleeper projections unavailable ({e!r})")
+        proj = None
+    snaps = {str(r["game_id"]): (r["tip_utc"], None if proj is None
+                                 else sleeper.snapshot_rows(proj, r["home"], r["away"]))
+             for r in rows}
+    df, acc, rej = ledger.upsert_sleeper(ledger.load_sleeper(), snaps)
+    ledger.save_sleeper(df)
+    log(f"sleeper snapshots: {len(acc)} written, {len(rej)} skipped {rej}")
+
+
 def write_pages(native, recon, today, model_ok, pre=None):
     OUT_DIR.mkdir(exist_ok=True)
     built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
@@ -3038,6 +3064,7 @@ def main(argv=None):
             native, acc, rej = ledger.upsert_pregame(native, rows)
             log(f"pregame rows: {len(acc)} written, {len(rej)} rejected {rej}")
             snapshot_injuries([r for r in rows if str(r["game_id"]) in acc])
+            snapshot_sleeper([r for r in rows if str(r["game_id"]) in acc], today)
         else:
             log("no fitted model in model/ -- skipping slate scoring")
         ledger.save(native, ledger.NATIVE_PATH)

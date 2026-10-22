@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Sleeper NBA feed: projected minutes, depth chart and injury designations.
 
-  python research/sleeper.py history --seasons 2023 2024 2025 2026 [--refresh]
-  python research/sleeper.py snapshot
-  python research/sleeper.py check --season 2027 --box data/nba_box_2027.csv
+  python sleeper.py history --seasons 2023 2024 2025 2026 [--refresh]
+  python sleeper.py snapshot
+  python sleeper.py check --season 2027 --box data/nba_box_2027.csv
 
-Research data only: the build, the model and the ledger never read it, and
-it writes only under research/output/sleeper/. Seasons are this repo's (end
-year: 2026 = 2025-26); Sleeper labels a season by its start year
-(`sleeper_season`). Teams are Basketball-Reference codes.
+Research data. The model never reads it. The daily build snapshots today's
+projections for each game under the pregame lock (`live_projections`,
+`snapshot_rows`; build_site.snapshot_sleeper -> data/nba_sleeper.csv, owner's
+decision 2026-10-22); the CLI writes only under research/output/sleeper/.
+Seasons are this repo's (end year: 2026 = 2025-26); Sleeper labels a season
+by its start year (`sleeper_season`). Teams are Basketball-Reference codes.
 
 Sleeper's public API (https://docs.sleeper.com) is read-only and needs no key.
 Three of its endpoints are read:
@@ -58,8 +60,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,14 +70,12 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import market  # noqa: E402
-import player_availability as pav  # noqa: E402
+import market
+import player_availability as pav
 
 BASE_URL = "https://api.sleeper.app/v1"
 API_URL = "https://api.sleeper.com"
-CACHE_DIR = Path(__file__).resolve().parent / "output" / "sleeper"
+CACHE_DIR = Path(__file__).resolve().parent / "research" / "output" / "sleeper"
 PLAYERS_MAX_AGE_HOURS = 24.0
 # Sleeper blocks an IP above roughly 1,000 calls a minute. A season is ~26
 # calls, but the floor keeps any loop that grows later well clear of that.
@@ -94,6 +92,11 @@ ET = ZoneInfo("America/New_York")
 PROJECTION_COLUMNS = (["sleeper_id", "name", "key", "date", "team", "opp",
                        "sleeper_game_id", "minutes", "projected"] + list(STATS)
                       + ["company", "last_modified_utc"])
+LIVE_COLUMNS = ["injury_status", "injury_body_part"]
+# The build's per-game snapshot fields (ledger.SLEEPER_COLUMNS adds the game,
+# tip, snapshot time and kind): numbers as text, rounded, blank when missing.
+SNAPSHOT_STATS = {"minutes": 1, "pts": 2, "reb": 2, "ast": 2, "stl": 2, "blk": 2,
+                  "to": 2, "tpm": 2, "dd": 2, "td": 2}
 PLAYER_COLUMNS = ["sleeper_id", "name", "key", "team", "position",
                   "fantasy_positions", "status", "depth_slot", "depth_order",
                   "injury_status", "injury_body_part", "injury_notes",
@@ -198,14 +201,16 @@ def fetch_projections(season, week, timeout: float = 60):
 
 
 # ------------------------------------------------------------------ transforms
-def projection_frame(raw) -> pd.DataFrame:
+def projection_frame(raw, live=False) -> pd.DataFrame:
     """Dated projection rows -> one row per player per game.
 
     ``minutes`` is ``sp`` / 60; a listed player whose line is empty (or has
     no ``sp``) is kept with minutes 0 and ``projected`` False, since Sleeper
     lists players it expects to sit. A row without a date or two NBA teams
     has no game and is skipped. The row's own team is used, not the embedded
-    player's, which is his team today.
+    player's, which is his team today. live: also keep the embedded player's
+    injury status and body part, which describe the moment of the fetch, so
+    they belong to a live snapshot and never to archived games.
     """
     if not isinstance(raw, list):
         raise SleeperError(f"Unexpected Sleeper projection shape: {type(raw).__name__}")
@@ -230,9 +235,48 @@ def projection_frame(raw) -> pd.DataFrame:
             out[s] = float(v) if pd.notna(v) else np.nan
         out["company"] = str(row.get("company") or "")
         out["last_modified_utc"] = _utc(row.get("last_modified"))
+        if live:
+            player = row.get("player") if isinstance(row.get("player"), dict) else {}
+            out["injury_status"] = str(player.get("injury_status") or "")
+            out["injury_body_part"] = str(player.get("injury_body_part") or "")
         rows.append(out)
-    frame = pd.DataFrame(rows, columns=PROJECTION_COLUMNS)
+    frame = pd.DataFrame(rows, columns=PROJECTION_COLUMNS + (LIVE_COLUMNS if live else []))
     return frame.drop_duplicates(["sleeper_id", "date", "sleeper_game_id"], keep="last")
+
+
+def live_projections(date, timeout: float = 30):
+    """Today's projections with injury status, for the build's snapshot: the
+    current week and the next (a week turns over on Monday), rows dated
+    `date` (the ET slate date, as Sleeper dates its games)."""
+    state = fetch_state(timeout)
+    season, week = int(state["season"]), int(state.get("week") or 1)
+    frames = [projection_frame(fetch_projections(season, w, timeout), live=True)
+              for w in (week, week + 1)]
+    proj = pd.concat(frames, ignore_index=True)
+    return proj[proj["date"] == str(date)[:10]].drop_duplicates(
+        ["sleeper_id", "date", "sleeper_game_id"], keep="last")
+
+
+def _cell(v, digits):
+    v = pd.to_numeric(v, errors="coerce")
+    return "" if pd.isna(v) else f"{float(v):.{digits}f}"
+
+
+def snapshot_rows(proj, home, away):
+    """One game's snapshot rows from live_projections: every player Sleeper
+    lists for either team against the other (minutes 0 = listed, not
+    expected to play), as text. [] when Sleeper lists neither team."""
+    g = proj[((proj["team"] == home) & (proj["opp"] == away))
+             | ((proj["team"] == away) & (proj["opp"] == home))]
+    rows = []
+    for r in g.sort_values(["team", "minutes", "name"], ascending=[True, False, True]
+                           ).to_dict("records"):
+        rows.append({"team": r["team"], "sleeper_id": str(r["sleeper_id"]),
+                     "name": r["name"],
+                     **{c: _cell(r.get(c), d) for c, d in SNAPSHOT_STATS.items()},
+                     "injury_status": str(r.get("injury_status") or ""),
+                     "injury_body_part": str(r.get("injury_body_part") or "")})
+    return rows
 
 
 def players_frame(raw: dict) -> pd.DataFrame:

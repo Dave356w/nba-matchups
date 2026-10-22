@@ -6,6 +6,7 @@ import pandas as pd
 import build_site
 import ledger
 import market
+import sleeper
 from conftest import make_log
 
 
@@ -40,6 +41,16 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
                          detail="Knee"),
                     dict(team="UTA", player_id="", name="", status="NONE", detail="")]}
     monkeypatch.setattr(market, "game_injuries", lambda gid, h, a: inj["rows"])
+    slp = [dict(player_id="11", date=day1, team="GSW", opponent="UTA", game_id="s1",
+                stats={"sp": 2040.0, "pts": 24.1},
+                player={"first_name": "Star", "last_name": "Guard"}),
+           dict(player_id="21", date=day1, team="UTA", opponent="GSW", game_id="s1",
+                stats={}, player={"first_name": "Big", "last_name": "Man",
+                                  "injury_status": "Out", "injury_body_part": "Knee"}),
+           dict(player_id="31", date=day1, team="LAL", opponent="BOS", game_id="s2",
+                stats={"sp": 1800.0}, player={"first_name": "Other", "last_name": "Game"})]
+    monkeypatch.setattr(sleeper, "fetch_projections",
+                        lambda season, week, timeout=60: slp if week == 1 else [])
     monkeypatch.setattr(build_site, "fresh_logs", lambda y, d: logs)
     monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
 
@@ -58,6 +69,15 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert list(snap["game_id"]) == ["9001", "9001"]    # preseason game skipped
     assert set(snap["status"]) == {"Out", "NONE"}
     assert (snap["snapshot_utc"] < snap["tip_utc"].str.replace("Z", ":00Z")).all()
+    # Sleeper's projected lineups: first and latest pregame snapshot, this game only
+    slp_snap = ledger.load_sleeper()
+    assert set(slp_snap["game_id"]) == {"9001"} and len(slp_snap) == 4
+    assert sorted(slp_snap["kind"].unique()) == ["first", "pre"]
+    star = slp_snap[(slp_snap["kind"] == "pre") & (slp_snap["sleeper_id"] == "11")].iloc[0]
+    assert (star["team"], star["minutes"], star["pts"]) == ("GSW", "34.0", "24.10")
+    big = slp_snap[(slp_snap["kind"] == "pre") & (slp_snap["sleeper_id"] == "21")].iloc[0]
+    assert (big["minutes"], big["injury_status"]) == ("0.0", "Out")
+    first_slp = slp_snap[slp_snap["kind"] == "first"].reset_index(drop=True)
     # decision-time record: written with the first snapshot, once
     assert r["first_route"] in ("base", "avail", "v4")
     assert r["seen_utc"] == r["first_snapshot_utc"] and pd.isna(r["seen_note"])
@@ -68,6 +88,10 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     # the second run (before tip) may refresh the injury snapshot; what must
     # hold is that grading after tip leaves the latest one untouched
     frozen = ledger.load_injuries().copy()
+    slp_now = ledger.load_sleeper()
+    pd.testing.assert_frame_equal(                          # the first is written once
+        slp_now[slp_now["kind"] == "first"].reset_index(drop=True), first_slp)
+    frozen_slp = slp_now.copy()
 
     state["completed"] = True
     assert build_site.main(["--date", "2027-01-11"]) == 0
@@ -76,6 +100,7 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     assert r["pre_home_ml"] == -180                    # pregame price untouched
     assert r["pre_spread"] == -4.5 and r["close_spread"] == -5.5
     pd.testing.assert_frame_equal(ledger.load_injuries(), frozen)
+    pd.testing.assert_frame_equal(ledger.load_sleeper(), frozen_slp)
     pd.testing.assert_frame_equal(
         ledger.load(ledger.NATIVE_PATH)[ledger.WRITE_ONCE_COLUMNS], once)
     assert "1–0" in (tmp_path / "public" / "grades.html").read_text() or \
