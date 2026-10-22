@@ -198,9 +198,13 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 2. **A pregame roster** from the injury snapshots, then the newly-out arm
    on it (G8.1). Blocked until the snapshots cover enough games (14 on
    2026-10-22); test it walk-forward on the native rows mid-season.
-3. **Shrunk edges on the pages** (G3, done as research 2026-10-22): show
-   P* − q beside P − q. A display change, not prediction math; any bet
-   rule on P* would be a new pre-registered hypothesis.
+3. **Shrunk edges on the pages** (G3): done 2026-10-22. The Picks card's
+   edge and EV use P* (w 0.40, `analysis.SHRINK_W`), one number each; the
+   model P is shown as recorded. Re-measure w at the first snapshot once
+   the native rows allow, and lower it if the morning price has already
+   absorbed part of the model's view. A bet rule on P* ("EV* > 0 at the
+   first snapshot") was not registered: it would replace H2·F on logic but
+   needs ~10 seasons to resolve against H2·F's ~2.
 4. **Rookies by draft slot** (history backtest A9, 2026-10-22): drafted
    rookies valued by the rookie BPM their pick predicts (−1.26 − 0.45
    log pick) instead of at replacement. −0.0002 ± 0.0002, better in 9 of

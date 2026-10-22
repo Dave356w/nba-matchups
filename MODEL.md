@@ -115,8 +115,16 @@ Doubtful, else 1 if he was on the team's previous box score, else 0.
 
 ## 5. Lean and displays
 
-- **Lean**: the side with P ≥ 0.5 (a pick'em goes home). Model − market is
-  the lean side's P minus its no-vig market probability.
+- **Lean**: the side with P ≥ 0.5 (a pick'em goes home). The research pages'
+  model − market is the lean side's P minus its no-vig market probability.
+- **Card edge and EV (display only, 2026-10-22)**: the Picks card shows the
+  model's P as recorded, but its edge and EV count only `analysis.SHRINK_W`
+  = 0.40 of the model's disagreement with the price: P* = σ(logit q + 0.40 ·
+  (logit P − logit q)), edge P* − q, EV P* × decimal odds − 1. 0.40 is the
+  share outcomes bore out against the opening line (+0.43 / +0.36 fitted on
+  the other season, `research/open_shrinkage.py`); at the close it is ~0, so
+  at the card's later price it is generous. P, the lean, the ledgers and
+  the hypotheses are unchanged; no new tag.
 - **ATS (display only)**: the ledger maps p_home to an implied margin with a
   fixed σ = 13.5 points (`analysis.ATS_SIGMA`). This is an unvalidated
   assumption used to pick an ATS side; it is not a calibrated spread model

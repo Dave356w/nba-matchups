@@ -1265,11 +1265,15 @@ HOW_INDEX = (
     "(DraftKings; the book is named on the card, and its moneyline and spread "
     "come from the same book). The record above grades the lean at the "
     "DraftKings price named under it. "
-    "<b>Model − market</b> is the lean's model probability minus its no-vig "
-    "market probability; <b>EV</b> is what the model claims the posted price "
-    "is worth, shown beside its <b>null</b>: the EV if the market is exactly "
-    "right, about minus the hold, not zero. Both are model estimates, not "
-    "verified edges; Results and Performance track whether they hold up.</p>"
+    "<b>Edge</b> is how far the lean beats the market's no-vig probability "
+    "once the model's view is pulled most of the way back to the market: "
+    f"only {analysis.SHRINK_W:.0%} of its disagreement with the price counts, "
+    "the share past games bore out against the opening line (at the close, "
+    "none did), so later in the day even that is generous. <b>EV</b> is what "
+    "that edge makes of the posted price, shown beside its <b>null</b>: the "
+    "EV if the market is exactly right, about minus the hold, not zero. Both "
+    "are estimates, not verified edges; Results and Performance track whether "
+    "they hold up.</p>"
     "<p class='note'><b>Composite Δ</b> is 100 × the standardised four-factor gap "
     "(ridge weights, home − away, in win-% points). <b>early · carryover</b>: a "
     f"team has fewer than {nc.MIN_GAMES} games, so last season's log "
@@ -1342,10 +1346,13 @@ def game_card(r):
         q = q_home if lean_home else 1 - q_home
         pl = float(r["p_lean"])
         dec = market.decimal_payout(ml) if has_ml else np.nan
-        ev = pl * dec - 1 if np.isfinite(dec) else np.nan
+        # the edge and EV count only analysis.SHRINK_W of the model's
+        # disagreement with the price (display only; p_lean is as recorded)
+        ps = float(analysis.shrink_p(pl, q)) if np.isfinite(q) else np.nan
+        ev = ps * dec - 1 if np.isfinite(dec) and np.isfinite(ps) else np.nan
         ev0 = q * dec - 1 if np.isfinite(dec) and np.isfinite(q) else np.nan
         price = f" {ml_txt(ml)}" if has_ml else ""
-        gap = (f"{pp(pl - q, cls=False)} pp vs market" if np.isfinite(q)
+        gap = (f"{pp(ps - q, cls=False)} pp edge" if np.isfinite(q)
                else "no price yet")
         lines.append(f"<div class='pick-lines'><span class='kind'>Lean · moneyline"
                      f"</span><span class='pk'>{esc(r['lean'])}{price}</span>"
@@ -1366,9 +1373,9 @@ def game_card(r):
             [f"{bk} moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]],
             left=(0,)))
         det.append("<div class='tiles'>"
-                   + tile("Model − market", f"{pp(pl - q, cls=False)} pp" if np.isfinite(q) else "—",
-                          f"{esc(r['lean'])}: {pct(pl)} vs {pct(q)}")
-                   + tile("Model EV", f"{pp(ev, cls=False)}%" if np.isfinite(ev) else "—",
+                   + tile("Edge", f"{pp(ps - q, cls=False)} pp" if np.isfinite(q) else "—",
+                          f"{esc(r['lean'])}: model {pct(pl)}, market {pct(q)}")
+                   + tile("EV", f"{pp(ev, cls=False)}%" if np.isfinite(ev) else "—",
                           f"null {pp(ev0, cls=False) if np.isfinite(ev0) else '—'}% "
                           "if the market is right")
                    + tile("Composite Δ", f"{float(r['delta']):+.1f}",

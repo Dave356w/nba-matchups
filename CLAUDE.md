@@ -124,6 +124,11 @@ owner directs the product.
   read by the build or the model. ESPN's CDN returns 403 to headless
   Chrome (`sec-ch-ua: "HeadlessChrome"`); test it with that header
   replaced.
+  A card's edge and EV count only `analysis.SHRINK_W` = 0.40 of the model's
+  disagreement with the price (`analysis.shrink_p`, owner's decision
+  2026-10-22; display only): the model P, the lean and every graded number
+  are as recorded, and the card shows one edge and one EV, not raw beside
+  shrunk. The research pages keep the raw model − market.
   A Today card shows the H5/H6 pick that covers its game
   (`analysis.ats_card`, the same `ats_sides` the Ledger grades with, at the
   first snapshot; its sportsbook named): a badge when the rule bets, the
@@ -580,7 +585,15 @@ Before a PR, run:
   −4.1%), unresolved and opposite; the line moves toward the bet in step
   with the claim in both seasons. P* is the honest reading of an edge; no
   bet rule from it without pre-registration. Games 1–9: w unstable (0.38 /
-  0.97, n = 138).
+  0.97, n = 138). The Picks card's edge and EV use it (w 0.40, display
+  only, 2026-10-22). Not registered as a hypothesis (owner asked for it
+  only if it could replace one): "H7", the value side at the first
+  snapshot when P*'s EV > 0, would replace H2·F on logic (same question,
+  same price, with the hold), but in hindsight at the open it is +3.9 vs
+  the null pooled (−2.5 DK, +9.0 ESPN BET) against H2's +4.7 (+4.2 / +5.1),
+  and its underdog bets swing ~1.5 units each against ~0.7: ~5,800 bets
+  (~10 seasons) to resolve its effect against ~1,100 (~2) for H2·F. H2·F
+  stays.
 - One feature builder: `nba_composite.logit_inputs` (delta, b2b_net, phase
   from opening night, d_phase) serves build_games, the CLI scorer and
   `build_site.score_game`; research scripts reuse the `phase` column.

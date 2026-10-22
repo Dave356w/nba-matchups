@@ -118,7 +118,7 @@ def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
     assert "Value bets" not in grades and "Value ATS" not in grades
     assert "Retired 2026-10-06" in grades
     idx = (tmp_path / "index.html").read_text()
-    assert "Model − market" in idx
+    assert "pp edge" in idx and "Model − market" not in idx
 
 
 def test_pages_render_empty(tmp_path, monkeypatch):

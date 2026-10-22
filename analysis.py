@@ -296,6 +296,24 @@ PICK_RULES = (
 # value-side rules at bettable prices and stay on the scoreboard.
 SHOWN_RULES = ("lean",)
 EARLY_BELOW = 10     # nba_composite.MIN_GAMES: below it v2 uses the carryover model
+# The share of the model's disagreement with the price that outcomes bore out
+# at the opening line, games 10+ (research/open_shrinkage.py, 2026-10-22: w
+# fitted on the other priced season +0.43 / +0.36; at the close it is ~0).
+# Display only: the Picks card's edge and EV read the lean's probability
+# pulled toward the market by it (shrink_p); p_home, the lean and the
+# hypotheses are never changed.
+SHRINK_W = 0.40
+
+
+def shrink_p(p, q, w=SHRINK_W):
+    """sigma(logit q + w (logit p - logit q)): the model's probability with
+    only the share w of its disagreement with the no-vig price q kept. Same
+    side of q as p; w = 1 gives p, w = 0 gives q. NaN where p or q is."""
+    p, q = np.asarray(p, float), np.asarray(q, float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        lq = np.log(q / (1 - q))
+        x = lq + w * (np.log(p / (1 - p)) - lq)
+    return 1 / (1 + np.exp(-x))
 
 
 def picks(g, price="close"):
