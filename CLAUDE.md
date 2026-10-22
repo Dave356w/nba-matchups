@@ -101,7 +101,16 @@ owner directs the product.
   forward record, one closing book × season (`build_site.public_scope`):
   the lean's ROI beside its null and the market favourite, and the H5/H6
   spread picks at their registered price; never the reconstructed rows.
-  Performance also scores and calibrates the model and the market on the
+  Performance also shows the market on its own (owner's request,
+  2026-10-22; `build_site._market_performance`, `analysis.market_games`,
+  `market_summary`, `market_ml_bands`, `market_ats_bands`, `market_by_side`):
+  DraftKings' closing prices on every graded native game this season,
+  model P or not: favourites straight up (won vs implied), at the moneyline
+  and against the spread (ROI vs null), home sides against the spread, the
+  closing line vs the final margin (mean miss, home bias), and the same by
+  the favourite's price, by its spread and for home vs road favourites
+  (bands descriptive; no SE below `BAND_MIN_N`). It reads prices and
+  results only. Performance also scores and calibrates the model and the market on the
   record's games (owner's request, 2026-10-22; `build_site._forecast_section`):
   log loss and Brier with model − market ± 1 SE, picked-the-winner rates,
   each forecast's calibration slope (`analysis.calibration_slope`), the lean

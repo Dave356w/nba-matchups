@@ -1545,6 +1545,138 @@ def render_results(native, built, today):
     return page("NBA results", "results.html", "".join(body), built)
 
 
+def market_scope(native):
+    """The market view's games: this season's graded native rows with a
+    close from the pages' market (DraftKings, analysis.HYPOTHESIS_BOOK),
+    every one of them (no model probability needed), as market_games rows:
+    dict(book, season, m), or None before the first such game."""
+    if native is None or not len(native):
+        return None
+    g = ledger.graded(analysis.market_view(native))
+    if not len(g):
+        return None
+    g = g[(g["close_book"].astype(str) == analysis.HYPOTHESIS_BOOK)
+          & pd.to_numeric(g["close_q_home"], errors="coerce").notna()]
+    if not len(g):
+        return None
+    season = pd.to_numeric(g["season"], errors="coerce").max()
+    g = g[pd.to_numeric(g["season"], errors="coerce") == season]
+    m = analysis.market_games(g)
+    return dict(book=analysis.HYPOTHESIS_BOOK, season=season, m=m) if len(m) else None
+
+
+def _gap_cell(x, se, n, scale=100, d=1, unit=""):
+    """'+3.1 ± 2.0' coloured at >= 2 SE; no SE below analysis.BAND_MIN_N."""
+    if x is None or not np.isfinite(x):
+        return "—"
+    if round(scale * x, d) == 0:
+        x = 0.0
+    if n < analysis.BAND_MIN_N or se is None or not np.isfinite(se) or se <= 0:
+        return f"{scale * x:+.{d}f}{unit}"
+    return (f"<span class='{sig_cls(x / se)}'>{scale * x:+.{d}f}{unit}</span> "
+            f"<span class='mut'>± {scale * se:.{d}f}</span>")
+
+
+def _market_performance(native):
+    """Performance: the market alone (owner's request, 2026-10-22). How
+    DraftKings' closing prices did this season on every graded native game:
+    favourites straight up, at the moneyline and against the spread, home
+    sides against the spread, the closing line against the final margin,
+    and the same by price band, by spread size and by side. No model
+    column is read; never the rebuilt rows."""
+    head = "<h2 class='sec'>Market performance</h2>"
+    ms = market_scope(native)
+    if not ms:
+        return head + ("<div class='empty'>Starts with the first graded game with "
+                       f"a {esc(market.BOOK_NAMES[analysis.HYPOTHESIS_BOOK])} "
+                       "close.</div>")
+    m = ms["m"]
+    where = f"{esc(market.BOOK_NAMES[ms['book']])} {season_txt(ms['season'])} close"
+    sm = analysis.market_summary(m)
+    su, ats, hats, line = sm["su"], sm["ats"], sm["home_ats"], sm["line"]
+
+    def z(x, se):
+        return x / se if se is not None and np.isfinite(se) and se > 0 else float("nan")
+    out = [head, f"<p class='note'>How the {where} did on its own, on every graded "
+           f"game this season ({su['n']} games), whatever the model said.</p>",
+           "<div class='gr-summary'>",
+           _stat("Favourites straight up", f"{su['w']}–{su['l']}",
+                 f"won {pct(su['actual'])} vs {pct(su['implied'])} implied · "
+                 f"{pp(su['diff'], cls=False)} ± {100 * su['se']:.1f} (1 SE) · "
+                 f"{resolved_txt(z(su['diff'], su['se']), 'won more than priced', 'won less than priced')}",
+                 sig_cls(z(su["diff"], su["se"]))),
+           _stat("Favourites · moneyline ROI", f"{100 * su['fav_roi']:+.1f}%",
+                 f"± {se_txt(su['fav_se'])} (1 SE) · null {100 * su['fav_null']:+.1f}% · "
+                 f"underdogs {100 * su['dog_roi']:+.1f}% ± {se_txt(su['dog_se'])} "
+                 f"(null {100 * su['dog_null']:+.1f}%)",
+                 sig_cls(z(su["fav_roi"] - su["fav_null"], su["fav_se"])))]
+    if ats:
+        out.append(_stat("Favourites against the spread",
+                         f"{ats['w']}–{ats['l']}" + (f"–{ats['push']}" if ats["push"] else ""),
+                         f"covered {pct(ats['rate'])} ± {se_txt(ats['se'])} (1 SE) · "
+                         f"ROI {100 * ats['roi']:+.1f}% (null {100 * ats['null']:+.1f}%) · "
+                         f"{resolved_txt(z(ats['rate'] - 0.5, ats['se']), 'favourites covered more', 'underdogs covered more')}",
+                         sig_cls(z(ats["rate"] - 0.5, ats["se"]))))
+        out.append(_stat("Home sides against the spread",
+                         f"{hats['w']}–{hats['l']}" + (f"–{hats['push']}" if hats["push"] else ""),
+                         f"covered {pct(hats['rate'])} ± {se_txt(hats['se'])} (1 SE) · "
+                         f"{resolved_txt(z(hats['rate'] - 0.5, hats['se']), 'home covered more', 'road covered more')}",
+                         sig_cls(z(hats["rate"] - 0.5, hats["se"]))))
+    if line:
+        zb = z(line["bias"], line["bias_se"])
+        out.append(_stat("Closing line vs final margin", f"{line['mae']:.1f} pts",
+                         f"mean miss (RMSE {line['rmse']:.1f}) · home beat the line by "
+                         f"{line['bias']:+.1f} ± {line['bias_se']:.1f} pts (1 SE) · "
+                         f"{resolved_txt(zb, 'home did better', 'road did better')}",
+                         sig_cls(zb)))
+    out.append("</div>")
+
+    rows = []
+    for label, r in analysis.market_ml_bands(m):
+        rows.append([esc(label), r["n"], f"{r['w']}–{r['l']}", pct(r["actual"]),
+                     pct(r["implied"]), _gap_cell(r["diff"], r["se"], r["n"]),
+                     _gap_cell(r["fav_roi"] - r["fav_null"], r["fav_se"], r["n"]),
+                     _gap_cell(r["dog_roi"] - r["dog_null"], r["dog_se"], r["n"])])
+    out.append("<h3>Moneyline by the favourite's closing price</h3>"
+               + table(["Favourite's price", "Games", "Fav W–L", "Fav won",
+                        "Implied", "Won − implied (± 1 SE)",
+                        "Fav ROI − null (± 1 SE)", "Dog ROI − null (± 1 SE)"],
+                       rows, key=(5,)))
+    rows = []
+    for label, r in analysis.market_ats_bands(m):
+        rows.append([esc(label.replace("Fav ", "")), r["n"],
+                     f"{r['w']}–{r['l']}" + (f"–{r['push']}" if r["push"] else ""),
+                     _gap_cell(r["rate"] - 0.5, r["se"], r["w"] + r["l"]),
+                     _gap_cell(r["margin"], r["margin_se"], r["n"], scale=1, unit=" pts"),
+                     _gap_cell(r["roi"] - r["null"], r["roi_se"], r["n"])])
+    if rows:
+        out.append("<h3>Against the spread by the favourite's closing line</h3>"
+                   + table(["Favourite's line", "Games", "Fav W–L–P",
+                            "Fav cover − 50% (± 1 SE)", "Fav margin vs line (± 1 SE)",
+                            "Fav ATS ROI − null (± 1 SE)"], rows, key=(3,)))
+    rows = []
+    for label, r, a in analysis.market_by_side(m):
+        rows.append([label, r["n"], f"{r['w']}–{r['l']}",
+                     _gap_cell(r["diff"], r["se"], r["n"]),
+                     (f"{a['w']}–{a['l']}" + (f"–{a['push']}" if a["push"] else "")) if a else "—",
+                     _gap_cell(a["rate"] - 0.5, a["se"], a["w"] + a["l"]) if a else "—"])
+    out.append("<h3>Home and road favourites</h3>"
+               + table(["", "Games", "Straight up", "Won − implied (± 1 SE)",
+                        "ATS W–L–P", "Cover − 50% (± 1 SE)"], rows, key=(3, 5)))
+    out.append("<p class='note'>The favourite is the side the no-vig close makes more "
+               "likely; on the spread, the side giving points. Won − implied is the "
+               "favourites' win rate minus the no-vig probability the close gave them: "
+               "0 means the price was right. ROI − null is 1 unit at the closing price "
+               "against what that bet returns if the price is exactly right (about "
+               "minus the hold), so 0 is a fair market, not a losing one. Margin vs "
+               "line is how many points the favourite beat (+) or missed (−) the "
+               "spread by. Bands are descriptive, not betting filters. ± is 1 SE, "
+               f"not shown below {analysis.BAND_MIN_N} games; colour marks only a gap "
+               f"of at least {SIG:g} SE. Market history for every season is on the "
+               "<a href='market-calibration.html'>Calibration</a> page.</p>")
+    return "".join(out)
+
+
 def _forecast_section(scope):
     """Performance: the model's and the market's forecasts on the record's
     games (native rows, one closing book x season, public_scope): proper
@@ -1733,6 +1865,7 @@ def render_performance(native, built, today):
                     "<th class=n>Units</th><th class=n>ROI (± 1 SE)</th>"
                     "<th class=n>Null</th></tr></thead><tbody>" + "".join(trs)
                     + "</tbody></table></div>")
+    body.append(_market_performance(native))
     body.append(_forecast_section(scope))
     body += ["<h2 class='sec'>Spread picks</h2>", spread_tiles(native),
              spread_charts(native),
