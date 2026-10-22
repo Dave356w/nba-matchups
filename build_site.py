@@ -1545,14 +1545,142 @@ def render_results(native, built, today):
     return page("NBA results", "results.html", "".join(body), built)
 
 
+def _forecast_section(scope):
+    """Performance: the model's and the market's forecasts on the record's
+    games (native rows, one closing book x season, public_scope): proper
+    scores, calibration (slope, predicted vs actual, closing-line value), the
+    reliability chart and a week-by-week table. Never the rebuilt rows; the
+    Calibration page has every basis. Colour only at >= 2 SE (sig_cls)."""
+    out = ["<h2 class='sec'>Forecasts: model vs market</h2>"]
+    h = scope["sec"]["h"] if scope else None
+    sc = analysis.scoring(h) if h is not None and len(h) else None
+    if not sc:
+        return "".join(out) + ("<div class='empty'>Starts with the first graded "
+                               "game with a closing line.</div>")
+    p = h["p_home"].to_numpy(float)
+    q = h["close_q_home"].to_numpy(float)
+    y = h["home_won"].to_numpy(float)
+    where = f"{esc(market.BOOK_NAMES[scope['sec']['book']])} " \
+            f"{season_txt(scope['sec']['season'])} close"
+
+    def z_of(d, se):
+        return d / se if se is not None and np.isfinite(se) and se > 0 else float("nan")
+
+    zl = -z_of(sc["d_logloss"], sc["d_logloss_se"])
+    zb = -z_of(sc["d_brier"], sc["d_brier_se"])
+    out += ["<div class='gr-summary'>",
+            _stat("Log loss · model / market",
+                  f"{sc['model']['logloss']:.3f} / {sc['market']['logloss']:.3f}",
+                  f"model − market <span class='{sig_cls(zl)}'>{sc['d_logloss']:+.4f}"
+                  f"</span> ± {se4(sc['d_logloss_se'])} (1 SE) · "
+                  f"{resolved_txt(zl, 'model better', 'market better')}"),
+            _stat("Brier · model / market",
+                  f"{sc['model']['brier']:.3f} / {sc['market']['brier']:.3f}",
+                  f"model − market <span class='{sig_cls(zb)}'>{sc['d_brier']:+.4f}"
+                  f"</span> ± {se4(sc['d_brier_se'])} (1 SE) · "
+                  f"{resolved_txt(zb, 'model better', 'market better')}"),
+            _stat("Picked the winner",
+                  f"{pct(sc['model']['acc'])} / {pct(sc['market']['acc'])}",
+                  f"model lean / market favourite · {sc['n']} games · accuracy is "
+                  "not calibration"),
+            "</div>"]
+
+    def slope_stat(label, fit):
+        sl, se = fit[0], fit[1]
+        if not np.isfinite(sl):
+            return _stat(label, "—", f"needs 30 graded games with both outcomes · "
+                                     f"n={len(y)}")
+        z = z_of(sl - 1, se)
+        return _stat(label, f"{sl:.2f}", f"± {se:.2f} (1 SE) · 1 = calibrated, below "
+                     f"1 too confident · {resolved_txt(z, 'too timid', 'too confident')}",
+                     sig_cls(z))
+    lc = analysis.lean_calibration(h)
+    zc = z_of(lc["diff"], lc["se"])
+    _, totals = analysis.market_calibration(h)
+    fav = totals.get("favourite")
+    cal = ["<div class='gr-summary'>",
+           slope_stat("Calibration slope · model", analysis.calibration_slope(p, y)),
+           slope_stat("Calibration slope · market", analysis.calibration_slope(q, y)),
+           _stat("Model lean: won − stated", f"{pp(lc['diff'], cls=False)} pts",
+                 f"won {pct(lc['actual'])} vs {pct(lc['predicted'])} stated · ± "
+                 f"{100 * lc['se']:.1f} (1 SE) · "
+                 f"{resolved_txt(zc, 'won more than stated', 'won less than stated')}",
+                 sig_cls(zc))]
+    if fav:
+        zf = z_of(fav["diff"], fav["se"])
+        cal.append(_stat("Market favourite: won − implied", f"{pp(fav['diff'], cls=False)} pts",
+                         f"won {pct(fav['actual'])} vs {pct(fav['implied'])} implied · "
+                         f"± {100 * fav['se']:.1f} (1 SE) · "
+                         f"{resolved_txt(zf, 'won more than priced', 'won less than priced')}",
+                         sig_cls(zf)))
+    c = analysis.clv(h)
+    if c:
+        zv = z_of(c["mean"], c["se"])
+        cal.append(_stat("Closing-line value · lean", f"{100 * c['mean']:+.2f} pp",
+                         f"± {se_txt(c['se'])} (1 SE) · beat the close on "
+                         f"{pct(c['beat'], 0)} · n={c['n']} · "
+                         f"{resolved_txt(zv, 'market moved to the lean', 'market moved away')}",
+                         sig_cls(zv)))
+    out += cal + ["</div>"]
+    out.append("<div class='charts'>"
+               + reliability_svg([("Model", "s1", analysis.reliability(p, y)),
+                                  ("Market (no-vig close)", "s2",
+                                   analysis.reliability(q, y))],
+                                 f"Model vs market calibration · {where}")
+               + "<p class='note'>" + CHART_NOTE.replace("; the table below has them all",
+                                                          "") + "</p></div>")
+    wk = pd.to_datetime(h["slate_date"].astype(str))
+    week = (wk - pd.to_timedelta(wk.dt.weekday, unit="D")).dt.strftime("%Y-%m-%d")
+    trs = []
+    for w, g in sorted(h.groupby(week.to_numpy()), reverse=True):
+        sw = analysis.scoring(g)
+        zw = -z_of(sw["d_logloss"], sw["d_logloss_se"])
+        lw = analysis.lean_calibration(g)
+        _, tw = analysis.market_calibration(g)
+        fw = tw.get("favourite")
+        start = pd.Timestamp(w)
+        end = start + pd.Timedelta(days=6)
+        span = (f"{start.strftime('%b %-d')}–{end.strftime('%-d')}"
+                if end.month == start.month
+                else f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')}")
+        trs.append(f"<tr><td>{span}</td><td class='n'>{sw['n']}</td>"
+                   f"<td class='n'>{sw['model']['logloss']:.3f}</td>"
+                   f"<td class='n'>{sw['market']['logloss']:.3f}</td>"
+                   f"<td class='n'><span class='{sig_cls(zw)}'>{sw['d_logloss']:+.4f}</span>"
+                   f" <span class='mut'>± {se4(sw['d_logloss_se'])}</span></td>"
+                   f"<td class='n'>{pct(lw['actual'])} <span class='mut'>vs "
+                   f"{pct(lw['predicted'])}</span></td>"
+                   + (f"<td class='n'>{pct(fw['actual'])} <span class='mut'>vs "
+                      f"{pct(fw['implied'])}</span></td>" if fw else "<td class='n'>—</td>")
+                   + "</tr>")
+    out.append("<h3>Forecasts by week</h3><div class='gr-tablewrap'><table class='gr'>"
+               "<thead><tr><th>Week</th><th class=n>Games</th><th class=n>Model log "
+               "loss</th><th class=n>Market log loss</th><th class=n>Model − market "
+               "(± 1 SE)</th><th class=n>Lean won vs stated</th>"
+               "<th class=n>Favourites won vs implied</th></tr></thead><tbody>"
+               + "".join(trs) + "</tbody></table></div>")
+    out.append(f"<p class='note'>Every game the record grades ({where}; native rows, "
+               "written before tip): the model's P(home win) and the market's no-vig "
+               "close on the same games. Lower log loss and Brier are better; model − "
+               "market below 0 means the model did better. The calibration slope is "
+               "the outcome's slope on each forecast's log-odds: 1 is calibrated, "
+               "below 1 too confident. Closing-line value is how far the market moved "
+               "toward the lean from the pregame snapshot to the close. Colour marks "
+               f"only a gap of at least {SIG:g} SE (from 0, from a slope of 1, or "
+               "from the stated probability). Every season and the rebuilt rows are "
+               "on the <a href='market-calibration.html'>Calibration</a> page.</p>")
+    return "".join(out)
+
+
 def render_performance(native, built, today):
     """Performance: running units and same-game baselines for the lean."""
     scope = public_scope(native)
     body = [_head(f"{season_txt(season_for(today))} season", "Performance",
                   "How this season's leans are doing, beside simple baselines on "
-                  "the same games at the same prices. Each ROI is read against "
-                  "its null, the ROI if the market's no-vig price were exactly "
-                  "right (about minus the hold), not zero."),
+                  "the same games at the same prices, and how the model's and the "
+                  "market's probabilities score and calibrate on those games. Each "
+                  "ROI is read against its null, the ROI if the market's no-vig "
+                  "price were exactly right (about minus the hold), not zero."),
             record_tiles(scope)]
     if not scope:
         body.append("<div class='empty'>The running-units chart starts with the "
@@ -1605,11 +1733,12 @@ def render_performance(native, built, today):
                     "<th class=n>Units</th><th class=n>ROI (± 1 SE)</th>"
                     "<th class=n>Null</th></tr></thead><tbody>" + "".join(trs)
                     + "</tbody></table></div>")
+    body.append(_forecast_section(scope))
     body += ["<h2 class='sec'>Spread picks</h2>", spread_tiles(native),
              spread_charts(native),
-             "<p class='note'>Calibration, the pre-registered hypotheses, the "
-             "rebuilt seasons and the model's coefficients are on the "
-             "<a href='grades.html'>Research</a> pages.</p>"]
+             "<p class='note'>Calibration on every season, the pre-registered "
+             "hypotheses, the rebuilt seasons and the model's coefficients are on "
+             "the <a href='grades.html'>Research</a> pages.</p>"]
     return page("NBA performance", "performance.html", "".join(body), built)
 
 

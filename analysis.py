@@ -248,6 +248,52 @@ def scoring(h):
     )
 
 
+def calibration_slope(p, y, min_n=30, iters=50):
+    """(slope, se, intercept, se) of the outcome on logit(p): 1 / 0 for a
+    calibrated forecast (slope < 1: too confident, > 1: too timid). NaNs
+    below min_n rows, without both outcomes, or if the fit separates."""
+    p = np.clip(np.asarray(p, float), 1e-6, 1 - 1e-6)
+    y = np.asarray(y, float)
+    k = np.isfinite(p) & np.isfinite(y)
+    p, y = p[k], y[k]
+    nan = (float("nan"),) * 4
+    if len(y) < min_n or y.min() == y.max():
+        return nan
+    X = np.column_stack([np.ones(len(p)), np.log(p / (1 - p))])
+    b = np.zeros(2)
+    try:
+        for _ in range(iters):
+            mu = 1 / (1 + np.exp(-X @ b))
+            H = X.T @ (X * (mu * (1 - mu))[:, None])
+            step = np.linalg.solve(H, X.T @ (y - mu))
+            b += step
+            if np.abs(step).max() < 1e-10:
+                break
+        cov = np.linalg.inv(H)
+    except np.linalg.LinAlgError:
+        return nan
+    if not np.isfinite(b).all() or abs(b[1]) > 50:
+        return nan
+    return float(b[1]), float(np.sqrt(cov[1, 1])), float(b[0]), float(np.sqrt(cov[0, 0]))
+
+
+def lean_calibration(h):
+    """The lean's mean model P against its win rate on graded rows:
+    dict(n, predicted, actual, diff, se) with se = sqrt(sum p(1-p)) / n,
+    the spread of the win rate if the model were right. None without rows."""
+    if h is None or not len(h):
+        return None
+    p = h["p_home"].to_numpy(float)
+    y = h["home_won"].to_numpy(float)
+    home = lean_is_home(h)
+    pl = np.where(home, p, 1 - p)
+    won = np.where(home, y == 1, y == 0).astype(float)
+    n = len(pl)
+    return dict(n=n, predicted=float(pl.mean()), actual=float(won.mean()),
+                diff=float(won.mean() - pl.mean()),
+                se=float(np.sqrt((pl * (1 - pl)).sum()) / n))
+
+
 def _lean_row(label, s):
     n = len(s)
     q = s["lean_q"].to_numpy(float)

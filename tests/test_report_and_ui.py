@@ -299,12 +299,40 @@ def test_results_and_performance_show_the_native_lean_record(tmp_path, monkeypat
     assert f"null {100 * r['roi_null']:+.1f}%" in perf               # ROI beside its null
 
 
+def test_performance_tracks_model_and_market_forecasts(tmp_path, monkeypatch):
+    """Performance scores and calibrates the model and the market on the
+    record's games (native, one book x season), never the rebuilt rows."""
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    native = synth(120, 52, "native")
+    build_site.write_pages(native, synth(200, 53, "reconstructed"), "2026-11-29",
+                           model_ok=True)
+    perf = (tmp_path / "performance.html").read_text()
+    h = build_site.public_scope(native)["sec"]["h"]
+    sc = analysis.scoring(h)
+    assert "Forecasts: model vs market" in perf and "Forecasts by week" in perf
+    assert (f"{sc['model']['logloss']:.3f} / {sc['market']['logloss']:.3f}" in perf)
+    assert (f"{sc['model']['brier']:.3f} / {sc['market']['brier']:.3f}" in perf)
+    assert f"{sc['d_logloss']:+.4f}" in perf                 # model − market, ± 1 SE
+    for t in ("Calibration slope · model", "Calibration slope · market",
+              "Model lean: won − stated", "Market favourite: won − implied",
+              "Model vs market calibration", "market-calibration.html",
+              "Lean won vs stated", "Favourites won vs implied"):
+        assert t in perf, t
+    assert "the table below" not in perf
+    sl = analysis.calibration_slope(h["p_home"], h["home_won"])
+    assert f"{sl[0]:.2f}" in perf
+    lc = analysis.lean_calibration(h)
+    assert f"won {100 * lc['actual']:.1f}% vs {100 * lc['predicted']:.1f}% stated" in perf
+
+
 def test_public_pages_never_show_the_rebuilt_seasons(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(ledger.empty(), synth(200, 54, "reconstructed"),
                            "2026-11-29", model_ok=True)
     assert "No graded picks yet" in (tmp_path / "results.html").read_text()
-    assert "starts with the first graded pick" in (tmp_path / "performance.html").read_text()
+    perf = (tmp_path / "performance.html").read_text()
+    assert "starts with the first graded pick" in perf
+    assert "Starts with the first graded game with a closing line." in perf
     assert "No graded picks yet" in (tmp_path / "index.html").read_text()
 
 
