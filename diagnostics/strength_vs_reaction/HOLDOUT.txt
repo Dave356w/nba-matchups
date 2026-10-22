@@ -1,0 +1,15 @@
+Pre-registered holdout (diagnostics/strength_vs_reaction/PREREG_holdout.md): late-game
+Kalshi pricing on the 2025 and 2026 play-in and playoff games. Tests as fixed before
+this data was read; nothing tuned. ± is 95%.
+
+Games: 181 completed play-in/playoff games on ESPN; used 168 (2025 85, 2026 83); dropped: no candles 8, no live quotes 1, no play-by-play 4
+ESPN final agrees with the scoreboard result: 168 of 168
+
+H-L1 favourite-longshot bias (primary): 132 games with a 4th-quarter favourite at 93-99.5c; expected losses 6.04, actual 12; ratio 1.99 (exact 95% 1.03-3.47); one-sided p = 0.991: not passed  (regular season: 27 vs 41.0, ratio 0.66)
+    2025: 68 games, expected 3.04, lost 5
+    2026: 64 games, expected 3.00, lost 7
+H-L2 score beyond the mid, 4th quarter: a -0.0033 ± 0.0180 (133 games), z -0.35: not passed  (regular season +0.021 / +0.022)
+H-L3 the trade: 122 trades; pnl -6.68c ± 5.23, null -1.79c, pnl - null -4.89c ± 5.25 (z -1.82): not passed  (regular season pnl -0.36c, pnl - null +1.48c)
+
+Power was stated in advance: only a large effect can pass here, and a miss is not a
+refutation. The decisive test is the 2026-27 regular season from Kalshi's archive.

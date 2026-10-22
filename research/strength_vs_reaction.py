@@ -1511,12 +1511,143 @@ def report(S, P, drops, espn, kal, n_games):
     return "\n".join(L), T
 
 
+# -------------------------------------------------------------- holdout ----
+HOLDOUT_RANGES = (("2025-04-14", "2025-06-25"), ("2026-04-13", "2026-06-25"))
+HOLDOUT_TYPES = (3, 5)            # ESPN season types: postseason, play-in
+
+
+def holdout_games():
+    """Every completed 2025 and 2026 play-in and playoff game from ESPN's
+    scoreboards (cached), in the shape game_states reads. The model is not
+    used (p_home is a placeholder)."""
+    path = CACHE / "holdout_games.csv"
+    if path.exists():
+        return pd.read_csv(path, dtype={"game_id": str})
+    rows = []
+    for lo, hi in HOLDOUT_RANGES:
+        for d in pd.date_range(lo, hi).strftime("%Y-%m-%d"):
+            for g in market.scoreboard(d):
+                if g["season_type"] in HOLDOUT_TYPES and g["completed"] \
+                        and g["home_pts"] is not None and g["away_pts"] is not None:
+                    rows.append(dict(game_id=g["game_id"], slate_date=d, tip_utc=g["tip_utc"],
+                                     home=g["home"], away=g["away"],
+                                     home_won=int(g["home_pts"] > g["away_pts"]),
+                                     season_type=g["season_type"]))
+    r = pd.DataFrame(rows).drop_duplicates("game_id")
+    r = r.assign(p_home=0.5, kalshi_close_q_home=np.nan, close_book="none", close_spread=np.nan)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    r.to_csv(path, index=False)
+    return r
+
+
+def holdout_kalshi(row, start, end):
+    """The home market's candles, trying the event ticker away+home, then
+    home+away (cached under the game id like kalshi_game)."""
+    path = CACHE / "kalshi" / f"{row.game_id}.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    res = {"ticker": None, "candles": []}
+    for h_, a_ in ((row.home, row.away), (row.away, row.home)):
+        t = kalshi.market_ticker(row.slate_date, row.home, h_, a_)
+        cs = kb.candles(t, start, end, 1)
+        if cs:
+            res = {"ticker": t, "candles": [
+                [c.get("end_period_ts"), px(c.get("yes_ask"), "close"), px(c.get("yes_ask"), "high"),
+                 px(c.get("yes_bid"), "close"), px(c.get("yes_bid"), "low"),
+                 float(c.get("volume") or 0)] for c in cs]}
+            break
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(res))
+    return res
+
+
+def holdout_report(games, S, P, drops):
+    """The three pre-registered tests (PREREG_holdout.md), exactly as fixed."""
+    L = []
+    w = L.append
+    S = S.assign(split=np.where(S["game_id"].map(P.set_index("game_id")["slate_date"]) < "2026-01-01",
+                                "2025", "2026"))
+    w("Pre-registered holdout (diagnostics/strength_vs_reaction/PREREG_holdout.md): late-game")
+    w("Kalshi pricing on the 2025 and 2026 play-in and playoff games. Tests as fixed before")
+    w("this data was read; nothing tuned. ± is 95%.")
+    w("")
+    w(f"Games: {len(games)} completed play-in/playoff games on ESPN; used {len(P)} "
+      f"(2025 {int((P['slate_date'] < '2026-01-01').sum())}, 2026 "
+      f"{int((P['slate_date'] >= '2026-01-01').sum())}); dropped: "
+      + (", ".join(f"{k} {v}" for k, v in sorted(drops.items())) or "none"))
+    w(f"ESPN final agrees with the scoreboard result: {int(P['espn_result_agrees'].sum())} of {len(P)}")
+    w("")
+    n, lam, k = entry_losses(S, 0.93, 0.995)
+    plo, phi = poisson_ci(k)
+    p = poisson_p_low(k, lam)
+    w(f"H-L1 favourite-longshot bias (primary): {n} games with a 4th-quarter favourite at "
+      f"93-99.5c; expected losses {lam:.2f}, actual {k}; ratio {k / lam:.2f} "
+      f"(exact 95% {plo / lam:.2f}-{phi / lam:.2f}); one-sided p = {p:.3f}: "
+      f"{'PASS' if p < 0.05 else 'not passed'}  (regular season: 27 vs 41.0, ratio 0.66)")
+    for season in ("2025", "2026"):
+        n_, lam_, k_ = entry_losses(S[S["split"] == season], 0.93, 0.995)
+        w(f"    {season}: {n_} games, expected {lam_:.2f}, lost {k_}")
+    b, ci, ng = score_beyond_mid(S)["4th quarter"]
+    z = b[0] / (ci[0] / Z95)
+    w(f"H-L2 score beyond the mid, 4th quarter: a {b[0]:+.4f} ± {ci[0]:.4f} ({ng} games), z "
+      f"{z:+.2f}: {'PASS' if z > 1.645 else 'not passed'}  (regular season +0.021 / +0.022)")
+    r = fav_trades(fav_frame(S, 0.25), 0.93, 0.99)
+    if r is None:
+        w("H-L3 the trade: fewer than 30 trades; not assessable")
+    else:
+        z3 = r["edge"][0] / (r["edge"][1] / Z95)
+        w(f"H-L3 the trade: {r['n']} trades; pnl {100 * r['pnl'][0]:+.2f}c ± {100 * r['pnl'][1]:.2f}, "
+          f"null {100 * r['null']:+.2f}c, pnl - null {100 * r['edge'][0]:+.2f}c ± "
+          f"{100 * r['edge'][1]:.2f} (z {z3:+.2f}): {'PASS' if z3 > 1.645 else 'not passed'}  "
+          f"(regular season pnl -0.36c, pnl - null +1.48c)")
+    w("")
+    w("Power was stated in advance: only a large effect can pass here, and a miss is not a")
+    w("refutation. The decisive test is the 2026-27 regular season from Kalshi's archive.")
+    return "\n".join(L)
+
+
+def holdout_main(workers):
+    games = holdout_games()
+    print(f"{len(games)} holdout games", flush=True)
+    espn = {}
+    with ThreadPoolExecutor(workers) as ex:
+        for gid, js in zip(games["game_id"], ex.map(
+                lambda g: _safe(espn_game, g), games["game_id"])):
+            espn[gid] = js
+    kal = {}
+    for row in games.itertuples():
+        js = espn.get(row.game_id)
+        if js and js["plays"]:
+            ts = [p[0] for p in js["plays"]]
+            kal[row.game_id] = _safe(holdout_kalshi, row, min(ts) - PRE_WINDOW,
+                                     max(ts) + POST_WINDOW)
+    S, P, drops = assemble(games, espn, kal)
+    text = holdout_report(games, S, P, drops)
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "HOLDOUT.txt").write_text(text + "\n")
+    print(text)
+
+
+def _safe(f, *args):
+    try:
+        return f(*args)
+    except Exception as e:  # noqa: BLE001 - one game; keep going
+        print(f"{f.__name__} {args[0] if not hasattr(args[0], 'game_id') else args[0].game_id}: "
+              f"{e!r}", flush=True)
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--fetch-only", action="store_true")
+    ap.add_argument("--holdout", action="store_true",
+                    help="the pre-registered play-in/playoff holdout (PREREG_holdout.md)")
     a = ap.parse_args()
+    if a.holdout:
+        holdout_main(a.workers)
+        return
     games = load_games(a.limit)
     print(f"{len(games)} games", flush=True)
     espn, kal = fetch(games, a.workers)
