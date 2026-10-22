@@ -124,6 +124,11 @@ owner directs the product.
   read by the build or the model. ESPN's CDN returns 403 to headless
   Chrome (`sec-ch-ua: "HeadlessChrome"`); test it with that header
   replaced.
+  A card's edge and EV count only `analysis.SHRINK_W` = 0.40 of the model's
+  disagreement with the price (`analysis.shrink_p`, owner's decision
+  2026-10-22; display only): the model P, the lean and every graded number
+  are as recorded, and the card shows one edge and one EV, not raw beside
+  shrunk. The research pages keep the raw model − market.
   A Today card shows the H5/H6 pick that covers its game
   (`analysis.ats_card`, the same `ats_sides` the Ledger grades with, at the
   first snapshot; its sportsbook named): a badge when the rule bets, the
@@ -445,6 +450,20 @@ Before a PR, run:
   forward test. **Active:** refit `f299ac6` (ft_diff 0.0151 base, 0.0175
   availability), rescore `f85e3ff` (2,418 rows re-tagged v6; leave-one-
   season-out v6 − v5 −0.0002 ± 0.0016 / −0.0010 ± 0.0011).
+- **v7 candidate rejected** (owner's request 2026-10-21 to drop opponent
+  luck after the history backtest; owner's decision 2026-10-22 to keep v6):
+  v6 without `luck_def`, closed PR Dave356w/nba-matchups#80 (code at
+  `79f6270`). Gate
+  (walk-forward `--avail --v7`, run 39698425564, v7 − v6 on the same games,
+  games 10+, ± 95%): +0.0018 ± 0.0017 (2024-25 ESPN BET), +0.0013 ± 0.0028
+  (2025-26 DK), −0.0094 ± 0.0151 (2025-26 ESPN BET, n = 107); Brier agrees
+  on both large book-seasons; v7 − close +0.0178 / +0.0197 (v6 +0.0160 /
+  +0.0184). Worse on both large book-seasons, resolved on 2024-25: fails
+  the gate. Every priced game 10+ runs through the availability logit,
+  where luck's coefficient is larger (0.016–0.018 vs 0.0125 base); the
+  history backtest's pooled ablation (+0.0002, below) is mostly the base
+  route of 2016-17 to 2022-23 and understated it. Judge a term on the
+  route and seasons production uses. Luck stays.
 - v5 audit (`HANDOFF_v5_audit.md`, results in `diagnostics/v5_audit/`,
   workflow "v5 audit"), 2026-10-01: home-court drift +1.56 ± 0.79 pts
   pooled over the last 3 seasons (rule not met; no change); v5 is not flat
@@ -533,7 +552,8 @@ Before a PR, run:
   better in 9 of 9 seasons. Terms dropped in turn (positive = helps):
   talent +0.0059 ± 0.0026, b2b +0.0024 ± 0.0012, Δ·phase +0.0009 ± 0.0006
   (8 of 9 each), availability +0.0029 ± 0.0033 (3 of 3), FT% +0.0004 ±
-  0.0005 (8 of 9), opponent luck +0.0002 ± 0.0009 (6 of 9, the weakest).
+  0.0005 (8 of 9), opponent luck +0.0002 ± 0.0009 (6 of 9, the weakest
+  pooled; but dropping it fails the gate on the priced seasons, v7 above).
   Calibration slope 0.99 ± 0.06 (folds with 2+ training seasons); Δ·phase
   takes the last third from 1.24 (v1) to 1.04. Predicted home rate 1.5 pts
   above the actual (2017-18 to 2025-26). Out of era 2004-05 to 2013-14
@@ -543,7 +563,37 @@ Before a PR, run:
   the home intercept moves with the era (recency weighting already ruled
   out). The home-team back-to-back residual flips sign between eras
   (−2 / +2 pts): not a lead. Takes 2 minutes on cached data; rerun after
-  any model change.
+  any model change. Follow-ups (owner's request 2026-10-22, the adjustments
+  ranked in the guidelines; run 39700532844): (A8) an in-season home-edge
+  update (this season's residual on earlier dates, empirical-Bayes prior,
+  tau ~0.04 logit) −0.0001 ± 0.0002, vs the close +0.0000 / +0.0001: not
+  worth a change; (A9) drafted rookies valued by pick (rookie BPM ≈ −1.26
+  − 0.45 log pick, earlier seasons only) −0.0002 ± 0.0002, better in 9 of
+  9, vs the close −0.0001 ± 0.0006 / −0.0002 ± 0.0006: passes the gate but
+  small, for the next model version; (C) games 1–9 against outcomes,
+  walk-forward 2016–26 (n = 1,258): home lean +0.2 ± 2.6 pts, slope 0.88 ±
+  0.18; frozen early logit on 2005–14: −0.1 ± 2.6, 0.90 ± 0.17. The early
+  home lean beyond the market is not a bias against outcomes.
+- Disagreement shrinkage at the open (owner's request 2026-10-22;
+  `research/open_shrinkage.py`, `diagnostics/open_shrinkage/RESULTS.txt`):
+  P* = σ(logit q_open + w (logit P − logit q_open)), w from the other priced
+  season (+0.43 / +0.36). Games 10+, ± 95%: P* − open −0.0009 ± 0.0046
+  (2025-26 DK, walk-forward) / −0.0026 ± 0.0037 (2024-25 ESPN BET,
+  hindsight); P* − P −0.0081 ± 0.0067 / −0.0047 ± 0.0064; realised /
+  claimed edge 0.81 / 1.02 (raw P 0.34 / 0.37). Bets on P*'s side at the
+  posted open with claimed EV > 0: −7.5% ± 12.0 / +5.7% ± 13.2 (null
+  −4.1%), unresolved and opposite; the line moves toward the bet in step
+  with the claim in both seasons. P* is the honest reading of an edge; no
+  bet rule from it without pre-registration. Games 1–9: w unstable (0.38 /
+  0.97, n = 138). The Picks card's edge and EV use it (w 0.40, display
+  only, 2026-10-22). Not registered as a hypothesis (owner asked for it
+  only if it could replace one): "H7", the value side at the first
+  snapshot when P*'s EV > 0, would replace H2·F on logic (same question,
+  same price, with the hold), but in hindsight at the open it is +3.9 vs
+  the null pooled (−2.5 DK, +9.0 ESPN BET) against H2's +4.7 (+4.2 / +5.1),
+  and its underdog bets swing ~1.5 units each against ~0.7: ~5,800 bets
+  (~10 seasons) to resolve its effect against ~1,100 (~2) for H2·F. H2·F
+  stays.
 - One feature builder: `nba_composite.logit_inputs` (delta, b2b_net, phase
   from opening night, d_phase) serves build_games, the CLI scorer and
   `build_site.score_game`; research scripts reuse the `phase` column.

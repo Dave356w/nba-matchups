@@ -1,5 +1,6 @@
 """research/history_backtest.py: the production routing and the term
-ablations on a synthetic fold, and the out-of-era frozen-core table."""
+ablations on a synthetic fold, the out-of-era frozen-core table, the
+in-season home-edge update (no same-day lookahead) and the games 1-9 part."""
 import os
 import sys
 
@@ -22,6 +23,9 @@ def games(n, year, seed):
         "talent_diff": rng.normal(0, 3, n), "ftp_gap": rng.normal(0, .03, n),
         "av_min": rng.normal(0, 1, n), "av_bpm": rng.normal(0, 1, n)})
     d["d_phase"] = d["delta"] * d["phase"]
+    d["date"] = pd.Timestamp(f"{year - 1}-11-20") + pd.to_timedelta(np.arange(n) % 140, "D")
+    d["slate_date"] = d["date"].dt.strftime("%Y-%m-%d")
+    d["home"], d["away"] = [f"H{i}" for i in range(n)], [f"A{i}" for i in range(n)]
     eta = 0.3 + 0.04 * d["delta"] + 0.3 * d["b2b_net"] + 0.08 * d["talent_diff"]
     d["win"] = (rng.uniform(size=n) < 1 / (1 + np.exp(-eta))).astype(int)
     return d
@@ -62,7 +66,7 @@ def test_routing_and_ablations():
 
 def test_part_a_reads_signal():
     folds = {2024: fold(2024, 0), 2025: fold(2025, 10)}
-    text = "\n".join(hb.part_a(folds))
+    text = "\n".join(hb.part_a(folds)[0])
     for s in ("A1.", "A2.", "A3.", "A4.", "A5.", "A6.", "A7.", "2023-24", "2024-25",
               "pooled", "roster talent", "injury-report availability"):
         assert s in text, s
@@ -94,6 +98,7 @@ def test_part_b_frozen_core(monkeypatch):
             d[f"l{k}"] = 0.0
         d["b2b_net"] = rng.choice([-1, 0, 1], n)
         d["phase"] = rng.uniform(0, 1, n)
+        d["date"] = pd.Timestamp(f"{y - 1}-11-20") + pd.to_timedelta(np.arange(n) % 140, "D")
         eta = 0.3 + 0.03 * 100 * 0.01 * d[[f"g{k}" for k in range(8)]].sum(axis=1) \
             + 0.3 * d["b2b_net"]
         d["win"] = (rng.uniform(size=n) < 1 / (1 + np.exp(-eta))).astype(int)
@@ -109,3 +114,69 @@ def test_part_b_frozen_core(monkeypatch):
     slope = float(text.split("pooled: ")[1].split("frozen slope ")[1].split()[0])
     assert 0.8 < slope < 1.2                       # the true model is the frozen one
     assert "frozen - full refit" in text and "B2." in text and "correlation" in text
+    assert "in-season home edge" in text
+
+
+def test_home_offset_uses_only_earlier_dates():
+    dates = pd.to_datetime(["2025-01-01"] * 3 + ["2025-01-02"] * 3 + ["2025-01-03"] * 2)
+    y = np.array([1, 1, 1, 0, 0, 0, 1, 1.])
+    p = np.full(8, 0.5)
+    out = hb.home_offset(dates, y, p, 0.1)
+    assert np.allclose(out[:3], 0.5)                 # first day: nothing earlier
+    assert (out[3:6] > 0.5).all() and np.allclose(out[3:6], out[3])
+    lo = np.log(out[3] / (1 - out[3]))
+    assert np.isclose(lo, 1.5 / (0.75 + 100))        # sum(y-p) / (sum p(1-p) + 1/tau^2)
+    assert np.isclose(out[6], 0.5)                   # day 1 and day 2 residuals cancel
+    assert np.allclose(hb.home_offset(dates, y, p, float("nan")), p)
+    assert np.allclose(hb.home_offset(dates, y, p, 0.0), p)
+
+
+def test_fit_offset_and_eb_tau():
+    b, se = hb.fit_offset(np.full(1000, .5), (np.arange(1000) < 600).astype(float))
+    assert np.isclose(b, np.log(1.5)) and 0 < se < 0.1
+    assert np.isclose(hb.eb_tau([(0.1, .05), (-0.1, .05), (0.0, .05)]), np.sqrt(0.0075))
+    assert hb.eb_tau([(0.1, .05)]) != hb.eb_tau([(0.1, .05)])     # NaN with one season
+    assert hb.eb_tau([(0.01, .2), (-0.01, .2)]) == 0.0               # all noise
+
+
+def test_part_a8_reports_and_returns_tau():
+    folds = {2023: fold(2023, 0), 2024: fold(2024, 5), 2025: fold(2025, 10)}
+    _, d = hb.part_a(folds)
+    L, tau = hb.part_a8(d)
+    text = "\n".join(L)
+    assert "A8." in text and "pooled" in text and "tau from all 3 seasons" in text
+    assert np.isfinite(tau) or tau != tau
+
+
+def test_part_c_games_1_to_9(monkeypatch):
+    rng = np.random.default_rng(0)
+
+    def early(y, weights, min_gp=0, window=20, **k):
+        n = 200
+        g = pd.DataFrame({"delta": rng.normal(0, 10, n), "b2b_net": rng.choice([-1, 0, 1], n)})
+        g["win"] = (rng.uniform(size=n) < 1 / (1 + np.exp(-(0.3 + 0.04 * g["delta"])))).astype(int)
+        return g
+    monkeypatch.setattr(hb.cold_start, "early_games", early)
+    folds = {2024: fold(2024, 0), 2025: fold(2025, 3)}
+    for f in folds.values():
+        f.weights = {"sd": [1.0] * 8, "w": [0.01] * 8}
+    text = "\n".join(hb.part_c(folds, [2010, 2011]))
+    assert "C. Games 1-9" in text and "2023-24" in text and "2024-25" in text
+    assert "Out of era" in text and "2009-10" in text and "pooled" in text
+
+
+def test_rookie_curve_and_values(monkeypatch):
+    picks = {2014: {"a one": 1, "b ten": 10, "c thirty": 30},
+             2015: {"d two": 2, "e twenty": 20}}
+    bpms = {2015: {"a one": (1.0, 2000, 70), "b ten": (-2.0, 1500, 60),
+                   "c thirty": (-4.0, 500, 30)},
+            2016: {"d two": (0.0, 1800, 70), "e twenty": (-3.0, 900, 50)}}
+    monkeypatch.setattr(hb, "draft_picks", lambda y: picks[y])
+    monkeypatch.setattr(hb.pav, "load_bpm", lambda y: bpms[y])
+    a, b, n = hb.rookie_curve([2015, 2016])
+    assert n == 5 and b < 0                          # later picks, lower BPM
+    box = pd.DataFrame({"player_id": ["1", "2", "3"], "name": ["D Two", "Vet", "Undrafted"]})
+    value, k = hb.rookie_values({"1": 0.0, "2": 3.0, "3": 0.0}, box,
+                                {"vet": (1.0, 2000, 70)}, {"d two": 2}, (a, b, n))
+    assert k == 1 and value["2"] == 3.0 and value["3"] == 0.0
+    assert np.isclose(value["1"], a + b * np.log(2) - hb.pav.REPLACEMENT_BPM)

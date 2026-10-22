@@ -5,8 +5,7 @@
 
 Owner's question (2026-10-21): market prices exist for two seasons only, but
 the model's logic and calibration can be checked against results on every
-season the game logs reach. Two parts, games 10+ (the carryover model for
-games 1-9 is not covered here):
+season the game logs reach. Parts A and B are games 10+; C is games 1-9:
 
   A. Walk-forward, the production v6 routing (diagnostics/v5_audit folds:
      every fit on seasons strictly before the test season; availability on
@@ -27,6 +26,25 @@ games 1-9 is not covered here):
      B2, the committed four-factor weights beside weights fitted on the era.
      Box scores and injury reports are not cached that far back, so talent,
      luck, FT% and availability are not tested there.
+  A8 / B. In-season home edge (2026-10-22, docs/model_guidelines.md W8): the
+     intercept is the training seasons' home edge. Each game's logit is
+     shifted by this season's own residual on games 10+ strictly before its
+     date, b = sum(y - p) / (sum p(1-p) + 1/tau^2) (a Gaussian prior of sd
+     tau on the season's offset). tau is set walk-forward, empirical Bayes
+     from the earlier test seasons' season-level offsets (none before two
+     earlier seasons); B applies the modern seasons' tau to the frozen core
+     out of era. Priced seasons are also scored against the close.
+  C. Games 1-9 (2026-10-22, W5): the carryover model (cold_start.py),
+     walk-forward with each fold's weights and an early logit fitted on the
+     earlier seasons (production fits 2023-26 only), 2016-17 to 2025-26; and
+     out of era the frozen logit_early.json with the committed weights.
+     Calibration and the early home lean against outcomes.
+  A9. Rookies by draft slot (2026-10-22): talent_diff values players
+     missing from last season's BPM table (rookies) at replacement. A9 gives
+     each drafted rookie the rookie-season BPM his pick predicts, a + b
+     log(pick), minutes-weighted over earlier seasons' rookies only (BBR
+     draft pages), and refits v6 with that talent in place of talent_diff;
+     also against the close on the priced seasons.
 
 Research only: nothing here touches the ledgers, the pages or the model.
 Writes diagnostics/history_backtest/RESULTS.txt. ± is 95%.
@@ -34,8 +52,10 @@ Writes diagnostics/history_backtest/RESULTS.txt. ± is 95%.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -44,8 +64,10 @@ import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "diagnostics", "v5_audit"))
+import cold_start                                 # noqa: E402
 import common as c                                # noqa: E402
 import nba_composite as nc                        # noqa: E402
+import player_availability as pav                 # noqa: E402
 
 OUT = os.path.join(ROOT, "diagnostics", "history_backtest")
 Z95 = 1.96
@@ -60,6 +82,8 @@ TERMS = (("b2b_net", "back-to-back"), ("d_phase", "delta x season phase"),
 FAV_BINS = np.round(np.arange(0.50, 1.0001, 0.05), 2)
 PHASES = ((0.0, 1 / 3, "opening third"), (1 / 3, 2 / 3, "middle third"),
           (2 / 3, 1.01, "last third"))
+TAU_GRID = (0.05, 0.10, 0.20)          # A8 sensitivity, logit sd of a season's offset
+EARLY_TRAIN = [2016, 2017, 2018, 2019] + list(range(2021, 2027))
 
 
 def season_name(y):
@@ -258,7 +282,108 @@ def part_a(folds):
                       h["win"].to_numpy(float))[0] for _, h in g.groupby("year")]
         L.append(f"    {name:<28} {m:+.4f} ± {ci:.4f}  n={int(k.sum()):<5} (helps in "
                  f"{sum(x > 0 for x in per)} of {len(per)} seasons)")
+    return L, d
+
+
+def fit_offset(p, y, iters=50):
+    """(b, se): the season-level logit offset of y on p with slope 1."""
+    lp, y = c.logit(p), np.asarray(y, float)
+    b = 0.0
+    for _ in range(iters):
+        mu = 1 / (1 + np.exp(-(lp + b)))
+        g, h = float((y - mu).sum()), float((mu * (1 - mu)).sum())
+        b += g / h
+        if abs(g / h) < 1e-10:
+            break
+    mu = 1 / (1 + np.exp(-(lp + b)))
+    return b, 1 / np.sqrt(float((mu * (1 - mu)).sum()))
+
+
+def eb_tau(offsets):
+    """Empirical-Bayes sd of the true season offsets from [(b, se)]; NaN with
+    fewer than two seasons, 0 when the spread is all noise."""
+    if len(offsets) < 2:
+        return float("nan")
+    b = np.array([o[0] for o in offsets])
+    se = np.array([o[1] for o in offsets])
+    return float(np.sqrt(max(b.var(ddof=1) - (se ** 2).mean(), 0.0)))
+
+
+def home_offset(dates, y, p, tau):
+    """p shifted by the season's residual on strictly earlier dates:
+    sigma(logit p + b), b = sum(y - p) / (sum p(1-p) + 1/tau^2). tau NaN or
+    0 leaves p unchanged."""
+    p = np.asarray(p, float)
+    if not (np.isfinite(tau) and tau > 0):
+        return p.copy()
+    t = pd.DataFrame({"d": pd.to_datetime(dates), "r": np.asarray(y, float) - p,
+                      "v": p * (1 - p)})
+    day = t.groupby("d")[["r", "v"]].sum().sort_index()
+    before = day.cumsum().shift(1, fill_value=0.0)
+    r, v = before.loc[t["d"], "r"].to_numpy(), before.loc[t["d"], "v"].to_numpy()
+    b = r / (v + 1 / tau ** 2)
+    return 1 / (1 + np.exp(-(c.logit(p) + b)))
+
+
+def market_lines(d, cols):
+    """Each priced book x season: n, col - close log loss, and the paired
+    difference of every col against the first."""
+    m = c.with_market(d[["year", "slate_date", "home", "away", "win"] + cols])
+    m = m[m["close_q_home"].notna()]
+    L = []
+    for (yr, book), g in m.groupby(["year", "close_book"]):
+        yy = g["win"].to_numpy(float)
+        q = g["close_q_home"].to_numpy(float)
+        cells = [f"{k} - close {np.mean(ll(g[k], yy) - ll(q, yy)):+.4f}" for k in cols]
+        md, cd = paired(g[cols[1]].to_numpy(float), g[cols[0]].to_numpy(float), yy)
+        L.append(f"    {season_name(yr)} {book:<8} n={len(g):<5} " + "  ".join(cells)
+                 + f"   {cols[1]} - {cols[0]} {md:+.4f} ± {cd:.4f}")
     return L
+
+
+def part_a8(d):
+    """In-season home-edge update on the walk-forward v6 predictions."""
+    L = ["  A8. In-season home edge: v6 shifted by this season's own residual on "
+         "earlier dates (tau walk-forward, empirical Bayes from the earlier test "
+         "seasons); log loss adjusted - v6, ± 95% (negative = the update helps)"]
+    base = "p::v6 (production)"
+    d = d.sort_values("date").reset_index(drop=True)
+    d["p_adj"] = d[base]
+    offsets, rows = [], []
+    for yr, g in d.groupby("year", sort=True):
+        tau = eb_tau(offsets)
+        d.loc[g.index, "p_adj"] = home_offset(g["date"], g["win"], g[base], tau)
+        for t in TAU_GRID:
+            d.loc[g.index, f"p_tau{t}"] = home_offset(g["date"], g["win"], g[base], t)
+        b, se = fit_offset(g[base].to_numpy(float), g["win"].to_numpy(float))
+        offsets.append((b, se))
+        yy = g["win"].to_numpy(float)
+        m, ci = paired(d.loc[g.index, "p_adj"].to_numpy(float),
+                       g[base].to_numpy(float), yy)
+        rows.append(m)
+        L.append(f"    {season_name(yr):<9} n={len(g):<5} tau {tau:5.3f}  season offset "
+                 f"{b:+.3f} ± {Z95 * se:.3f}  adjusted - v6 {m:+.4f} ± {ci:.4f}  "
+                 f"home won {100 * yy.mean():.1f}% vs v6 {100 * g[base].mean():.1f}% "
+                 f"/ adjusted {100 * d.loc[g.index, 'p_adj'].mean():.1f}%")
+    y = d["win"].to_numpy(float)
+    m, ci = paired(d["p_adj"].to_numpy(float), d[base].to_numpy(float), y)
+    sl, slc, ic, icc = calib(d["p_adj"], y)
+    L.append(f"    pooled    n={len(d):<5} adjusted - v6 {m:+.4f} ± {ci:.4f}  (helps in "
+             f"{sum(x < 0 for x in rows)} of {len(rows)} seasons)  adjusted slope "
+             f"{sl:.2f} ± {slc:.2f}, intercept {ic:+.2f} ± {icc:.2f}")
+    for t in TAU_GRID:
+        m, ci = paired(d[f"p_tau{t}"].to_numpy(float), d[base].to_numpy(float), y)
+        L.append(f"    fixed tau {t:.2f} (sensitivity, chosen in sample): adjusted - "
+                 f"v6 {m:+.4f} ± {ci:.4f}")
+    tau_all = eb_tau(offsets)
+    L.append(f"    tau from all {len(offsets)} seasons (used out of era, B): {tau_all:.3f}")
+    L.append("    against the close, priced seasons (same games):")
+    try:
+        L += market_lines(d.rename(columns={base: "v6", "p_adj": "adjusted"}),
+                          ["v6", "adjusted"])
+    except Exception as e:  # noqa: BLE001
+        L.append(f"    (no market rows: {e!r})")
+    return L, tau_all
 
 
 def frozen_core():
@@ -270,7 +395,7 @@ def frozen_core():
     return w, lg
 
 
-def part_b(era):
+def part_b(era, tau=0.10):
     w, lg = frozen_core()
     feats, coef = lg["features"], np.asarray(lg["coef"], float)
     L = ["== B. Out of era, the core (delta, b2b, delta*phase), games 10+",
@@ -315,7 +440,8 @@ def part_b(era):
                  f"{np.nanmean(ll(ph, yy)) if prior else np.nan:7.4f}  "
                  f"{sl:6.2f} ± {slc:.2f}   {md:+.4f} ± {cd:.4f}")
         pooled.append(pd.DataFrame(dict(y=yy, pf=pf, pr=pr, pfull=pfull, ph=ph,
-                                        phase=g["phase"], b2b=g["b2b_net"])))
+                                        phase=g["phase"], b2b=g["b2b_net"],
+                                        padj=home_offset(g["date"], yy, pf, tau))))
     if not pooled:
         return L
     d = pd.concat(pooled, ignore_index=True)
@@ -329,6 +455,17 @@ def part_b(era):
         m, ci = paired(pf[k], d[col].to_numpy(float)[k], y[k])
         L.append(f"      frozen - {name:<12} {m:+.4f} ± {ci:.4f}  (n={int(k.sum())}, "
                  "seasons after the first)")
+    pa = d["padj"].to_numpy(float)
+    m, ci = paired(pa, pf, y)
+    sa, sac, ia, iac = calib(pa, y)
+    helps = sum(paired(g["padj"].to_numpy(float), g["pf"].to_numpy(float),
+                       g["y"].to_numpy(float))[0] < 0
+                for _, g in d.groupby(np.repeat(np.arange(len(pooled)),
+                                                [len(x) for x in pooled])))
+    L.append(f"      frozen + in-season home edge (tau {tau:.3f}, from the modern "
+             f"seasons) - frozen {m:+.4f} ± {ci:.4f} (helps in {helps} of "
+             f"{len(pooled)} seasons); intercept after {ia:+.2f} ± {iac:.2f}, home "
+             f"predicted {100 * pa.mean():.1f}%")
     for lo, hi, name in PHASES:
         kk = ((d["phase"] >= lo) & (d["phase"] < hi)).to_numpy()
         s2, c2, _, _ = calib(pf[kk], y[kk])
@@ -357,6 +494,176 @@ def part_b(era):
     return L
 
 
+def early_lines(label, p, y, ph=None):
+    sl, slc, ic, icc = calib(p, y)
+    lean, lci = mean_ci(np.asarray(p, float) - np.asarray(y, float))
+    s = (f"    {label:<9} n={len(y):<5} home won {100 * np.mean(y):5.1f}%  predicted "
+         f"{100 * np.mean(p):5.1f}%  lean {100 * lean:+.1f} ± {100 * lci:.1f} pts  "
+         f"slope {sl:.2f} ± {slc:.2f}  log loss {ll(p, y).mean():.4f}")
+    if ph is not None:
+        m, ci = paired(np.asarray(p, float), np.asarray(ph, float), np.asarray(y, float))
+        s += f"  vs home only {m:+.4f} ± {ci:.4f}"
+    return s
+
+
+def part_c(folds, era):
+    """Games 1-9: the carryover model against outcomes."""
+    L = ["== C. Games 1-9, the carryover model (cold_start.py), against outcomes",
+         "  Walk-forward: each fold's composite weights; the early logit fitted on "
+         "the earlier seasons of " + f"{EARLY_TRAIN[0]}-{EARLY_TRAIN[-1]} (no 2020); "
+         "home only = those seasons' early home rate. lean = predicted - actual "
+         "home win %, ± 95%."]
+    rows = []
+    for yr, f in sorted(folds.items()):
+        train = [s for s in EARLY_TRAIN if s < yr]
+        if not train:
+            continue
+        try:
+            em = cold_start.fit_early(train, f.weights)
+            tg = pd.concat([cold_start.early_games(s, f.weights) for s in train])
+            e = cold_start.early_games(yr, f.weights, min_gp=1, window=nc.MIN_GAMES)
+        except Exception as ex:  # noqa: BLE001
+            L.append(f"    {season_name(yr)}: not built ({ex!r})")
+            continue
+        if not len(e):
+            continue
+        p = nc.predict(em, e[cold_start.FEATURES].to_numpy(float))
+        ph = np.full(len(e), tg["win"].mean())
+        y = e["win"].to_numpy(float)
+        L.append(early_lines(season_name(yr), p, y, ph) +
+                 f"  (intercept {em['intercept']:+.3f})")
+        rows.append(pd.DataFrame(dict(p=p, ph=ph, y=y)))
+    if rows:
+        d = pd.concat(rows, ignore_index=True)
+        L.append(early_lines("pooled", d["p"], d["y"], d["ph"]))
+    w = json.load(open(os.path.join(ROOT, "model", "weights.json")))
+    em = json.load(open(os.path.join(ROOT, "model", cold_start.MODEL_FILE)))
+    L.append(f"  Out of era: the frozen early logit ({em['years'][0]}-{em['years'][-1]}, "
+             f"intercept {em['intercept']:+.3f}) with the committed weights")
+    rows = []
+    for yr in era:
+        try:
+            e = cold_start.early_games(yr, w, min_gp=1, window=nc.MIN_GAMES)
+        except Exception as ex:  # noqa: BLE001
+            L.append(f"    {season_name(yr)}: not built ({ex!r})")
+            continue
+        if not len(e):
+            continue
+        p = nc.predict(em, e[cold_start.FEATURES].to_numpy(float))
+        y = e["win"].to_numpy(float)
+        L.append(early_lines(season_name(yr), p, y))
+        rows.append(pd.DataFrame(dict(p=p, y=y)))
+    if rows:
+        d = pd.concat(rows, ignore_index=True)
+        L.append(early_lines("pooled", d["p"], d["y"]))
+    return L
+
+
+def draft_picks(year):
+    """norm_name -> pick in the year's NBA draft (BBR draft page, cached)."""
+    h = nc.fetch(f"{nc.BASE}/draft/NBA_{year}.html", nc.CACHE / f"draft_{year}.html")
+    m = re.search(r'<table[^>]*id="stats".*?</table>', nc.uncomment(h), re.S)
+    df = pd.read_html(io.StringIO(m.group(0)))[0]
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [x[-1] for x in df.columns]
+    df = df[pd.to_numeric(df["Pk"], errors="coerce").notna()]
+    return {pav.norm_name(n): int(k) for n, k in zip(df["Player"], df["Pk"])
+            if isinstance(n, str)}
+
+
+def rookie_curve(seasons):
+    """(a, b, n): rookie-season BPM ~ a + b log(pick), weighted by minutes,
+    over the rookies of `seasons` (drafted the summer before each)."""
+    X, Y, W = [], [], []
+    for t in seasons:
+        bpm = pav.load_bpm(t)
+        for name, pick in draft_picks(t - 1).items():
+            rec = bpm.get(name)
+            if rec is None or not (np.isfinite(rec[0]) and rec[1] > 0):
+                continue
+            X.append(np.log(pick))
+            Y.append(rec[0])
+            W.append(rec[1])
+    X, Y, sw = np.asarray(X), np.asarray(Y), np.sqrt(np.asarray(W, float))
+    A = np.column_stack([np.ones_like(X), X]) * sw[:, None]
+    a, b = np.linalg.lstsq(A, Y * sw, rcond=None)[0]
+    return float(a), float(b), len(X)
+
+
+def rookie_values(value, box, bpm, picks, curve):
+    """value with each drafted rookie (no BPM row last season) at the
+    rookie BPM his pick predicts, above replacement; (value, n rookies)."""
+    out, n = dict(value), 0
+    a, b = curve[:2]
+    for pid, name in box.drop_duplicates("player_id").set_index("player_id")["name"].items():
+        key = pav.norm_name(name)
+        if bpm.get(key) is None and key in picks:
+            out[pid] = a + b * np.log(picks[key]) - pav.REPLACEMENT_BPM
+            n += 1
+    return out, n
+
+
+def rookie_column(folds):
+    """{(slate_date, home, away): talent_diff with drafted rookies by pick},
+    each season's curve fitted on earlier seasons only; and the curve lines."""
+    seasons = sorted({int(t) for f in folds.values()
+                      for fr in (f.base_train, f.test) for t in fr["year"].unique()})
+    col, L = {}, []
+    for t in seasons:
+        curve = rookie_curve(range(2015, t))
+        box = pav.fetch_box(t)
+        bpm = pav.load_bpm(t - 1)
+        value, _, _ = pav.player_values(box, bpm)
+        value, n = rookie_values(value, box, bpm, draft_picks(t - 1), curve)
+        tal = pav.talent_fn(box, value, pav.arrival_roles(box, bpm))
+        keys = set()
+        for f in folds.values():
+            for fr in (f.base_train, f.test):
+                g = fr[fr["year"] == t]
+                keys |= set(zip(g["slate_date"], g["home"], g["away"]))
+        for sd, h, a in keys:
+            col[(sd, h, a)] = tal(h, sd) - tal(a, sd)
+        L.append(f"    {season_name(t):<9} curve BPM = {curve[0]:+.2f} {curve[1]:+.2f} "
+                 f"log(pick) (fit on {curve[2]} rookies of 2014-15 to "
+                 f"{season_name(t - 1)}); {n} rookies valued")
+    return col, L
+
+
+def part_a9(folds, d):
+    """v6 with drafted rookies valued by pick, refit, against v6."""
+    L = ["  A9. Rookies by draft slot: v6 refitted with talent valuing drafted "
+         "rookies by pick (instead of at replacement); log loss rookie - v6, ± 95%"]
+    try:
+        col, lines = rookie_column(folds)
+    except Exception as e:  # noqa: BLE001
+        return L + [f"    not built ({e!r})"]
+    L += lines
+    v6r = [x if x != "talent_diff" else "talent_rk" for x in V6]
+    av6r = [x if x != "talent_diff" else "talent_rk" for x in AV6]
+    ps = []
+    for yr, f in sorted(folds.items()):
+        for fr in (f.base_train, f.avail_train, f.v4_train, f.test):
+            if fr is not None:
+                fr["talent_rk"] = [col.get(k, np.nan) for k in
+                                   zip(fr["slate_date"], fr["home"], fr["away"])]
+        ps.append(routed(f, v6r, av6r))
+    d = d.assign(rookie=np.concatenate(ps))
+    k = (d["route"] != "v4").to_numpy()
+    y = d["win"].to_numpy(float)
+    v6 = d["p::v6 (production)"].to_numpy(float)
+    m, ci = paired(d["rookie"].to_numpy(float)[k], v6[k], y[k])
+    per = [paired(g["rookie"].to_numpy(float), g["p::v6 (production)"].to_numpy(float),
+                  g["win"].to_numpy(float))[0] for _, g in d[k].groupby("year")]
+    L.append(f"    pooled    n={int(k.sum()):<5} rookie - v6 {m:+.4f} ± {ci:.4f}  (better "
+             f"in {sum(x < 0 for x in per)} of {len(per)} seasons)")
+    L.append("    against the close, priced seasons (same games):")
+    try:
+        L += market_lines(d.rename(columns={"p::v6 (production)": "v6"}), ["v6", "rookie"])
+    except Exception as e:  # noqa: BLE001
+        L.append(f"    (no market rows: {e!r})")
+    return L
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--seasons", nargs="+", type=int, default=SEASONS)
@@ -365,11 +672,17 @@ def main(argv=None):
     a = ap.parse_args(argv)
     L = ["History backtest -- the current model against outcomes only (no market "
          "prices), games 10+. ± is 95%.", ""]
+    tau = TAU_GRID[1]
+    era = nc.parse_years(a.era.split()) if a.era else []
     if not a.skip_a:
         folds = c.build_folds(a.seasons, with_e=False)
-        L += part_a(folds) + [""]
-    if a.era:
-        L += part_b(nc.parse_years(a.era.split())) + [""]
+        la, d = part_a(folds)
+        l8, tau = part_a8(d)
+        L += la + [""] + l8 + [""] + part_a9(folds, d) + [""]
+    if era:
+        L += part_b(era, tau if np.isfinite(tau) and tau > 0 else TAU_GRID[1]) + [""]
+    if not a.skip_a:
+        L += part_c(folds, [t for t in era if t - 1 in era]) + [""]
     text = "\n".join(L)
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, "RESULTS.txt"), "w") as fh:

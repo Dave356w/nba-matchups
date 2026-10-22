@@ -152,8 +152,8 @@ def test_index_renders_one_card_per_game_with_ev_beside_its_null(tmp_path, monke
     # scores are fetched in the reader's browser for the slate's date only
     assert "data-slate='2026-11-19'" in idx and "site.api.espn.com" in idx
     assert idx.count("data-scores-asof hidden") == 1
-    assert "Model EV" in idx and "if the market is right" in idx    # EV beside its null
-    assert "Model − market" in idx and "How these numbers are made" in idx
+    assert "<div class='l'>EV</div>" in idx and "if the market is right" in idx  # EV beside its null
+    assert "<div class='l'>Edge</div>" in idx and "How these numbers are made" in idx
     assert "<div class='l'>Record</div>" in idx                  # record tiles kept
     assert "data-filter" in idx and "data-state='upcoming'" in idx
 
@@ -348,3 +348,30 @@ def test_performance_charts_each_spread_rule(tmp_path, monkeypatch):
     assert "Running units · H6 spread · games 1–9" in perf
     assert "<span class='v'>+0.91u</span>" in perf
     assert "Starts with the first graded H5 bet." in perf
+
+
+def test_card_edge_and_ev_count_only_the_shrunk_share():
+    """The card keeps the model's probability as recorded; its edge and EV
+    count only analysis.SHRINK_W of the disagreement with the price."""
+    r = pd.Series(dict(
+        game_id="401", away="BOS", home="NYK", tip_utc="2026-11-19T00:30Z",
+        p_home=0.60, p_lean=0.60, lean="NYK", pre_q_home=0.50,
+        pre_home_ml=-110, pre_away_ml=-110, pre_book="dk", delta=5.0,
+        gp_home=20, gp_away=20, home_b2b=0, away_b2b=0, model_tag="t",
+        home_won=np.nan, home_pts=np.nan, away_pts=np.nan))
+    html = build_site.game_card(r)
+    assert "Model 60.0%" in html and "Market 50.0%" in html   # P as recorded
+    ps = float(analysis.shrink_p(0.60, 0.50))
+    assert abs(ps - 0.5399) < 1e-3                           # 40% of the logit gap
+    assert "+4.0 pp edge" in html and "+10.0 pp" not in html
+    ev = ps * market.decimal_payout(-110) - 1
+    assert f"EV {100 * ev:+.1f}%" in html and "EV +14.5%" not in html
+
+
+def test_shrink_p_keeps_the_side_and_the_ends():
+    p, q = np.array([0.7, 0.3, 0.55]), np.array([0.6, 0.4, 0.6])
+    s = analysis.shrink_p(p, q)
+    assert (np.sign(s - q) == np.sign(p - q)).all() and (abs(s - q) < abs(p - q)).all()
+    assert np.allclose(analysis.shrink_p(p, q, 1.0), p)
+    assert np.allclose(analysis.shrink_p(p, q, 0.0), q)
+    assert np.isnan(analysis.shrink_p(0.6, np.nan))

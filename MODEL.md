@@ -115,8 +115,16 @@ Doubtful, else 1 if he was on the team's previous box score, else 0.
 
 ## 5. Lean and displays
 
-- **Lean**: the side with P ≥ 0.5 (a pick'em goes home). Model − market is
-  the lean side's P minus its no-vig market probability.
+- **Lean**: the side with P ≥ 0.5 (a pick'em goes home). The research pages'
+  model − market is the lean side's P minus its no-vig market probability.
+- **Card edge and EV (display only, 2026-10-22)**: the Picks card shows the
+  model's P as recorded, but its edge and EV count only `analysis.SHRINK_W`
+  = 0.40 of the model's disagreement with the price: P* = σ(logit q + 0.40 ·
+  (logit P − logit q)), edge P* − q, EV P* × decimal odds − 1. 0.40 is the
+  share outcomes bore out against the opening line (+0.43 / +0.36 fitted on
+  the other season, `research/open_shrinkage.py`); at the close it is ~0, so
+  at the card's later price it is generous. P, the lean, the ledgers and
+  the hypotheses are unchanged; no new tag.
 - **ATS (display only)**: the ledger maps p_home to an implied margin with a
   fixed σ = 13.5 points (`analysis.ATS_SIGMA`). This is an unvalidated
   assumption used to pick an ATS side; it is not a calibrated spread model
@@ -222,7 +230,11 @@ Each v6 term dropped and refitted, on the games it reaches (positive = the
 term helps): roster talent +0.0059 ± 0.0026, back-to-back +0.0024 ± 0.0012,
 Δ·phase +0.0009 ± 0.0006 (each 8 of 9 seasons); availability +0.0029 ±
 0.0033 (3 of 3); own FT% +0.0004 ± 0.0005 (8 of 9); opponent 3P% luck
-+0.0002 ± 0.0009 (6 of 9, the least supported term).
++0.0002 ± 0.0009 (6 of 9, the least supported term pooled). That figure is
+mostly the base route of 2016-17 to 2022-23: on the priced seasons, where
+every game 10+ runs through the availability logit, dropping luck fails the
+gate (v7, walk-forward run 39698425564: v7 − v6 +0.0018 ± 0.0017 2024-25
+ESPN BET, +0.0013 ± 0.0028 2025-26 DK; owner kept v6, 2026-10-22).
 
 Calibration against outcomes: slope 0.99 ± 0.06 from the second fold on
 (0.95 ± 0.05 with 2016-17, whose fit had one season: 0.70); 0.90 to 1.17 by
@@ -246,6 +258,22 @@ edge); frozen − full refit (weights too) +0.0005 ± 0.0018. Weights fitted
 on 2004–14 correlate +0.96 with the committed ones (more weight on
 opponents' eFG% and both FTA/FGA terms then). The four-factor composite and the logit's shape
 carry across eras; only the home edge moves.
+
+Follow-ups (2026-10-22, the same run; `RESULTS.txt` A8, A9, C):
+
+- In-season home edge (A8): each game's logit shifted by this season's own
+  residual on earlier dates, empirical-Bayes prior. The true season-to-season
+  spread of the offset is ~0.04 logit (tau), mostly noise: −0.0001 ± 0.0002
+  pooled (helps in 2 of 9), +0.0000 / +0.0001 against the close; out of era
+  −0.0005 ± 0.0002. Not worth a change.
+- Rookies by draft slot (A9): drafted rookies at the rookie BPM their pick
+  predicts (about −1.26 − 0.45 log pick, earlier seasons only) instead of at
+  replacement: −0.0002 ± 0.0002, better in 9 of 9 seasons; against the
+  close −0.0001 ± 0.0006 / −0.0002 ± 0.0006. Real but small.
+- Games 1–9 (C): the carryover, walk-forward 2016–26 (n = 1,258): home lean
+  +0.2 ± 2.6 pts, slope 0.88 ± 0.18, −0.040 ± 0.017 vs the home edge; the
+  frozen early logit on 2005–14 (n = 1,257): −0.1 ± 2.6 pts, slope 0.90 ±
+  0.17. 2020-21 (no crowds) is the outlier (+10.7 pts).
 
 Back-to-backs: in 2016–26 home teams on a back-to-back won 48.3% (45.2–51.4)
 against 51.7% predicted, about 2 pts below the season's general home

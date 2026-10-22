@@ -1,0 +1,82 @@
+Disagreement shrinkage toward the opening price -- reconstructed rows, HINDSIGHT prices (the open is a real price; the rows are reconstructed). ± is 95%.
+P* = sigma(logit q_open + w (logit P - logit q_open)), w fitted on the other priced season(s): 2025-26 rows are a walk-forward test, 2024-25 rows hindsight.
+
+== games 10+
+  DraftKings 2025-26: n=964   w fitted on 2024-25 (walk-forward): +0.43 ± 0.35   (in-sample w +0.28 ± 0.35)
+    log loss  P* 0.5804  P 0.5885  open 0.5813  close 0.5702
+      P* - open  -0.0009 ± 0.0046
+       P - open  +0.0073 ± 0.0112
+      P* - P     -0.0081 ± 0.0067
+      P* - close +0.0102 ± 0.0074
+    P* side: claimed +2.6 pp  realised +2.1 ± 2.8 pp  share +0.81
+    P  side: claimed +6.0 pp  realised +2.1 ± 2.8 pp  share +0.34
+    bets at the posted open, P*'s side, by P*'s claimed EV:
+      EV* <= 0               n=448   claimed EV  -2.3%  ROI  +0.9% ±  9.6  null -4.2%  ROI - null  +5.1  fav  -4.6%  line move +0.74 pp
+      0 to 2%                n=130   claimed EV  +1.0%  ROI -15.2% ± 19.2  null -4.1%  ROI - null -11.1  fav  -4.5%  line move +0.98 pp
+      2 to 5%                n=129   claimed EV  +3.3%  ROI  +5.4% ± 20.5  null -4.1%  ROI - null  +9.6  fav -11.0%  line move +1.31 pp
+      5% and up              n=257   claimed EV +14.5%  ROI -10.2% ± 19.5  null -4.1%  ROI - null  -6.1  fav  -2.3%  line move +2.07 pp
+      rule: EV* > 0          n=516   claimed EV  +8.3%  ROI  -7.5% ± 12.0  null -4.1%  ROI - null  -3.5  fav  -5.0%  line move +1.61 pp
+      blanket value side     n=964   claimed EV +14.2%  ROI  -3.6% ±  7.8  null -4.1%  ROI - null  +0.5  fav  -4.8%  line move +1.20 pp
+  ESPN BET 2024-25: n=1071   w fitted on 2025-26 (hindsight): +0.36 ± 0.33   (in-sample w +0.43 ± 0.35)
+    log loss  P* 0.5872  P 0.5919  open 0.5899  close 0.5776
+      P* - open  -0.0026 ± 0.0037
+       P - open  +0.0021 ± 0.0101
+      P* - P     -0.0047 ± 0.0064
+      P* - close +0.0096 ± 0.0072
+    P* side: claimed +2.2 pp  realised +2.2 ± 2.7 pp  share +1.02
+    P  side: claimed +6.0 pp  realised +2.2 ± 2.7 pp  share +0.37
+    bets at the posted open, P*'s side, by P*'s claimed EV:
+      EV* <= 0               n=546   claimed EV  -2.5%  ROI  -2.4% ±  9.4  null -4.2%  ROI - null  +1.9  fav  -2.8%  line move +0.71 pp
+      0 to 2%                n=188   claimed EV  +0.9%  ROI  +2.9% ± 16.0  null -3.9%  ROI - null  +6.8  fav  -5.8%  line move +1.74 pp
+      2 to 5%                n=139   claimed EV  +3.3%  ROI  -8.0% ± 20.3  null -4.0%  ROI - null  -4.0  fav  -3.8%  line move +2.89 pp
+      5% and up              n=198   claimed EV +11.3%  ROI +18.0% ± 28.2  null -4.2%  ROI - null +22.2  fav  -1.1%  line move +4.06 pp
+      rule: EV* > 0          n=525   claimed EV  +5.5%  ROI  +5.7% ± 13.2  null -4.1%  ROI - null  +9.8  fav  -3.5%  line move +2.92 pp
+      blanket value side     n=1071  claimed EV +11.7%  ROI  +1.6% ±  8.1  null -4.2%  ROI - null  +5.7  fav  -3.2%  line move +1.79 pp
+  ESPN BET 2025-26: n=107   w fitted on 2024-25 (walk-forward): +0.43 ± 0.35   (in-sample w +1.08 ± 1.04)
+    log loss  P* 0.5534  P 0.5463  open 0.5662  close 0.5551
+      P* - open  -0.0129 ± 0.0154
+       P - open  -0.0199 ± 0.0356
+      P* - P     +0.0071 ± 0.0202
+      P* - close -0.0018 ± 0.0206
+    P* side: claimed +3.0 pp  realised +8.0 ± 8.2 pp  share +2.70
+    P  side: claimed +6.8 pp  realised +8.0 ± 8.2 pp  share +1.17
+    bets at the posted open, P*'s side, by P*'s claimed EV:
+      EV* <= 0               n=45    claimed EV  -2.4%  ROI  -6.5% ± 23.9  null -4.2%  ROI - null  -2.3  fav  -9.7%  line move +0.96 pp
+      0 to 2%                n=15    (too few)
+      2 to 5%                n=19    (too few)
+      5% and up              n=28    claimed EV +11.8%  ROI +43.0% ± 77.0  null -4.1%  ROI - null +47.1  fav -25.0%  line move +3.27 pp
+      rule: EV* > 0          n=62    claimed EV  +6.5%  ROI +26.7% ± 41.1  null -4.1%  ROI - null +30.8  fav  -4.9%  line move +2.65 pp
+      blanket value side     n=107   claimed EV +12.1%  ROI +12.7% ± 25.9  null -4.1%  ROI - null +16.9  fav  -6.9%  line move +1.94 pp
+
+== games 1-9
+  ESPN BET 2024-25: n=138   w fitted on 2025-26 (hindsight): +0.38 ± 0.70   (in-sample w +0.97 ± 0.74)
+    log loss  P* 0.6187  P 0.6096  open 0.6344  close 0.6169
+      P* - open  -0.0157 ± 0.0162
+       P - open  -0.0248 ± 0.0418
+      P* - P     +0.0091 ± 0.0257
+      P* - close +0.0018 ± 0.0229
+    P* side: claimed +3.2 pp  realised +6.7 ± 7.8 pp  share +2.10
+    P  side: claimed +8.2 pp  realised +6.7 ± 7.8 pp  share +0.81
+    bets at the posted open, P*'s side, by P*'s claimed EV:
+      EV* <= 0               n=57    claimed EV  -2.2%  ROI -15.1% ± 21.9  null -4.3%  ROI - null -10.9  fav  -6.6%  line move +0.80 pp
+      0 to 2%                n=19    (too few)
+      2 to 5%                n=21    claimed EV  +3.5%  ROI +15.7% ± 56.0  null -4.0%  ROI - null +19.7  fav -20.3%  line move +1.61 pp
+      5% and up              n=41    claimed EV +12.9%  ROI +51.2% ± 51.2  null -4.1%  ROI - null +55.3  fav -17.0%  line move +5.07 pp
+      rule: EV* > 0          n=81    claimed EV  +7.7%  ROI +35.6% ± 32.4  null -4.0%  ROI - null +39.6  fav -15.7%  line move +3.52 pp
+      blanket value side     n=138   claimed EV +16.7%  ROI +14.6% ± 21.4  null -4.1%  ROI - null +18.7  fav -12.0%  line move +2.40 pp
+  ESPN BET 2025-26: n=138   w fitted on 2024-25 (walk-forward): +0.97 ± 0.74   (in-sample w +0.38 ± 0.70)
+    log loss  P* 0.5774  P 0.5785  open 0.5715  close 0.5693
+      P* - open  +0.0059 ± 0.0402
+       P - open  +0.0070 ± 0.0415
+      P* - P     -0.0011 ± 0.0013
+      P* - close +0.0081 ± 0.0408
+    P* side: claimed +8.7 pp  realised +1.6 ± 7.4 pp  share +0.18
+    P  side: claimed +9.0 pp  realised +1.6 ± 7.4 pp  share +0.18
+    bets at the posted open, P*'s side, by P*'s claimed EV:
+      EV* <= 0               n=19    (too few)
+      0 to 2%                n=4     (too few)
+      2 to 5%                n=15    (too few)
+      5% and up              n=100   claimed EV +27.9%  ROI  -4.6% ± 27.7  null -4.0%  ROI - null  -0.5  fav  -7.6%  line move +0.79 pp
+      rule: EV* > 0          n=119   claimed EV +23.9%  ROI  -7.5% ± 23.9  null -4.0%  ROI - null  -3.5  fav  -2.6%  line move +1.12 pp
+      blanket value side     n=138   claimed EV +21.1%  ROI  -6.6% ± 21.3  null -4.1%  ROI - null  -2.5  fav  +0.5%  line move +1.05 pp
+
