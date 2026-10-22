@@ -219,6 +219,13 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
    build would read one draft page a season).
 5. **Early-season slope** (W5): 0.88 ± 0.18 / 0.90 ± 0.17, same sign in
    both eras; watch, do not fit.
+6. **Roster talent on the early route** (W5, 2026-10-22,
+   `research/early_roster.py`): games 1–9 get no player information; the
+   games-10+ `talent_diff` added to the early logit is −0.0105 ± 0.0087 log
+   loss vs outcomes, walk-forward 2016–26 (8 of 9 seasons), and narrows the
+   gap to the close on both priced seasons (unresolved, n = 138 each). The
+   strongest candidate since v6; it changes H1's and H6's bets, so it is the
+   owner's call with them. Then the gate, refit, rescore, a new tag.
 
 Reproduce: `python research/model_review.py` (§1–4 above),
 `python research/dk_hypotheses.py --open-price research/output/open_price.csv`

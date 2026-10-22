@@ -1,6 +1,11 @@
-# Model v6
+# Model v7 (games 1–9) / v6 (games 10+)
 
-Active since 2026-10-01 (owner's decision after the gate, "v6" below;
+**v7** (owner's decision 2026-10-22; "v7" below): v6 plus roster talent in
+the games 1–9 logit. Games 10+ are unchanged and keep the v6 tags; early
+rows scored with talent are tagged `fourfactors_hl25_b2b_carry25_talent_early_v7`.
+H1 and H6 stay on the carryover model (`carry_p_home`).
+
+v6: active since 2026-10-01 (owner's decision after the gate, "v6" below;
 refit `f299ac6`, from which the daily build scores v6; reconstructed rows
 re-scored `f85e3ff`). Tags:
 `fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6` (games 10+ with
@@ -30,7 +35,8 @@ For a game on date D, with g = min(games played before D by either team):
 | Condition | Formula | Model file | Tag |
 |---|---|---|---|
 | g = 0 | abstain (no P) | — | — |
-| 1 ≤ g ≤ 9 | carryover logit (§3) | `model/logit_early.json` | `..._luck_talent_ft_v6` |
+| 1 ≤ g ≤ 9 | early logit: carryover + roster talent (§3, v7) | `model/logit_early.json` | `..._carry25_talent_early_v7` |
+| 1 ≤ g ≤ 9, talent missing (no box score) | carryover logit (§3) | `model/logit_early_v6.json` | `..._luck_talent_ft_v6` |
 | g ≥ 10, report covers the game | availability logit (§4) | `model/logit_avail.json` | `..._luck_talent_ft_avail_v6` |
 | g ≥ 10, otherwise | base logit (§2) | `model/logit.json` | `..._luck_talent_ft_v6` |
 | g ≥ 10, a v6 term missing (no box score, no 3PA) | frozen v4 base logit | `model/logit_v4.json` | `..._phase_v4` |
@@ -91,9 +97,20 @@ the same rule. In 2022-23 to 2025-26, 4,922 of 4,923 games were covered.
 
 Each team's totals are [last season's full log × ρ][this season so far],
 with the same decay running across the offseason (ρ = 0.25).
-P(home) = σ(a + b·Δ + c·b2b_net), fitted on every game in the first 20
-games of 2023–26 (n = 1,233): a = 0.392, b = 0.0348, c = 0.306. No phase
-term.
+
+- **Carryover logit** (v2–v6; frozen in `model/logit_early_v6.json`):
+  P(home) = σ(a + b·Δ + c·b2b_net), fitted on every game in the first 20
+  games of 2023–26 (n = 1,233): a = 0.392, b = 0.0348, c = 0.306. No phase
+  term.
+- **v7**: σ(a + b·Δ + c·b2b_net + t·talent_diff), talent_diff as in §2
+  (from game 1 every team has a box score), fitted by "Fit model" on the
+  games with talent in the first 20 games of the box seasons 2016–19,
+  2021–26 (`cold_start.py fit --talent`; `model/logit_early.json`). A game
+  whose talent cannot be computed uses the carryover logit (v6 tag).
+- Every early row records the carryover logit's P as `carry_p_home` (and
+  `first_carry_p_home` with the first snapshot): H1 and H6 were registered
+  on it and read it (`analysis.carry_view`). Preseason rows use the
+  carryover logit (no box scores).
 
 ## 4. Player availability (games 10+, covered)
 
@@ -349,6 +366,9 @@ commit), because every historical test game was covered.
 - `fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6` /
   `..._phase_luck_talent_ft_avail_v6`: v5 plus the own FT% gap in both
   games-10+ logits ("v6" below); same v4 fallback.
+- `fourfactors_hl25_b2b_carry25_talent_early_v7`: games 1–9 add roster
+  talent to the carryover logit ("v7" below). Games 10+ keep the v6 tags;
+  early games without talent keep the carryover logit and the v6 tag.
 
 ## v5 (active since 2026-09-30)
 
@@ -416,6 +436,36 @@ Leave-one-season-out v6 − v5 on the same rows, games 10+, ± 95%:
 −0.0002 ± 0.0016 (2024-25 ESPN BET, n = 1,071), −0.0010 ± 0.0011 (2025-26
 DK, n = 964), −0.0018 ± 0.0042 (2025-26 ESPN BET, n = 107); v6 − close
 +0.0143 / +0.0184; games 1–9 unchanged. The build follows the model files.
+
+## v7 (owner's decision, 2026-10-22)
+
+Origin: the model's weaknesses review (2026-10-22): the early route saw no
+players, so offseason roster changes entered only through results, while
+the market prices them from opening night.
+
+Test (`research/early_roster.py`, workflow "Early roster", run 39830317895,
+`diagnostics/early_roster/RESULTS.txt`): the early logit + talent_diff vs
+the carryover features, walk-forward on games 1–9 of 2016-17 to 2025-26
+(n = 1,219), ± 95%: −0.0105 ± 0.0087 log loss vs outcomes (Brier −0.0045 ±
+0.0039), better in 8 of 9 seasons, talent coefficient 0.072–0.078 from
+2018-19 on. Against the close (ESPN BET 2024-25 / 2025-26, n = 138 each;
+DraftKings priced no game 1–9): carryover − close −0.0080 / +0.0125, v7 −
+close −0.0124 / +0.0068 (v7 − carryover −0.0045 ± 0.0220 / −0.0057 ±
+0.0248): not worse on either. The gain is above G7's 0.008 leakage
+tripwire; checked (walk-forward fits, the box score strictly before the
+date, and v7 narrows but does not beat the close). The market's correction
+of the carryover model follows talent_diff (corr +0.42 ± 0.12, n = 276).
+
+H1 and H6 (games 1–9) were registered on the carryover model. The owner
+kept them there: the build and the backfill record the carryover P beside
+the v7 P (`carry_p_home`, `first_carry_p_home`), and the hypotheses read it.
+In hindsight H1's profit sat in bets roster talent was against (n 77,
++32.4% ± 33.2) more than those it backed (n 38, −11.8% ± 33.3), unresolved.
+
+Activation: (1) the test above; (2) "Fit model" refits
+`model/logit_early.json` with talent; (3) "Backfill history" `--rescore`
+re-tags the reconstructed games 1–9 v7 and fills `carry_p_home` (H1 / H6
+hindsight unchanged). The build follows the model files.
 
 ## Version rule
 

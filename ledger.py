@@ -114,10 +114,22 @@ PREGAME_SPREAD_COLUMNS = ["pre_spread", "pre_home_spread_odds", "pre_away_spread
 FIRST_SPREAD_COLUMNS = ["first_spread", "first_home_spread_odds",
                         "first_away_spread_odds"]
 COLUMNS = COLUMNS + PREGAME_SPREAD_COLUMNS + FIRST_SPREAD_COLUMNS
+# Schema before the carryover P: `load` reads it with them blank and the next
+# save writes the current schema (2026-10-22, before any native row had a
+# model P).
+PRE_CARRY_COLUMNS = list(COLUMNS)
+# Model v7 (owner's decision 2026-10-22): games 1-9 are scored with roster
+# talent; the v2-v6 carryover logit's P is recorded beside it for those games
+# (blank otherwise), because hypotheses H1 and H6 were registered on it and
+# stay on it (analysis.carry_view). carry_p_home is refreshed with the pregame
+# snapshot until tip; first_carry_p_home is written once with first_*.
+CARRY_COLUMNS = ["carry_p_home"]
+FIRST_CARRY_COLUMNS = ["first_carry_p_home"]
+COLUMNS = COLUMNS + CARRY_COLUMNS + FIRST_CARRY_COLUMNS
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
 FIRST_COLUMNS = (COLUMNS[COLUMNS.index("first_snapshot_utc"):
                          COLUMNS.index("seen_utc")] + KALSHI_FIRST_COLUMNS
-                 + FIRST_SPREAD_COLUMNS)
+                 + FIRST_SPREAD_COLUMNS + FIRST_CARRY_COLUMNS)
 # Where each first_* column comes from: a pregame column, or (report, route)
 # a key of the scored row that is not itself a ledger column.
 FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_tag",
@@ -127,7 +139,8 @@ FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_
                 "first_route": "route",
                 **{f"kalshi_first_{k}": f"kalshi_pre_{k}"
                    for k in ("home_ml", "away_ml", "q_home")},
-                **dict(zip(FIRST_SPREAD_COLUMNS, PREGAME_SPREAD_COLUMNS))}
+                **dict(zip(FIRST_SPREAD_COLUMNS, PREGAME_SPREAD_COLUMNS)),
+                **dict(zip(FIRST_CARRY_COLUMNS, CARRY_COLUMNS))}
 # Columns written once and never refreshed or graded.
 WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS
 # String-valued columns (kept as object dtype).
@@ -156,7 +169,7 @@ PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
 LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = ([c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
-                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS)
+                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS + CARRY_COLUMNS)
 GRADE_COLUMNS = [c for c in COLUMNS
                  if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS]
 

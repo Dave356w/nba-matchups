@@ -294,7 +294,29 @@ Before a PR, run:
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains
   the backtest (ρ, preseason κ, both) against the close on the same games.
-  Watch the native early-season rows against it.
+  Watch the native early-season rows against it. Roster information for
+  games 1–9 (owner's request, 2026-10-22; `research/early_roster.py`,
+  workflow "Early roster", run 39830317895, `diagnostics/early_roster/
+  RESULTS.txt`): the early route sees no players. Adding the games-10+
+  `talent_diff` (unchanged) to the early logit, walk-forward on games 1–9 of
+  2016-17 to 2025-26 (n = 1,219): −0.0105 ± 0.0087 log loss vs outcomes
+  (Brier agrees), better in 8 of 9 seasons, coefficient 0.072–0.078 from
+  2018-19 on. Above G7's 0.008 tripwire, checked: walk-forward throughout,
+  box score strictly before the date, and it narrows but does not beat the
+  close (2024-25 / 2025-26 ESPN BET, n = 138 each: early − close −0.0080 /
+  +0.0125, early_tal − close −0.0124 / +0.0068; early_tal − early −0.0045 ±
+  0.0220 / −0.0057 ± 0.0248). The market's correction of the early model
+  follows talent_diff (corr +0.42 ± 0.12, n = 276). H1's hindsight profit
+  sat in bets roster talent was against (n 77, +32.4% ± 33.2) more than
+  those it backed (n 38, −11.8% ± 33.3), unresolved. **Model v7** (owner's
+  decision, 2026-10-22; not the rejected v7 candidate of PR #80): shipped for games 1–9 (tag `..._carry25_talent_
+  early_v7`; games 10+ keep v6), with **H1 and H6 kept on the carryover
+  model**: every early row records the carryover logit's P
+  (`ledger.CARRY_COLUMNS` `carry_p_home`, refreshed until tip;
+  `first_carry_p_home`, written once with `first_*`; reconstructed rows via
+  the rescore), and `analysis.carry_view` hands it to H1 / H6 (and the H6
+  card badge). The carryover logit is frozen in `model/logit_early_v6.json`
+  (also preseason, and early games without talent). MODEL.md "v7".
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean
   (the blanket value side, model P > no-vig q, and its ATS twin were retired
   from the pages and report 2026-10-06, owner's decision: at the close its

@@ -1,0 +1,57 @@
+name: Early roster
+
+# Research only: games 1-9 with roster information. The early logit
+# (cold_start.py) + talent_diff, walk-forward against outcomes on every box
+# season and against the close on the priced seasons; roster turnover and
+# H1's bets (research/early_roster.py). Writes nothing to the repo; results
+# are the job summary and an artifact. The push trigger runs it from the
+# research branch before it exists on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Test seasons (BBR years; 2026 = 2025-26)'
+        default: '2017-2019 2021-2026'
+  push:
+    branches: [claude/great-goodall-ulc2wo]
+    paths: [research/early_roster.py, .github/workflows/early-roster.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  early-roster:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2026
+      - name: Run early roster
+        run: |
+          set -o pipefail
+          python research/early_roster.py --seasons ${{ inputs.seasons || '2017-2019 2021-2026' }} | tee early_roster.txt
+          { echo '```'; cat early_roster.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: early-roster
+          path: |
+            early_roster.txt
+            diagnostics/early_roster/RESULTS.txt
