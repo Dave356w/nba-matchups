@@ -23,6 +23,7 @@ Model
   P(home win) = sigmoid(a + b * delta + c * b2b_net + e * delta * phase)   (v4)
   v5 adds f * luck_def (opponent 3P% regressed to the league, opp_luck) and
   g * talent_diff (player_availability.talent_fn); see V5_FEATURES.
+  v6 adds ft_diff (V6_FEATURES); v7 is v6 without luck_def (V7_FEATURES).
   (3-in-4 / 4-in-6 flags were tested and added nothing beyond back-to-back.)
   logit_inputs() builds these features for every path (fit, CLI, daily
   build). Games 1-9 (cold_start.py) and the injury-report terms
@@ -74,6 +75,11 @@ V5_FEATURES = PHASE_FEATURES + ["luck_def", "talent_diff"]
 # (FTM/FTA, percentage points), home - away. The four factors read free
 # throws only as FTA/FGA, so a team's free-throw skill was missing.
 V6_FEATURES = V5_FEATURES + ["ft_diff"]
+# v7 (owner's decision 2026-10-21, research/history_backtest.py A7): v6 without
+# luck_def. Dropped and refitted walk-forward over nine seasons it was worth
+# +0.0002 +/- 0.0009 log loss (helps in 6 of 9), once talent_diff carries
+# the same information.
+V7_FEATURES = PHASE_FEATURES + ["talent_diff", "ft_diff"]
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
@@ -547,6 +553,8 @@ def main():
                             "needs player box scores, player_availability.season_talent)")
         s.add_argument("--v6", action="store_true",
                        help="fit-logit: v6 features (v5 + ft_diff, own FT%% gap)")
+        s.add_argument("--v7", action="store_true",
+                       help="fit-logit: v7 features (v6 without luck_def)")
         s.add_argument("--box-cache", default=None,
                        help="--v5: directory of box_<season>.csv (default research/output)")
     a = ap.parse_args()
@@ -594,19 +602,19 @@ def main():
         weights = load_json("weights.json") if (MODEL_DIR / "weights.json").exists() \
             else fit_weights(parse_years(a.train_years))
         save_json(weights, "weights.json")
-        if a.v5 or a.v6:
+        if a.v5 or a.v6 or a.v7:
             import player_availability as pav   # lazy: it imports this module
             G = pd.concat([build_games(y, weights, a.half_life,
                                        talent=pav.season_talent(y, a.box_cache))
                            for y in parse_years(a.years)])
-            feats = V6_FEATURES if a.v6 else V5_FEATURES
+            feats = V7_FEATURES if a.v7 else V6_FEATURES if a.v6 else V5_FEATURES
             G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
         else:
             G = pd.concat([build_games(y, weights, a.half_life) for y in parse_years(a.years)])
             feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
         m = fit_logit(G[feats].values, G["win"], feats)
         m.update({"half_life": a.half_life, "n_games": int(len(G)), "years": parse_years(a.years)})
-        if a.phase or a.v5 or a.v6:
+        if a.phase or a.v5 or a.v6 or a.v7:
             m["season_days"] = SEASON_DAYS
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))

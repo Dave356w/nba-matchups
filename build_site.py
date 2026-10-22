@@ -83,12 +83,16 @@ MODEL_TAG_V5_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_avail_v5"
 # free throws only as FTA/FGA. Same v4 fallback as v5.
 MODEL_TAG_V6 = "fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6"
 MODEL_TAG_V6_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6"
+# v7 = v6 without opponent 3-point luck (nba_composite.V7_FEATURES; owner's
+# decision 2026-10-21 after research/history_backtest.py A7). Same v4 fallback.
+MODEL_TAG_V7 = "fourfactors_hl25_b2b_carry25_phase_talent_ft_v7"
+MODEL_TAG_V7_AVAIL = "fourfactors_hl25_b2b_carry25_phase_talent_ft_avail_v7"
 # Exhibition rows (data/nba_preseason.csv, score_preseason): the v2 carryover
 # logit on last season's games alone (regular-season game 0 abstains).
 PRESEASON_TAG = "fourfactors_hl25_b2b_carry25_preseason_g0"
 FALLBACK_FILE = "logit_v4.json"
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
-              MODEL_TAG_V6_AVAIL)
+              MODEL_TAG_V6_AVAIL, MODEL_TAG_V7_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -146,7 +150,7 @@ def has_phase(model):
 
 
 def is_v5(model):
-    """v5 or later (v6 keeps every v5 term)."""
+    """v5 or later (v6 keeps every v5 term; v7 keeps talent_diff)."""
     return model is not None and "talent_diff" in (model.get("features") or [])
 
 
@@ -154,13 +158,20 @@ def is_v6(model):
     return model is not None and "ft_diff" in (model.get("features") or [])
 
 
+def is_v7(model):
+    """v6's terms without luck_def."""
+    return is_v6(model) and "luck_def" not in model["features"]
+
+
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
     if avail:
-        return (MODEL_TAG_V6_AVAIL if is_v6(model) else
+        return (MODEL_TAG_V7_AVAIL if is_v7(model) else
+                MODEL_TAG_V6_AVAIL if is_v6(model) else
                 MODEL_TAG_V5_AVAIL if is_v5(model) else
                 MODEL_TAG_V4_AVAIL if has_phase(model) else MODEL_TAG_V3)
-    return (MODEL_TAG_V6 if is_v6(model) else
+    return (MODEL_TAG_V7 if is_v7(model) else
+            MODEL_TAG_V6 if is_v6(model) else
             MODEL_TAG_V5 if is_v5(model) else
             MODEL_TAG_V4 if has_phase(model) else MODEL_TAG)
 
@@ -221,7 +232,8 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
 
     v6: models whose features include ft_diff also get the own FT% gap
     (nba_composite.own_ft_pct over each team's games before `date`), home -
-    away; same fallback.
+    away; same fallback. v7 drops luck_def: only the terms a model's
+    features name are computed, so it needs no other change here.
     """
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
@@ -1680,7 +1692,7 @@ def render_model(native, recon, built):
          [f"{nc.MIN_GAMES}+, injury report covers the game", "availability logit",
           "<code>model/logit_avail.json</code>"],
          [f"{nc.MIN_GAMES}+, otherwise", "base logit", "<code>model/logit.json</code>"],
-         [f"{nc.MIN_GAMES}+, a v5/v6 term missing", "frozen v4 base logit",
+         [f"{nc.MIN_GAMES}+, a v5+ term missing", "frozen v4 base logit",
           "<code>model/logit_v4.json</code>"]], left=(0, 1, 2)))
     body.append("<h2>Fitted coefficients</h2><p class='note'>P(home) = σ(intercept "
                 "+ Σ coef × term). Coefficients are fitted by log loss on "

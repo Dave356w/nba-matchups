@@ -884,6 +884,8 @@ FEATURES_V4 = FEATURES + ["d_phase"]
 FEATURES_V5 = FEATURES_V4 + ["luck_def", "talent_diff"]
 # v6: + own FT% gap (nba_composite.V6_FEATURES).
 FEATURES_V6 = FEATURES_V5 + ["ft_diff"]
+# v7: v6 without luck_def (nba_composite.V7_FEATURES).
+FEATURES_V7 = FEATURES_V4 + ["talent_diff", "ft_diff"]
 LEAD_MINUTES = 30        # fit: last report at least this long before tip
 BOX_COLUMNS = ["game_id", "date", "team", "opp", "home", "margin", "player_id",
                "name", "minutes", "pm"]
@@ -1037,12 +1039,14 @@ def fit_fixed(G, base, fixed=FIXED_V5, features=None):
 
 
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
-        v5=True, v6=True):
+        v5=True, v6=True, v7=False):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
     phase=True (v4) adds delta * season phase to the v3 features; v5=True
     also adds luck_def and talent_diff (needs the seasons' box scores);
-    v6=True (with v5) also adds ft_diff, the own FT% gap."""
+    v6=True (with v5) also adds ft_diff, the own FT% gap; v7=True (with v6)
+    drops luck_def."""
     v6 = v6 and v5
+    v7 = v7 and v6
     weights = nc.load_json("weights.json")
     archive = ReportArchive(os.path.join(cache_dir, "injury_reports"))
     frames = []
@@ -1059,7 +1063,7 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     finally:
         archive.save()
     G = pd.concat(frames, ignore_index=True)
-    feats = (FEATURES_V6 if v6 else FEATURES_V5 if v5 else
+    feats = (FEATURES_V7 if v7 else FEATURES_V6 if v6 else FEATURES_V5 if v5 else
              FEATURES_V4 if phase else FEATURES)
     G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
     m = nc.fit_logit(G[feats].to_numpy(float), G["win"], feats)
@@ -1088,9 +1092,12 @@ def main(argv=None):
                     help="fit the v4 features (no luck_def / talent_diff)")
     ap.add_argument("--v5", action="store_true",
                     help="fit the v5 features (no ft_diff)")
+    ap.add_argument("--v7", action="store_true",
+                    help="fit the v7 features (v6 without luck_def)")
     a = ap.parse_args(argv)
     fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
-        v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase))
+        v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase),
+        v7=a.v7)
     return 0
 
 
