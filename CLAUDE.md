@@ -27,7 +27,10 @@ owner directs the product.
   finished seasons the model trains on (2016–2019, 2021–2026) are committed
   by the "Box-score history" workflow (`research/box_history.py --commit`,
   from main only; owner's decision 2026-10-22, after a refit on main spent
-  ~1 h refetching them because the Actions cache had expired).
+  ~1 h refetching them because the Actions cache had expired), with each
+  season's preseason box scores (`data/nba_box_pre_<season>.csv`, model
+  v8's game-0 rosters; this season's written once by the build,
+  `validate_data_files.check_pre_box`).
   `player_availability.box_file` reads them before the research cache
   (`research/output/box_<season>.csv`); the full per-player lines
   (`box_full_*`, research only) stay in the cache. Validated
@@ -352,9 +355,19 @@ Before a PR, run:
   game-10 jump in a team's rating shrinks (sd of the game 9 → 10 change 7.4
   → 4.1 win-% points; K = 20 / 40 smoother still, 3.1 / 2.7, within 0.0002 in
   accuracy). talent × last season's share adds nothing. Equal accuracy, one
-  formula, every game projected. Not shipped: the owner decides (routing, a
-  v8 tag, refit, rescore, History backtest; H1 / H6 stay on the carryover
-  P). Data note: in 2015-16 to 2017-18, 161–163 ESPN box scores a season
+  formula, every game projected. **Model v8** (owner's decision,
+  2026-10-22; MODEL.md "v8"): shipped as tested (K = 10). One route for
+  every game (`build_site.score_game_v8`, `nba_composite.fade_v8_games`):
+  the availability logit on covered games from game 1, the base logit
+  elsewhere (game 0 included), both fitted on every game (`fit-logit --v8`,
+  `player_availability.py fit --v8`); a missing term falls back to the
+  carryover logit before game 10 (v2 tag) or the frozen v4 logit after.
+  Game 0's roster is this season's preseason box scores
+  (`player_availability.update_preseason_box`, `data/nba_box_pre_<season>
+  .csv`, fetched once by the build from opening night, frozen). H1 / H6
+  stay on the carryover P (`carry_p_home`, games 1–9); v7's
+  `model/logit_early.json` is retired. Tags `..._fade10_phase_luck_talent_
+  ft_v8` / `..._ft_avail_v8`. Data note: in 2015-16 to 2017-18, 161–163 ESPN box scores a season
   record no minutes; talent then reads the team's last box with minutes
   (both arms, every fit since v5).
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean

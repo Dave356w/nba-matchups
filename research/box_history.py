@@ -9,8 +9,10 @@ fetches each season into the research cache (research/output/box_<season>.csv,
 via player_availability.fetch_box) with the previous season's BBR advanced
 page each needs (bbr_cache). Seasons already on disk are skipped, so a stopped
 run resumes. --commit also writes each finished season (its last possible
-regular-season date before today, ET) to data/nba_box_<season>.csv, which
-player_availability.box_file reads before the cache: the "Box-score history"
+regular-season date before today, ET) to data/nba_box_<season>.csv, and its
+preseason box scores (model v8's game-0 rosters) to data/nba_box_pre_<season>
+.csv; player_availability.box_file / pre_box_file read them before the
+cache: the "Box-score history"
 workflow commits them, so a fit or backfill on a branch whose Actions cache
 has expired does not refetch ~10 seasons from ESPN. The current season is
 never written here (the daily build extends its file).
@@ -38,12 +40,15 @@ def finished(t, today):
 
 
 def build(seasons, cache_dir=pav.DEFAULT_CACHE, fetch=None, bpm=None,
-          data_dir=None, commit=False, today=None):
+          data_dir=None, commit=False, today=None, fetch_pre=None):
     """Fetch (or reuse) each season's box scores and last season's BPM;
-    with commit, write each finished season to data_dir/nba_box_<t>.csv.
+    with commit, write each finished season to data_dir/nba_box_<t>.csv and
+    its preseason box scores (model v8's game-0 rosters; opening night =
+    the first regular-season box) to data_dir/nba_box_pre_<t>.csv.
     Return {season: summary line}."""
     fetch = fetch or pav.fetch_box
     bpm = bpm or pav.load_bpm
+    fetch_pre = fetch_pre or pav.fetch_preseason_box
     data_dir = data_dir or pav.DATA_DIR
     today = today or datetime.now(ZoneInfo("America/New_York")).date()
     out = {}
@@ -61,6 +66,12 @@ def build(seasons, cache_dir=pav.DEFAULT_CACHE, fetch=None, bpm=None,
             if finished(t, today):
                 pav.save_box(box, os.path.join(data_dir, f"nba_box_{t}.csv"))
                 out[t] += f"; written to data/nba_box_{t}.csv"
+                pre = fetch_pre(t, pd.Timestamp(box["date"].min()), cache_dir=cache_dir,
+                                data_dir=data_dir)
+                if len(pre):
+                    pav.save_pre_box(pre, os.path.join(data_dir, f"nba_box_pre_{t}.csv"))
+                    out[t] += (f"; preseason {pre['game_id'].nunique()} games, "
+                               f"{pre['team'].nunique()} teams")
             else:
                 out[t] += "; not finished, not written"
         print(out[t], flush=True)

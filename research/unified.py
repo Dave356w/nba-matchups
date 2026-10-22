@@ -50,8 +50,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-import time
-from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -65,7 +63,6 @@ import backfill_history as bf                     # noqa: E402
 import cold_start                                 # noqa: E402
 import common as c                                # noqa: E402
 import ledger                                     # noqa: E402
-import market                                     # noqa: E402
 import nba_composite as nc                        # noqa: E402
 import player_availability as pav                 # noqa: E402
 
@@ -85,7 +82,6 @@ LUCKS = [f"l{k}" for k in range(8)]
 BUCKETS = ((0, 0, "game 0"), (1, 9, "games 1-9"), (10, 19, "games 10-19"),
            (20, 999, "games 20+"))
 BOOK_NAMES = {"dk": "DraftKings", "espnbet": "ESPN BET"}
-PRE_DAYS = 40                                           # preseason window before opening
 
 
 def log(msg):
@@ -143,64 +139,10 @@ def side_inputs(tot, x3_ok, pct):
 
 
 # -------------------------------------------------------- game-0 rosters --
-def preseason_box(y, opening, cache_dir=pav.DEFAULT_CACHE, sleep=0.15):
-    """Every player who played in season y's preseason (ESPN, completed
-    exhibitions in the PRE_DAYS before opening night), one row per player
-    and game; cached to research/output/box_pre_<y>.csv."""
-    path = os.path.join(cache_dir, f"box_pre_{y}.csv")
-    if os.path.exists(path):
-        return pd.read_csv(path, dtype={"game_id": str, "player_id": str, "name": str},
-                           keep_default_na=False, parse_dates=["date"])
-    rows = []
-    for d in pd.date_range(opening - timedelta(days=PRE_DAYS), opening - timedelta(days=1)):
-        ds = d.strftime("%Y-%m-%d")
-        try:
-            games = market.scoreboard(ds)
-        except Exception as e:  # noqa: BLE001
-            log(f"  {ds}: scoreboard failed {e!r}")
-            continue
-        for g in games:
-            if g["season_type"] != market.PRESEASON or not g["completed"]:
-                continue
-            try:
-                js = market.get_json(pav.SUMMARY.format(eid=g["game_id"]))
-            except Exception as e:  # noqa: BLE001
-                log(f"  {g['game_id']}: summary failed {e!r}")
-                continue
-            time.sleep(sleep)
-            for pl in pav.parse_players(js):
-                if pl["team"] in market.BBR_TEAMS and pl["team"] in (g["home"], g["away"]):
-                    rows.append(dict(game_id=g["game_id"], date=d, team=pl["team"],
-                                     player_id=pl["player_id"], name=pl["name"],
-                                     minutes=pl["minutes"]))
-    df = pd.DataFrame(rows, columns=["game_id", "date", "team", "player_id", "name",
-                                     "minutes"])
-    os.makedirs(cache_dir, exist_ok=True)
-    df.to_csv(path, index=False)
-    log(f"  preseason {y}: {df['game_id'].nunique()} games, {df['team'].nunique()} teams")
-    return df
-
-
-def roster_talent(pre, bpm):
-    """{team: talent before its first regular-season game}: the players who
-    played in its preseason, each his last-season minutes role (MP / G / 48,
-    player_availability.arrival_roles' fallback) x shrunk last-season BPM
-    above replacement (player_values); unmatched players count 0."""
-    out = {}
-    played = pre[pd.to_numeric(pre["minutes"], errors="coerce") > 0]
-    for tm, g in played.groupby("team"):
-        s = 0.0
-        for nm in g.drop_duplicates("player_id")["name"]:
-            rec = bpm.get(pav.norm_name(nm))
-            if rec is None:
-                continue
-            b, mp, gp = rec
-            if not (gp and np.isfinite(gp) and gp > 0):
-                continue
-            shrunk = pav.REPLACEMENT_BPM + (b - pav.REPLACEMENT_BPM) * mp / (mp + pav.BPM_SHRINK_MP)
-            s += (mp / gp / 48.0) * (shrunk - pav.REPLACEMENT_BPM)
-        out[tm] = s
-    return out
+# Shipped in v8 as player_availability.fetch_preseason_box / roster_talent
+# (the same functions this run used, moved there unchanged).
+preseason_box = pav.fetch_preseason_box
+roster_talent = pav.roster_talent
 
 
 # ------------------------------------------------------------ season tables --

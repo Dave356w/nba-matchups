@@ -94,12 +94,24 @@ MODEL_TAG_V6_AVAIL = "fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6
 # (model/logit_early_v6.json) and keeps the v6 tag, and every early row also
 # records that logit's P (carry_p_home), on which H1 and H6 stay.
 MODEL_TAG_V7_EARLY = "fourfactors_hl25_b2b_carry25_talent_early_v7"
+# v8 = one model for every game, opening night included (owner's decision
+# 2026-10-22; research/unified.py). The rating carries last season in at
+# 0.25 x (1 - games played / 10), so it fades out by game 10
+# (nba_composite.fade_v8_games); the base and availability logits keep the v6
+# terms and are fitted on every game (availability from game 1); game 0's
+# roster is the preseason box scores (player_availability.roster_talent). A
+# game whose terms are missing falls back to the frozen carryover logit
+# before game 10 (MODEL_TAG, the v2 formula) and to the frozen v4 logit
+# after. Games 1-9 still record the carryover logit's P (carry_p_home) for
+# H1 and H6. Model files carry "fade_games" (is_v8).
+MODEL_TAG_V8 = "fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_v8"
+MODEL_TAG_V8_AVAIL = "fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_avail_v8"
 # Exhibition rows (data/nba_preseason.csv, score_preseason): the v2 carryover
-# logit on last season's games alone (regular-season game 0 abstains).
+# logit on last season's games alone.
 PRESEASON_TAG = "fourfactors_hl25_b2b_carry25_preseason_g0"
 FALLBACK_FILE = "logit_v4.json"
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
-              MODEL_TAG_V6_AVAIL)
+              MODEL_TAG_V6_AVAIL, MODEL_TAG_V8_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -165,6 +177,11 @@ def is_v6(model):
     return model is not None and "ft_diff" in (model.get("features") or [])
 
 
+def is_v8(model):
+    """v8: one faded rating and one pair of logits for every game."""
+    return model is not None and model.get("fade_games") is not None
+
+
 def is_early_talent(early):
     """The v7 early logit (talent_diff in its features)."""
     return early is not None and "talent_diff" in (early.get("features") or [])
@@ -172,6 +189,8 @@ def is_early_talent(early):
 
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
+    if is_v8(model):
+        return MODEL_TAG_V8_AVAIL if avail else MODEL_TAG_V8
     if avail:
         return (MODEL_TAG_V6_AVAIL if is_v6(model) else
                 MODEL_TAG_V5_AVAIL if is_v5(model) else
@@ -190,7 +209,9 @@ def active_tags(model, avail_model, fallback=None, early=None):
         tags.append(model_tag(avail_model, avail=True))
     if is_v5(model) and fallback is not None:
         tags.append(model_tag(fallback))
-    if is_early_talent(early):
+    if is_v8(model):
+        tags.append(MODEL_TAG)            # the carryover fallback (games 0-9)
+    elif is_early_talent(early):
         tags.append(MODEL_TAG_V7_EARLY)
     return tags
 
@@ -224,9 +245,85 @@ def fresh_logs(year, today):
     return logs
 
 
+def score_game_v8(logs, home, away, date, weights, model, prior_logs=None,
+                  avail_model=None, avail=None, opening=None, talent=None,
+                  talent0=None, fallback=None, carry=None, half_life=None):
+    """v8 pregame composite and P(home win) for any game, from games strictly
+    before `date` (see MODEL_TAG_V8). A team missing from `logs` (opening
+    night) has played no games; `prior_logs` (last season) feed the faded
+    rating until a team's game 10. talent(team, date) once a team has
+    played, talent0[team] (its preseason roster) before; `avail` terms use
+    `avail_model` from game 1 on. Missing terms: the carryover logit `carry`
+    before game 10 (MODEL_TAG), the frozen v4 `fallback` after, else abstain.
+    Games 1-9 also carry carry_p_home (H1 and H6)."""
+    hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
+    date = pd.Timestamp(date)
+    out = dict(gp_home=np.nan, gp_away=np.nan, home_b2b=np.nan,
+               away_b2b=np.nan, delta=np.nan, p_home=np.nan, lean=np.nan,
+               p_lean=np.nan)
+    prior_logs = prior_logs or {}
+    empty = pd.DataFrame(columns=["date"] + nc.COLS + nc.X3)
+    lh, la = logs.get(home, empty), logs.get(away, empty)
+    ih = int((pd.to_datetime(lh["date"]) < date).sum())
+    ia = int((pd.to_datetime(la["date"]) < date).sum())
+    g = min(ih, ia)
+    out.update(gp_home=ih, gp_away=ia)
+    rh, ra = nc.rest_days(lh, ih, date), nc.rest_days(la, ia, date)
+    ph, pa = prior_logs.get(home), prior_logs.get(away)
+    pct = nc.league_3p_before(logs, date) if logs else float("nan")
+    if not np.isfinite(pct):
+        pct = nc.last_season_3p(prior_logs)
+    x = nc.fade_inputs(lh, ih, ph, la, ia, pa, pct, weights, hl)
+    opening = nc.season_opening(logs) if opening is None and logs else opening
+
+    def tal(tm, i):
+        if i >= 1:
+            return talent(tm, date) if talent else float("nan")
+        return (talent0 or {}).get(tm, float("nan"))
+
+    vals, d = {}, np.nan
+    if x is not None:
+        d = x["delta"]
+        vals = {**nc.logit_inputs(d, rh, ra, date, opening),
+                "luck_def": x["luck_def"], "ft_diff": x["ft_diff"],
+                "talent_diff": tal(home, ih) - tal(away, ia), **(avail or {})}
+
+    def ready(m):
+        return m is not None and x is not None and all(
+            np.isfinite(vals.get(f, np.nan)) for f in m["features"])
+    cd, use = None, None
+    if avail is not None and g >= 1 and ready(avail_model):
+        use, out["model_tag"] = avail_model, model_tag(avail_model, avail=True)
+    elif ready(model):
+        use, out["model_tag"] = model, model_tag(model)
+    if carry is not None and g < nc.MIN_GAMES:
+        cd = cold_start.carry_delta(lh, ih, ph, la, ia, pa, weights,
+                                    rho=carry.get("rho", cold_start.RHO),
+                                    half_life=carry.get("half_life", nc.HALF_LIFE))
+    if use is None:
+        if cd is not None:
+            use, out["model_tag"], d = carry, MODEL_TAG, cd
+            vals = {**nc.logit_inputs(cd, rh, ra, date, opening)}
+        elif g >= nc.MIN_GAMES and ready(fallback):
+            use, out["model_tag"] = fallback, model_tag(fallback)
+        else:
+            return out
+    p = float(nc.predict(use, [[vals[f] for f in use["features"]]])[0])
+    if cd is not None and 1 <= g < nc.MIN_GAMES:
+        cv = nc.logit_inputs(cd, rh, ra, date, opening)
+        out["carry_p_home"] = round(float(nc.predict(
+            carry, [[cv[f] for f in carry["features"]]])[0]), 5)
+    lean_home = p >= 0.5
+    out.update(home_b2b=int(rh == 0), away_b2b=int(ra == 0),
+               delta=round(float(d), 3), p_home=round(p, 5),
+               lean=home if lean_home else away,
+               p_lean=round(p if lean_home else 1 - p, 5))
+    return out
+
+
 def score_game(logs, home, away, date, weights, model, half_life=None,
                early=None, prior_logs=None, avail_model=None, avail=None,
-               opening=None, talent=None, fallback=None, carry=None):
+               opening=None, talent=None, fallback=None, carry=None, talent0=None):
     """Pregame composite and P(home win) from games strictly before `date`.
 
     From MIN_GAMES games on: the base logit. Below that, when both teams have
@@ -257,7 +354,13 @@ def score_game(logs, home, away, date, weights, model, half_life=None,
     the game is scored by `carry` (the carryover logit, default `early`
     itself when it has no talent) and keeps the v6 tag. Every early row also
     carries carry_p_home, the carryover logit's P (H1 and H6 read it).
+
+    v8 models (is_v8) are scored by score_game_v8 (talent0: preseason rosters).
     """
+    if is_v8(model):
+        return score_game_v8(logs, home, away, date, weights, model, prior_logs,
+                             avail_model, avail, opening, talent, talent0,
+                             fallback, carry, half_life)
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
     out = dict(gp_home=np.nan, gp_away=np.nan, home_b2b=np.nan,
@@ -393,10 +496,15 @@ def report_utc(report_time):
 def route(row, model):
     """Which formula scored a score_game row: early (games 1-9, carryover),
     avail (availability logit), base (base logit), v4 (the frozen v4
-    fallback of a v5 model), or abstain (no P). Reads the row; changes no
-    routing."""
+    fallback of a v5 model), or abstain (no P). v8: avail, base, carry (the
+    carryover fallback before game 10), v4 or abstain. Reads the row;
+    changes no routing."""
     if not np.isfinite(pd.to_numeric(row.get("p_home"), errors="coerce")):
         return "abstain"
+    if is_v8(model):
+        tag = row.get("model_tag")
+        return ("avail" if tag in AVAIL_TAGS else "base" if tag == MODEL_TAG_V8
+                else "carry" if tag == MODEL_TAG else "v4")
     if min(row.get("gp_home", 0), row.get("gp_away", 0)) < nc.MIN_GAMES:
         return "early"
     tag = row.get("model_tag")
@@ -420,9 +528,10 @@ def score_slate(today, weights, model, now=None):
         return []
     logs = fresh_logs(season_for(today), today)
     early, carry, prior = load_early(), load_carry(), None
-    if early is not None and any(
-            int((lg["date"] < pd.Timestamp(today)).sum()) < nc.MIN_GAMES
-            for lg in logs.values()):
+    teams = {t for g in pre for t in (g["home"], g["away"])}
+    if (early is not None or is_v8(model)) and (teams - set(logs) or any(
+            int((logs[t]["date"] < pd.Timestamp(today)).sum()) < nc.MIN_GAMES
+            for t in teams & set(logs))):
         try:
             prior = nc.load_logs(season_for(today) - 1)   # cached; completed season
         except Exception as e:  # noqa: BLE001
@@ -438,9 +547,10 @@ def score_slate(today, weights, model, now=None):
         except Exception as e:  # noqa: BLE001 - base / v4 fallback rows
             log(f"availability failed ({e!r}); rows use the base logit "
                 "(v5: the v4 fallback)")
-    opening = nc.season_opening(logs)
+    opening = nc.season_opening(logs) or pd.Timestamp(today)
     fallback = load_fallback() if is_v5(model) else None
     talent = getattr(live, "talent", None)
+    talent0 = getattr(live, "talent0", None)
     rows = []
     for g in pre:
         r = dict(game_id=g["game_id"], slate_date=today,
@@ -457,7 +567,7 @@ def score_slate(today, weights, model, now=None):
                             avail=None if terms is None else
                             {k: terms[k] for k in ("av_min", "av_bpm")},
                             opening=opening, talent=talent, fallback=fallback,
-                            carry=carry))
+                            carry=carry, talent0=talent0))
         # decision-time record (ledger first_report_utc / first_route): the
         # report edition this build read, whether or not it covered the game
         r["report_utc"] = report_utc(getattr(live, "report_time", None))
@@ -1452,11 +1562,17 @@ def game_card(r, injuries=None):
                      + (f" · <span>EV {pp(ev, cls=False)}% (null "
                         f"{pp(ev0, cls=False)}%)</span>" if np.isfinite(ev0) else "")
                      + "</div>")
-        if pd.notna(r["gp_home"]) and min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES:
+        tag = r.get("model_tag")
+        early_row = (pd.notna(r["gp_home"])
+                     and min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES)
+        if early_row and tag in (MODEL_TAG_V8, MODEL_TAG_V8_AVAIL):
+            flags.append("<span class='badge' title='The rating still blends in "
+                         "last season; it fades out by game 10'>early season</span>")
+        elif early_row:
             flags.append("<span class='badge'>early · carryover"
-                         + (" + roster" if r.get("model_tag") == MODEL_TAG_V7_EARLY
-                            else "") + "</span>")
-        elif r.get("model_tag") in AVAIL_TAGS:
+                         + (" + roster" if tag == MODEL_TAG_V7_EARLY else "")
+                         + "</span>")
+        if tag in AVAIL_TAGS:
             flags.append("<span class='badge'>injury report</span>")
         bk = esc(src) if src else "Market"
         det.append("<h3>Model vs market</h3>" + table(["", esc(away), esc(home)], [
@@ -2035,26 +2151,51 @@ def render_model(native, recon, built):
             f"{report.REPORT_NAME}'>{report.REPORT_NAME}</a>.</p>"
             "<p class='note'>Active tags: "
             + " / ".join(f"<code>{esc(t)}</code>" for t in ACTIVE_TAGS) + "</p>"]
-    body.append("<h2>Routing</h2>" + table(
-        ["Games played (fewer of the two)", "Formula", "Model file"],
-        [["0", "abstain (no probability)", "—"],
-         [f"1–{nc.MIN_GAMES - 1}", f"carryover logit: last season's log × "
-          f"{cold_start.RHO} carried in"
-          + (" + roster talent (v7)" if is_early_talent(early) else ""),
-          "<code>model/logit_early.json</code>"],
-         [f"{nc.MIN_GAMES}+, injury report covers the game", "availability logit",
-          "<code>model/logit_avail.json</code>"],
-         [f"{nc.MIN_GAMES}+, otherwise", "base logit", "<code>model/logit.json</code>"],
-         [f"{nc.MIN_GAMES}+, a v5/v6 term missing", "frozen v4 base logit",
-          "<code>model/logit_v4.json</code>"]], left=(0, 1, 2)))
+    if is_v8(base):
+        body.append(
+            "<h2>Routing</h2><p class='note'>One model for every game, opening night "
+            f"included. Each team's rating blends in last season at {nc.FADE_RHO:g} × "
+            f"(1 − games played ÷ {nc.FADE_GAMES}), so it fades out by game "
+            f"{nc.FADE_GAMES}; before a team's first game its roster is its "
+            "preseason box scores.</p>" + table(
+                ["Game", "Formula", "Model file"],
+                [["The NBA injury report covers it (from each team's game 1)",
+                  "availability logit", "<code>model/logit_avail.json</code>"],
+                 ["Otherwise (game 0 included)", "base logit",
+                  "<code>model/logit.json</code>"],
+                 [f"A term missing, before game {nc.FADE_GAMES}",
+                  f"carryover logit (last season × {cold_start.RHO} carried in)",
+                  "<code>model/logit_early_v6.json</code>"],
+                 [f"A term missing, game {nc.FADE_GAMES}+", "frozen v4 base logit",
+                  "<code>model/logit_v4.json</code>"]], left=(0, 1, 2))
+            + "<p class='note'>H1 and H6 (games 1–9) stay on the carryover logit "
+            "they were registered on: every early row also records its probability.</p>")
+        coefs = [_coef_table("Base logit (every game)", base),
+                 _coef_table("Availability logit (games 1+, report covers)", avail),
+                 _coef_table("Carryover logit (H1 / H6; fallback before game "
+                             f"{nc.FADE_GAMES})", load_carry())]
+    else:
+        body.append("<h2>Routing</h2>" + table(
+            ["Games played (fewer of the two)", "Formula", "Model file"],
+            [["0", "abstain (no probability)", "—"],
+             [f"1–{nc.MIN_GAMES - 1}", f"carryover logit: last season's log × "
+              f"{cold_start.RHO} carried in"
+              + (" + roster talent (v7)" if is_early_talent(early) else ""),
+              "<code>model/logit_early.json</code>"],
+             [f"{nc.MIN_GAMES}+, injury report covers the game", "availability logit",
+              "<code>model/logit_avail.json</code>"],
+             [f"{nc.MIN_GAMES}+, otherwise", "base logit", "<code>model/logit.json</code>"],
+             [f"{nc.MIN_GAMES}+, a v5/v6 term missing", "frozen v4 base logit",
+              "<code>model/logit_v4.json</code>"]], left=(0, 1, 2)))
+        coefs = [_coef_table("Base logit (games 10+)", base),
+                 _coef_table("Availability logit (games 10+, report covers)", avail),
+                 _coef_table("Early-season logit (games 1–9" + (", carryover + roster talent)"
+                             if is_early_talent(early) else ", carryover)"), early)]
     body.append("<h2>Fitted coefficients</h2><p class='note'>P(home) = σ(intercept "
                 "+ Σ coef × term). Coefficients are fitted by log loss on "
                 "earlier seasons; a change to them or to a term is a new model "
                 "tag.</p>")
-    body += [_coef_table("Base logit (games 10+)", base),
-             _coef_table("Availability logit (games 10+, report covers)", avail),
-             _coef_table("Early-season logit (games 1–9" + (", carryover + roster talent)"
-                         if is_early_talent(early) else ", carryover)"), early)]
+    body += coefs
     heads = ["Basis · close book · season", "Bets", "W–L", "Units", "ROI ± SE",
              "No-vig q", "Excess pp", "Mkt null", "Fav units", "Fav ROI",
              "LL model − close"]

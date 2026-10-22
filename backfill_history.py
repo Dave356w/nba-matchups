@@ -241,6 +241,110 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
     return test, weights, model
 
 
+def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
+                          talent0=None, weight_years=WEIGHT_YEARS,
+                          phase_years=PHASE_YEARS, report_years=REPORT_YEARS,
+                          game_years=GAME_YEARS):
+    """Model v8 for every game of season y, game 0 included, routed as the
+    daily build routes it (build_site.score_game_v8): the availability logit
+    on covered games from game 1 ("avail"), the base logit elsewhere
+    ("base"), both on the faded rating (nba_composite.fade_v8_games) and
+    fitted on every game of the training seasons; a game whose terms are
+    missing gets the carryover logit before game 10 ("carry", MODEL_TAG) or
+    the v4 logit after ("v4"). carry_p_home holds the carryover logit's P
+    for games 1-9 (H1 and H6), fit as before, so those stay unchanged.
+
+    Every fit leaves season y out (walk_forward=True: earlier seasons only).
+    terms: {season: player_availability.season_terms frame}; None skips the
+    availability arm. talent / talent0: {season: talent function / {team:
+    preseason talent}}, defaults from the box scores."""
+    def use(years):
+        out = training_years(years, y, walk_forward)
+        if not out:
+            raise SystemExit(f"season {y}: no training seasons in {list(years)}")
+        return out
+    memo, memo0 = dict(talent or {}), dict(talent0 or {})
+
+    def tal(t):
+        if t not in memo:
+            try:
+                memo[t] = pav.season_talent(t)
+            except Exception as e:  # noqa: BLE001 - rows fall back
+                print(f"season {t}: no talent ({e!r})", flush=True)
+                memo[t] = None
+        return memo[t]
+
+    def tal0(t):
+        if t not in memo0:
+            try:
+                memo0[t] = pav.preseason_talent(t)
+            except Exception as e:  # noqa: BLE001 - game 0 falls back
+                print(f"season {t}: no preseason rosters ({e!r})", flush=True)
+                memo0[t] = {}
+        return memo0[t]
+
+    weights = nc.fit_weights(use(weight_years))
+    phase_train = use(phase_years)
+    games = {t: nc.fade_v8_games(t, weights, talent=tal(t), talent0=tal0(t))
+             for t in set(phase_train) | {y}}
+    feats, afeats = nc.V6_FEATURES, pav.FEATURES_V6
+    train = pd.concat([games[t] for t in phase_train], ignore_index=True)
+    ok = np.isfinite(train[feats].to_numpy(float)).all(axis=1)
+    base = nc.fit_logit(train.loc[ok, feats].values, train.loc[ok, "win"], feats)
+    test = games[y].copy()
+    test["gmin"] = np.minimum(test["gp_home"], test["gp_away"])
+    test["p_home"], test["model_tag"], test["route"] = np.nan, None, None
+    test["carry_p_home"] = np.nan
+    fin = np.isfinite(test[feats].to_numpy(float)).all(axis=1)
+    test.loc[fin, "p_home"] = nc.predict(base, test.loc[fin, feats].values)
+    test.loc[fin, "model_tag"], test.loc[fin, "route"] = build_site.MODEL_TAG_V8, "base"
+    print(f"season {y}: v8 base on {int(fin.sum())}/{len(test)} games (fit n="
+          f"{int(ok.sum())})", flush=True)
+    tkey = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d") + test["home"] + test["away"]
+    if terms and y in terms:
+        others = [t for t in training_years(report_years, y, walk_forward) if t in terms]
+        if others:
+            tr = pd.concat([pav.with_terms(games[t] if t in games else nc.fade_v8_games(
+                t, weights, talent=tal(t), talent0=tal0(t)), terms[t]) for t in others])
+            tr = tr[np.minimum(tr["gp_home"], tr["gp_away"]) >= 1]
+            ok = np.isfinite(tr[afeats].to_numpy(float)).all(axis=1)
+            am = nc.fit_logit(tr.loc[ok, afeats].values, tr.loc[ok, "win"], afeats)
+            te = pav.with_terms(test, terms[y])
+            te = te[(te["gmin"] >= 1) & np.isfinite(te[afeats].to_numpy(float)).all(axis=1)]
+            pmap = dict(zip(te["slate_date"] + te["home"] + te["away"],
+                            nc.predict(am, te[afeats].values)))
+            hit = tkey.isin(pmap)
+            test.loc[hit, "p_home"] = tkey[hit].map(pmap)
+            test.loc[hit, "model_tag"] = build_site.MODEL_TAG_V8_AVAIL
+            test.loc[hit, "route"] = "avail"
+            print(f"season {y}: v8 availability on {int(hit.sum())}/{len(test)} games "
+                  f"(fit on {others}, n={int(ok.sum())})", flush=True)
+    # the carryover logit (its P for H1 / H6, and the fallback before game 10)
+    early = cold_start.fit_early(use(game_years), weights)
+    e = cold_start.early_games(y, weights, min_gp=0, window=nc.MIN_GAMES)
+    if len(e):
+        e["p_carry"] = nc.predict(early, e[cold_start.FEATURES].values)
+        ekey = pd.to_datetime(e["date"]).dt.strftime("%Y-%m-%d") + e["home"] + e["away"]
+        cp, cd = dict(zip(ekey, e["p_carry"])), dict(zip(ekey, e["delta"]))
+        early_g = test["gmin"].between(1, nc.MIN_GAMES - 1)
+        test.loc[early_g, "carry_p_home"] = tkey[early_g].map(cp)
+        miss = test["p_home"].isna() & (test["gmin"] < nc.MIN_GAMES) & tkey.isin(cp)
+        test.loc[miss, "p_home"] = tkey[miss].map(cp)
+        test.loc[miss, "delta"] = tkey[miss].map(cd)
+        test.loc[miss, "model_tag"], test.loc[miss, "route"] = build_site.MODEL_TAG, "carry"
+    miss = test["p_home"].isna() & (test["gmin"] >= nc.MIN_GAMES)
+    if miss.any():
+        v4 = nc.fit_logit(train.loc[train[["gp_home", "gp_away"]].min(axis=1) >= nc.MIN_GAMES,
+                                    nc.PHASE_FEATURES].values,
+                          train.loc[train[["gp_home", "gp_away"]].min(axis=1) >= nc.MIN_GAMES,
+                                    "win"], nc.PHASE_FEATURES)
+        test.loc[miss, "p_home"] = nc.predict(v4, test.loc[miss, nc.PHASE_FEATURES].values)
+        test.loc[miss, "model_tag"], test.loc[miss, "route"] = build_site.MODEL_TAG_V4, "v4"
+    test = test[test["p_home"].notna()].reset_index(drop=True)
+    print(f"season {y}: v8 routes {test['route'].value_counts().to_dict()}", flush=True)
+    return test, weights, base
+
+
 def rescore(recon, test):
     """Replace the model columns of existing reconstructed rows with `test`'s
     predictions (matched on date and teams); prices and results are kept."""
@@ -364,6 +468,8 @@ def main(argv=None):
                     help="score with the v5 routing (no ft_diff)")
     ap.add_argument("--v6", action="store_true",
                     help="score with the v6 routing (no talent on games 1-9)")
+    ap.add_argument("--v7", action="store_true",
+                    help="score with the v7 routing (games 1-9 on the early logit)")
     ap.add_argument("--kalshi", action="store_true",
                     help="fill only Kalshi's open/close on existing graded rows")
     a = ap.parse_args(argv)
@@ -381,24 +487,41 @@ def main(argv=None):
                       flush=True)
         finally:
             archive.save()
+    v8 = not (a.v4 or a.v5 or a.v6 or a.v7)
+
+    def season(y):
+        if v8:
+            return reconstruct_season_v8(y, terms=terms)
+        return reconstruct_season(y, terms=terms, v5=not a.v4, v6=not (a.v4 or a.v5),
+                                  v7=not (a.v4 or a.v5 or a.v6))
     if a.rescore:
         df = ledger.load(ledger.RECON_PATH)
         for y in a.seasons:
-            test, _, model = reconstruct_season(y, terms=terms, v5=not a.v4,
-                                                v6=not (a.v4 or a.v5),
-                                                v7=not (a.v4 or a.v5 or a.v6))
+            test, _, model = season(y)
             print(f"season {y}: {len(test)} games scored; logit {model}", flush=True)
             df, n = rescore(df, test)
             print(f"season {y}: rescored {n} reconstructed rows; tags "
                   f"{df['model_tag'].value_counts().to_dict()}", flush=True)
+            if v8:
+                # v8 scores game 0, which earlier versions skipped: add those
+                # games (and any other game without a row) with their prices
+                have = set(zip(df["slate_date"].astype(str), df["home"], df["away"]))
+                key = zip(pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d"),
+                          test["home"], test["away"])
+                new = test[[k not in have for k in key]]
+                if len(new):
+                    rec = attach_espn(new)
+                    df = pd.concat([df, rec], ignore_index=True)
+                    df = df.drop_duplicates("game_id", keep="first")
+                    print(f"season {y}: added {len(rec)} rows v7 had not scored "
+                          f"(game 0 {int((rec[['gp_home', 'gp_away']].min(axis=1) == 0).sum())})",
+                          flush=True)
         ledger.save(df, ledger.RECON_PATH)
         print(f"wrote {ledger.RECON_PATH}: {len(df)} rows", flush=True)
         return 0
     out = [ledger.load(ledger.RECON_PATH)]
     for y in a.seasons:
-        test, _, model = reconstruct_season(y, terms=terms, v5=not a.v4,
-                                                v6=not (a.v4 or a.v5),
-                                                v7=not (a.v4 or a.v5 or a.v6))
+        test, _, model = season(y)
         print(f"season {y}: {len(test)} games scored; logit {model}", flush=True)
         rec = attach_espn(test)
         by_book = rec["close_book"].value_counts().to_dict()

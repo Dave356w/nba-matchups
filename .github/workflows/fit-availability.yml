@@ -1,6 +1,12 @@
 name: Fit availability
 
-# Fits only the v5 availability logit (model/logit_avail.json: the v4 terms
+# Fits only the v8 availability logit (model/logit_avail.json: v6's terms
+# plus the injury-report terms, on the faded rating, covered games 1+)
+# against the committed model/weights.json, from ESPN box scores (data/),
+# tip times and NBA injury reports (cached; first run downloads them). The
+# "Fit model" run refits it too, after new weights.
+
+on: the v4 terms
 # plus opponent 3-point luck and roster talent) against the committed
 # model/weights.json, from ESPN
 # box scores, tip times and NBA injury reports (cached; first run downloads them). The preseason
@@ -51,7 +57,8 @@ jobs:
       - name: Download (cached pages are skipped)
         run: python nba_composite.py download --years 2015-2019 2021-2026
       - name: Fit availability logit
-        run: python player_availability.py fit --years ${{ inputs.years }}
+        # v8: covered games 1+ on the faded rating (MODEL.md "v8")
+        run: python player_availability.py fit --v8 --years ${{ inputs.years }}
       - name: Commit model
         run: |
           git config user.name  "github-actions[bot]"
