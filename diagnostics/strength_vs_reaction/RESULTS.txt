@@ -245,3 +245,29 @@ No native row has a model P yet: nothing here is forward evidence.
   +20c Feb-Apr  games 480   both sold  20%  one  57%  none  23%   profit -7.17c ± 2.69 (maker fee -7.46c ± 2.68)   hold both -3.66c   profit - hold -3.51c ± 2.68
         mean profit per pair: both sold +36.9c;  one sold -27.4c;  none sold -2.8c;  one sold and it won 92% (-32.5c) / it lost (+32.2c)
         the mid was already past the target at the fill minute by +2.82c a sold side (1229 sales, 1191 with a mid); +2.89c ± 0.22 a pair, against profit - hold -4.26c
+
+== 8. Signals for the eventual winner at the +10c fill (owner's question; exploratory)
+  Each fill of section 7's +10c sells: does the side win more often than its mid at the
+  fill minute says, and does anything seen then add to the price? A resting sell cannot
+  use a signal; a rule that could (hold when it says so) would need it to beat the
+  price, then the spread and fee. Several looks at the same games: a lead, not a rule.
+  all      fills 1655  won 64.7%  price said 64.4%  won - price  +0.3 pp ± 1.3
+  Oct-Jan  fills 1013  won 64.6%  price said 64.4%  won - price  +0.1 pp ± 1.6
+  Feb-Apr  fills 642   won 64.8%  price said 64.3%  won - price  +0.5 pp ± 2.0
+  by price at the fill (all):
+    0.0-0.6  fills 701   won 44.2%  price 43.8%  gap  +0.4 pp ± 3.6
+    0.6-0.7  fills 232   won 62.9%  price 65.4%  gap  -2.5 pp ± 5.1
+    0.7-0.8  fills 259   won 78.0%  price 74.7%  gap  +3.3 pp ± 5.0
+    0.8-0.9  fills 256   won 85.5%  price 84.9%  gap  +0.7 pp ± 4.3
+    0.9-1.0  fills 207   won 93.2%  price 94.6%  gap  -1.3 pp ± 3.4
+  beyond the price: won ~ logit(price) [offset] + beta x, one x at a time, game-
+  clustered (beta > 0 = more x, more often the winner than the price says):
+    overshoot past target    per c    all +0.019 ± 0.026 (n 1655)   Oct-Jan +0.026 ± 0.034 (n 1013)   Feb-Apr +0.009 ± 0.042 (n 642)
+    price jump that minute   per c    all +0.007 ± 0.012 (n 1593)   Oct-Jan +0.005 ± 0.015 (n 983)   Feb-Apr +0.011 ± 0.018 (n 610)
+    price - p* residual      per c    all -0.012 ± 0.021 (n 1641)   Oct-Jan -0.019 ± 0.028 (n 1003)   Feb-Apr -0.003 ± 0.034 (n 638)
+    lead / sqrt(tau)         per pt   all +0.006 ± 0.008 (n 1641)   Oct-Jan -0.000 ± 0.010 (n 1003)   Feb-Apr +0.017 ± 0.013 (n 638)
+    share of game played     per game all +0.098 ± 0.181 (n 1641)   Oct-Jan +0.078 ± 0.235 (n 1003)   Feb-Apr +0.131 ± 0.278 (n 638)
+    second fill (comeback)            all +0.110 ± 0.202 (n 1655)   Oct-Jan +0.081 ± 0.261 (n 1013)   Feb-Apr +0.165 ± 0.317 (n 642)
+  How far each side runs from its entry price (its bid; all games):
+    eventual winners  n 1161  reach +5c  99%  +10c  94%  +20c  78%  +30c  61%   median peak +36c;  dip -10c  57%  -20c  32%  -30c  17%   median low -12c
+    eventual losers   n 1161  reach +5c  66%  +10c  50%  +20c  28%  +30c  14%   median peak +10c;  dip -10c  95%  -20c  79%  -30c  61%   median low -36c

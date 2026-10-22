@@ -45,7 +45,11 @@ moves against the cost to cross.
 Both sides at tip (owner's question, 2026-10-22): buy home and away at the
 last pregame quotes, rest a sell on each at entry + 5 / 10 / 15 / 20c, let an
 unsold side settle; profit per $1 pair beside holding both, and how far the
-mid had already passed the target when a sell filled.
+mid had already passed the target when a sell filled. Then, at each +10c
+fill, whether the side wins more often than its price says and whether the
+overshoot, the minute's jump, the price - p* residual, the lead, time left or
+a second fill adds anything; and how far eventual winners and losers run
+from their entry price.
 
 Data (2025-26, the first season Kalshi lists): every reconstructed game with
 a Kalshi event (diagnostics/kalshi_benchmark/games.csv), ESPN's play-by-play
@@ -857,16 +861,23 @@ def straddle_game(candles, tip, y, up):
     legs = (("home", float(e["ask_c"]), live["bid_c"], mid, y),
             ("away", 1 - float(e["bid_c"]), 1 - live["ask_c"], 1 - mid, 1 - y))
     out = dict(cost=sum(market.kalshi_cost(a) for _, a, _, _, _ in legs), sold=[], won_sold=[],
-               overshoot=[], proceeds=0.0, maker=0.0)
+               overshoot=[], fills=[], paths=[], proceeds=0.0, maker=0.0)
     for side, a, bid, fair, pays in legs:
         target = round(a + up, 2)
-        hit = (bid >= target - 1e-9).to_numpy()
+        b = bid.to_numpy(float)
+        out["paths"].append(dict(side=side, won=pays, peak=np.nanmax(b) - a if np.isfinite(b).any()
+                                 else np.nan, trough=np.nanmin(b) - a if np.isfinite(b).any()
+                                 else np.nan))
+        hit = b >= target - 1e-9
         if target <= 0.99 and hit.any():
+            k = int(hit.argmax())
             out["proceeds"] += target
             out["maker"] += MAKER_FEE * target * (1 - target)
             out["sold"].append(side)
             out["won_sold"].append(pays)
-            out["overshoot"].append(float(fair.to_numpy()[hit.argmax()]) - target)
+            out["overshoot"].append(float(fair.to_numpy()[k]) - target)
+            out["fills"].append(dict(side=side, ts=float(live["ts"].to_numpy()[k]), target=target,
+                                     fair=float(fair.to_numpy()[k]), won=pays))
         else:
             out["proceeds"] += pays
     out["profit"] = out["proceeds"] - out["cost"]
@@ -920,6 +931,98 @@ def straddle_lines(P, kal):
                    f"({x['n_sold'].sum()} sales, {x['n_over'].sum()} with a mid); "
                    f"{100 * mo:+.2f}c ± {100 * cio:.2f} a pair, against profit - hold "
                    f"{100 * (x['profit'] - x['hold']).mean():+.2f}c")
+    return out
+
+
+def trigger_frames(P, kal, S, up=0.10):
+    """The +up fills of straddle_game as events, with the side's state at
+    the fill minute from S (lead, tau, the mid's move that minute, p* with
+    the train (sigma, k) fit; NaN in overtime or beyond the dead-quote
+    bounds), and every side's path extremes from entry. (events, paths)."""
+    ev, paths = [], []
+    for g in P.itertuples():
+        r = straddle_game(kal[g.game_id]["candles"], g.tip_ts, g.y, up)
+        if not r:
+            continue
+        for k, f in enumerate(sorted(r["fills"], key=lambda f: f["ts"])):
+            ev.append(dict(game_id=g.game_id, split=g.split, order=k + 1, **f))
+        paths += [dict(game_id=g.game_id, split=g.split, **p) for p in r["paths"]]
+    ev, paths = pd.DataFrame(ev), pd.DataFrame(paths)
+    s = S.set_index(["game_id", "ts"])
+    here = s.reindex(pd.MultiIndex.from_arrays([ev["game_id"], ev["ts"]]))
+    before = s.reindex(pd.MultiIndex.from_arrays([ev["game_id"], ev["ts"] - 60]))
+    home = (ev["side"] == "home").to_numpy()
+    sgn = np.where(home, 1.0, -1.0)
+    ev["lead"] = sgn * here["delta"].to_numpy() / np.sqrt(here["tau"].to_numpy())
+    ev["tau"] = here["tau"].to_numpy()
+    ev["jump"] = 100 * sgn * (here["mid"].to_numpy() - before["mid"].to_numpy())
+    p = here["p_z_mkt_fk"].to_numpy()
+    ev["resid"] = 100 * (ev["fair"] - np.where(home, p, 1 - p))
+    ev["over"] = 100 * (ev["fair"] - ev["target"])
+    return ev, paths
+
+
+def cluster_mean_ci(d, groups):
+    """Mean of d over rows, its ±95 clustered by game (a per-game average
+    would weight games by their number of fills, which depends on later
+    play)."""
+    d = np.asarray(d, float)
+    m = d.mean()
+    u = pd.Series(d - m).groupby(np.asarray(groups)).sum().to_numpy()
+    return m, Z95 * math.sqrt(float((u ** 2).sum())) / len(d)
+
+
+def trigger_lines(ev, paths):
+    """Is the side that reached +up the eventual winner more often than its
+    price at that minute says, and does anything at that minute (overshoot,
+    the minute's jump, the mid's residual from p*, the lead, time left, first
+    or second fill) predict it beyond the price? Then how far winners and
+    losers run from entry."""
+    out = []
+    ev = ev.dropna(subset=["fair"])
+    ev = ev[ev["fair"].between(0, 1, inclusive="neither")]
+    for lab, x in (("all", ev), ("Oct-Jan", ev[ev["split"] == "train"]),
+                   ("Feb-Apr", ev[ev["split"] == "test"])):
+        m, ci = cluster_mean_ci(x["won"] - x["fair"], x["game_id"])
+        out.append(f"  {lab:<8} fills {len(x):<5} won {100 * x['won'].mean():4.1f}%  price said "
+                   f"{100 * x['fair'].mean():4.1f}%  won - price {100 * m:+5.1f} pp ± {100 * ci:.1f}")
+    out.append("  by price at the fill (all):")
+    for lo, hi in ((0, .6), (.6, .7), (.7, .8), (.8, .9), (.9, 1.0)):
+        x = ev[(ev["fair"] > lo) & (ev["fair"] <= hi)]
+        if len(x) >= 20:
+            m, ci = cluster_mean_ci(x["won"] - x["fair"], x["game_id"])
+            out.append(f"    {lo:.1f}-{hi:.1f}  fills {len(x):<5} won {100 * x['won'].mean():4.1f}%  "
+                       f"price {100 * x['fair'].mean():4.1f}%  gap {100 * m:+5.1f} pp ± {100 * ci:.1f}")
+    out.append("  beyond the price: won ~ logit(price) [offset] + beta x, one x at a time, game-")
+    out.append("  clustered (beta > 0 = more x, more often the winner than the price says):")
+    ev = ev.assign(second=(ev["order"] == 2).astype(float), late=1 - ev["tau"])
+    for col, name, unit in (("over", "overshoot past target", "per c"),
+                            ("jump", "price jump that minute", "per c"),
+                            ("resid", "price - p* residual", "per c"),
+                            ("lead", "lead / sqrt(tau)", "per pt"),
+                            ("late", "share of game played", "per game"),
+                            ("second", "second fill (comeback)", "")):
+        parts = []
+        for lab, x in (("all", ev), ("Oct-Jan", ev[ev["split"] == "train"]),
+                       ("Feb-Apr", ev[ev["split"] == "test"])):
+            x = x.dropna(subset=[col])
+            if len(x) < 50 or x[col].std() == 0:
+                parts.append(f"{lab} n/a")
+                continue
+            b, ci = offset_fit(x[[col]].to_numpy(float), x["won"], mr.logit(x["fair"]),
+                               np.ones(len(x)), x["game_id"])
+            parts.append(f"{lab} {b[0]:+.3f} ± {ci[0]:.3f} (n {len(x)})")
+        out.append(f"    {name:<24} {unit:<8} " + "   ".join(parts))
+    out.append("  How far each side runs from its entry price (its bid; all games):")
+    for won, name in ((1, "eventual winners"), (0, "eventual losers")):
+        x = paths[paths["won"] == won].dropna(subset=["peak"])
+        ups = "  ".join(f"+{c}c {100 * (x['peak'] >= c / 100 - 1e-9).mean():3.0f}%"
+                        for c in (5, 10, 20, 30))
+        downs = "  ".join(f"-{c}c {100 * (x['trough'] <= -c / 100 + 1e-9).mean():3.0f}%"
+                          for c in (10, 20, 30))
+        out.append(f"    {name:<17} n {len(x):<5} reach {ups}   median peak "
+                   f"{100 * x['peak'].median():+.0f}c;  dip {downs}   median low "
+                   f"{100 * x['trough'].median():+.0f}c")
     return out
 
 
@@ -1163,6 +1266,14 @@ def report(S, P, drops, espn, kal, n_games):
     w("  exit rule cannot change the expected result, so profit - hold should be ~0 (less")
     w(f"  the maker fee, {MAKER_FEE} P (1 - P), where it applies). ± is 95% across games.")
     L += straddle_lines(P, kal)
+    w("")
+    w("== 8. Signals for the eventual winner at the +10c fill (owner's question; exploratory)")
+    w("  Each fill of section 7's +10c sells: does the side win more often than its mid at the")
+    w("  fill minute says, and does anything seen then add to the price? A resting sell cannot")
+    w("  use a signal; a rule that could (hold when it says so) would need it to beat the")
+    w("  price, then the spread and fee. Several looks at the same games: a lead, not a rule.")
+    ev, paths = trigger_frames(P, kal, pd.concat([S_tr, S_te], ignore_index=True))
+    L += trigger_lines(ev, paths)
     return "\n".join(L), T
 
 

@@ -668,7 +668,15 @@ Before a PR, run:
   1.7 is the jump past the order: the mid is already +2.4c beyond the
   target when a sell fills (+3.4c ± 0.2 a pair), so the price is otherwise
   fair. Every target from 5c to 20c and both periods lose about the same.
-  The score-process σ overstates the game's (regulation margin
+  At the fill nothing marks the eventual winner (owner's question; 1,655
+  fills, exploratory): sides at +10c win 64.7% against a 64.4% price (+0.3
+  pp ± 1.3, clustered by game; within ±3.3 pp in every price band), and
+  the overshoot, that minute's jump, the price − p* residual, the lead,
+  time left and a second fill (a comeback) add nothing consistent beyond
+  the price. The "one sold, it won 96%" is hindsight: it presumes the other
+  side never comes back. Swings are large both ways: half of eventual
+  losers rise 10c+ above their tip price (14% 30c+), and 57% of eventual
+  winners dip 10c+ below it (17% 30c+). The score-process σ overstates the game's (regulation margin
   around the spread 13.85 ± 0.56) because consecutive quarters correlate
   −0.12 (leads shrink). ESPN's wallclock and the mid agree within a minute
   (corr of minute changes 0.69 at lag 0, 0.10 a minute later). Not pursued.
