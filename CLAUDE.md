@@ -294,7 +294,22 @@ Before a PR, run:
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains
   the backtest (ρ, preseason κ, both) against the close on the same games.
-  Watch the native early-season rows against it.
+  Watch the native early-season rows against it. Roster information for
+  games 1–9 (owner's request, 2026-10-22; `research/early_roster.py`,
+  workflow "Early roster", run 39830317895, `diagnostics/early_roster/
+  RESULTS.txt`): the early route sees no players. Adding the games-10+
+  `talent_diff` (unchanged) to the early logit, walk-forward on games 1–9 of
+  2016-17 to 2025-26 (n = 1,219): −0.0105 ± 0.0087 log loss vs outcomes
+  (Brier agrees), better in 8 of 9 seasons, coefficient 0.072–0.078 from
+  2018-19 on. Above G7's 0.008 tripwire, checked: walk-forward throughout,
+  box score strictly before the date, and it narrows but does not beat the
+  close (2024-25 / 2025-26 ESPN BET, n = 138 each: early − close −0.0080 /
+  +0.0125, early_tal − close −0.0124 / +0.0068; early_tal − early −0.0045 ±
+  0.0220 / −0.0057 ± 0.0248). The market's correction of the early model
+  follows talent_diff (corr +0.42 ± 0.12, n = 276). H1's hindsight profit
+  sat in bets roster talent was against (n 77, +32.4% ± 33.2) more than
+  those it backed (n 38, −11.8% ± 33.3), unresolved; shipping it would change
+  H1's and H6's bets. Candidate model change (early route), owner's call.
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean
   (the blanket value side, model P > no-vig q, and its ATS twin were retired
   from the pages and report 2026-10-06, owner's decision: at the close its

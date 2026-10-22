@@ -1,0 +1,72 @@
+Games 1-9 with roster information: the early logit + talent_diff (walk-forward)
+research/early_roster.py; workflow "Early roster" run 39830317895 (head e9e61ff),
+2026-10-22. ± is 95%; game 0 abstains in every arm.
+
+Arms: an early logit per test season, fitted on earlier seasons' games with
+1 <= min(gp) < 20, both arms on the same rows; composite weights walk-forward.
+  early      sigma(a + b delta + c b2b_net)   (production's features)
+  early_tal  + talent_diff (player_availability.talent_fn, the games-10+ term)
+
+== 1. Against outcomes, games 1-9, walk-forward (log loss; early_tal - early paired)
+    2016-17  n  120  early 0.6012  early_tal 0.5819  diff -0.0192 ± 0.0197  talent coef +0.0562 (train n 253)
+    2017-18  n  120  early 0.7126  early_tal 0.7164  diff +0.0037 ± 0.0451  talent coef +0.0968 (train n 505)
+    2018-19  n  140  early 0.6205  early_tal 0.6045  diff -0.0160 ± 0.0216  talent coef +0.0760 (train n 759)
+    2020-21  n  140  early 0.7409  early_tal 0.7210  diff -0.0199 ± 0.0223  talent coef +0.0789 (train n 1051)
+    2021-22  n  141  early 0.6486  early_tal 0.6458  diff -0.0028 ± 0.0226  talent coef +0.0739 (train n 1346)
+    2022-23  n  141  early 0.6453  early_tal 0.6334  diff -0.0120 ± 0.0289  talent coef +0.0735 (train n 1638)
+    2023-24  n  141  early 0.6481  early_tal 0.6309  diff -0.0173 ± 0.0239  talent coef +0.0763 (train n 1930)
+    2024-25  n  138  early 0.6089  early_tal 0.6044  diff -0.0045 ± 0.0220  talent coef +0.0772 (train n 2222)
+    2025-26  n  138  early 0.5818  early_tal 0.5761  diff -0.0057 ± 0.0248  talent coef +0.0721 (train n 2516)
+    pooled   n 1219  diff -0.0105 ± 0.0087  (Brier -0.0045 ± 0.0039); better in 8 of 9 seasons;
+             slope early 0.85, early_tal 0.86
+
+== 2. Against the close, games 1-9 (same games, each book x season alone)
+  ESPN BET 2024-25 (n 138): early - close -0.0080 ± 0.0348; early_tal - close -0.0124 ± 0.0252;
+                            early_tal - early -0.0045 ± 0.0220
+  ESPN BET 2025-26 (n 138): early - close +0.0125 ± 0.0394; early_tal - close +0.0068 ± 0.0299;
+                            early_tal - early -0.0057 ± 0.0248
+  (DraftKings priced no game 1-9.)
+
+== 3. Roster turnover (share of last season's team minutes on the first box score)
+  team-seasons 234: returning share median 0.61, 10th pct 0.40, 90th 0.80
+  priced games 1-9 (n 276): corr(market correction of the early model, talent_diff) +0.417 ± 0.118
+  priced games 1-9 (n 276): corr(market correction of the early model, turn_gap)    +0.124 ± 0.118
+  correction ~ talent_diff + turn_gap (OLS, logit): talent +0.0268, turnover gap -0.126
+    most turnover   (lower share 0.33-0.48, n 98): early - close +0.0318 ± 0.0419; early_tal - early -0.0176 ± 0.0270
+    middle          (lower share 0.49-0.59, n 88): early - close +0.0116 ± 0.0479; early_tal - early -0.0162 ± 0.0306
+    least turnover  (lower share 0.59-0.85, n 90): early - close -0.0390 ± 0.0463; early_tal - early +0.0193 ± 0.0282
+  every test season, against outcomes (n 1061): early_tal - early by tercile
+    most turnover   (lower share 0.15-0.47, n 360): -0.0030 ± 0.0177
+    middle          (lower share 0.48-0.59, n 349): -0.0144 ± 0.0157
+    least turnover  (lower share 0.59-0.85, n 352): -0.0082 ± 0.0160
+
+== 4. H1's hindsight bets (reconstructed P, value side with P - q >= 0.08 at the close), by talent_diff
+  all                      n 115  won  48.7%  q  43.1%  ROI  +17.8% ± 25.0  null  -4.0%
+  talent backs the bet     n  38  won  47.4%  q  56.5%  ROI  -11.8% ± 33.3  null  -4.1%
+  talent against the bet   n  77  won  49.4%  q  36.5%  ROI  +32.4% ± 33.2  null  -4.0%
+
+== Reading
+- Roster talent is what the early route lacks. Against outcomes it improves
+  games 1-9 by -0.0105 ± 0.0087 log loss (Brier agrees, resolved), in 8 of
+  9 seasons, with a stable coefficient (0.072-0.078 from 2018-19 on; 0.056
+  in the games-10+ base logit). The market's correction of the early model
+  follows talent_diff (corr +0.42 ± 0.12): roster talent is much of what the
+  market knows in October and the carryover model does not.
+- Leakage tripwire (G7: a gain above 0.008 a season): the gain is above it,
+  so it was checked. talent_fn reads the box score strictly before the date,
+  minutes roles from games before it and last season's BPM; the logits and
+  composite weights are walk-forward. The arm does not beat the close (it
+  narrows the gap: -0.0124 / +0.0068 vs -0.0080 / +0.0125), which leakage
+  would. The size fits what is added: the early route had no player
+  information at all, where the games-10+ routes already carry the rating
+  of this season's games.
+- Against the close, per season, unresolved (n 138 each): early_tal better
+  than early in both priced seasons (-0.0045, -0.0057).
+- H1: its hindsight profit sat in the bets roster talent was against (n 77,
+  +32.4% ± 33.2) rather than those it backed (n 38, -11.8% ± 33.3);
+  unresolved, descriptive. Shipping early_tal would change H1's and H6's
+  bets (both are defined on the early model's P), so the owner decides that
+  together with the model change.
+- Next (G7): walk-forward with production routing on the priced seasons
+  (done here for games 1-9: not worse on either), then refit, rescore, a new
+  MODEL_TAG, and the History backtest (G10).
