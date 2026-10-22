@@ -259,6 +259,23 @@ Before a PR, run:
   0.008 leakage tripwire). Neither is a model update; `s_tal` also
   follows the close, not the open (+5.1 to +7.0 vs −0.8 to +0.4), so the
   lineup news it carries is priced by tip.
+  Fantasy-projection team signals (owner's DK Showdown work, March 2026,
+  outside the repo; `research/fantasy_signal.py`, `diagnostics/
+  fantasy_signal/RESULTS.txt`): TOP3_HARMONIC_ALL, the top three DK
+  projections weighted 1, ½, ⅓ over the same series (per-depth
+  denominator), delta home − away; on ~58 Showdown games r = 0.42 with the
+  margin, ~74% directional. On every priced game (Sleeper archive,
+  hindsight; 2025-26 DK n = 964 / 2024-25 ESPN BET n = 1,198): picks the
+  winner 66.4 / 63.4% vs the close favourite 69.4 / 69.9% on the same games
+  (r with the margin +0.41 / +0.35 vs the closing spread's +0.53 / +0.52;
+  partial r given the spread −0.02 ± 0.06 / +0.01 ± 0.06); March's delta
+  floors 4 / 6 win 74.0 / 76.9% and 68.1 / 70.4%, the favourite as much or
+  more on the same games; its close underdogs +1.0% ± 17.4 / +1.6% ± 16.1
+  ROI vs null −4.1%; added to the close 0.0000 in every season; added to
+  v6, games 10+, −0.0044 ± 0.0031 (DK) / −0.0011 ± 0.0058, information the
+  close already has. March's best configs (top-1, top-2 equal-weight) do
+  worse here (top-1 65.1 / 60.7%). No signal beyond the price; not a model
+  update.
 - Early-season cold start: v2 (`cold_start.py`) ships the probe's
   carryover arm (ρ = 0.25) for games 1–9, labelled "early · carryover" on
   the card; game 0 still abstains. `research/cold_start_probe.py` remains

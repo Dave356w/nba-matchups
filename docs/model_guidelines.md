@@ -99,6 +99,7 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
 | Lineup minutes by position or role | within 0.0007 of proportional; one lineup term in place of v5's three: worse |
 | Sleeper/RotoWire projected minutes × v6's player values, added to v6 (hindsight archive) | −0.0006 ± 0.0018 / −0.0004 ± 0.0017; nothing beyond the close (`research/sleeper_signal.py`) |
 | RotoWire projected points margin | the market (corr +0.98 with the closing spread, follows the close over the open); adds nothing to the close; its gain over v6 is the price imported |
+| Top-3 harmonic-weighted fantasy projections (TOP3_HARMONIC_ALL), team totals, rotation balance | pick the winner 3–6 pts less often than the close favourite; nothing given the closing spread (partial r −0.02 / +0.01); added to the close 0.0000 (`research/fantasy_signal.py`) |
 | Talent/luck fixed in the availability logit | worse (+0.0008 / +0.0016) |
 | Kalshi instead of the sportsbook | the two closes carry the same information (−0.0018 ± 0.0015) |
 | In-game Kalshi trades on a Brownian live price (Kalshi pregame mid, model or blend prior) | 2025-26 Feb–Apr, 480 games: p*(Kalshi prior) − live mid +0.0011 ± 0.0062; model prior − Kalshi prior +0.0145 ± 0.0101; trades −4.4 to −5.5c a contract vs a −3c null (`research/strength_vs_reaction.py`) |
