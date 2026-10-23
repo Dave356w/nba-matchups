@@ -168,7 +168,7 @@ def test_hypotheses_stay_on_sportsbook_prices(tmp_path, monkeypatch):
     cal = (tmp_path / "market-calibration.html").read_text()
     assert "Market · Kalshi" not in cal and "Judge every ROI" not in cal
     for hyp, hind, _nat in raw:                     # hindsight n at book prices
-        if hind:
+        if hind and not hyp.get("retired"):
             assert f"{hind['n']}<br><span class='mut'>at the" in grades
     report = (tmp_path / "ledger_report.txt").read_text()
     assert "Market: DraftKings" in report and "DraftKings close" in report

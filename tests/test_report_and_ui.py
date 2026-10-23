@@ -257,7 +257,7 @@ def test_nav_drops_report_but_every_footer_links_it(tmp_path, monkeypatch):
         assert "href='ledger_report.txt'" in foot
 
 
-# ------------------------------------------- H5 / H6 picks on the Today cards
+# ------------------------------------------- H5 / H5·E picks on the Today cards
 def _ats_pending(gp, first_p=0.75, line=-5.5, home_odds=-110):
     """One pending row with a first snapshot (P, sportsbook spread)."""
     r = _slate(1).iloc[0].copy()
@@ -273,13 +273,11 @@ def _ats_pending(gp, first_p=0.75, line=-5.5, home_odds=-110):
 def test_card_shows_the_h6_pick_as_registered():
     # 13.5 * Phi^-1(0.75) = home by 9.1 vs home -5.5: 3.6 pts, home side
     card = build_site.game_card(_ats_pending(gp=3))
-    assert "Spread pick · H6</span><span class='pk'>HOM -5.5</span>" in card
-    assert "<b>H6 pick</b>" in card and "<b>HOM -5.5</b> at -110" in card
-    # H6 reads the carryover P it was registered on, and the card says so
-    assert ("carryover model's line (the model H6 was registered on; the card's "
-            "model P is the current model's) HOM -9.1 vs market -5.5: 3.6 pts") in card
-    assert "<span>Carryover HOM -9.1</span>" in card and "carryover cover" in card
-    assert "7:07 AM PT" in card and "DraftKings" in card and "H5" not in card
+    assert "Spread pick · H5·E</span><span class='pk'>HOM -5.5</span>" in card
+    assert "<b>H5·E pick</b>" in card and "<b>HOM -5.5</b> at -110" in card
+    assert "model line HOM -9.1 vs market -5.5: 3.6 pts" in card
+    assert "<span>Model HOM -9.1</span>" in card and "Carryover" not in card
+    assert "7:07 AM PT" in card and "DraftKings" in card and "H6" not in card
     # games 10+ is H5's, with the same reading, on the model's own P
     card = build_site.game_card(_ats_pending(gp=12))
     assert "Spread pick · H5</span><span class='pk'>HOM -5.5</span>" in card
@@ -291,15 +289,15 @@ def test_card_says_why_there_is_no_ats_bet():
     # P 0.66 -> home by 5.6 vs -5.5: 0.1 pts, under the 1-pt threshold
     card = build_site.game_card(_ats_pending(gp=3, first_p=0.66))
     assert "Spread pick" not in card
-    assert "<b>H6</b> (pre-registered, against the spread): no bet" in card
+    assert "<b>H5·E</b> (pre-registered, against the spread): no bet" in card
     assert "0.1 pts; the rule needs 1" in card
-    # an alternate-line price is no main-line bet: no H5/H6 line at all
+    # an alternate-line price is no main-line bet: no H5/H5·E line at all
     card = build_site.game_card(_ats_pending(gp=3, home_odds=320))
-    assert "H6" not in card
+    assert "H5·E" not in card
     # no first snapshot yet: nothing to show
     r = _ats_pending(gp=3)
     r[["first_snapshot_utc", "first_p_home", "first_spread"]] = np.nan
-    assert "H6" not in build_site.game_card(r)
+    assert "H5·E" not in build_site.game_card(r)
 
 
 def _with_pre_spread(r, p, line, home_odds=-110, away_odds=-110):
@@ -319,11 +317,11 @@ def test_every_card_with_a_probability_has_one_spread_line():
     assert "<span class='pk'>AWY +7.5</span><span class='edge'>1.9 pts vs the line" in card
     assert "Model AWY +5.6</span> · <span>Market AWY +7.5</span>" in card
     assert "shown, not graded" in card and "rule below" in card
-    assert "<b>H6</b> (pre-registered, against the spread): no bet" in card
+    assert "<b>H5·E</b> (pre-registered, against the spread): no bet" in card
     assert "Spread pick" not in card
     # the registered pick when its rule bets, and no lean line beside it
     card = build_site.game_card(_with_pre_spread(_ats_pending(gp=3), 0.75, -5.5))
-    assert "Spread pick · H6</span>" in card and "Lean · spread" not in card
+    assert "Spread pick · H5·E</span>" in card and "Lean · spread" not in card
     # game 0: no rule covers it, the card says so
     r = _with_pre_spread(_ats_pending(gp=3), 0.675, -7.5)
     r["gp_away"] = 0
@@ -384,7 +382,7 @@ def test_results_and_performance_show_the_native_lean_record(tmp_path, monkeypat
     res = (tmp_path / "results.html").read_text()
     assert "<h1 class='gr-h1'>Results</h1>" in res and units in res
     assert "Game by game" in res and "<span class='badge w'>W</span>" in res
-    assert "Spread picks" in res and "No graded bets yet" in res     # no H5/H6 rows
+    assert "Spread picks" in res and "No graded bets yet" in res     # no H5/H5·E rows
     perf = (tmp_path / "performance.html").read_text()
     assert "<div class='uchart'>" in perf and f"<span class='v'>{units}</span>" in perf
     for t in ("Model vs simple baselines", "Market favourite", "Home side", "By week"):
@@ -431,13 +429,13 @@ def test_public_pages_never_show_the_rebuilt_seasons(tmp_path, monkeypatch):
 
 def test_a_graded_h6_bet_reaches_the_spread_tile_and_results(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    r = _ats_pending(gp=3)                       # H6: HOM -5.5 at -110
+    r = _ats_pending(gp=3)                       # H5·E: HOM -5.5 at -110
     r["home_pts"], r["away_pts"], r["home_won"] = 110, 100, 1       # covers by 4.5
     build_site.write_pages(pd.DataFrame([r]), synth(50, 55, "reconstructed"),
                            "2026-11-20", model_ok=True)
     res = (tmp_path / "results.html").read_text()
-    assert "Spread · H6 · games 1–9" in res and "<div class='v '>1–0</div>" in res
-    assert "H6 HOM -5.5 <span class='badge w'>W</span> +0.91u" in res
+    assert "Spread · H5·E · games 1–9" in res and "<div class='v '>1–0</div>" in res
+    assert "H5·E HOM -5.5 <span class='badge w'>W</span> +0.91u" in res
 
 
 # ------------------------------------------- prices on cards, spread charts
@@ -461,12 +459,12 @@ def test_card_rows_show_each_sides_moneyline_and_spread():
 
 def test_performance_charts_each_spread_rule(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    r = _ats_pending(gp=3)                       # H6 bet that covers: +0.91u
+    r = _ats_pending(gp=3)                       # H5·E bet that covers: +0.91u
     r["home_pts"], r["away_pts"], r["home_won"] = 110, 100, 1
     build_site.write_pages(pd.DataFrame([r]), synth(50, 56, "reconstructed"),
                            "2026-11-20", model_ok=True)
     perf = (tmp_path / "performance.html").read_text()
-    assert "Running units · H6 spread · games 1–9" in perf
+    assert "Running units · H5·E spread · games 1–9" in perf
     assert "<span class='v'>+0.91u</span>" in perf
     assert "Starts with the first graded H5 bet." in perf
 

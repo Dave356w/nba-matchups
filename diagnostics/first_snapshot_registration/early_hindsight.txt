@@ -1,0 +1,7 @@
+EARLY SEGMENTS — HINDSIGHT ONLY, NEVER FORWARD EVIDENCE
+Source: 276 ESPN BET early games; primary v9 P.
+Frozen thresholds. Injury-timing caveat applies. Games 10+ never pooled.
+Intervals below are ± 1 SE, as on the Ledger; not 95% intervals.
+H4·E @ open       n=46    27-19       +32.81u  ROI  +71.3% +/- 28.2  (null -4.1%, z +2.7)  win 58.7% vs q 36.6%  | fav -19.1%
+H2·F·E @ open       n=83    57-26        +0.61u  ROI   +0.7% +/-  7.8  (null -4.0%, z +0.6)  win 68.7% vs q 65.1%  | fav +0.7%
+H5·E @ open       n=188   107-81      +15.81u  ROI   +8.4% +/-  6.9  (null -4.5%, z +1.9)  win 56.9% vs q 50.2%  | fav -7.0%

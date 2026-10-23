@@ -33,7 +33,7 @@ def rows(**kw):
 
 def test_rules_group_first_snapshot_twins():
     labels = [label for label, _ in dh.rules()]
-    assert labels == ["H1", "H2 / H2·F", "H3 / H4", "H5", "H6"]
+    assert labels == ["H4", "H2·F", "H5", "H4·E", "H2·F·E", "H5·E"]
 
 
 def test_open_bet_repriced_at_the_close_moneyline():
@@ -69,6 +69,6 @@ def test_report_never_finds_early_games_on_draftkings():
     text = dh.report(g)
     s1 = text[text.index("== 1."):text.index("== 2.")]
     assert "games 1-9: 0" in text
-    h1 = s1[s1.index("H1"):s1.index("H2 / H2·F")]
-    assert h1.count("no bets") == 2
+    early = s1[s1.index("H4·E"):]
+    assert early.count("no bets") == 6
     assert "ESPN BET 2024-25" in text[text.index("== 6."):]
