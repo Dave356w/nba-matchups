@@ -302,12 +302,9 @@ def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path
                                         if k not in ("key", "native", "retired")} == \
         {k: v for k, v in h2.items() if k not in ("key", "native", "retired")}
     assert [h["native"] for h in (h1, h2, h3)] == ["pre"] * 3
-    d1 = analysis.hypothesis_picks(g, h1, "pre")
-    assert d1["early"].all() and (d1["edge"] >= 0.08).all()
-    d2 = analysis.hypothesis_picks(g, h2, "pre")
-    assert (~d2["early"]).all() and (d2["q"] > 0.5).all() and (d2["edge"] > 0).all()
-    d3 = analysis.hypothesis_picks(g, h3, "pre")
-    assert (d3["edge"] >= 0.12).all()
+    assert all(h["retired"] for h in (h1, h2, h3, h6))
+    assert all(analysis.hypothesis_picks(g, h, h["native"]).empty
+               for h in (h1, h2, h3, h6))
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(df, synth(200, 15, "reconstructed"), "2026-11-19",
                            model_ok=True)
@@ -384,7 +381,7 @@ def test_h4_graded_at_the_first_snapshot_on_the_page(tmp_path, monkeypatch):
     df = with_first(df, p_shift=0.15)               # early P disagrees more
     g = ledger.graded(df)
     h3, h4 = analysis.HYPOTHESES[2], analysis.HYPOTHESES[3]
-    d3 = analysis.hypothesis_picks(g, h3, "pre")
+    d3 = analysis.hypothesis_picks(g, h4, "pre")
     d4 = analysis.hypothesis_picks(g, h4, "first")
     assert len(d4) > len(d3)                        # different P, different bets
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
@@ -424,7 +421,7 @@ def test_h5_is_frozen_ats_at_the_first_snapshot():
 
 
 def test_h6_is_h5s_rule_on_games_1_to_9():
-    h5, h6 = _hyp("H5"), _hyp("H6")
+    h5, h6 = _hyp("H5"), _hyp("H5·E")
     assert h6["early"] is True and h5["early"] is False
     same = ("market", "favourite", "min_edge", "sigma", "hindsight", "native")
     assert {k: h6[k] for k in same} == {k: h5[k] for k in same}

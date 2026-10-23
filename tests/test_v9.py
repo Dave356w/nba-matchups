@@ -53,10 +53,10 @@ def test_v9_rows_record_the_margin_their_p_comes_from(weights):
                                avail_model=MAVAIL, avail={"av_min": -0.4, "av_bpm": -1.0},
                                carry=CARRY, fallback=V4)
     assert av["model_tag"] == build_site.MODEL_TAG_V9_AVAIL and np.isfinite(av["margin_home"])
-    # the logit fallbacks give no margin and keep their tags
+    # Missing talent is neutral-filled in the same v9 margin model.
     fb = build_site.score_game(cur, "A", "B", "2027-02-01", weights, MBASE, prior_logs=prior,
                                talent=None, carry=CARRY, fallback=V4)
-    assert fb["model_tag"] == build_site.MODEL_TAG_V4 and np.isnan(fb["margin_home"])
+    assert fb["model_tag"] == build_site.MODEL_TAG_V9_NEUTRAL and np.isfinite(fb["margin_home"])
     # v8 logits give no margin either
     assert np.isnan(score(cur, prior, "2027-02-01", weights)["margin_home"])
 

@@ -64,7 +64,7 @@ def test_every_shipped_model_feature_is_built_by_logit_inputs():
     assert set(nc.V5_FEATURES) - set(vals) == {"luck_def", "talent_diff"}
     assert set(nc.V6_FEATURES) - set(vals) == {"luck_def", "talent_diff", "ft_diff"}
     # v8 retired logit_early.json; the carryover and v4 logits are frozen
-    for name in ("logit.json", "logit_avail.json", "logit_early_v6.json", "logit_v4.json"):
+    for name in ("logit.json", "logit_avail.json"):
         missing = set(_real(name)["features"]) - set(vals) - avail
         assert not missing, (name, missing)
     assert vals["b2b_net"] == -1 and vals["phase"] == 81 / nc.SEASON_DAYS
@@ -79,17 +79,11 @@ def test_cli_scorer_matches_site_scorer_on_the_checked_in_model():
     date = logs["A"]["date"].iloc[45]
     cli = nc.score_slate(2027, date, logs=logs, schedule=[("A", "B"), ("C", "A")],
                          weights=weights, model=model)
-    # No box scores here: a v5 model scores with the frozen v4 logit in both
-    # (the CLI always, the site through its fallback), tagged v4.
-    v4 = _real(build_site.FALLBACK_FILE)
-    site = build_site.score_game(logs, "A", "B", date, weights, model, fallback=v4)
+    site = build_site.score_game(logs, "A", "B", date, weights, model)
     assert abs(cli["p_home"].iloc[0] - site["p_home"]) < 1e-5
     assert abs(cli["delta"].iloc[0] - site["delta"]) < 1e-3
-    assert site["model_tag"] == build_site.MODEL_TAG_V4
-    assert np.isnan(cli["p_home"].iloc[1])            # game < 10: abstains
-    # phase counts from opening night: late-season p differs from phase 0
-    no_phase = nc.predict(v4, [[site["delta"], 0, 0.0]])[0]
-    assert abs(site["p_home"] - no_phase) > 1e-4
+    assert site["model_tag"] == build_site.MODEL_TAG_V9_NEUTRAL
+    assert np.isfinite(cli["p_home"].iloc[1])
 
 
 def test_route_names_the_formula_without_changing_it():

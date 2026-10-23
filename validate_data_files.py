@@ -58,6 +58,7 @@ def check(path):
             priced = pd.to_numeric(df[q], errors="coerce").notna()
             if not df.loc[priced, col].isin(books).all():
                 errs.append(f"{path}: {col} missing or unknown on a priced row")
+    # Retired price columns and the preseason CSV remain validated as history.
     if "kalshi_close_q_home" in df.columns:
         kq = pd.to_numeric(df["kalshi_close_q_home"], errors="coerce")
         if (kq.notna() & ~kq.between(0, 1, inclusive="neither")).any():
@@ -102,6 +103,8 @@ def check(path):
     p = pd.to_numeric(df["p_home"], errors="coerce").dropna()
     if not p.between(0, 1).all():
         errs.append(f"{path}: p_home outside [0,1]")
+    # Blank carryover columns are valid for the primary-only scorer; existing
+    # historical values retain the original probability and stage checks.
     for c in ledger.CARRY_COLUMNS + ledger.FIRST_CARRY_COLUMNS:
         if c in df.columns:
             cp = pd.to_numeric(df[c], errors="coerce")

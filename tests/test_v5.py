@@ -6,7 +6,7 @@ import pandas as pd
 
 import backfill_history as bf
 import build_site
-import cold_start
+from research import legacy_cold_start as cold_start
 import nba_composite as nc
 import player_availability as pav
 from test_team_quality import WEIGHTS, league
@@ -142,20 +142,8 @@ def test_live_availability_keeps_talent_when_the_report_fails(monkeypatch):
     assert live.talent("T0", "2026-11-05") > 0
 
 
-def test_cli_scorer_uses_v4_for_a_v5_model(monkeypatch):
-    logs = league(seed=5, rounds=24)
-    date = sorted({x for lg in logs.values() for x in lg["date"]})[-2]
-    monkeypatch.setattr(nc, "load_json", lambda name: v4_model())
-    df = nc.score_slate(2027, date, logs=logs, schedule=[("T0", "T1")],
-                        weights=WEIGHTS, model=v5_model())
-    site = build_site.score_game(logs, "T0", "T1", date, WEIGHTS, v4_model())
-    assert abs(df["p_home"].iloc[0] - site["p_home"]) < 1e-5
 
 
-def test_frozen_v4_fallback_file_is_the_v4_base_logit():
-    root = os.path.dirname(nc.__file__)
-    m = json.load(open(os.path.join(root, "model", build_site.FALLBACK_FILE)))
-    assert m["features"] == nc.PHASE_FEATURES and len(m["coef"]) == 3
 
 
 def fake_v5_games(y, n=200, seed=0, talent=True):

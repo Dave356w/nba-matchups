@@ -64,48 +64,9 @@ def with_close(g):
     return h
 
 
-# The bases market_view prices by Kalshi: none. Live (native) and rebuilt
-# games are graded at their sportsbook, DraftKings (owner's decisions,
-# 2026-10-21; Kalshi was the pages' market from 2026-10-06). Kalshi's prices
-# stay in the data (kalshi_* columns; research/kalshi_benchmark.py) and on the
-# Preseason page; naming a basis here grades it by Kalshi again.
-KALSHI_BASES = ()
-
-
 def market_view(g):
-    """The ledger as the pages grade it. Rows of a basis in KALSHI_BASES
-    (none since 2026-10-21) are Kalshi-priced when graded with a Kalshi
-    close, or still pending with a Kalshi pregame price; such a row reads
-    every price from Kalshi (pre, first, open, close; book "kalshi") and
-    keeps its model columns, result and sportsbook closing spread (the ATS
-    line; `spread_book` keeps the sportsbook that priced it). Every other
-    row keeps its sportsbook prices, so a row is always priced by one
-    market. The pre-registered HYPOTHESES read the raw rows: they were
-    registered on sportsbook prices."""
-    if g is None or not len(g) or "kalshi_close_q_home" not in g.columns:
-        return g
-    num = lambda c: pd.to_numeric(g[c], errors="coerce")
-    won = num("home_won").isin([0, 1])
-    k = (won & num("kalshi_close_q_home").between(0, 1, inclusive="neither")) | (
-        ~won & num("kalshi_pre_q_home").between(0, 1, inclusive="neither"))
-    k &= g["basis"].astype(str).isin(KALSHI_BASES)
-    if not k.any():
-        return g
-    v = g.copy()
-    for c in ("pre_book", "close_book", "first_book"):
-        v[c] = v[c].astype(object)
-    v["spread_book"] = v["close_book"]
-    for kind in ("pre", "first", "close", "open"):
-        rows = k & won if kind in ("close", "open") else k   # closes: graded only
-        cols = ([f"{kind}_home_ml", f"{kind}_away_ml"]
-                + ([f"{kind}_q_home"] if kind != "open" else []))
-        for c in cols:
-            v.loc[rows, c] = num(f"kalshi_{c}")[rows]
-    has_first = k & v["first_snapshot_utc"].notna()
-    v.loc[k, "pre_book"] = "kalshi"
-    v.loc[k & won, "close_book"] = "kalshi"
-    v.loc[has_first, "first_book"] = "kalshi"
-    return v
+    """Production keeps the sportsbook prices recorded on each row."""
+    return g
 
 
 # Books the pages and the report leave out (owner's decisions, 2026-10-21):
@@ -627,30 +588,14 @@ PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
                "close": "close"}
 
 
-def carry_view(g):
-    """Rows with the carryover model's P in place of p_home / first_p_home
-    wherever it was recorded (carry_p_home, first_carry_p_home; games 1-9 from
-    model v7 on). H1 and H6 were registered on the carryover model and stay
-    on it (owner's decision 2026-10-22); rows written before v7 have no carry
-    column filled and their P already is the carryover model's."""
-    if g is None or not len(g):
-        return g
-    g = g.copy()
-    for col, carry in (("p_home", "carry_p_home"), ("first_p_home", "first_carry_p_home")):
-        if carry in g.columns and col in g.columns:
-            c = pd.to_numeric(g[carry], errors="coerce")
-            g[col] = c.where(c.notna(), pd.to_numeric(g[col], errors="coerce"))
-    return g
-
-
 def hypothesis_picks(g, hyp, price):
     """The value-side bets one pre-registered rule makes, graded at `price`.
     The edge and "favourite" (q > 0.5) are read at that same price. An ATS
     rule (market "ats") bets the model's side against that price's spread,
-    its edge in points (ats_side_picks). The games 1-9 rules (H1, H6) read
-    the carryover model's P (carry_view)."""
-    if hyp.get("carry"):
-        g = carry_view(g)
+    its edge in points (ats_side_picks). Retired rules return no live grades;
+    their original figures and bets are read from the immutable archive."""
+    if hyp.get("retired"):
+        return pd.DataFrame()
     if hyp.get("market") == "ats":
         p = ats_side_picks(g, price, hyp["sigma"])
         if not len(p):

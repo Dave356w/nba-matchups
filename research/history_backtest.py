@@ -65,7 +65,7 @@ import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "diagnostics", "v5_audit"))
-import cold_start                                 # noqa: E402
+from research import legacy_cold_start as cold_start                                 # noqa: E402
 import common as c                                # noqa: E402
 import nba_composite as nc                        # noqa: E402
 import player_availability as pav                 # noqa: E402
@@ -391,7 +391,7 @@ def frozen_core():
     """The committed composite weights and v4 logit."""
     with open(os.path.join(ROOT, "model", "weights.json")) as fh:
         w = json.load(fh)
-    with open(os.path.join(ROOT, "model", "logit_v4.json")) as fh:
+    with open(os.path.join(ROOT, "research", "legacy_models", "logit_v4.json")) as fh:
         lg = json.load(fh)
     return w, lg
 

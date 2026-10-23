@@ -3,7 +3,7 @@ import pandas as pd
 
 import backfill_history as bf
 import build_site
-import cold_start
+from research import legacy_cold_start as cold_start
 import ledger
 import nba_composite as nc
 

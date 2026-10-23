@@ -60,7 +60,7 @@ sys.path.insert(0, os.path.join(ROOT, "research"))
 sys.path.insert(0, os.path.join(ROOT, "diagnostics", "v5_audit"))
 import analysis                                   # noqa: E402
 import backfill_history as bf                     # noqa: E402
-import cold_start                                 # noqa: E402
+from research import legacy_cold_start as cold_start                                 # noqa: E402
 import common as c                                # noqa: E402
 import ledger                                     # noqa: E402
 import nba_composite as nc                        # noqa: E402

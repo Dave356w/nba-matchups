@@ -7,7 +7,7 @@ comes from `analysis` -- the same functions the pages call -- so the report
 and the pages agree on the same rows.
 
 Bases are never pooled: native (pregame-locked, forward), the pre-registered
-hypotheses, reconstructed (hindsight) and preseason (Kalshi, exhibitions)
+hypotheses and reconstructed rows (hindsight)
 each get their own block, split by closing book and season.
 """
 from __future__ import annotations
@@ -209,24 +209,6 @@ def reconstructed_block(recon):
     return lines
 
 
-def preseason_block(pre):
-    n = 0 if pre is None else len(pre)
-    lines = [f"== PRESEASON (exhibitions, Kalshi prices; not regular-season "
-             f"skill): {n} rows"]
-    secs = _sections(pre) if n else []
-    if not secs:
-        return lines + ["  No graded preseason rows with a close."]
-    for book, season, h in secs:
-        lines.append(f"-- {market.BOOK_NAMES.get(book, book)} close, "
-                     f"{_season(season)}: {len(h)} graded")
-        for price in ("pre", "close"):
-            block = _summary_block(h, price)
-            if block:
-                lines.append(f"  at the {analysis.PRICE_NAMES[price]}:")
-                lines += block
-    return lines
-
-
 def as_of(*frames):
     """The newest snapshot time and graded slate in the ledgers. The report is
     stamped from its data, not the clock, so an hourly build that changes no
@@ -242,13 +224,12 @@ def as_of(*frames):
 
 
 def report_text(native, recon, pre=None, tags=()):
-    snap, slate = as_of(native, pre)
+    snap, slate = as_of(native)
     lines = [f"NBA ledger report -- latest pregame snapshot {snap}; latest graded "
-             f"slate {slate} (native and preseason rows)",
+             f"slate {slate} (native rows)",
              "Model tags: " + (" / ".join(tags) if tags else "(none loaded)"),
              "Sources: data/nba_ledger.csv (native, pregame-locked); "
-             "data/nba_reconstructed.csv (reconstructed, hindsight); "
-             "data/nba_preseason.csv (exhibitions, Kalshi).",
+             "data/nba_reconstructed.csv (reconstructed, hindsight).",
              "Headline: flat 1u on the LEAN (model's side), at the price named. "
              "Value-side bets are graded only as the pre-registered hypotheses "
              "(the blanket value bet was retired 2026-10-06).",
@@ -258,9 +239,8 @@ def report_text(native, recon, pre=None, tags=()):
              "of the same games at the same price (same-row baseline).",
              "Bases, books and seasons are never pooled. Price bands are "
              "descriptive, not filters.",
-             "Market: DraftKings, native and reconstructed rows alike (Kalshi's "
-             "prices stay in the data; the preseason block is Kalshi, the only "
-             "market for exhibitions). The hypotheses stay on the sportsbook "
+             "Market: DraftKings, native and reconstructed rows alike. Historical "
+             "Kalshi columns remain without new writes. The hypotheses stay on the sportsbook "
              "prices they were registered on.",
              "Nothing priced by ESPN BET (no longer offered) is shown, as on the "
              "pages: all of 2024-25 and 2025-26 before 25 Nov are left out; their "
@@ -268,12 +248,11 @@ def report_text(native, recon, pre=None, tags=()):
              ""]
     nv, rv = analysis.market_view(native), analysis.market_view(recon)
     for block in (native_block(nv), hypotheses_block(native, recon),
-                  reconstructed_block(rv), preseason_block(pre)):
+                  reconstructed_block(rv)):
         lines += block + [""]
     return "\n".join(lines)
 
 
 if __name__ == "__main__":
     print(report_text(ledger.load(ledger.NATIVE_PATH),
-                      ledger.load(ledger.RECON_PATH),
-                      ledger.load(ledger.PRESEASON_PATH)))
+                      ledger.load(ledger.RECON_PATH)))
