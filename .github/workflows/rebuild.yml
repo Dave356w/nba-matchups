@@ -1,0 +1,93 @@
+name: Rebuild season
+
+# Daily: rebuild the season in progress after the fact with the current model
+# (backfill_history.py --rebuild; owner's request 2026-10-23), so the
+# "This season, rebuilt after the fact" sections on Results and Performance
+# take in each night's graded games. Every fit uses earlier seasons only;
+# features use games before each date and the archived pregame injury report;
+# prices are the DraftKings close. Writes only data/nba_rebuilt.csv (replaced
+# whole), hindsight, never pooled with the native record. Runs after the
+# overnight games are graded (13:17 UTC = 9:17 ET); skips a season with no
+# graded native game yet (the offseason).
+
+on:
+  schedule:
+    - cron: '17 13 * * *'
+  workflow_dispatch:
+
+# Its own queue, like Fit model and Backfill history; different file from
+# the hourly build, and the push below retries like the build's.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Season in progress
+        id: season
+        run: |
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import pandas as pd
+          import build_site, ledger
+          y = build_site.season_for(build_site.et_today())
+          led = ledger.graded(ledger.load(ledger.NATIVE_PATH))
+          n = int((pd.to_numeric(led["season"], errors="coerce") == y).sum())
+          print(f"year={y}")
+          print(f"run={'true' if n else 'false'}")
+          EOF
+          cat "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        if: steps.season.outputs.run == 'true'
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        if: steps.season.outputs.run == 'true'
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        if: steps.season.outputs.run == 'true'
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages skipped; the season in progress refetched)
+        if: steps.season.outputs.run == 'true'
+        run: |
+          python nba_composite.py download --years 2015-2026
+          python nba_composite.py download --years ${{ steps.season.outputs.year }} --refresh
+      - name: Rebuild
+        if: steps.season.outputs.run == 'true'
+        run: python backfill_history.py --seasons ${{ steps.season.outputs.year }} --rebuild
+      - if: steps.season.outputs.run == 'true'
+        run: python validate_data_files.py
+      - name: Commit
+        if: steps.season.outputs.run == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/nba_rebuilt.csv
+          git diff --cached --quiet && exit 0
+          git commit -m "rebuilt season ${{ steps.season.outputs.year }} $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "::error::rebuilt season push failed"; exit 1
