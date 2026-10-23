@@ -448,6 +448,42 @@ Before a PR, run:
   below `BAND_MIN_N` = 10 bets). The earlier band hypothesis (DraftKings leans at
   −249 to −130) did not survive v4: −1.8% at the close, −3.2% at the open,
   both at the ROI null (2025-26); it is retired.
+- **First-snapshot amendment (owner's plan, registered 2026-10-23T19:46:58Z).**
+  Registered before CHI @ MIL (2026-10-23) is final: the fetched native
+  ledger at `b4fcb67` has no result for game 401909848 (tip 20:00Z).
+  This registration is committed on its own before implementation or
+  computing the new segments' hindsight figures.
+  - Keep exactly three forward tests, each at the frozen **first snapshot**:
+    **H5** (spread), **H2·F** (moneyline value favourite), **H4** (moneyline
+    value side with P − no-vig q ≥ 0.12). H5 keeps sigma 13.5 × Φ⁻¹(P),
+    edge ≥ 1 point and both main-line prices −135..+115. No thresholds,
+    price filters or games-10+ membership change.
+  - Extend each to games **1+** by adding its own **games 1–9 segment**,
+    using the primary model P (v9), never the carryover model P. Games
+    10+ keep their existing registered rows. Show games 1–9 and games
+    10+ separately, never pooled, until at least one season of each exists
+    (any later pooling requires an explicit amendment). Game 0 remains
+    outside all hypotheses. Existing first snapshots stay immutable,
+    including their recorded model tags and probabilities.
+  - Retire **H1**, **H6**, and **H2/H3 at the late pregame price** as of
+    this timestamp. Keep all four on the Ledger under **Retired**, with
+    their registered hindsight figures and their native bets to date;
+    none has a graded native bet at registration. Do not admit later
+    snapshots or grade these bets into any active forward record.
+    H1/H6 retain their historical carryover P for archival reproduction.
+  - The early segments replace H1/H6. Compute their hindsight on the
+    **276 ESPN BET early games** using v9 rows, for information only;
+    label this hindsight explicitly, apart from DraftKings and the native
+    forward test. No threshold selection or new forward evidence.
+  - Early v9 uses injury-report inputs: these new segments inherit the
+    injury-timing caveat of H2–H5. The first snapshot is later than the
+    open and is not an exact replica of the opening-price backtest.
+  - Ledger scoreboard, report, Results/Performance spread tiles and Picks
+    badges use these same active rules and separate stage rows. Test
+    membership by stage, retirement retention/exclusion, and frozen
+    thresholds. Run data validation and the full suite; capture page
+    screenshots. This amendment supersedes conflicting active-rule
+    descriptions below; the original registrations remain as history.
 - **Pre-registered forward hypotheses** (fixed 2026-09-30, before any native
   rows; thresholds may not be tuned on native data). Hindsight scan of 271
   context × band × season cells: 3 passed a naive 95% test, about the 7
