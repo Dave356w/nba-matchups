@@ -49,3 +49,32 @@ def test_retirement_is_frozen_and_cannot_enter_active_grades():
     g["first_carry_p_home"] = 0.01
     analysis.hypothesis_rows(g.assign(home_won=0), g)
     assert analysis.retired_registration() == original
+
+
+def test_early_segments_require_the_model_at_the_graded_snapshot():
+    tags = [build_site.MODEL_TAG_V8_AVAIL, build_site.MODEL_TAG_V9,
+            build_site.MODEL_TAG_V9_AVAIL, build_site.MODEL_TAG_V9_NEUTRAL,
+            build_site.MODEL_TAG_V9_NEUTRAL_AVAIL, None]
+    g = _ats_rows(6).assign(gp_home=3, gp_away=3, first_p_home=0.8,
+                            p_home=0.8, first_model_tag=tags,
+                            model_tag=build_site.MODEL_TAG_V9,
+                            first_home_ml=-150, first_away_ml=130,
+                            first_q_home=0.6, pre_home_ml=-150,
+                            pre_away_ml=130, pre_q_home=0.6, pre_spread=-5.5,
+                            pre_home_spread_odds=-110, pre_away_spread_odds=-110)
+    accepted = set(g.game_id.iloc[1:5])
+    for hyp in analysis.active_hypotheses():
+        if hyp["early"]:
+            assert set(analysis.hypothesis_picks(g, hyp, "first").game_id) == accepted
+            # Reconstructed hindsight uses its own model tag, not a native lock.
+            assert set(analysis.hypothesis_picks(g, hyp, "pre").game_id) == set(g.game_id)
+        else:
+            # Existing games-10+ membership stays exactly as registered.
+            late = g.assign(gp_home=30, gp_away=30)
+            assert set(analysis.hypothesis_picks(late, hyp, "first").game_id) == set(g.game_id)
+    assert analysis.ats_card(g.iloc[0]) is None
+    assert analysis.ats_card(g.iloc[5]) is None
+    assert all(analysis.ats_card(g.iloc[i])["hyp"]["key"] == "H5·E"
+               for i in range(1, 5))
+    card = build_site.game_card(g.iloc[0])
+    assert "Spread pick · H5·E" not in card

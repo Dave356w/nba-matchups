@@ -201,6 +201,7 @@ def test_game_zero_rows_enter_no_hypothesis_and_get_their_own_fold():
     from test_analysis_and_pages import synth
     from test_report_and_ui import _ats_pending
     df = synth(300, 11, basis="reconstructed")
+    df["model_tag"] = build_site.MODEL_TAG_V9
     df["p_home"] = df["close_q_home"] + 0.15                 # value side home, edge 0.15
     df["gp_home"] = [0] * 100 + [5] * 100 + [30] * 100
     df["gp_away"] = [4] * 100 + [5] * 100 + [30] * 100

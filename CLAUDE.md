@@ -25,7 +25,10 @@ There are three active first-snapshot tests, each with two separate rows:
 The games-10+ registrations are unchanged. Games 1–9 and 10+ are never
 pooled, at least until a season of each exists; any pooling needs an explicit
 amendment. Game 0 is in no rule. First prices, probabilities and tags are
-immutable, including any recorded before the v9 rollout. Early v9 uses
+immutable, including any recorded before the v9 rollout. Early rows use
+only snapshots tagged v9: native rules read `first_model_tag`, never a
+newer pregame tag in place of the frozen model. Older snapshots remain
+history and do not enter the new early segments. Early v9 uses
 injury reports, so every early segment has the injury-timing caveat. The
 first snapshot is later than the open, not an exact opening-price replica.
 

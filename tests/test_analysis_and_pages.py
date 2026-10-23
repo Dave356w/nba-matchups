@@ -397,6 +397,7 @@ def test_h4_graded_at_the_first_snapshot_on_the_page(tmp_path, monkeypatch):
 def _ats_rows(n=6):
     """Graded games 10+ with a first-snapshot and an opening spread."""
     d = synth(n, 21)
+    d["model_tag"] = d["first_model_tag"] = build_site.MODEL_TAG_V9
     d[["gp_home", "gp_away"]] = 30
     d["home_pts"], d["away_pts"] = 110, 100            # home wins by 10
     d["home_won"] = 1
