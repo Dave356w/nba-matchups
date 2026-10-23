@@ -573,3 +573,48 @@ def test_market_view_waits_for_a_graded_close(tmp_path, monkeypatch):
     perf = (tmp_path / "performance.html").read_text()
     assert "Starts with the first graded game with a DraftKings close." in perf
     assert "Favourites straight up" not in perf     # never the rebuilt rows
+
+
+def _with_spreads(d, seed):
+    rng = np.random.default_rng(seed)
+    d = d.copy()
+    d["close_spread"] = rng.choice([-9.5, -6.5, -3.5, -1.5, 2.5, 4.5, 7.5, 10.5], len(d))
+    d["close_home_spread_odds"] = d["close_away_spread_odds"] = -110
+    d["spread_book"] = d["close_book"]
+    d["pre_spread"] = d["close_spread"]
+    d["pre_home_spread_odds"] = d["pre_away_spread_odds"] = -110
+    d["home_pts"] = 100 + rng.integers(-15, 16, len(d))
+    d["away_pts"] = 100
+    d["home_won"] = (d["home_pts"] > d["away_pts"]).astype(int)
+    return d[d["home_pts"] != d["away_pts"]].reset_index(drop=True)
+
+
+def test_card_bands_count_live_and_rebuilt_apart():
+    native = ledger.graded(_with_spreads(synth(80, 3, "native"), 1))
+    recon = ledger.graded(_with_spreads(synth(400, 4, "reconstructed"), 2))
+    b = analysis.card_bands(native, recon)
+    for kind in ("ml", "ats"):
+        part = b[kind]
+        assert part["n_market_games"] == (len(native), len(recon))
+        live = sum(r["live"]["n"] for r in part["bands"] if r["live"])
+        rebuilt = sum(r["rebuilt"]["n"] for r in part["bands"] if r["rebuilt"])
+        ml = kind == "ml"
+        want = (lambda g, px: len(analysis.picks(g, px).query("rule == 'lean'")) if ml
+                else len(analysis.ats_side_picks(g, px)))
+        assert live == want(native, "pre") and rebuilt == want(recon, "close")   # never pooled
+        assert sum(r["market"]["n"] for r in part["bands"] if r["market"]) \
+            <= 2 * (len(native) + len(recon))                          # both sides, clipped
+        assert analysis.card_band(part, part["key_max"] + 1) is None    # outside the range
+        assert analysis.card_band(part, part["key_min"]) is not None
+
+
+def test_opened_card_shows_both_band_panels():
+    recon = ledger.graded(_with_spreads(synth(400, 4, "reconstructed"), 2))
+    bands = analysis.card_bands(ledger.graded(ledger.empty()), recon)
+    r = _with_pre_spread(_ats_pending(gp=3, first_p=0.66), 0.66, -7.5)
+    card = build_site.game_card(r, bands=bands)
+    assert "Moneyline · historical price band" in card
+    assert "Spread · historical line band" in card
+    assert card.count("<small>Model · live</small><strong>—</strong>") == 2  # no live picks yet
+    assert "hindsight" in card and "never pooled" in card
+    assert "historical" not in build_site.game_card(r)                    # no history: no panel

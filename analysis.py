@@ -1281,3 +1281,140 @@ def market_by_side(m):
             out.append((label, _su_row(x),
                         _ats_row(x) if x["has_spread"].any() else None))
     return out
+
+
+# --------------------------------------------- per-card historical bands
+# The Picks card's "historical band" panels (owner's request, 2026-10-23,
+# after the XwOBA site's market cards): where the card's price or line sits
+# among the model's past picks, and how those picks and the market did
+# there. Descriptive only, never a forecast for the game or a filter.
+CARD_BANDS = 8
+
+
+def _equal_bands(x, bands=CARD_BANDS):
+    """Inner edges of `bands` equal-count bands over x; ties stay in one band,
+    so heavy ties (half-point lines) can leave fewer bands."""
+    x = np.asarray(x, float)
+    x = x[np.isfinite(x)]
+    if len(x) < bands * 4:
+        return None
+    return np.unique(np.quantile(x, np.linspace(0, 1, bands + 1)[1:-1]))
+
+
+def _band_rec(key, won, q, take):
+    """Record of one set of picks in one band: n, W-L(-P), realised and implied."""
+    n = int(take.sum())
+    if not n:
+        return None
+    r = won[take]
+    w, lo = int((r == 1).sum()), int((r == 0).sum())
+    decided = w + lo
+    return dict(n=n, w=w, l=lo, p=n - decided,
+                actual=w / decided if decided else float("nan"),
+                implied=float(np.nanmean(q[take])))
+
+
+def _market_sides(g, kind):
+    """Both sides of every graded game at its DraftKings close: (key, won, q),
+    the key being the price's break-even probability (moneyline) or the
+    side's line (spread; result 1 / 0 / 0.5 push)."""
+    num = lambda c: pd.to_numeric(g[c], errors="coerce").to_numpy(float)  # noqa: E731
+    if kind == "ml":
+        hml, aml, y = num("close_home_ml"), num("close_away_ml"), num("home_won")
+        q = num("close_q_home") if "close_q_home" in g else np.array(
+            [market.devig(h, a) for h, a in zip(hml, aml)])
+        key = np.r_[market.breakeven_prob(hml), market.breakeven_prob(aml)]
+        return key, np.r_[y, 1 - y], np.r_[q, 1 - q]
+    if "close_spread" not in g:
+        return np.array([]), np.array([]), np.array([])
+    line, hso, aso = num("close_spread"), num("close_home_spread_odds"), num("close_away_spread_odds")
+    if "spread_book" in g:
+        same = (g["spread_book"].astype(str) == g["close_book"].astype(str)).to_numpy()
+        line = np.where(same, line, np.nan)
+    margin = num("home_pts") - num("away_pts")
+    cover = np.array([market.ats_result(m, s) for m, s in zip(margin, line)])
+    q = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
+    return np.r_[line, -line], np.r_[cover, 1 - cover], np.r_[q, 1 - q]
+
+
+def _model_sides(g, kind, price):
+    """The model's picks graded at `price`: (key, won, q, price shown). The
+    moneyline lean (picks) or the spread lean (ats_side_picks)."""
+    if g is None or not len(g):
+        return (np.array([]),) * 4
+    if kind == "ml":
+        p = picks(g, price)
+        p = p[p["rule"] == "lean"] if len(p) else p
+        if not len(p):
+            return (np.array([]),) * 4
+        ml = p["ml"].to_numpy(float)
+        return market.breakeven_prob(ml), p["won"].to_numpy(float), p["q"].to_numpy(float), ml
+    p = ats_side_picks(g, price)
+    if not len(p):
+        return (np.array([]),) * 4
+    line = p["line"].to_numpy(float)
+    return line, p["result"].to_numpy(float), p["q"].to_numpy(float), line
+
+
+def card_bands(gn, gr, book=HYPOTHESIS_BOOK):
+    """{"ml": part, "ats": part} for the Picks card panels, from graded native
+    (gn) and reconstructed (gr) rows priced by `book` (DraftKings). Each part: edges (on the key), the key range,
+    and per band its printed price/line range, the market (both sides of every
+    graded game at the close, native and reconstructed games, counted
+    apart), the live record (native leans at the pregame price, as the public
+    record grades them) and the rebuilt record (reconstructed leans at the
+    close; hindsight), never pooled. None for a part without enough picks."""
+    out = {}
+    for kind in ("ml", "ats"):
+        live = _model_sides(on_book(gn, "pre", book), kind, "pre")
+        reb = _model_sides(on_book(gr, "close", book), kind, "close")
+        keys = np.r_[live[0], reb[0]]
+        edges = _equal_bands(keys)
+        if edges is None:
+            out[kind] = None
+            continue
+        shown_px = np.r_[live[3], reb[3]]
+        books = [on_book(g, "close", book) for g in (gn, gr)]
+        mk = [_market_sides(g, kind) for g in books if g is not None and len(g)]
+        mkey = np.concatenate([m[0] for m in mk]) if mk else np.array([])
+        mwon = np.concatenate([m[1] for m in mk]) if mk else np.array([])
+        mq = np.concatenate([m[2] for m in mk]) if mk else np.array([])
+        m_ok = np.isfinite(mkey) & np.isfinite(mwon) & np.isfinite(mq)
+        mkey, mwon, mq = mkey[m_ok], mwon[m_ok], mq[m_ok]
+        band = lambda k: np.searchsorted(edges, k, side="right")  # noqa: E731
+        bl, br, bk, bm = band(live[0]), band(reb[0]), band(keys), band(mkey)
+        rows = []
+        for j in range(len(edges) + 1):
+            px, kk = shown_px[bk == j], keys[bk == j]
+            if not len(px):
+                continue
+            # the market's sides are clipped to the band's own range, so the
+            # outer bands do not take in every longer price
+            inside = (bm == j) & (mkey >= kk.min()) & (mkey <= kk.max())
+            rows.append(dict(index=j, lo=float(np.min(px)), hi=float(np.max(px)),
+                             market=_band_rec(mkey, mwon, mq, inside),
+                             live=_band_rec(live[0], live[1], live[2], bl == j),
+                             rebuilt=_band_rec(reb[0], reb[1], reb[2], br == j)))
+        out[kind] = dict(edges=edges, key_min=float(np.nanmin(keys)),
+                         key_max=float(np.nanmax(keys)), bands=rows,
+                         n_market_games=tuple(int(len(g)) if g is not None else 0
+                                              for g in books),
+                         rebuilt_seasons=sorted({int(x) for x in pd.to_numeric(
+                             books[1]["season"], errors="coerce").dropna()})
+                         if books[1] is not None and len(books[1]) else [])
+    return out
+
+
+def card_band(part, key):
+    """(band row, its position, the number of bands) for one card's key (the
+    break-even probability of its price, or its line); None when the key is
+    missing or outside the picks' range."""
+    if not part or key is None or not np.isfinite(key):
+        return None
+    if key < part["key_min"] or key > part["key_max"]:
+        return None
+    j = int(np.searchsorted(part["edges"], key, side="right"))
+    for i, row in enumerate(part["bands"]):
+        if row["index"] == j:
+            return row, i, len(part["bands"])
+    return None
