@@ -27,7 +27,9 @@ owner directs the product.
   model (`backfill_history.py --seasons 2027 --rebuild`, workflow "Backfill
   history" with `rebuild`; every fit on earlier seasons only, features from
   games before each date, the archived pregame injury report), priced at the
-  close and replaced whole by each run. Hindsight, like the reconstructed
+  close and replaced whole by each run; workflow "Rebuild season" reruns it
+  daily at 13:17 UTC (skipped before the season's first graded native game).
+  Hindsight, like the reconstructed
   rows: never pooled with the native record, the reconstructed seasons, the
   hypotheses or a fit; no pregame price (validated,
   `validate_data_files.main`). The public pages show it in its own labelled
@@ -126,8 +128,8 @@ owner directs the product.
 - Keep `site-build` serialized (`cancel-in-progress: false`). The
   validate-and-commit step runs on `!cancelled()` (validation inside it), so
   a render failure never costs a pregame snapshot; the Pages upload stays
-  success-only. Fit model and
-  Backfill history each have their own queue (a pending run in `site-build`
+  success-only. Fit model,
+  Backfill history and Rebuild season each have their own queue (a pending run in `site-build`
   is cancelled by the next hourly build) and retry their push. Tests gate
   PRs and are deliberately not wired into the daily build.
 - Do not hand-commit bot-generated `data/` changes or `public/`.
@@ -604,8 +606,18 @@ Before a PR, run:
   tip, frozen; blank on logit rows); tags `..._ft_margin_v9` /
   `..._ft_margin_avail_v9`; the fallbacks unchanged. The card's spread lean
   uses `margin_home` (`analysis.spread_lean`, `ats_sides(own_margin=True)`,
-  display only); H5 / H6 keep 13.5 × Φ⁻¹(P), as registered. Activation:
-  Fit model, then Backfill history rescore and `rebuild` (below).
+  display only); H5 / H6 keep 13.5 × Φ⁻¹(P), as registered. **Active since
+  2026-10-23:** refit `42aa0ab` (base n = 11,687, σ 13.30; availability
+  n = 4,847, σ 13.64), rescore `537cb10` (2,450 rows v9, margin on every
+  row; `carry_p_home` unchanged, H1 n 115 +17.8%, H6 n 201 +3.6%), rebuilt
+  season `98e5f4c`. Re-check on the v9 rows (G10;
+  `diagnostics/model_review`, `diagnostics/dk_hypotheses`, ± 95%): model −
+  close, games 10+, +0.0170 ± 0.0107 (2025-26 DK; v8 +0.0174) / +0.0130 ±
+  0.0093 (2024-25 ESPN BET; v8 +0.0152); the DraftKings backtest vs null at
+  the open H2 +6.2 ± 7.7 (n = 324; v8 +4.5, n = 417), H3/H4 +18.2 ± 28.9
+  (n = 112; v8 +22.9), H5 +7.0 ± 7.1 (n = 696; v8 +6.6); the retired value
+  bet at the DK close −11.3% (null −4.1%; v8 −12.7%). Unresolved, as
+  before; native rows are the test.
 - More game-log seasons to settle the half-life. Travel/altitude/rest
   context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
   the market's correction and worsen 2025-26 log loss jointly; not pursued.
