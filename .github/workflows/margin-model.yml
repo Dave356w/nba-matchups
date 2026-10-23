@@ -1,0 +1,70 @@
+name: Margin model
+
+# Research only: v8's inputs and routing fitted on the final margin (OLS)
+# instead of the win, walk-forward, against v8 and the close on the same games
+# (research/margin_model.py). Writes nothing to the repo; results are the job
+# summary and an artifact. The push trigger runs it from the research branch
+# before it exists on main; caches restore from main's.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Test seasons (BBR years; 2026 = 2025-26)'
+        default: '2017-2019 2021-2026'
+  push:
+    branches: [claude/pensive-bell-0h7sge]
+    paths: [research/margin_model.py, .github/workflows/margin-model.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: margin-model-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  margin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_margin_model.py tests/test_unified.py -q
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2026
+      - name: Margin model
+        run: |
+          set -o pipefail
+          python research/margin_model.py --seasons $(python -c "import nba_composite as nc, sys; print(*nc.parse_years(sys.argv[1:]))" ${{ inputs.seasons || '2017-2019 2021-2026' }}) | tee margin_model.txt
+          { echo '```'; sed -n '/^Margin model/,$p' margin_model.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: margin-model
+          path: |
+            margin_model.txt
+            diagnostics/margin_model/
