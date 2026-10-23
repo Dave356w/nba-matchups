@@ -174,7 +174,12 @@ owner directs the product.
   A Today card shows the H5/H6 pick that covers its game
   (`analysis.ats_card`, the same `ats_sides` the Ledger grades with, at the
   first snapshot; its sportsbook named): a badge when the rule bets, the
-  "no bet" edge otherwise. An opened card lists each team's ESPN injury
+  "no bet" edge otherwise. Every card with a model P has one spread line
+  (owner's request, 2026-10-23): that registered pick when its rule bets,
+  else "Lean · spread", the model's side against the latest pregame spread
+  (`analysis.spread_lean`: `ats_sides` at `pre`, σ 13.5, main-line prices;
+  refreshed until tip), labelled shown, not graded (taken on every game at
+  the close it returns about the hold: the retired spread value side). An opened card lists each team's ESPN injury
   list as recorded (owner's request, 2026-10-22; `build_site.injury_block`:
   the game's last pregame snapshot in `data/nba_injuries.csv`, frozen at
   tip, most serious status first, its time in PT), display only: the model

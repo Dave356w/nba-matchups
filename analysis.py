@@ -1037,6 +1037,19 @@ def ats_card(row):
     return None
 
 
+def spread_lean(row, sigma=ATS_SIGMA):
+    """The model's side against one row's latest pregame spread (pre_spread,
+    its prices and p_home, as ats_sides reads them): dict(side, line,
+    model_line, ml, edge, model_p, q), or None without a main-line spread or
+    a model P. Display only, the Picks card's spread lean, refreshed with the
+    pregame row; the graded spread picks are H5 / H6 (ats_card)."""
+    s = ats_sides(pd.DataFrame([row]), "pre", sigma)
+    if not len(s):
+        return None
+    r = s.iloc[0]
+    return {k: r[k] for k in ("side", "line", "model_line", "ml", "edge", "model_p", "q")}
+
+
 def ats_summary(g, sigma=ATS_SIGMA):
     """[(rule label, [ats rows])] at the closing spread; [] without spreads."""
     p = ats_picks(g, sigma)
