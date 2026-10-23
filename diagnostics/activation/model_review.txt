@@ -1,0 +1,135 @@
+Model review -- reconstructed rows, HINDSIGHT (leave-one-season-out; 2025-26 fits use earlier seasons only)
+Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_avail_v9, fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_v9
+Each sportsbook close book x season stands alone. ± is 95%.
+
+== 1. Scores vs the close and the outcomes (log loss / Brier: negative = model better)
+  DraftKings 2025-26 · games 10+: n=964
+    log loss model 0.5872  close 0.5702  model - close +0.0170 ± 0.0107   Brier +0.0066 ± 0.0046
+    calibration slope: model 1.15 ± 0.19  close 1.06 ± 0.16
+    w (weight on the model's disagreement): at the close +0.01 ± 0.45   at the open +0.45 ± 0.42 (n=964)
+  ESPN BET 2024-25 · games 10+: n=1071
+    log loss model 0.5907  close 0.5776  model - close +0.0130 ± 0.0093   Brier +0.0054 ± 0.0040
+    calibration slope: model 1.07 ± 0.16  close 1.06 ± 0.15
+    w (weight on the model's disagreement): at the close +0.07 ± 0.41   at the open +0.54 ± 0.38 (n=1071)
+  ESPN BET 2024-25 · games 1-9: n=138
+    log loss model 0.5967  close 0.6169  model - close -0.0202 ± 0.0260   Brier -0.0096 ± 0.0115
+    calibration slope: model 1.17 ± 0.52  close 0.84 ± 0.42
+    w (weight on the model's disagreement): at the close +1.78 ± 1.43   at the open +1.77 ± 1.09 (n=138)
+  ESPN BET 2025-26 · games 10+: n=107
+    log loss model 0.5510  close 0.5551  model - close -0.0041 ± 0.0305   Brier -0.0022 ± 0.0137
+    calibration slope: model 1.40 ± 0.59  close 1.22 ± 0.53
+    w (weight on the model's disagreement): at the close +1.14 ± 1.42   at the open +1.39 ± 1.28 (n=107)
+  ESPN BET 2025-26 · games 1-9: n=138
+    log loss model 0.5764  close 0.5693  model - close +0.0071 ± 0.0270   Brier +0.0025 ± 0.0125
+    calibration slope: model 1.62 ± 0.67  close 1.25 ± 0.50
+    w (weight on the model's disagreement): at the close +0.93 ± 1.39   at the open +1.00 ± 1.18 (n=138)
+
+== 2. Where the gap to the close sits (games 10+, model - close log loss)
+  DraftKings 2025-26
+   by month:
+    Oct-Nov                        n=37    model - close -0.0055 ± 0.0576  (z -0.2)
+    Dec                            n=195   model - close -0.0134 ± 0.0232  (z -1.1)
+    Jan                            n=231   model - close +0.0194 ± 0.0172  (z +2.2)
+    Feb                            n=166   model - close +0.0362 ± 0.0211  (z +3.4)
+    Mar-Apr                        n=335   model - close +0.0259 ± 0.0216  (z +2.3)
+   by the market favourite's no-vig price:
+    fav 0.5-0.6                    n=272   model - close +0.0126 ± 0.0196  (z +1.3)
+    fav 0.6-0.7                    n=249   model - close +0.0181 ± 0.0197  (z +1.8)
+    fav 0.7-0.8                    n=217   model - close +0.0095 ± 0.0221  (z +0.8)
+    fav 0.8-0.9                    n=187   model - close +0.0235 ± 0.0295  (z +1.6)
+    fav 0.9-1.0                    n=39    model - close +0.0510 ± 0.0141  (z +7.1)
+   by |logit P - logit q| (how far the model disagrees):
+    0.00-0.1                       n=220   model - close +0.0029 ± 0.0036  (z +1.6)
+    0.10-0.25                      n=281   model - close +0.0085 ± 0.0098  (z +1.7)
+    0.25-0.5                       n=280   model - close +0.0123 ± 0.0185  (z +1.3)
+    0.50-up                        n=183   model - close +0.0540 ± 0.0458  (z +2.3)
+   by the lean vs the market favourite:
+    lean = market favourite        n=863   model - close +0.0175 ± 0.0094  (z +3.6)
+    lean = market underdog         n=101   model - close +0.0123 ± 0.0628  (z +0.4)
+  ESPN BET 2024-25
+   by month:
+    Oct-Nov                        n=138   model - close +0.0059 ± 0.0242  (z +0.5)
+    Dec                            n=189   model - close +0.0240 ± 0.0161  (z +2.9)
+    Jan                            n=225   model - close +0.0235 ± 0.0177  (z +2.6)
+    Feb                            n=176   model - close -0.0171 ± 0.0242  (z -1.4)
+    Mar-Apr                        n=343   model - close +0.0185 ± 0.0193  (z +1.9)
+   by the market favourite's no-vig price:
+    fav 0.5-0.6                    n=285   model - close +0.0135 ± 0.0177  (z +1.5)
+    fav 0.6-0.7                    n=296   model - close -0.0011 ± 0.0183  (z -0.1)
+    fav 0.7-0.8                    n=254   model - close +0.0203 ± 0.0211  (z +1.9)
+    fav 0.8-0.9                    n=203   model - close +0.0265 ± 0.0179  (z +2.9)
+    fav 0.9-1.0                    n=33    model - close -0.0032 ± 0.0366  (z -0.2)
+   by |logit P - logit q| (how far the model disagrees):
+    0.00-0.1                       n=276   model - close +0.0013 ± 0.0031  (z +0.8)
+    0.10-0.25                      n=342   model - close +0.0049 ± 0.0082  (z +1.2)
+    0.25-0.5                       n=285   model - close +0.0134 ± 0.0187  (z +1.4)
+    0.50-up                        n=168   model - close +0.0483 ± 0.0465  (z +2.0)
+   by the lean vs the market favourite:
+    lean = market favourite        n=982   model - close +0.0090 ± 0.0087  (z +2.0)
+    lean = market underdog         n=89    model - close +0.0579 ± 0.0568  (z +2.0)
+  ESPN BET 2025-26
+   by month:
+    Oct-Nov                        n=107   model - close -0.0041 ± 0.0305  (z -0.3)
+    Dec                            n=0     (too few)
+    Jan                            n=0     (too few)
+    Feb                            n=0     (too few)
+    Mar-Apr                        n=0     (too few)
+   by the market favourite's no-vig price:
+    fav 0.5-0.6                    n=37    model - close +0.0302 ± 0.0546  (z +1.1)
+    fav 0.6-0.7                    n=21    model - close -0.0556 ± 0.0657  (z -1.7)
+    fav 0.7-0.8                    n=23    model - close -0.0220 ± 0.0851  (z -0.5)
+    fav 0.8-0.9                    n=21    model - close -0.0018 ± 0.0395  (z -0.1)
+    fav 0.9-1.0                    n=5     (too few)
+   by |logit P - logit q| (how far the model disagrees):
+    0.00-0.1                       n=31    model - close +0.0119 ± 0.0076  (z +3.1)
+    0.10-0.25                      n=30    model - close +0.0037 ± 0.0280  (z +0.3)
+    0.25-0.5                       n=33    model - close -0.0296 ± 0.0537  (z -1.1)
+    0.50-up                        n=13    (too few)
+   by the lean vs the market favourite:
+    lean = market favourite        n=93    model - close -0.0023 ± 0.0304  (z -0.2)
+    lean = market underdog         n=14    (too few)
+
+== 3. Claimed vs realised disagreement, the side with model P > no-vig q (games 10+; pp of win probability)
+  at the close:
+    DraftKings 2025-26
+      claim  0- 4 pp  n=417   claimed  +2.0  realised  -3.1 ±  4.2  share -1.58
+      claim  4- 8 pp  n=292   claimed  +5.9  realised  -0.9 ±  5.1  share -0.15
+      claim  8-12 pp  n=136   claimed  +9.7  realised  +2.1 ±  7.6  share +0.21
+      claim 12-99 pp  n=119   claimed +16.6  realised  +0.4 ±  8.0  share +0.02
+      all            n=964   claimed  +6.1  realised  -1.3 ±  2.8  share -0.21 (± 0.46)
+    ESPN BET 2024-25
+      claim  0- 4 pp  n=530   claimed  +1.9  realised  -1.3 ±  3.7  share -0.69
+      claim  4- 8 pp  n=290   claimed  +5.8  realised  -3.4 ±  5.2  share -0.59
+      claim  8-12 pp  n=151   claimed  +9.7  realised  +3.9 ±  7.1  share +0.40
+      claim 12-99 pp  n=100   claimed +17.2  realised  -0.0 ±  8.9  share -0.00
+      all            n=1071  claimed  +5.5  realised  -1.0 ±  2.7  share -0.19 (± 0.49)
+    ESPN BET 2025-26
+      claim  0- 4 pp  n=53    claimed  +1.8  realised  -8.1 ± 11.1  share -4.64
+      claim  4- 8 pp  n=29    claimed  +5.9  realised  +4.5 ± 14.8  share +0.76
+      all            n=107   claimed  +5.4  realised  -0.7 ±  8.2  share -0.13 (± 1.54)
+  at the open:
+    DraftKings 2025-26
+      claim  0- 4 pp  n=431   claimed  +2.0  realised  +1.4 ±  4.2  share +0.73
+      claim  4- 8 pp  n=286   claimed  +5.8  realised  +1.8 ±  5.2  share +0.30
+      claim  8-12 pp  n=135   claimed  +9.7  realised  +3.7 ±  7.7  share +0.38
+      claim 12-99 pp  n=112   claimed +16.6  realised  +8.2 ±  8.4  share +0.49
+      all            n=964   claimed  +5.9  realised  +2.6 ±  2.8  share +0.45 (± 0.48)
+    ESPN BET 2024-25
+      claim  0- 4 pp  n=453   claimed  +2.0  realised  -0.5 ±  4.0  share -0.24
+      claim  4- 8 pp  n=332   claimed  +5.8  realised  +1.9 ±  5.0  share +0.32
+      claim  8-12 pp  n=175   claimed  +9.7  realised  +4.4 ±  6.5  share +0.45
+      claim 12-99 pp  n=111   claimed +16.4  realised  +8.3 ±  8.6  share +0.50
+      all            n=1071  claimed  +5.9  realised  +2.0 ±  2.7  share +0.33 (± 0.45)
+    ESPN BET 2025-26
+      claim  0- 4 pp  n=45    claimed  +1.8  realised  -1.5 ± 11.9  share -0.82
+      claim  4- 8 pp  n=33    claimed  +5.7  realised +12.7 ± 14.5  share +2.20
+      all            n=107   claimed  +6.0  realised  +5.4 ±  8.3  share +0.89 (± 1.37)
+
+== 4. Power: native bets each rule needs (z = 2 at 1 SE)
+  n2 = (2 x sd / effect)^2, effect = hindsight ROI - null at the registered price (DraftKings hindsight; H1/H6, which DraftKings never priced, the registered pooled ESPN BET hindsight); bets per season = the rule's hindsight bets over every book, per priced season.
+  H4         effect +18.2 pts (DraftKings, n=112)  sd/bet 1.56  bets/season    120  n for 2 SE: 293 (~2.4 seasons); at half the effect 1,171 (~9.8)
+  H2·F       effect  +6.2 pts (DraftKings, n=324)  sd/bet 0.71  bets/season    402  n for 2 SE: 530 (~1.3 seasons); at half the effect 2,120 (~5.3)
+  H5         effect  +7.0 pts (DraftKings, n=696)  sd/bet 0.95  bets/season    760  n for 2 SE: 738 (~1.0 seasons); at half the effect 2,952 (~3.9)
+  H4·E       effect +75.4 pts (pooled ESPN BET, n=46)  sd/bet 1.91  bets/season     23  n for 2 SE: 26 (~1.1 seasons); at half the effect 103 (~4.5)
+  H2·F·E     effect  +4.7 pts (pooled ESPN BET, n=83)  sd/bet 0.71  bets/season     42  n for 2 SE: 895 (~21.6 seasons); at half the effect 3,580 (~86.3)
+  H5·E       effect +12.9 pts (pooled ESPN BET, n=188)  sd/bet 0.95  bets/season     94  n for 2 SE: 215 (~2.3 seasons); at half the effect 859 (~9.1)
