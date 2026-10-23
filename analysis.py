@@ -8,6 +8,8 @@ closing book (`book_split`) at a time; nothing here pools either.
 from __future__ import annotations
 
 import os
+import json
+from pathlib import Path
 from statistics import NormalDist
 
 import numpy as np
@@ -584,6 +586,43 @@ HYPOTHESES = (
          market="ats", early=True, favourite=False, min_edge=1.0, sigma=13.5,
          hindsight="open", native="first"),
 )
+# Amendment registered independently in CLAUDE.md before implementation.
+# Keep the original keys and maths available for archival reproduction.
+REGISTRATION_UTC = "2026-10-23T19:46:58Z"
+RETIRED_KEYS = ("H1", "H2", "H3", "H6")
+HYPOTHESES = tuple(dict(h, retired=h["key"] in RETIRED_KEYS,
+                        carry=h["key"] in ("H1", "H6")) for h in HYPOTHESES)
+HYPOTHESES += tuple(dict(h, key=h["key"] + "·E", early=True,
+                         rule=h["rule"].replace("Games 10+", "Games 1–9"),
+                         registered_utc=REGISTRATION_UTC, parent=h["key"])
+                    for h in HYPOTHESES if h["key"] in ("H4", "H2·F", "H5"))
+
+
+def active_hypotheses():
+    """Three tests, with distinct early/established rows; never pooled."""
+    return tuple(h for h in HYPOTHESES if not h.get("retired"))
+
+
+def retired_registration():
+    """Frozen figures and ungraded native bets at retirement, not live grades."""
+    path = Path(__file__).parent / "diagnostics/first_snapshot_registration/retired.json"
+    return json.loads(path.read_text())["rules"]
+
+
+def early_hindsight(recon):
+    """Early v9 segments on ESPN BET only; information, never forward evidence."""
+    g = on_book(recon, "close", "espnbet")
+    out = []
+    for hyp in active_hypotheses():
+        if not hyp["early"]:
+            continue
+        ats = hyp.get("market") == "ats"
+        rows = with_open_spreads(g) if ats else g
+        d = hypothesis_picks(rows, hyp, hyp["hindsight"])
+        r = (ats_row if ats else roi_row)("early hindsight", d) if len(d) else None
+        out.append((hyp, r))
+    return out
+
 PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
                "close": "close"}
 
@@ -610,7 +649,7 @@ def hypothesis_picks(g, hyp, price):
     rule (market "ats") bets the model's side against that price's spread,
     its edge in points (ats_side_picks). The games 1-9 rules (H1, H6) read
     the carryover model's P (carry_view)."""
-    if hyp["early"]:
+    if hyp.get("carry"):
         g = carry_view(g)
     if hyp.get("market") == "ats":
         p = ats_side_picks(g, price, hyp["sigma"])
@@ -656,6 +695,10 @@ def hypothesis_rows(native, recon, book=None):
     """
     out = []
     for hyp in HYPOTHESES:
+        if hyp.get("retired"):
+            frozen = retired_registration()[hyp["key"]]
+            out.append((hyp, frozen["hindsight_at_retirement"], None))
+            continue
         ats = hyp.get("market") == "ats"
         hind = with_open_spreads(recon) if ats and hyp["hindsight"] == "open" else recon
         rows = []
@@ -672,7 +715,7 @@ def hypothesis_rows(native, recon, book=None):
     return out
 
 
-def hypothesis_by_season(native, recon, keys=("H5", "H6"), book=None):
+def hypothesis_by_season(native, recon, keys=("H5", "H5·E"), book=None):
     """[(hypothesis, [part])] for the hypotheses in `keys`: the same bets as
     hypothesis_rows (with the same `book`), split by basis x the graded
     price's book x season and never pooled (native first, newest season
@@ -680,7 +723,7 @@ def hypothesis_by_season(native, recon, keys=("H5", "H6"), book=None):
     bets gives one part with book, season and row None."""
     order = {b: i for i, (_, b) in enumerate(market.BOOKS)}
     out = []
-    for hyp in HYPOTHESES:
+    for hyp in active_hypotheses():
         if hyp["key"] not in keys:
             continue
         ats = hyp.get("market") == "ats"
@@ -718,9 +761,9 @@ def hypothesis_groups():
     set of bets there. [(label, hypothesis)], e.g. ("H3 / H4", H3), in
     registration order."""
     out = {}
-    for h in HYPOTHESES:
+    for h in active_hypotheses():
         k = (h.get("market"), h["early"], h["favourite"], h["min_edge"],
-             h.get("sigma"))
+             h.get("sigma"), h.get("carry", False))
         out.setdefault(k, []).append(h)
     return [(" / ".join(h["key"] for h in hs), hs[0]) for hs in out.values()]
 
@@ -1039,10 +1082,10 @@ def ats_card(row):
     threshold. None when the row has no first snapshot with a main-line
     spread, or no ATS rule covers its games played."""
     g = pd.DataFrame([row])
-    for hyp in HYPOTHESES:
+    for hyp in active_hypotheses():
         if hyp.get("market") != "ats":
             continue
-        s = ats_sides(carry_view(g) if hyp["early"] else g, hyp["native"], hyp["sigma"])
+        s = ats_sides(g, hyp["native"], hyp["sigma"])
         if not len(s) or not bool(on_stage(s, hyp).iloc[0]):
             continue
         r = s.iloc[0]
@@ -1130,7 +1173,7 @@ def hypothesis_ats_bands(native, recon, book=None):
     picked side's line and spread price (ats_by_band). Descriptive: the
     rules themselves stay as registered."""
     out = []
-    for hyp in HYPOTHESES:
+    for hyp in active_hypotheses():
         if hyp.get("market") != "ats":
             continue
         hind = with_open_spreads(recon) if hyp["hindsight"] == "open" else recon

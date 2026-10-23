@@ -295,12 +295,12 @@ def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path
     df.loc[:99, ["gp_home", "gp_away"]] = 4
     df.loc[100:, ["gp_home", "gp_away"]] = 30
     g = ledger.graded(df)
-    h1, h2, h3, h4, a1, h5, h6 = analysis.HYPOTHESES
+    h1, h2, h3, h4, a1, h5, h6 = analysis.HYPOTHESES[:7]
     assert h4["native"] == "first" and h4["min_edge"] == h3["min_edge"]
     # amendment A1: H2's frozen rule, graded at the first snapshot
     assert a1["native"] == "first" and {k: v for k, v in a1.items()
-                                        if k not in ("key", "native")} == \
-        {k: v for k, v in h2.items() if k not in ("key", "native")}
+                                        if k not in ("key", "native", "retired")} == \
+        {k: v for k, v in h2.items() if k not in ("key", "native", "retired")}
     assert [h["native"] for h in (h1, h2, h3)] == ["pre"] * 3
     d1 = analysis.hypothesis_picks(g, h1, "pre")
     assert d1["early"].all() and (d1["edge"] >= 0.08).all()
@@ -478,7 +478,7 @@ def test_h5_h6_by_season_partition_the_pooled_scoreboard(tmp_path, monkeypatch):
     rec = _ats_rows(12).assign(basis="reconstructed")
     rec["season"] = [2025] * 6 + [2026] * 6
     rec["close_book"] = ["espnbet"] * 6 + ["dk"] * 3 + ["espnbet"] * 3
-    rec.loc[rec.index[:4], ["gp_home", "gp_away"]] = 3     # four games 1-9 (H6)
+    rec.loc[rec.index[:4], ["gp_home", "gp_away"]] = 3     # four games 1-9 (H5·E)
     rec["p_home"] = np.linspace(0.62, 0.9, 12)             # all clear 1 pt vs -5.5
     rec.loc[rec.index[::2], "home_pts"] = 101              # mixed covers
     cache = tmp_path / "open.csv"
@@ -490,7 +490,7 @@ def test_h5_h6_by_season_partition_the_pooled_scoreboard(tmp_path, monkeypatch):
     nat = ledger.empty()
     pooled = {h["key"]: hind for h, hind, _ in analysis.hypothesis_rows(nat, rec)}
     by = {h["key"]: parts for h, parts in analysis.hypothesis_by_season(nat, rec)}
-    assert list(by) == ["H5", "H6"]
+    assert list(by) == ["H5", "H5·E"]
     for key, parts in by.items():
         assert parts[0]["basis"] == "native" and parts[0]["row"] is None
         rp = [p for p in parts if p["basis"] == "reconstructed"]
@@ -506,13 +506,13 @@ def test_h5_h6_by_season_partition_the_pooled_scoreboard(tmp_path, monkeypatch):
     by_dk = {h["key"]: parts for h, parts in
              analysis.hypothesis_by_season(nat, rec, book="dk")}
     dk_part = next(p["row"] for p in by["H5"] if p["book"] == "dk")
-    assert dk["H5"]["n"] == dk_part["n"] == 3 and dk["H6"] is None
+    assert dk["H5"]["n"] == dk_part["n"] == 3 and dk["H5·E"] is None
     assert [(p["book"], p["season"]) for p in by_dk["H5"] if p["row"]] == [("dk", 2026)]
     # the page and the report show DraftKings only (ESPN BET is not offered)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
-    assert "H5 / H6 by season — never pooled" in grades
+    assert "H5 games 1–9 / 10+ by season — never pooled" in grades
     assert "DraftKings 2025-26" in grades and "ESPN BET 2024-25" not in grades
     assert "ESPN BET 2025-26" not in grades
     assert "no graded bets yet" in grades and "DraftKings backtest" in grades
@@ -534,7 +534,7 @@ def test_dk_backtest_reads_one_book_and_reprices_the_open_bets(tmp_path, monkeyp
     rec = rec.drop(columns=["open_spread", "open_home_spread_odds",
                             "open_away_spread_odds"])
     bt = {b["label"]: b for b in analysis.hypothesis_backtest(rec, "dk")}
-    assert list(bt) == ["H1", "H2 / H2·F", "H3 / H4", "H5", "H6"]
+    assert list(bt) == ["H4", "H2·F", "H5", "H4·E", "H2·F·E", "H5·E"]
     h5 = bt["H5"]
     assert h5["open"]["n"] == 5 and h5["close"]["n"] == 5      # DraftKings only
     assert h5["open_at_close"]["n"] == 5
@@ -542,7 +542,7 @@ def test_dk_backtest_reads_one_book_and_reprices_the_open_bets(tmp_path, monkeyp
     assert "fav_roi" not in h5["open_at_close"]                 # priced the open
     assert [(name, r["n"]) for name, r in h5["halves"]] == [("to 31 Jan", 2),
                                                              ("from 1 Feb", 3)]
-    assert bt["H6"]["open"] is None and bt["H6"]["close"] is None
+    assert bt["H5·E"]["open"] is None and bt["H5·E"]["close"] is None
 
 
 def test_ledger_ats_fold_reads_draftkings_spreads_only():
@@ -601,8 +601,8 @@ def test_ats_bands_on_the_ledger_and_in_the_report(tmp_path, monkeypatch):
     assert "By the picked side&#x27;s spread" in grades or \
         "By the picked side's spread" in grades
     assert "By spread price" in grades and "H5 by spread price" in grades
-    assert "H5 / H6 by spread and price" in grades
-    assert "H5 / H6 by the picked side's spread and spread price" in txt
+    assert "H5 games 1–9 / 10+ by spread and price" in grades
+    assert "H5 games 1–9 / 10+ by the picked side's spread and spread price" in txt
     assert "hindsight @ open · Fav −3 to −5.5" in txt
 
 

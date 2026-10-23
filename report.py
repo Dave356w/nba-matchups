@@ -124,12 +124,21 @@ def hypotheses_block(native, recon):
              "reconstructed rows. Never pooled; one season is not a verdict.",
              f"  {name} prices only, as on the Ledger page (ESPN BET is no longer "
              "offered); the registered pooled figures are in CLAUDE.md."]
+    lines.append("  ACTIVE: three first-snapshot tests; games 1–9 (·E) and 10+ never pooled.")
     for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
-        lines.append(f"  {hyp['key']:<5} {hyp['rule']}")
-        lines.append("    " + roi_line(
-            f"native @ {analysis.PRICE_NAMES[hyp['native']]}", nat, 26))
-        lines.append("    " + roi_line(
-            f"hindsight @ {analysis.PRICE_NAMES[hyp['hindsight']]}", hind, 26))
+        if hyp.get("retired"):
+            continue
+        lines.append(f"  {hyp['key']:<7} {hyp['rule']}")
+        lines.append("    " + roi_line("native @ first snapshot", nat, 26))
+        lines.append("    " + roi_line("hindsight @ open", hind, 26))
+    lines.append("  EARLY HINDSIGHT ONLY: 276 ESPN BET early games, v9 primary P; "
+                 "injury-timing caveat; never native evidence.")
+    for hyp, r in analysis.early_hindsight(recon):
+        lines.append(f"    {hyp['key']:<7} " + roi_line("ESPN BET @ open", r, 26))
+    lines.append("  RETIRED: registered figures and native bets frozen at 2026-10-23T19:46:58Z.")
+    for key, r in analysis.retired_registration().items():
+        lines.append(f"    {key}: {r['registered_hindsight_text']}; "
+                     f"native bets {len(r['native_bets'])}, graded 0 (ungraded at retirement).")
     bt = [b for b in analysis.hypothesis_backtest(recon, book) if b["open"] or b["close"]]
     if bt:
         lines.append(f"  {name} backtest (hindsight; the open bets re-priced at the "
@@ -147,7 +156,7 @@ def hypotheses_block(native, recon):
              analysis.hypothesis_ats_bands(native, recon, book=book)
              if any(parts[b][k] for b in parts for k in ("line", "price"))]
     if bands:
-        lines.append("  H5 / H6 by the picked side's spread and spread price "
+        lines.append("  H5 games 1–9 / 10+ by the picked side's spread and spread price "
                      "(descriptive, not filters; win = cover rate):")
     for hyp, parts in bands:
         for basis, price in (("native", hyp["native"]),

@@ -1215,10 +1215,7 @@ def ats_note(r, a):
     """The card's account of the ATS hypothesis that covers this game
     (analysis.ats_card): the pick at its registered price, or why not."""
     key, side = a["hyp"]["key"], esc(a["side"])
-    # H6 (games 1-9) is graded on the carryover P it was registered on
-    # (analysis.carry_view), not the v8 P the card shows
-    who = (f"carryover model's line (the model {key} was registered on; the "
-           "card's model P is the current model's)") if a["hyp"]["early"] else "model line"
+    who = "model line"
     gap = (f"{who} {side} {line_txt(round(a['model_line'], 1))} vs market "
            f"{line_txt(a['line'])}: {a['edge']:.1f} pts")
     if not a["bet"]:
@@ -1234,7 +1231,7 @@ def ats_note(r, a):
             f"spread): <b>{side} {line_txt(a['line'])}</b> at {ml_txt(a['ml'])}"
             f"{book_tag(r.get('first_book'))}, from the first snapshot "
             f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; "
-            f"{'carryover' if a['hyp']['early'] else 'model'} cover "
+            f"model cover "
             f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig).{moved} "
             "Graded on the <a href='grades.html#hypotheses'>Ledger</a> at this "
             "price, win or lose.</p>")
@@ -1304,7 +1301,7 @@ def spread_line(kind, a):
     the model's line beside the market's at the side's price. An early pick
     (H6) names its model: the carryover P it is graded on, not the card's."""
     side = esc(a["side"])
-    model = "Carryover" if a.get("hyp", {}).get("early") else "Model"
+    model = "Model"
     return (f"<div class='pick-lines'><span class='kind'>{kind}</span><span class='pk'>"
             f"{side} {line_txt(a['line'])}</span><span class='edge'>{a['edge']:.1f} "
             f"pts vs the line</span></div><div class='g-mk'><span>{model} {side} "
@@ -1319,8 +1316,7 @@ def spread_lean_note(r, a, ats):
     side = esc(a["side"])
     gp = np.fmin(*(pd.to_numeric(r.get(c), errors="coerce") for c in ("gp_home", "gp_away")))
     graded = ("The graded spread pick is the pre-registered rule below." if ats else
-              "The graded spread picks are the pre-registered H5 (games 10+) and H6 "
-              "(games 1–9)" + (", and neither covers a team's first game." if gp == 0
+              "The graded spread picks are H5 games 1–9 and games 10+" + (", and neither covers a team's first game." if gp == 0
                                else "."))
     src = ("the model's predicted margin" if a.get("own")
            else f"13.5 × Φ⁻¹(P), from its win probability")
@@ -1465,7 +1461,7 @@ def public_ats(native):
     season = pd.to_numeric(native["season"], errors="coerce").max()
     g = ledger.graded(native[pd.to_numeric(native["season"], errors="coerce") == season])
     out = []
-    for hyp in analysis.HYPOTHESES:
+    for hyp in analysis.active_hypotheses():
         if hyp.get("market") != "ats":
             continue
         d = analysis.hypothesis_picks(g, hyp, hyp["native"]) if len(g) else pd.DataFrame()
@@ -1580,15 +1576,11 @@ HOW_INDEX = (
     "season's BPM) and each team's free-throw percentage; see "
     "<a href='model.html'>Model</a>. Prices are refreshed each build until tip "
     "and frozen after.</p>"
-    "<p class='note'><b>Spread pick (H5 / H6)</b>: the pre-registered spread "
-    "rules (H6 games 1–9, H5 games 10+; see the <a href='grades.html#hypotheses'>"
-    "Ledger</a>). From the first snapshot with a model probability and a "
-    "spread, the model's line (13.5 × Φ⁻¹(P) as a margin) must beat the "
-    "market's by at least 1 point at a main-line price. H6 reads P from the "
-    "carryover model it was registered on (labelled <b>Carryover</b>), not "
-    "the current model's P shown on the card. It is fixed when "
-    "first written and graded at that price, win or lose, even if the line "
-    "moves later.</p>"
+    "<p class='note'><b>Spread pick (H5)</b>: three first-snapshot tests, "
+    "H5, H2·F and H4, each with separate games 1–9 and games 10+ rows. "
+    "H5 uses 13.5 × Φ⁻¹(P), edge ≥ 1 point and main-line prices; the "
+    "early segment uses the recorded primary model P. Stage rows are never "
+    "pooled. H1, H6 and late-pregame H2/H3 are retired.</p>"
     "<p class='note'><b>Games priced like this</b> (an opened card): how often "
     "sides at prices near this game's moneyline (within "
     f"±{100 * analysis.CARD_WINDOW['ml']:.1f} points of its break-even "
@@ -1608,7 +1600,7 @@ HOW_INDEX = (
     "points), refreshed each build until tip. It shows the model's view of the "
     "spread; it is not graded. Taken on every game at the closing line it "
     "returned about the market's hold in hindsight (no edge after the vig; "
-    "the retired spread value side), which is why only H5 and H6 are bet.</p>")
+    "the retired spread value side), which is why only the registered H5 segments are graded.</p>")
 
 
 def _team_row(r, code, side, p):
@@ -1672,7 +1664,7 @@ def injury_block(r, injuries):
 
 def game_card(r, injuries=None, bands=None):
     """One game (the NFL site's card): both teams with model WP, the lean
-    and its price, the spread pick when H5/H6 bets; tap for the model
+    and its price, the spread pick when H5 bets; tap for the model
     against the market and each team's injury list (`injury_block`). Reads
     only the row as recorded: the sportsbook's moneyline and spread (one
     book); no Kalshi price (owner's decision, 2026-10-21)."""
@@ -1758,7 +1750,7 @@ def game_card(r, injuries=None, bands=None):
                    + "</div>")
         if bands and has_ml:
             det.append(band_panel(bands.get("ml"), market.implied(ml), "ml"))
-    # one spread line per card: the registered H5 / H6 pick when its rule
+    # one spread line per card: the registered H5 games 1–9 / 10+ pick when its rule
     # bets, else the model's side against the latest spread (display only)
     ats = analysis.ats_card(r)
     lean_sp = analysis.spread_lean(r) if np.isfinite(p) else None
@@ -1885,7 +1877,7 @@ def render_index(led, today, built, model_ok, recon=None, injuries=None, now=Non
 
 def _game_rows(native, scope):
     """The public game-by-game rows: the lean bet at the record's price, the
-    result, and the spread pick (H5/H6) when its rule bet the game."""
+    result, and the spread pick (H5) when its rule bet the game."""
     sec = scope["sec"]["h"].assign(game_id=lambda d: d["game_id"].astype(str))
     p = scope["picks"].assign(game_id=lambda d: d["game_id"].astype(str))
     ats = {}
@@ -2069,7 +2061,7 @@ def render_results(native, built, today, rebuilt=None):
     body = [_head(f"{season_txt(season_for(today))} season", "Results",
                   "Every graded pick this season, written before tip. The lean "
                   "is one unit on the model's side at the pregame price; spread "
-                  "picks (H5/H6) at their first-snapshot price. Read each ROI "
+                  "picks (H5) at their first-snapshot price. Read each ROI "
                   "against its <b>null</b> (about −4%, the market's hold), not zero."),
             record_tiles(scope), "<h2 class='sec'>Spread picks</h2>",
             "<p class='sec-lead'>The pre-registered spread rules, graded at the "
@@ -2788,7 +2780,7 @@ def _verdicts(sec):
 
 
 def _hypotheses_by_season(native, recon):
-    """H5 / H6 split by basis x season on DraftKings prices
+    """H5 games 1–9 / 10+ split by basis x season on DraftKings prices
     (analysis.hypothesis_by_season); nothing is pooled."""
     rows = []
     for hyp, parts in analysis.hypothesis_by_season(
@@ -2812,7 +2804,7 @@ def _hypotheses_by_season(native, recon):
                          pct(r["actual"]), pct(r["breakeven"]), fav_txt(r)])
     if not rows:
         return ""
-    return ("<h3>H5 / H6 by season — never pooled</h3><p class='note'>Each "
+    return ("<h3>H5 games 1–9 / 10+ by season — never pooled</h3><p class='note'>Each "
             "basis and season stands alone, on DraftKings spreads (native: "
             "the first snapshot's; hindsight: the open's). Win % is the "
             "cover rate; fav is 1u on the spread favourite of the same games "
@@ -2898,7 +2890,7 @@ def _hypothesis_backtest(recon):
 
 
 def _hypothesis_ats_bands(native, recon):
-    """H5 / H6 by the picked side's spread and price, native beside the
+    """H5 games 1–9 / 10+ by the picked side's spread and price, native beside the
     DraftKings hindsight (analysis.hypothesis_ats_bands): descriptive."""
     order = {"line": [b[2] for b in analysis.ATS_LINE_BANDS],
              "price": [b[2] for b in analysis.ATS_PRICE_BANDS]}
@@ -2929,7 +2921,7 @@ def _hypothesis_ats_bands(native, recon):
         return ""
     h5 = next(x for x in analysis.HYPOTHESES if x["key"] == "H5")
     return fold(
-        "H5 / H6 by spread and price <span class='mut'>— descriptive, not a "
+        "H5 games 1–9 / 10+ by spread and price <span class='mut'>— descriptive, not a "
         "filter</span>",
         f"<p class='note'>The same bets as the scoreboard, split by the picked "
         f"side's line (negative = laying points) and its spread price: native "
@@ -2944,68 +2936,69 @@ def _hypothesis_ats_bands(native, recon):
 def _hypotheses(native, recon):
     book = analysis.HYPOTHESIS_BOOK
     name = market.BOOK_NAMES[book]
-    rows = []
+    active, retired, archived_bets = [], [], []
+    archive = analysis.retired_registration()
     for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
         def cell(r):
             if not r:
                 return ["0", "—", "—"]
             roi, null, vs = _roi_cells(r)
             return [str(r["n"]), f"{roi}<br><span class='mut'>null {null}</span>", vs]
-        h, n = cell(hind), cell(nat)
-        h[0] = (f"{h[0]}<br><span class='mut'>at the "
-                f"{analysis.PRICE_NAMES[hyp['hindsight']]}</span>" if hind else
-                f"{h[0]}<br><span class='mut'>no {esc(name)} games</span>")
-        n[0] = (f"{n[0]}<br><span class='mut'>at the "
-                f"{analysis.PRICE_NAMES[hyp['native']]}</span>")
-        rows.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]).replace(' · ', '<br>', 1), *n, *h])
+        if hyp.get("retired"):
+            r = archive[hyp["key"]]
+            retired.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]),
+                            r["registered_hindsight_text"],
+                            str(len(r["native_bets"])), "0 · ungraded at retirement"])
+            snapshots = {str(x["game_id"]): x for x in r["native_bets"]}
+            for pick in r["native_picks"]:
+                snap = snapshots[str(pick["game_id"])]
+                archived_bets.append([hyp["key"], snap["slate_date"],
+                                      f"{snap['away']} @ {snap['home']}", pick["side"],
+                                      line_txt(pick["line"]) if "line" in pick else "—",
+                                      ml_txt(pick["ml"]), "Ungraded at retirement"])
+        else:
+            h = cell(hind)
+            h[0] += "<br><span class='mut'>at the open</span>"
+            n = cell(nat)
+            n[0] += "<br><span class='mut'>at the first snapshot</span>"
+            active.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]),
+                           *n, *h])
+    early = []
+    for hyp, r in analysis.early_hindsight(recon):
+        early.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]), *cell(r)])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
-        "<p class='note'>Rules frozen before any native row had a model "
-        "probability; every result is reported here, win or lose. Native is "
-        f"the forward test, on {esc(name)} prices; hindsight is the same rule "
-        f"on the {_dk_scope(recon)} that {esc(name)} priced (ESPN BET is no "
-        "longer offered, so its prices are left out).</p>"
-        + table(["", "Rule", "Native n", "ROI", "vs null (± 1 SE)",
-                 f"Hindsight n ({esc(name)})", "ROI", "vs null (± 1 SE)"],
-                rows, left=(0, 1), key=(3, 4))
+        "<p class='note'>Three tests: H5, H2·F and H4, at the frozen first "
+        "snapshot. Each has separate games 1–9 (·E) and games 10+ rows; "
+        "never pooled. Early segments registered 2026-10-23 at 19:46:58 UTC, "
+        "before CHI @ MIL was final. Established segments and every threshold "
+        "are unchanged. Native is the forward test, on DraftKings prices. "
+        "At the <b>first snapshot</b>, probabilities stay frozen. Hindsight is information only. Early v9 uses injury-report inputs "
+        "and inherits the injury-timing caveat; the first snapshot is later "
+        "than the open. Recorded first probabilities and tags stay frozen.</p>"
+        + table(["", "Rule", "Native n · first snapshot", "ROI", "vs null (± 1 SE)",
+                 f"Hindsight n ({esc(name)} open)", "ROI", "vs null (± 1 SE)"],
+                active, left=(0, 1), key=(3, 4))
+        + "<h3>Early segments · ESPN BET · hindsight only</h3>"
+        "<p class='note'>276 reconstructed early games, v9 primary probabilities. "
+        "Same registered rules at the open; no threshold selection. Separate "
+        "from DraftKings and native forward evidence.</p>"
+        + table(["", "Rule", "Hindsight n", "ROI", "vs null (± 1 SE)"], early,
+                left=(0, 1))
+        + "<p class='note'>Retired 2026-10-06: blanket value and its ATS twin.</p>"
+        + "<h3>Retired</h3><p class='note'>H1/H6 carryover rules and late-pregame "
+        "H2/H3 retired at registration. Their registered figures and native "
+        "bets are archived; none was graded at retirement. No new bets or "
+        "results enter an active record. Original registrations remain in "
+        "CLAUDE.md; snapshots in diagnostics/first_snapshot_registration/retired.json.</p>"
+        + table(["", "Rule", "Registered hindsight", "Native bets at retirement",
+                 "Native graded n"], retired, left=(0, 1, 2))
+        + fold("Archived native bets · ungraded", table(
+            ["Rule", "Date", "Game", "Side", "Spread", "Price", "Status"],
+            archived_bets, left=(0, 1, 2, 3, 6)))
         + _hypothesis_backtest(recon)
         + _hypotheses_by_season(native, recon)
-        + _hypothesis_ats_bands(native, recon)
-        + fold("About these hypotheses <span class='mut'>— dates, prices, what was retired</span>",
-        "<p class='note'>H1–H3 fixed on 2026-09-30, H4 and amendment A1 "
-        "(H2·F: H2's rule at the first snapshot) on 2026-10-01, all "
-        "before any native rows; the thresholds are frozen and every result "
-        "is reported here, win or lose. <b>Native</b> bets are graded at a "
-        "price that could have been bet: the <b>pregame</b> snapshot is the "
-        "last one before tip (near the close); the <b>first snapshot</b> is "
-        "the earliest priced one, with the model probability written then "
-        "(H4 is H3's rule at the early price, where the hindsight edge "
-        "appeared). <b>Hindsight</b> is the same rule on the "
-        "reconstructed rows at the price the scan found it, recomputed on "
-        "the current reconstructed model; it was registered pooled over both "
-        "seasons and books, and since 2026-10-21 is shown on DraftKings "
-        "prices only (ESPN BET is no longer offered). One season of native "
-        "rows is not a verdict.</p>"
-        "<p class='note'><b>H5</b> and <b>H6</b> (fixed 2026-10-20, before any "
-        "native row had a model probability) are against the spread: the "
-        "model's win probability as a home margin, 13.5 × Φ⁻¹(P) points, bet "
-        "on its side when it differs from the line by at least 1 point, at "
-        "main-line prices (both sides −135 to +115). H5 is games 10+, H6 the "
-        "same rule on games 1–9 (on the carryover model it was registered on, "
-        "whose probability every early row records; about 100 bets a season, so "
-        "it needs several). Native bets use the first snapshot's "
-        "spread, prices and probability; hindsight uses the same book's "
-        "opening spread. Their ROI, null and win rate are per spread bet "
-        "(cover rate).</p>"
-        "<p class='note'><b>Retired 2026-10-06:</b> the blanket value bet (every "
-        "game, the side with model P > no-vig q) and its ATS twin. On the "
-        "reconstructed rows at the close its claimed EV was +11 to +16% in "
-        "every book and season while it returned −6 to −11% (null about −4%; "
-        "ATS −3 to −7% vs −4.5%). Re-checked 2026-10-21 on the current "
-        "model: unchanged (DraftKings 2025-26 claimed +16.2%, returned −11.0%, "
-        "null −4.1%; ATS −6.1% vs −4.5%; "
-        "<code>research/dk_hypotheses.py</code> §7). The value-side rules still "
-        "under test are the frozen hypotheses in this table.</p>"))
+        + _hypothesis_ats_bands(native, recon))
 
 
 def _lean_line(h, price):

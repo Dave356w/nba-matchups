@@ -232,7 +232,7 @@ def test_game_zero_rows_enter_no_hypothesis_and_get_their_own_fold():
         analysis.PICK_RULES[0][1]]]
     assert labels == ["All picks", "Games 10+", "Games 1–9", "Game 0"]
     assert analysis.ats_card(_ats_pending(gp=0)) is None             # no spread rule
-    assert analysis.ats_card(_ats_pending(gp=3))["hyp"]["key"] == "H6"
+    assert analysis.ats_card(_ats_pending(gp=3))["hyp"]["key"] == "H5·E"
 
 
 def test_picks_note_tells_a_tipped_game_from_one_the_next_build_can_score():
