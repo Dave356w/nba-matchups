@@ -827,11 +827,12 @@ padding:6px 8px;margin:0 -8px;border-radius:9px}
 .g-team .px{display:flex;flex-direction:column;gap:3px;font:700 13.5px/1 var(--mono);font-variant-numeric:tabular-nums}
 .g-team .px small{font:500 11.5px/1 var(--mono);color:var(--faint)}
 .g-team.picked{background:rgba(var(--accent),.09)}
-.g-team .nm{font:700 16px/1.2 var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-team .nm{font:700 16px/1.2 var(--sans);display:flex;align-items:center;min-width:0}
+.g-team .nm .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .g-team .nm small{font:600 11.5px/1 var(--mono);color:var(--faint);margin-left:6px}
 .g-team .sc{font:800 18px/1 var(--mono);min-width:28px;text-align:right;font-variant-numeric:tabular-nums}
 .g-team.picked .nm::after{content:"LEAN";font:800 9.5px/1 var(--sans);letter-spacing:.08em;color:var(--accent-on);
-background:rgb(var(--accent));border-radius:4px;padding:3px 5px;margin-left:8px;vertical-align:2px}
+background:rgb(var(--accent));border-radius:4px;padding:3px 5px;margin-left:8px;flex:none}
 .tchip{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:var(--r-pill);
 background:var(--surface-2);font:800 11px/1 var(--mono);position:relative}
 .tchip .logo{position:absolute;inset:3px;width:28px;height:28px;object-fit:contain}
@@ -1470,7 +1471,8 @@ def _team_row(r, code, side, p):
     small = esc(code) if side == "away" else f"@ {esc(code)}"
     return (f"<div class='g-team{' picked' if picked else ''}'>"
             f"<div class='tchip'><span>{esc(code)}</span>{logo_html(code)}</div>"
-            f"<span class='nm'>{esc(TEAM_NAMES.get(code, code))}<small>{small}</small></span>"
+            f"<span class='nm'><span class='tn'>{esc(TEAM_NAMES.get(code, code))}"
+            f"<small>{small}</small></span></span>"
             f"<span class='wp'>{pct(wp, 0) if np.isfinite(wp) else '—'}</span>"
             f"<span class='px'>{ml_txt(r.get(f'pre_{side}_ml'))}"
             f"<small>{line_txt(line) if np.isfinite(line) else ''}</small></span>"
@@ -1639,9 +1641,11 @@ document.querySelectorAll('.gcard[data-state]').forEach(function(c){
 c.hidden=f!=='all'&&c.getAttribute('data-state')!==f;});});})();</script>"""
 
 
-def render_index(led, today, built, model_ok, recon=None, injuries=None):
+def render_index(led, today, built, model_ok, recon=None, injuries=None, now=None):
     """Picks: today's slate as cards, under the season's lean record; each
-    card opens to its game's injury list when `injuries` is given."""
+    card opens to its game's injury list when `injuries` is given. `now`
+    (UTC, default the clock) tells a game that tipped without a probability
+    from one the next build can still score."""
     scope = public_scope(led)
     # the cards read the raw rows: the sportsbook's moneyline and spread, one
     # book (owner's decision, 2026-10-20); no Kalshi price (2026-10-21)
@@ -1671,12 +1675,27 @@ def render_index(led, today, built, model_ok, recon=None, injuries=None):
                     "date (off day, preseason, or the build ran after tip). "
                     "Exhibition games are tracked on the <a href='preseason.html'>"
                     "Preseason</a> research page.</div>" + how, built)
-    n_abs = int(pd.to_numeric(day["p_home"], errors="coerce").isna().sum())
+    no_p = pd.to_numeric(day["p_home"], errors="coerce").isna()
+    now = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz="UTC")
+    tipped = pd.to_datetime(day["tip_utc"], utc=True, errors="coerce") <= now
+    n_abs, n_gone = int(no_p.sum()), int((no_p & tipped).sum())
+    n_open = n_abs - n_gone
+    missing = ("an input the model needs (last season's games, this season's box "
+               "scores or a fitted model) was missing at the last build; the next "
+               "build retries until tip")
+    frozen = "a row is frozen at tip"
+    if not n_gone:
+        why = missing
+    elif not n_open:
+        why = (f"it tipped without one and stays without a pick ({frozen})" if n_gone == 1
+               else f"they tipped without one and stay without a pick ({frozen})")
+    else:
+        why = (f"{n_gone} tipped without one and {'stays' if n_gone == 1 else 'stay'} "
+               f"without a pick ({frozen}); for the other{'s' if n_open != 1 else ''}, "
+               + missing)
     note = (f"<div class='flag-note'>{n_abs} of {len(day)} game"
             f"{'s' if len(day) != 1 else ''} {'have' if n_abs != 1 else 'has'} no "
-            "model probability: an input the model needs (last season's games, "
-            "this season's box scores or a fitted model) was missing at the "
-            "last build. The next build retries until tip.</div>" if n_abs else "")
+            f"model probability: {why}.</div>" if n_abs else "")
     seg = ("<div class='seg' data-filter role='group' aria-label='Filter games' hidden>"
            + "".join(f"<button type='button' data-show='{k}' aria-pressed="
                      f"'{'true' if k == 'all' else 'false'}'>{t}<span class='ct'></span>"

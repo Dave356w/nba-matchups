@@ -1,6 +1,7 @@
 # Model v8
 
-**v8** (owner's decision 2026-10-22; "v8" below): one model for every game,
+**v8** (owner's decision 2026-10-22, active since 2026-10-22: refit
+`567753d`, reconstructed rows re-scored `3f10659`; "v8" below): one model for every game,
 opening night included. Each team's rating carries last season in at 0.25 ×
 (1 − games played ÷ 10), so it fades out by game 10; the base and
 availability logits keep v6's terms and are fitted on every game
@@ -555,6 +556,17 @@ preseason box scores; (2) "Fit model" fits the v8 logits (and retires
 reconstructed rows with v8 and adds the game-0 rows v7 never wrote (with
 their prices); H1 / H6 hindsight unchanged. The build follows the model
 files.
+
+Done 2026-10-22: preseason boxes `9f9ac3f` (2015-16 to 2025-26 but 2019-20,
+0 failed requests, 30 teams each); refit `567753d` (base n = 11,687 games,
+availability n = 4,847); rescore `3f10659` after the pandas 3.1 fix
+(Dave356w/nba-matchups#95): 2,450 rows, all v8 (1,209 a season on the
+availability logit, the rest base), 32 game-0 rows added (all priced by
+ESPN BET, so off the pages), `carry_p_home` identical on all 276 games 1–9
+rows (H1 n 115 +17.8%, H6 n 201 +3.6%, unchanged). Game 0 is in no
+pre-registered rule (`analysis.stage`). On the re-scored rows, games 10+,
+model − close +0.0174 ± 0.0112 (2025-26 DK) and +0.0152 ± 0.0101 (2024-25
+ESPN BET), log loss, ± 95% (`diagnostics/model_review/RESULTS.txt`).
 
 ## Version rule
 

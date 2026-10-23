@@ -207,3 +207,45 @@ def test_box_history_never_commits_a_partial_preseason_fetch(tmp_path, monkeypat
     monkeypatch.setattr(pav, "preseason_rows", lambda dates, sleep=0.15: (rows, 0))
     out = run()
     assert "preseason 1 games" in out[2026] and (data / "nba_box_pre_2026.csv").exists()
+
+
+def test_game_zero_rows_enter_no_hypothesis_and_get_their_own_fold():
+    # H1 / H6 were registered on games 1-9 and H2-H5 on games 10+; v8's game-0
+    # rows belong to neither (their P is not the carryover model's)
+    import analysis
+    import ledger
+    from test_analysis_and_pages import synth
+    from test_report_and_ui import _ats_pending
+    df = synth(300, 11, basis="reconstructed")
+    df["p_home"] = df["close_q_home"] + 0.15                 # value side home, edge 0.15
+    df["gp_home"] = [0] * 100 + [5] * 100 + [30] * 100
+    df["gp_away"] = [4] * 100 + [5] * 100 + [30] * 100
+    g = ledger.graded(df)
+    ids = lambda lo, hi: set(df["game_id"].iloc[lo:hi])     # noqa: E731
+    for hyp in analysis.HYPOTHESES:
+        if hyp.get("market") == "ats":
+            continue
+        got = set(analysis.hypothesis_picks(g, hyp, "close")["game_id"])
+        assert got and not got & ids(0, 100), hyp["key"]
+        assert got <= (ids(100, 200) if hyp["early"] else ids(200, 300)), hyp["key"]
+    labels = [r["label"] for r in dict(analysis.roi_summary(g, "close"))[
+        analysis.PICK_RULES[0][1]]]
+    assert labels == ["All picks", "Games 10+", "Games 1–9", "Game 0"]
+    assert analysis.ats_card(_ats_pending(gp=0)) is None             # no spread rule
+    assert analysis.ats_card(_ats_pending(gp=3))["hyp"]["key"] == "H6"
+
+
+def test_picks_note_tells_a_tipped_game_from_one_the_next_build_can_score():
+    from test_report_and_ui import _slate
+    d = _slate(3)
+    d["tip_utc"] = ["2026-11-19T23:00Z", "2026-11-20T01:00Z", "2026-11-20T03:00Z"]
+    d.loc[:1, "p_home"] = np.nan
+    render = lambda now: build_site.render_index(d, "2026-11-19", "b", True, now=now)  # noqa: E731
+    html = render(pd.Timestamp("2026-11-20T00:00Z"))       # the first tipped, the second not
+    assert ("2 of 3 games have no model probability: 1 tipped without one and stays "
+            "without a pick (a row is frozen at tip); for the other, an input") in html
+    assert "the next build retries until tip." in html
+    assert "have no model probability: they tipped" in render(pd.Timestamp("2026-11-20T02:00Z"))
+    assert "tipped" not in render(pd.Timestamp("2026-11-19T12:00Z")).split("flag-note'>")[1][:200]
+    # the lean's chip sits beside the name, outside the part that truncates
+    assert "<span class='nm'><span class='tn'>" in html

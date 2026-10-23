@@ -234,7 +234,13 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
    ESPN BET 2024-25, −0.0009 ± 0.0010 DraftKings 2025-26); game 0, which
    production skips, beats the carryover logit without a roster by −0.0145 ±
    0.0214 (n = 143). A simplification and a coverage fix, not an edge.
-   Shipped as model v8 (owner's decision, 2026-10-22; MODEL.md "v8").
+   Shipped as model v8 (owner's decision, 2026-10-22; MODEL.md "v8");
+   active from refit `567753d` and rescore `3f10659`. The tables above are
+   the v6 rows; re-run on the v8 rows (G10) the two scripts move within
+   noise: games 10+ model − close +0.0174 ± 0.0112 (DK 2025-26) / +0.0152 ±
+   0.0101 (ESPN BET 2024-25), the DraftKings backtest at the open H2 +4.5,
+   H3/H4 +22.9, H5 +6.6 vs the null; H1 and H6 unchanged. Game 0 is in no
+   rule (`analysis.stage`).
 
 Reproduce: `python research/model_review.py` (§1–4 above),
 `python research/dk_hypotheses.py --open-price research/output/open_price.csv`
