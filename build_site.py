@@ -14,12 +14,12 @@ Steps
      of the first listed book in market.BOOKS (DraftKings, then ESPN BET);
      written to data/nba_ledger.csv only while before tip. Each game's ESPN
      injury list is snapshotted alongside to data/nba_injuries.csv under the
-     same pregame lock (shown on the Picks cards; the model does not read it),
+     same pregame lock (internal research only; the model does not read it),
      and Sleeper's (RotoWire's) projected lineups to data/nba_sleeper.csv
      (first and latest pregame snapshot; research data, read by nothing).
      Exhibitions are excluded; historical preseason rows stay untouched.
-  3. Render public/index.html, grades.html, market-calibration.html and
-     model.html.
+  3. Render Today, Results, Performance and How it works into public/;
+     keep the full research workbench outside the published directory.
 
 The model is nba_composite.py, unchanged. This file only feeds it pregame game
 logs (games strictly before the slate date) and records what it said.
@@ -32,6 +32,7 @@ import html
 import json
 import os
 import sys
+import shutil
 from datetime import datetime
 from pathlib import Path
 from statistics import NormalDist
@@ -48,6 +49,7 @@ import nba_composite as nc
 import player_availability as pav
 import report
 import sleeper
+import public_site
 
 ET = ZoneInfo("America/New_York")
 # Pages show times in Pacific (PDT/PST, labelled PT); slate dates, the build
@@ -760,13 +762,12 @@ THEME_JS = ("<script>(function(){var k='nba-theme',r=document.documentElement;"
 
 SITE_NAME = "NBA Composite"
 ASSETS = Path(__file__).resolve().parent / "assets" / "fonts"
-# The public site (the NFL site's layout): Picks, Results, Performance, and one
-# Research tab that holds the research pages, which keep their content.
-PUBLIC_PAGES = (("index.html", "Picks"), ("results.html", "Results"),
-                ("performance.html", "Performance"))
+# Only these pages are eligible for the Pages artifact.
+PUBLIC_PAGES = public_site.PAGES
 RESEARCH_PAGES = (("grades.html", "Ledger"), ("market-calibration.html", "Calibration"),
                   ("model.html", "Model"))
-PAGES = PUBLIC_PAGES + RESEARCH_PAGES
+PAGES = PUBLIC_PAGES
+PUBLIC_FILES = frozenset(name for name, _ in PUBLIC_PAGES) | {".nojekyll"}
 THEME_BUTTON = (
     "<button class='theme' type='button' onclick='toggleTheme()' "
     "aria-label='Toggle colour theme' title='Toggle theme'><svg class='sun' "
@@ -808,14 +809,14 @@ def esc(s):
     return html.escape(str(s))
 
 
-def page(title, active, body, built):
+def page(title, active, body, built, extra_css=""):
     """One page in the shared shell: header (brand, Picks / Results /
     Performance / Research, theme), a sub-nav on research pages, footer."""
     cur = " aria-current='page'"
     research = active in {h for h, _ in RESEARCH_PAGES}
     tab = RESEARCH_PAGES[0][0] if research else active
-    nav = "".join(f"<a href='{h}'{cur if h == tab else ''}>{t}</a>"
-                  for h, t in PUBLIC_PAGES + (("grades.html", "Research"),))
+    items = PUBLIC_PAGES + ((("grades.html", "Research"),) if research else ())
+    nav = "".join(f"<a href='{h}'{cur if h == tab else ''}>{t}</a>" for h, t in items)
     sub = ("<nav class='subnav' aria-label='Research pages'><span class='lbl'>"
            "Research</span>" + "".join(f"<a href='{h}'{cur if h == active else ''}>{t}</a>"
                                        for h, t in RESEARCH_PAGES) + "</nav>"
@@ -827,7 +828,7 @@ def page(title, active, body, built):
             f"<title>{esc(title)}</title><meta name='description' content='NBA "
             "composite model picks: win probabilities against the market, "
             "graded flat 1u against its null'>"
-            f"{THEME_JS}<style>{font_face_css()}{CSS}</style></head><body>"
+            f"{THEME_JS}<style>{font_face_css()}{CSS}{extra_css}</style></head><body>"
             "<a class='skip-link' href='#main-content'>Skip to content</a>"
             "<div class='mx-wrap'><header class='topbar'><a class='brand' href='index.html'>"
             f"<span class='brand-mark' aria-hidden='true'>NBA</span>{SITE_NAME}"
@@ -838,8 +839,10 @@ def page(title, active, body, built):
             f"<span class='stamp'>{esc(built)}</span>. Predicted margins and win "
             "probabilities from prior-game four factors, roster talent and the NBA "
             "injury report; the market is a benchmark only and never enters the model. "
-            "Not betting advice.</div><div class='r'>Research: "
-            f"{research_links} · <a href='{report.REPORT_NAME}'>{report.REPORT_NAME}</a>"
+            "Not betting advice.</div><div class='r'>"
+            + (f"Research: {research_links} · <a href='{report.REPORT_NAME}'>{report.REPORT_NAME}</a>"
+               if research else "<a href='how-it-works.html'>How it works</a> · <a href='results.html'>Tracked results</a>")
+            +
             f"</div></footer></div>{OPEN_JS}</body></html>")
 
 
@@ -3130,7 +3133,7 @@ def _model_section(body, h, first):
 def snapshot_injuries(rows):
     """Pregame injury lists for today's accepted rows -> data/nba_injuries.csv.
 
-    Shown on the Picks cards (`injury_block`); the model does not use them.
+    Shown in the internal workbench (`injury_block`); the model does not use them.
     The snapshot time is taken after the fetch, and a game at or after tip
     is never touched.
     """
@@ -3172,27 +3175,58 @@ def snapshot_sleeper(rows, today):
     log(f"sleeper snapshots: {len(acc)} written, {len(rej)} skipped {rej}")
 
 
-def write_pages(native, recon, today, model_ok, pre=None):
-    OUT_DIR.mkdir(exist_ok=True)
+def write_research(native, recon, today, model_ok, pre=None, out_dir=None):
+    """Full research workbench, outside the published output directory."""
+    out_dir = Path(out_dir) if out_dir is not None else OUT_DIR.parent / "diagnostics" / "site"
+    out_dir.mkdir(parents=True, exist_ok=True)
     built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
-    (OUT_DIR / "index.html").write_text(render_index(native, today, built, model_ok,
+    (out_dir / "index.html").write_text(render_index(native, today, built, model_ok,
                                                      recon, ledger.load_injuries()))
     rebuilt = ledger.load(ledger.REBUILT_PATH)
-    (OUT_DIR / "results.html").write_text(render_results(native, built, today, rebuilt))
-    (OUT_DIR / "performance.html").write_text(render_performance(native, built, today,
+    (out_dir / "results.html").write_text(render_results(native, built, today, rebuilt))
+    (out_dir / "performance.html").write_text(render_performance(native, built, today,
                                                                  rebuilt))
-    (OUT_DIR / "grades.html").write_text(render_grades(native, recon, built))
-    (OUT_DIR / "market-calibration.html").write_text(
+    (out_dir / "grades.html").write_text(render_grades(native, recon, built))
+    (out_dir / "market-calibration.html").write_text(
         render_calibration(native, recon, built))
     # A reused output directory must not publish the retired page.
-    (OUT_DIR / "preseason.html").unlink(missing_ok=True)
-    (OUT_DIR / "model.html").write_text(render_model(native, recon, built))
+    (out_dir / "preseason.html").unlink(missing_ok=True)
+    (out_dir / "model.html").write_text(render_model(native, recon, built))
     # The quotable plain-text readout, as the sibling projects keep it:
     # published beside the pages; main() also commits it under data/.
     text = report.report_text(native, recon, pre, ACTIVE_TAGS)
-    (OUT_DIR / report.REPORT_NAME).write_text(text, encoding="utf-8")
-    (OUT_DIR / ".nojekyll").write_text("")
+    (out_dir / report.REPORT_NAME).write_text(text, encoding="utf-8")
     return text
+
+
+def write_pages(native, recon, today, model_ok, pre=None):
+    """Publish an explicit allowlist; retain the complete workbench elsewhere."""
+    built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
+    pages = public_site.PublicSite(sys.modules[__name__], native, today, built, model_ok).render()
+    internal = OUT_DIR.parent / "diagnostics" / "site"
+    text = write_research(native, recon, today, model_ok, pre, out_dir=internal)
+    (internal / "how-it-works.html").write_text(pages["how-it-works.html"], encoding="utf-8")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    # This directory is exclusively generated publication output. Remove stale
+    # files and nested research/assets too, including artifacts from old builds.
+    for child in OUT_DIR.iterdir():
+        if child.name not in PUBLIC_FILES:
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    for name, content in pages.items():
+        (OUT_DIR / name).write_text(content, encoding="utf-8")
+    (OUT_DIR / ".nojekyll").write_text("")
+    validate_public_output()
+    return text
+
+
+def validate_public_output():
+    """Fail closed if anything outside the publication allowlist is staged."""
+    actual = {p.name for p in OUT_DIR.iterdir()}
+    if actual != PUBLIC_FILES or any(not p.is_file() or p.is_symlink() for p in OUT_DIR.iterdir()):
+        raise ValueError("Public output must contain only the four approved pages and .nojekyll")
 
 
 def main(argv=None):
@@ -3230,7 +3264,7 @@ def main(argv=None):
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(text, encoding="utf-8")
     log(f"wrote {OUT_DIR}/" + ", ".join(h for h, _ in PAGES)
-        + f", {report.REPORT_NAME}")
+        + "; research output: diagnostics/site/")
     return 0
 
 

@@ -593,6 +593,44 @@ PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
                "close": "close"}
 
 
+def _hypothesis_members(d, hyp):
+    """One membership filter for pending signals and completed grades."""
+    if not len(d):
+        return d
+    keep = on_stage(d, hyp) & (d["edge"] >= hyp["min_edge"])
+    if hyp.get("market") != "ats":
+        keep &= d["rule"] == "value"
+        if hyp["favourite"]:
+            keep &= d["q"] > 0.5
+    return d[keep]
+
+
+def hypothesis_signals(g, hyp, price="first"):
+    """Registered selections without requiring or fabricating an outcome.
+
+    Reads the probability/tag at the selected price. No prices, thresholds
+    or model probabilities are changed; pending selections have no grades.
+    """
+    if hyp.get("retired") or g is None or not len(g):
+        return pd.DataFrame()
+    if hyp.get("market") == "ats":
+        return _hypothesis_members(ats_sides(g, price, hyp["sigma"]), hyp)
+    ph = pd.to_numeric(g["first_p_home" if price == "first" else "p_home"], errors="coerce")
+    qh = price_q_home(g, price)
+    hml = pd.to_numeric(g[f"{price}_home_ml"], errors="coerce")
+    aml = pd.to_numeric(g[f"{price}_away_ml"], errors="coerce")
+    ok = ph.notna() & qh.between(0, 1, inclusive="neither") & hml.notna() & aml.notna() & ph.ne(qh)
+    g, ph, qh, hml, aml = (x[ok] for x in (g, ph, qh, hml, aml))
+    home = ph > qh
+    opener, early = stage(g)
+    d = pd.DataFrame(dict(rule="value", game_id=g["game_id"].to_numpy(),
+        opener=opener, early=early, side=np.where(home, g["home"], g["away"]),
+        model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
+        ml=np.where(home, hml, aml), model_tag=g["first_model_tag" if price == "first" else "model_tag"].astype(str).to_numpy()))
+    d["edge"] = d["model_p"] - d["q"]
+    return _hypothesis_members(d, hyp)
+
+
 def hypothesis_picks(g, hyp, price):
     """The value-side bets one pre-registered rule makes, graded at `price`.
     The edge and "favourite" (q > 0.5) are read at that same price. An ATS
@@ -605,15 +643,11 @@ def hypothesis_picks(g, hyp, price):
         p = ats_side_picks(g, price, hyp["sigma"])
         if not len(p):
             return p
-        return p[on_stage(p, hyp) & (p["edge"] >= hyp["min_edge"])]
+        return _hypothesis_members(p, hyp)
     p = picks(g, price)
     if not len(p):
         return p
-    d = p[(p["rule"] == "value") & on_stage(p, hyp)
-          & (p["edge"] >= hyp["min_edge"])]
-    if hyp["favourite"]:
-        d = d[d["q"] > 0.5]
-    return d
+    return _hypothesis_members(p, hyp)
 
 
 # The book behind each graded price (the hypotheses read raw rows: sportsbooks).

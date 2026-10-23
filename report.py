@@ -1,4 +1,4 @@
-"""Plain-text ledger report: data/ledger_report.txt (and public/ copy).
+"""Plain-text ledger report: data/ledger_report.txt and internal workbench copy.
 
 The sibling projects (XWOBA MLB Matchups, NFL composite) each commit a
 plain-text readout of the graded ledger, so live numbers can be quoted from

@@ -5,6 +5,19 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+Public UI approval, 2026-10-23: publish only Today, Results, Performance and
+How it works. Public records contain the three registered native tests,
+with test × stage × season separate. Forecasts and frozen tracked picks
+are explicitly distinct. No legacy lean headline, adjusted edge/EV,
+reconstructed results, retired rules or exploratory price bands appear in
+the public UI. Keep the complete workbench under `diagnostics/site/`,
+outside the Pages artifact, and maintain `data/ledger_report.txt` as before.
+The original registration's Ledger/Retired references below now refer to
+that internal workbench. `public/` is a generated, allowlisted directory;
+remove stale contents and verify it before upload. The repository itself
+remains public. This changes presentation only, not prediction maths,
+thresholds, native snapshot locks or registered rule membership.
+
 Production uses v9 everywhere: the base margin model in `model/logit.json`
 and its injury-report arm in `model/logit_avail.json`, with the same faded
 rating from game 0. These are one model's covered/uncovered routes. Model
@@ -33,7 +46,7 @@ injury reports, so every early segment has the injury-timing caveat. The
 first snapshot is later than the open, not an exact opening-price replica.
 
 H1, H6 and late-pregame H2/H3 are retired. Their registered hindsight
-figures and ungraded native bets are frozen under Ledger → Retired and in
+figures and ungraded native bets are frozen under internal Ledger → Retired and in
 `diagnostics/first_snapshot_registration/retired.json`; no new grades enter
 an active record. The ESPN BET early-segment hindsight (276 v9 rows) is
 information only, separate from DraftKings and native evidence.
@@ -103,8 +116,8 @@ information only, separate from DraftKings and native evidence.
 - Pages and report use ±1 SE, labeled. Research uses ±95% unless explicitly
   labeled otherwise. Colour signals a gap ≥2 SE from its null, not sign.
   Pages use Pacific time; slate dates follow ET and data timestamps use UTC.
-- Cards show one primary probability and margin. Shrunk edge/EV (w=0.40)
-  and descriptive price windows are display only; graded rules use the raw
+- Public cards show one primary probability and margin. Shrunk edge/EV (w=0.40)
+  and descriptive price windows remain internal research; graded rules use the raw
   frozen first P. The display margin never replaces H5's frozen 13.5 conversion.
 - Keep site-build serialized with cancel-in-progress false and its data
   validate/commit on !cancelled(), even when rendering fails. Tests gate PRs,
@@ -112,7 +125,9 @@ information only, separate from DraftKings and native evidence.
   queue and retry pushes.
 - `data/nba_box_<season>.csv` and preseason boxes are model inputs. Injury
   lists (`data/nba_injuries.csv`) shown on cards and Sleeper projections
-  (`data/nba_sleeper.csv`, first/latest snapshots) stay research-only. Their
+  (`data/nba_sleeper.csv`, first/latest snapshots) stay research-only. The ESPN
+  injury lists are retained internally rather than presented as the NBA
+  injury-report inputs. Their
   failures never stop a build or alter its probability.
 
 Before every PR: `python validate_data_files.py`, `python -m pytest tests/ -q`,

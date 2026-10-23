@@ -1,6 +1,7 @@
 """The sibling-aligned reporting: same-row favourite baseline, the plain-text
 ledger_report.txt, the Model page and headline tiles, and the build's
 commit-after-failed-render rule."""
+from conftest import write_research
 from pathlib import Path
 
 import numpy as np
@@ -85,9 +86,9 @@ def test_report_with_no_rows():
     assert "no bets" in txt                      # hypotheses still listed
 
 
-def test_pages_publish_model_page_report_and_headline_tiles(tmp_path, monkeypatch):
+def test_backend_workbench_retains_model_report_and_legacy_tiles(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    text = build_site.write_pages(synth(100, 38, "native"),
+    text = write_research(synth(100, 38, "native"),
                                   synth(200, 39, "reconstructed"),
                                   "2026-11-19", model_ok=True)
     assert (tmp_path / "ledger_report.txt").read_text() == text
@@ -100,7 +101,7 @@ def test_pages_publish_model_page_report_and_headline_tiles(tmp_path, monkeypatc
     assert "null " in idx and "market favourite" in idx
     grades = (tmp_path / "grades.html").read_text()
     assert "Fav ROI" in grades
-    for name, _ in build_site.PAGES:
+    for name, _ in build_site.RESEARCH_PAGES:
         html = (tmp_path / name).read_text()
         assert "class='brand'" in html and "toggleTheme" in html
         assert "href='model.html'" in html and "href='ledger_report.txt'" in html
@@ -140,7 +141,7 @@ def _slate(n=3, seed=41):
 def test_index_renders_one_card_per_game_with_ev_beside_its_null(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     d = _slate()
-    build_site.write_pages(d, synth(100, 42, "reconstructed"), "2026-11-19",
+    write_research(d, synth(100, 42, "reconstructed"), "2026-11-19",
                            model_ok=True)
     idx = (tmp_path / "index.html").read_text()
     assert idx.count("<details class='gcard") == idx.count(" data-gid='") == len(d)
@@ -212,7 +213,7 @@ def test_index_cards_read_the_injury_file(tmp_path, monkeypatch):
     seen = []
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     monkeypatch.setattr(build_site.ledger, "load_injuries", lambda: seen.append(1) or inj)
-    build_site.write_pages(d, synth(100, 42, "reconstructed"), "2026-11-19", model_ok=True)
+    write_research(d, synth(100, 42, "reconstructed"), "2026-11-19", model_ok=True)
     assert seen and "Cy Hurt" in (tmp_path / "index.html").read_text()
 
 
@@ -231,7 +232,7 @@ def test_tip_times_are_pacific_across_dst_and_openers_have_no_games_yet():
 
 def test_rebuilt_history_is_folded_and_forward_rows_open(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(synth(100, 43, "native"), synth(100, 44, "reconstructed"),
+    write_research(synth(100, 43, "native"), synth(100, 44, "reconstructed"),
                            "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     nat = grades[grades.index("id='forward'"):grades.index("id='rebuilt'")]
@@ -241,13 +242,13 @@ def test_rebuilt_history_is_folded_and_forward_rows_open(tmp_path, monkeypatch):
     assert "Hindsight, not a track record" in rec
     # the summary line carries ROI with its null and the favourite baseline
     assert "· null " in rec and "· fav " in rec
-    assert (tmp_path / ".nojekyll").exists()
+    assert not (tmp_path / ".nojekyll").exists()  # workbench is not a Pages bundle
 
 
-def test_nav_drops_report_but_every_footer_links_it(tmp_path, monkeypatch):
+def test_backend_research_footers_keep_the_report(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(ledger.empty(), ledger.empty(), "2026-11-19", model_ok=True)
-    for name, _ in build_site.PAGES:
+    write_research(ledger.empty(), ledger.empty(), "2026-11-19", model_ok=True)
+    for name, _ in build_site.RESEARCH_PAGES:
         html = (tmp_path / name).read_text()
         nav = html[html.index("<nav class='nav'"):]
         nav = nav[:nav.index("</nav>")]
@@ -355,7 +356,7 @@ def test_card_reads_one_sportsbook_and_no_kalshi(tmp_path, monkeypatch):
     r = _ats_pending(gp=3)
     r["kalshi_pre_home_ml"], r["kalshi_pre_away_ml"] = -150, 130
     r["kalshi_pre_q_home"] = 0.58
-    build_site.write_pages(pd.DataFrame([r]), synth(50, 43, "reconstructed"),
+    write_research(pd.DataFrame([r]), synth(50, 43, "reconstructed"),
                            "2026-11-19", model_ok=True)
     idx = (tmp_path / "index.html").read_text()
     away, home = build_site.ml_txt(r["pre_away_ml"]), build_site.ml_txt(r["pre_home_ml"])
@@ -374,7 +375,7 @@ def test_card_reads_one_sportsbook_and_no_kalshi(tmp_path, monkeypatch):
 def test_results_and_performance_show_the_native_lean_record(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     native = synth(120, 52, "native")
-    build_site.write_pages(native, synth(200, 53, "reconstructed"), "2026-11-29",
+    write_research(native, synth(200, 53, "reconstructed"), "2026-11-29",
                            model_ok=True)
     scope = build_site.public_scope(native)
     r = scope["row"]
@@ -395,7 +396,7 @@ def test_performance_tracks_model_and_market_forecasts(tmp_path, monkeypatch):
     record's games (native, one book x season), never the rebuilt rows."""
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     native = synth(120, 52, "native")
-    build_site.write_pages(native, synth(200, 53, "reconstructed"), "2026-11-29",
+    write_research(native, synth(200, 53, "reconstructed"), "2026-11-29",
                            model_ok=True)
     perf = (tmp_path / "performance.html").read_text()
     h = build_site.public_scope(native)["sec"]["h"]
@@ -418,7 +419,7 @@ def test_performance_tracks_model_and_market_forecasts(tmp_path, monkeypatch):
 
 def test_public_pages_never_show_the_rebuilt_seasons(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(ledger.empty(), synth(200, 54, "reconstructed"),
+    write_research(ledger.empty(), synth(200, 54, "reconstructed"),
                            "2026-11-29", model_ok=True)
     assert "No graded picks yet" in (tmp_path / "results.html").read_text()
     perf = (tmp_path / "performance.html").read_text()
@@ -431,7 +432,7 @@ def test_a_graded_h6_bet_reaches_the_spread_tile_and_results(tmp_path, monkeypat
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     r = _ats_pending(gp=3)                       # H5·E: HOM -5.5 at -110
     r["home_pts"], r["away_pts"], r["home_won"] = 110, 100, 1       # covers by 4.5
-    build_site.write_pages(pd.DataFrame([r]), synth(50, 55, "reconstructed"),
+    write_research(pd.DataFrame([r]), synth(50, 55, "reconstructed"),
                            "2026-11-20", model_ok=True)
     res = (tmp_path / "results.html").read_text()
     assert "Spread · H5·E · games 1–9" in res and "<div class='v '>1–0</div>" in res
@@ -461,7 +462,7 @@ def test_performance_charts_each_spread_rule(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     r = _ats_pending(gp=3)                       # H5·E bet that covers: +0.91u
     r["home_pts"], r["away_pts"], r["home_won"] = 110, 100, 1
-    build_site.write_pages(pd.DataFrame([r]), synth(50, 56, "reconstructed"),
+    write_research(pd.DataFrame([r]), synth(50, 56, "reconstructed"),
                            "2026-11-20", model_ok=True)
     perf = (tmp_path / "performance.html").read_text()
     assert "Running units · H5·E spread · games 1–9" in perf
@@ -555,7 +556,7 @@ def test_a_push_counts_neither_way_and_returns_the_stake():
 
 def test_performance_shows_the_market_on_its_own(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(_market_rows(), synth(50, 57, "reconstructed"),
+    write_research(_market_rows(), synth(50, 57, "reconstructed"),
                            "2026-10-21", model_ok=True)
     perf = (tmp_path / "performance.html").read_text()
     for t in ("Market performance", "Favourites straight up", "Favourites · moneyline ROI",
@@ -571,7 +572,7 @@ def test_performance_shows_the_market_on_its_own(tmp_path, monkeypatch):
 
 def test_market_view_waits_for_a_graded_close(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(ledger.empty(), synth(50, 58, "reconstructed"), "2026-10-21",
+    write_research(ledger.empty(), synth(50, 58, "reconstructed"), "2026-10-21",
                            model_ok=True)
     perf = (tmp_path / "performance.html").read_text()
     assert "Starts with the first graded game with a DraftKings close." in perf
