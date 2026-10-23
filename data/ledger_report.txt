@@ -1,5 +1,5 @@
-NBA ledger report -- latest pregame snapshot 2026-10-22T23:40:03Z; latest graded slate 2026-10-21 (native and preseason rows)
-Model tags: fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_v6 / fourfactors_hl25_b2b_carry25_phase_luck_talent_ft_avail_v6 / fourfactors_hl25_b2b_carry25_phase_v4 / fourfactors_hl25_b2b_carry25_talent_early_v7
+NBA ledger report -- latest pregame snapshot 2026-10-23T00:14:13Z; latest graded slate 2026-10-21 (native and preseason rows)
+Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_v8 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_avail_v8 / fourfactors_hl25_b2b_carry25_phase_v4 / fourfactors_hl25_b2b_carry25_v2
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight); data/nba_preseason.csv (exhibitions, Kalshi).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
 Read every ROI against its null (q x payout - 1: the ROI if the no-vig market is right, about minus the hold), NOT zero.
