@@ -355,11 +355,13 @@ def preseason_rows(dates, sleep=0.15):
     return pd.DataFrame(rows, columns=PRE_COLUMNS), failed
 
 
-def fetch_preseason_box(y, opening, cache_dir=None, data_dir=None, sleep=0.15):
+def fetch_preseason_box(y, opening, cache_dir=None, data_dir=None, sleep=0.15,
+                        complete_only=False):
     """Season y's preseason box scores: from disk (pre_box_file), else every
     completed exhibition in the PRE_DAYS before `opening` (opening night)
     from ESPN, cached to the research cache only when no request failed and
-    some game was found (a partial fetch is used this once, then retried)."""
+    some game was found (a partial fetch is used this once, then retried;
+    with complete_only it is returned empty, so nothing writes it to data/)."""
     path = pre_box_file(y, cache_dir, data_dir)
     if path:
         return read_pre_box(path)
@@ -371,7 +373,7 @@ def fetch_preseason_box(y, opening, cache_dir=None, data_dir=None, sleep=0.15):
     print(f"preseason {y}: {df['game_id'].nunique()} games, "
           f"{df['team'].nunique()} teams, {failed} failed requests"
           + ("" if not failed and len(df) else "; not cached"), flush=True)
-    return df
+    return df.iloc[:0] if complete_only and failed else df
 
 
 def update_preseason_box(y, today, data_dir="data", sleep=0.15):
