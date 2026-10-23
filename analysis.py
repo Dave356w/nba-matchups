@@ -310,7 +310,7 @@ EARLY_BELOW = 10     # nba_composite.MIN_GAMES: below it v2 uses the carryover m
 def stage(g):
     """(opener, early) masks by the fewer games either team has played:
     opener = game 0 (scored from model v8 on; no rule covers it), early =
-    games 1-9 (H1, H6), neither = games 10+ (H2-H5). Unknown games played
+    games 1-9, neither = games 10+. Unknown games played
     count as games 10+, as before v8."""
     mn = np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
                  pd.to_numeric(g["gp_away"], errors="coerce")).to_numpy()
@@ -319,8 +319,12 @@ def stage(g):
 
 def on_stage(d, hyp):
     """The rows of picks / ats_sides output `d` whose stage a hypothesis
-    covers: games 1-9 for an early rule, games 10+ otherwise; game 0 never."""
-    return d["early"] if hyp["early"] else ~d["early"] & ~d["opener"]
+    covers: games 1-9 for an early rule, games 10+ otherwise; game 0 never.
+    New early segments require v9 at the price's own snapshot."""
+    keep = d["early"] if hyp["early"] else ~d["early"] & ~d["opener"]
+    if hyp.get("requires_v9"):
+        keep = keep & d["model_tag"].astype(str).str.endswith("_v9")
+    return keep
 # The share of the model's disagreement with the price that outcomes bore out
 # at the opening line, games 10+ (research/open_shrinkage.py, 2026-10-22: w
 # fitted on the other priced season +0.43 / +0.36; at the close it is ~0).
@@ -554,6 +558,7 @@ RETIRED_KEYS = ("H1", "H2", "H3", "H6")
 HYPOTHESES = tuple(dict(h, retired=h["key"] in RETIRED_KEYS,
                         carry=h["key"] in ("H1", "H6")) for h in HYPOTHESES)
 HYPOTHESES += tuple(dict(h, key=h["key"] + "·E", early=True,
+                         requires_v9=True,
                          rule=h["rule"].replace("Games 10+", "Games 1–9"),
                          registered_utc=REGISTRATION_UTC, parent=h["key"])
                     for h in HYPOTHESES if h["key"] in ("H4", "H2·F", "H5"))
@@ -980,6 +985,8 @@ def ats_sides(g, price, sigma=ATS_SIGMA, own_margin=False):
     opener, early = stage(g)
     return pd.DataFrame(dict(
         game_id=g["game_id"].to_numpy(), opener=opener, early=early,
+        model_tag=g.get("first_model_tag" if price == "first" else "model_tag",
+                        pd.Series("", index=g.index)).astype(str).to_numpy(),
         side=np.where(home, g["home"], g["away"]), home=home, edge=np.abs(edge),
         line=np.where(home, line, -line), model_line=np.where(home, -m, m),
         model_p=[nd.cdf(abs(e) / s) for e, s in zip(edge, sig)], own=own,
@@ -1009,7 +1016,7 @@ def ats_side_picks(g, price, sigma=ATS_SIGMA, own_margin=False):
     def units(mls, res):
         return [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
                 for m, r in zip(mls, res)]
-    d = s[["game_id", "opener", "early", "side", "line", "edge", "model_p", "q", "ml"]].assign(
+    d = s[["game_id", "opener", "early", "model_tag", "side", "line", "edge", "model_p", "q", "ml"]].assign(
         result=np.where(s["home"], res_home, 1 - res_home),
         fav_units=units(np.where(fav_home, s["hso"], s["aso"]),
                         np.where(fav_home, res_home, 1 - res_home)))
@@ -1021,7 +1028,7 @@ def ats_side_picks(g, price, sigma=ATS_SIGMA, own_margin=False):
 
 
 def ats_card(row):
-    """The ATS hypothesis (H5 or H6) that applies to one ledger row, at its
+    """The ATS hypothesis (H5 or H5·E) that applies to one ledger row, at its
     native price, exactly as the Ledger grades it: dict(hyp, bet, side,
     line, model_line, ml, edge, model_p, q), bet = edge >= the rule's
     threshold. None when the row has no first snapshot with a main-line
@@ -1045,7 +1052,7 @@ def spread_lean(row, sigma=ATS_SIGMA):
     its prices and p_home, as ats_sides reads them): dict(side, line,
     model_line, ml, edge, model_p, q), or None without a main-line spread or
     a model P. Display only, the Picks card's spread lean, refreshed with the
-    pregame row; the graded spread picks are H5 / H6 (ats_card). A v9 row
+    pregame row; the graded spread picks are H5 / H5·E (ats_card). A v9 row
     uses the model's own margin (margin_home; own True)."""
     s = ats_sides(pd.DataFrame([row]), "pre", sigma, own_margin=True)
     if not len(s):

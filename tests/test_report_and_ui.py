@@ -263,6 +263,7 @@ def _ats_pending(gp, first_p=0.75, line=-5.5, home_odds=-110):
     r["gp_home"] = r["gp_away"] = gp
     r["first_snapshot_utc"] = "2026-11-19T15:07:00Z"     # 7:07 AM PST
     r["first_p_home"], r["first_book"] = first_p, "dk"
+    r["first_model_tag"] = build_site.MODEL_TAG_V9
     r["first_spread"], r["first_home_spread_odds"] = line, home_odds
     r["first_away_spread_odds"] = -110
     r["pre_spread"] = line
