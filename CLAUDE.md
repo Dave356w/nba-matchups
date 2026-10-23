@@ -556,6 +556,28 @@ Before a PR, run:
     record the pregame and first-snapshot spread from 2026-10-20 (see
     "Pregame spread" above), so a forward ATS test can be graded at a
     bettable price. H5 and H6 (above, under the hypotheses) are that test.
+- Margin model (owner's question, 2026-10-23: can a model fitted on
+  margins give the spread, and is it also accurate for win probability?
+  `research/margin_model.py`, workflow "Margin model", run 39997006384,
+  `diagnostics/margin_model/RESULTS.txt`): v8's inputs, routes and
+  walk-forward seasons (unified.py, fade10), OLS on the final home margin
+  per route, P = Φ(m / σ) with σ the route's training residual SD (11.7 →
+  13.5 over the folds), plus a probit reading. Walk-forward 2016–26, games
+  1+ (n = 10,767), M − v8, ± 95%: log loss −0.0008 ± 0.0010, Brier −0.0003
+  ± 0.0004, better in 4 of 9 seasons; calibration slope 1.08 (v8 0.95);
+  probit reading −0.0004 ± 0.0006 (slope 0.96). Close, same games, games
+  10+: 2024-25 ESPN BET −0.0014 ± 0.0030 (Brier −0.0005), 2025-26 DK
+  −0.0004 ± 0.0028 (Brier −0.0001): passes G7, no tripwire, unresolved;
+  M − close +0.0144 / +0.0170 (v8 +0.0158 / +0.0174). 2025-26 ESPN BET
+  games 1–9 (n = 138) +0.0080 ± 0.0073, worse, small sample. Spread: M's
+  margin beats v8's 13.5 × Φ⁻¹(P), MAE −0.065 ± 0.027 pts (RMSE 13.46 vs
+  13.53; home bias +0.37 vs +0.78), resolved pooled, not per book-season;
+  it trails the close by +0.24 ± 0.15 / +0.29 ± 0.19 MAE and ties the open
+  (−0.13 ± 0.19 / +0.04 ± 0.19). ATS slope on the edge at the open +0.54 /
+  +0.34 (v8 +0.48 / +0.31), at the close −0.11 / −0.09, the same reading as
+  v8. The probit's margin scale 1/b is 11.8–12.3, not 13.5. Equal accuracy
+  for win probability, a slightly better spread; no model change without
+  the owner's decision (new tag, refit, rescore).
 - More game-log seasons to settle the half-life. Travel/altitude/rest
   context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
   the market's correction and worsen 2025-26 log loss jointly; not pursued.

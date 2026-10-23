@@ -1,0 +1,80 @@
+Margin model (research/margin_model.py): v8's inputs and routing, OLS on the final margin, P = Phi(m / sigma). Walk-forward; ± is 95%.
+Workflow "Margin model", run 39997006384 (commit 875f47b).
+
+== Q1. Win probability against outcomes (walk-forward; M - v8, negative = M better, ± 95%)
+  games 1+       M        n  10767  log loss M - v8 -0.0008 ± 0.0010  Brier -0.0003 ± 0.0004  slope 1.076 (v8 0.948)
+  games 1+       Mprobit  n  10767  log loss M - v8 -0.0004 ± 0.0006  Brier -0.0002 ± 0.0002  slope 0.959 (v8 0.948)
+  game 0         M        n    143  log loss M - v8 +0.0017 ± 0.0059  Brier +0.0006 ± 0.0025  slope 1.366 (v8 1.245)
+  game 0         Mprobit  n    143  log loss M - v8 +0.0001 ± 0.0032  Brier +0.0003 ± 0.0014  slope 1.194 (v8 1.245)
+  games 1-9      M        n   1258  log loss M - v8 -0.0015 ± 0.0027  Brier -0.0007 ± 0.0011  slope 0.997 (v8 0.882)
+  games 1-9      Mprobit  n   1258  log loss M - v8 +0.0001 ± 0.0018  Brier -0.0002 ± 0.0008  slope 0.880 (v8 0.882)
+  games 10-19    M        n   1375  log loss M - v8 -0.0016 ± 0.0030  Brier -0.0005 ± 0.0012  slope 1.013 (v8 0.887)
+  games 10-19    Mprobit  n   1375  log loss M - v8 -0.0003 ± 0.0020  Brier -0.0002 ± 0.0008  slope 0.897 (v8 0.887)
+  games 20+      M        n   8134  log loss M - v8 -0.0006 ± 0.0012  Brier -0.0002 ± 0.0005  slope 1.096 (v8 0.966)
+  games 20+      Mprobit  n   8134  log loss M - v8 -0.0005 ± 0.0006  Brier -0.0002 ± 0.0003  slope 0.979 (v8 0.966)
+  by season (games 1+, Phi(m / sigma)):
+    2016-17  n  1214  -0.0063 ± 0.0043
+    2017-18  n  1214  +0.0005 ± 0.0028
+    2018-19  n  1214  +0.0011 ± 0.0034
+    2020-21  n  1064  -0.0017 ± 0.0032
+    2021-22  n  1214  -0.0008 ± 0.0030
+    2022-23  n  1214  +0.0003 ± 0.0026
+    2023-24  n  1215  +0.0001 ± 0.0028
+    2024-25  n  1209  -0.0012 ± 0.0028
+    2025-26  n  1209  +0.0005 ± 0.0026
+    M better in 4 of 9 seasons
+
+== Q1 (G7). Against the close, each book x season alone (± 95%)
+  ESPN BET 2024-25
+    games 1-9  n   138  v8 - close -0.0210 ± 0.0237  M - close -0.0211 ± 0.0245  M - v8 -0.0001 ± 0.0095 (Brier -0.0011 ± 0.0039)
+    games 10+  n  1071  v8 - close +0.0158 ± 0.0099  M - close +0.0144 ± 0.0092  M - v8 -0.0014 ± 0.0030 (Brier -0.0005 ± 0.0012)
+    games 1+   n  1209  v8 - close +0.0116 ± 0.0092  M - close +0.0104 ± 0.0087  M - v8 -0.0012 ± 0.0028 (Brier -0.0006 ± 0.0012)
+  DraftKings 2025-26
+    games 10+  n   964  v8 - close +0.0174 ± 0.0112  M - close +0.0170 ± 0.0107  M - v8 -0.0004 ± 0.0028 (Brier -0.0001 ± 0.0011)
+    games 1+   n   964  v8 - close +0.0174 ± 0.0112  M - close +0.0170 ± 0.0107  M - v8 -0.0004 ± 0.0028 (Brier -0.0001 ± 0.0011)
+  ESPN BET 2025-26
+    games 1-9  n   138  v8 - close -0.0009 ± 0.0260  M - close +0.0071 ± 0.0270  M - v8 +0.0080 ± 0.0073 (Brier +0.0029 ± 0.0031)
+    games 10+  n   107  v8 - close -0.0032 ± 0.0332  M - close -0.0041 ± 0.0305  M - v8 -0.0010 ± 0.0101 (Brier -0.0014 ± 0.0042)
+    games 1+   n   245  v8 - close -0.0019 ± 0.0206  M - close +0.0022 ± 0.0202  M - v8 +0.0041 ± 0.0061 (Brier +0.0010 ± 0.0026)
+
+== Q2. The spread: predicted home margin vs the final margin (M - other, negative = M better, ± 95%)
+  all test games, games 1+ (n 10767)
+    M (OLS on margin)          MAE 10.521  RMSE 13.456  bias +0.366
+    v8, 13.5 x Phi^-1(P)       MAE 10.586  RMSE 13.531  bias +0.777   M - this: MAE -0.065 ± 0.027, MSE -2.03 ± 0.73
+  ESPN BET 2024-25 (n 1208)
+    M (OLS on margin)          MAE 10.724  RMSE 13.832  bias +0.548
+    v8, 13.5 x Phi^-1(P)       MAE 10.776  RMSE 13.885  bias +0.533   M - this: MAE -0.052 ± 0.055, MSE -1.47 ± 1.52
+    close (minus home line)    MAE 10.483  RMSE 13.511  bias +0.116   M - this: MAE +0.241 ± 0.149, MSE +8.77 ± 4.26
+    open, n 1208               MAE 10.856  RMSE 13.879  bias +0.213   M - this: MAE -0.132 ± 0.187, MSE -1.29 ± 5.50
+  DraftKings 2025-26 (n 964)
+    M (OLS on margin)          MAE 11.344  RMSE 14.549  bias +0.609
+    v8, 13.5 x Phi^-1(P)       MAE 11.382  RMSE 14.575  bias +0.615   M - this: MAE -0.038 ± 0.052, MSE -0.76 ± 1.51
+    close (minus home line)    MAE 11.056  RMSE 14.141  bias +0.321   M - this: MAE +0.288 ± 0.186, MSE +11.70 ± 5.56
+    open, n 964                MAE 11.302  RMSE 14.432  bias +0.284   M - this: MAE +0.042 ± 0.186, MSE +3.39 ± 5.88
+  ESPN BET 2025-26 (n 245)
+    M (OLS on margin)          MAE 10.274  RMSE 12.878  bias -0.261
+    v8, 13.5 x Phi^-1(P)       MAE 10.235  RMSE 12.798  bias -0.241   M - this: MAE +0.040 ± 0.129, MSE +2.07 ± 3.05
+    close (minus home line)    MAE 10.255  RMSE 13.031  bias -0.471   M - this: MAE +0.019 ± 0.352, MSE -3.96 ± 8.74
+    open, n 245                MAE 10.288  RMSE 13.130  bias -0.051   M - this: MAE -0.013 ± 0.380, MSE -6.54 ± 10.36
+
+== Q3. Against the spread (descriptive): slope of the home cover margin on the model's edge, points per point, ± 95%
+  ESPN BET 2024-25, games 10+
+    at the open  M   n  1071  slope +0.536 ± 0.249
+    at the open  v8  n  1071  slope +0.476 ± 0.235
+    at the close M   n  1071  slope -0.105 ± 0.294
+    at the close v8  n  1071  slope -0.104 ± 0.274
+  DraftKings 2025-26, games 10+
+    at the open  M   n   964  slope +0.335 ± 0.296
+    at the open  v8  n   964  slope +0.314 ± 0.283
+    at the close M   n   964  slope -0.086 ± 0.286
+    at the close v8  n   964  slope -0.090 ± 0.278
+  ESPN BET 2025-26, games 10+
+    at the open  M   n   107  slope +1.216 ± 0.796
+    at the open  v8  n   107  slope +0.981 ± 0.713
+    at the close M   n   107  slope +1.076 ± 0.875
+    at the close v8  n   107  slope +0.842 ± 0.771
+
+== Coefficients, the last fold (trained on seasons before 2025-26; points of home margin per unit)
+  base   n  10462  sigma 13.17  probit +0.002 + 0.0846 m (1/b 11.82)  int +2.11  delta +0.115  b2b_net +2.254  d_phase +0.132  luck_def +0.081  talent_diff +0.421  ft_diff +0.091
+  avail  n   3638  sigma 13.45  probit -0.014 + 0.0814 m (1/b 12.28)  int +2.17  delta +0.143  b2b_net +2.481  av_min +0.726  av_bpm +0.351  d_phase +0.146  luck_def +0.101  talent_diff +0.308  ft_diff +0.107
+  v4     n  10915  sigma 13.35  probit +0.005 + 0.0825 m (1/b 12.11)  int +2.10  delta +0.181  b2b_net +2.272  d_phase +0.166
