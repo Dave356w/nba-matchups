@@ -275,11 +275,16 @@ def test_card_shows_the_h6_pick_as_registered():
     card = build_site.game_card(_ats_pending(gp=3))
     assert "Spread pick · H6</span><span class='pk'>HOM -5.5</span>" in card
     assert "<b>H6 pick</b>" in card and "<b>HOM -5.5</b> at -110" in card
-    assert "model line HOM -9.1 vs market -5.5: 3.6 pts" in card
+    # H6 reads the carryover P it was registered on, and the card says so
+    assert ("carryover model's line (the model H6 was registered on; the card's "
+            "model P is the current model's) HOM -9.1 vs market -5.5: 3.6 pts") in card
+    assert "<span>Carryover HOM -9.1</span>" in card and "carryover cover" in card
     assert "7:07 AM PT" in card and "DraftKings" in card and "H5" not in card
-    # games 10+ is H5's, with the same reading
-    assert "Spread pick · H5</span><span class='pk'>HOM -5.5</span>" in \
-        build_site.game_card(_ats_pending(gp=12))
+    # games 10+ is H5's, with the same reading, on the model's own P
+    card = build_site.game_card(_ats_pending(gp=12))
+    assert "Spread pick · H5</span><span class='pk'>HOM -5.5</span>" in card
+    assert "model line HOM -9.1 vs market -5.5: 3.6 pts" in card
+    assert "<span>Model HOM -9.1</span>" in card and "Carryover" not in card
 
 
 def test_card_says_why_there_is_no_ats_bet():

@@ -1195,7 +1195,11 @@ def ats_note(r, a):
     """The card's account of the ATS hypothesis that covers this game
     (analysis.ats_card): the pick at its registered price, or why not."""
     key, side = a["hyp"]["key"], esc(a["side"])
-    gap = (f"model line {side} {line_txt(round(a['model_line'], 1))} vs market "
+    # H6 (games 1-9) is graded on the carryover P it was registered on
+    # (analysis.carry_view), not the v8 P the card shows
+    who = (f"carryover model's line (the model {key} was registered on; the "
+           "card's model P is the current model's)") if a["hyp"]["early"] else "model line"
+    gap = (f"{who} {side} {line_txt(round(a['model_line'], 1))} vs market "
            f"{line_txt(a['line'])}: {a['edge']:.1f} pts")
     if not a["bet"]:
         return (f"<p class='note'><b>{key}</b> (pre-registered, against the "
@@ -1209,7 +1213,8 @@ def ats_note(r, a):
     return (f"<p class='note'><b>{key} pick</b> (pre-registered, against the "
             f"spread): <b>{side} {line_txt(a['line'])}</b> at {ml_txt(a['ml'])}"
             f"{book_tag(r.get('first_book'))}, from the first snapshot "
-            f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; model cover "
+            f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; "
+            f"{'carryover' if a['hyp']['early'] else 'model'} cover "
             f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig).{moved} "
             "Graded on the <a href='grades.html#hypotheses'>Ledger</a> at this "
             "price, win or lose.</p>")
@@ -1267,11 +1272,13 @@ def band_panel(part, key, kind):
 
 def spread_line(kind, a):
     """A card's spread line: the side and its line, the edge in points, and
-    the model's line beside the market's at the side's price."""
+    the model's line beside the market's at the side's price. An early pick
+    (H6) names its model: the carryover P it is graded on, not the card's."""
     side = esc(a["side"])
+    model = "Carryover" if a.get("hyp", {}).get("early") else "Model"
     return (f"<div class='pick-lines'><span class='kind'>{kind}</span><span class='pk'>"
             f"{side} {line_txt(a['line'])}</span><span class='edge'>{a['edge']:.1f} "
-            f"pts vs the line</span></div><div class='g-mk'><span>Model {side} "
+            f"pts vs the line</span></div><div class='g-mk'><span>{model} {side} "
             f"{line_txt(round(a['model_line'], 1))}</span> · <span>Market "
             f"{side} {line_txt(a['line'])}</span> · <span>at {ml_txt(a['ml'])}"
             "</span></div>")
@@ -1406,7 +1413,7 @@ def record_tiles(scope):
     r = scope["row"]
     c = sig_cls(analysis.z_vs_null(r))
     return ("<div class='gr-summary'>"
-            + _stat("Record", f"{r['w']}–{r['l']}", f"W–L · {r['n']} bets · "
+            + _stat("Record", f"{r['w']}–{r['l']}", f"W–L · {r['n']} bet{'' if r['n'] == 1 else 's'} · "
                     f"{_scope_txt(scope)}")
             + _stat("Win rate", pct(r["actual"]), f"Break-even {pct(r['breakeven'])} "
                     "at the prices taken", meter=(r["actual"], r["breakeven"]))
@@ -1535,7 +1542,7 @@ HOW_INDEX = (
     f"{nc.FADE_GAMES} its rating still blends in last season (weight "
     f"{nc.FADE_RHO:g} × (1 − games played ÷ {nc.FADE_GAMES})), and before its "
     "first game its roster is its preseason box scores. <b>injury report</b>: "
-    "from each team's second game the latest NBA injury report is folded in "
+    "from each team's game 1 (its second game) the latest NBA injury report is folded in "
     "(Out/Doubtful players, weighted by last season's BPM). The model also "
     "grows the rating's weight through the season, discounts opponents' "
     "3-point shooting (mostly luck), adds roster talent (minutes share × last "
@@ -1546,7 +1553,9 @@ HOW_INDEX = (
     "rules (H6 games 1–9, H5 games 10+; see the <a href='grades.html#hypotheses'>"
     "Ledger</a>). From the first snapshot with a model probability and a "
     "spread, the model's line (13.5 × Φ⁻¹(P) as a margin) must beat the "
-    "market's by at least 1 point at a main-line price. It is fixed when "
+    "market's by at least 1 point at a main-line price. H6 reads P from the "
+    "carryover model it was registered on (labelled <b>Carryover</b>), not "
+    "the current model's P shown on the card. It is fixed when "
     "first written and graded at that price, win or lose, even if the line "
     "moves later.</p>"
     "<p class='note'><b>Historical band</b> (an opened card): where this "
@@ -1621,8 +1630,8 @@ def injury_block(r, injuries):
     return ("<h3>Injuries</h3><div class='inj'>" + "".join(cols) + "</div>"
             f"<p>ESPN's injury list as of {tip_pt(snap)}, refreshed each build "
             "until tip and frozen after. The model does not read it: from each "
-            "team's second game it reads the NBA's official injury report (Out "
-            "and Doubtful count as out); a team's first game has no injury "
+            "team's game 1 (its second game) it reads the NBA's official injury report (Out "
+            "and Doubtful count as out); a team's game 0 has no injury "
             "terms.</p>")
 
 
@@ -2297,7 +2306,7 @@ def render_model(native, recon, built):
             f"{nc.FADE_GAMES}; before a team's first game its roster is its "
             "preseason box scores.</p>" + table(
                 ["Game", "Formula", "Model file"],
-                [["The NBA injury report covers it (from each team's game 1)",
+                [["The NBA injury report covers it (from each team's game 1, its second game)",
                   "availability logit", "<code>model/logit_avail.json</code>"],
                  ["Otherwise (game 0 included)", "base logit",
                   "<code>model/logit.json</code>"],
