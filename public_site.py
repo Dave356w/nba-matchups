@@ -61,7 +61,7 @@ CSS = """
 .stage-panel .uchart{margin-top:12px;padding:8px}.stage-panel .uchart .head{font-size:10px}.stage-panel .uchart .v{font-size:12px}
 .public-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface)}
 .public-table th{text-align:left;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:14px 12px;background:var(--surface-2)}
-.public-table td{padding:14px 12px;border-top:1px solid var(--line-2)}.public-table small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.public-table td{text-align:left;padding:14px 12px;border-top:1px solid var(--line-2)}.public-table small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
 .result-badge{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11px;font-weight:700}
 .public-empty{padding:32px;border:1px dashed var(--line);border-radius:14px;margin:24px 0;background:var(--surface);color:var(--muted)}
 .public-empty h2{color:var(--ink);font-size:18px;margin:0 0 8px}.public-empty p{font-size:14px;margin:0;max-width:600px}
