@@ -21,6 +21,17 @@ owner directs the product.
 - `data/nba_ledger.csv`: **native** rows, pregame-locked (snapshot < tip).
 - `data/nba_reconstructed.csv`: **reconstructed** rows (leave-one-season-out,
   closing price). This is hindsight and is not forward evidence.
+- `data/nba_rebuilt.csv`: **rebuilt** rows (basis "rebuilt"; owner's
+  request 2026-10-23, "retrospectively grade current season games"): the
+  season in progress, its graded games scored after the fact by the current
+  model (`backfill_history.py --seasons 2027 --rebuild`, workflow "Backfill
+  history" with `rebuild`; every fit on earlier seasons only, features from
+  games before each date, the archived pregame injury report), priced at the
+  close and replaced whole by each run. Hindsight, like the reconstructed
+  rows: never pooled with the native record, the reconstructed seasons, the
+  hypotheses or a fit; no pregame price (validated,
+  `validate_data_files.main`). The public pages show it in its own labelled
+  section.
 - `data/nba_box_<season>.csv`: ESPN player box scores (minutes, +/-), the
   input to roster talent and the availability terms. This season's is
   extended daily by the build (`player_availability.update_box`); the
@@ -128,6 +139,10 @@ owner directs the product.
   forward record, one closing book × season (`build_site.public_scope`):
   the lean's ROI beside its null and the market favourite, and the H5/H6
   spread picks at their registered price; never the reconstructed rows.
+  Results and Performance also show this season's rebuilt rows
+  (`data/nba_rebuilt.csv`; owner's request 2026-10-23) in their own section,
+  labelled "rebuilt after the fact (hindsight)", beside the live record and
+  never pooled with it.
   Performance also shows the market on its own (owner's request,
   2026-10-22; `build_site._market_performance`, `analysis.market_games`,
   `market_summary`, `market_ml_bands`, `market_ats_bands`, `market_by_side`):
@@ -576,8 +591,17 @@ Before a PR, run:
   (−0.13 ± 0.19 / +0.04 ± 0.19). ATS slope on the edge at the open +0.54 /
   +0.34 (v8 +0.48 / +0.31), at the close −0.11 / −0.09, the same reading as
   v8. The probit's margin scale 1/b is 11.8–12.3, not 13.5. Equal accuracy
-  for win probability, a slightly better spread; no model change without
-  the owner's decision (new tag, refit, rescore).
+  for win probability, a slightly better spread. **Model v9** (owner's
+  decision, 2026-10-23, "ship it"; MODEL.md "v9"): shipped as tested. Both
+  v8 routes fitted on the margin (`nba_composite.fit_margin`, `fit-logit
+  --v9`, `player_availability.py fit --v9`; model files `"link":
+  "margin"`, `predict` → Φ(m / σ)); rows record the model's margin
+  (`ledger.MARGIN_COLUMNS` `margin_home`, a pregame column, refreshed until
+  tip, frozen; blank on logit rows); tags `..._ft_margin_v9` /
+  `..._ft_margin_avail_v9`; the fallbacks unchanged. The card's spread lean
+  uses `margin_home` (`analysis.spread_lean`, `ats_sides(own_margin=True)`,
+  display only); H5 / H6 keep 13.5 × Φ⁻¹(P), as registered. Activation:
+  Fit model, then Backfill history rescore and `rebuild` (below).
 - More game-log seasons to settle the half-life. Travel/altitude/rest
   context (hindsight scan, 2024-26): 18 schedule features explain 2.4% of
   the market's correction and worsen 2025-26 log loss jointly; not pursued.

@@ -12,7 +12,17 @@ else ESPN BET; `close_book` says which -- see market.pick_close):
   * logit:             fit on game logs from GAME_YEARS with Y removed;
   * features:          decayed pregame totals, games strictly before each date.
 
-Model v6 (default; --v5 for v5, --v4 for v4): v5 plus ft_diff, the own FT%
+Model v9 (default; --v8 for v8): v8's routing and seasons (below), each
+route fitted by least squares on the final home margin; P = Phi(m / sigma)
+and margin_home = m (nba_composite.fit_margin). --seasons may include the
+season in progress (2027 = 2026-27): its played games are rebuilt with every
+fit on earlier seasons only (leave-one-season-out leaves nothing of it in),
+priced at the close, as reconstructed (hindsight) rows.
+
+Model v8 (--v8): one faded rating and one pair of logits for every game
+(reconstruct_season_v8).
+
+Model v6 (--v6; --v5 for v5, --v4 for v4): v5 plus ft_diff, the own FT%
 gap (nba_composite.V6_FEATURES), in both games-10+ logits.
 
 Model v5: v4 below plus luck_def and talent_diff in
@@ -66,7 +76,7 @@ GAME_YEARS = [2023, 2024, 2025, 2026]
 PHASE_YEARS = [2016, 2017, 2018, 2019] + list(range(2021, 2027))
 REPORT_YEARS = [2023, 2024, 2025, 2026]
 MODEL_COLUMNS = ["gp_home", "gp_away", "delta", "p_home", "lean", "p_lean",
-                 "model_tag", "carry_p_home"]
+                 "model_tag", "carry_p_home", "margin_home"]
 # v7: the early (games 1-9) talent logit's seasons, the box-score seasons
 # (research/early_roster.py; the first needs the BPM table of the season
 # before it). The carryover logit keeps GAME_YEARS.
@@ -244,7 +254,7 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
 def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
                           talent0=None, weight_years=WEIGHT_YEARS,
                           phase_years=PHASE_YEARS, report_years=REPORT_YEARS,
-                          game_years=GAME_YEARS):
+                          game_years=GAME_YEARS, margin=False):
     """Model v8 for every game of season y, game 0 included, routed as the
     daily build routes it (build_site.score_game_v8): the availability logit
     on covered games from game 1 ("avail"), the base logit elsewhere
@@ -257,7 +267,13 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     Every fit leaves season y out (walk_forward=True: earlier seasons only).
     terms: {season: player_availability.season_terms frame}; None skips the
     availability arm. talent / talent0: {season: talent function / {team:
-    preseason talent}}, defaults from the box scores."""
+    preseason talent}}, defaults from the box scores. margin=True: model v9,
+    both routes fitted on the final margin (nc.fit_margin), margin_home = the
+    predicted home margin and the v9 tags; the fallbacks stay logits."""
+    fit = ((lambda X, t, f: nc.fit_margin(X, t["margin"], f)) if margin else
+           (lambda X, t, f: nc.fit_logit(X, t["win"], f)))
+    tag, tag_av = ((build_site.MODEL_TAG_V9, build_site.MODEL_TAG_V9_AVAIL) if margin
+                   else (build_site.MODEL_TAG_V8, build_site.MODEL_TAG_V8_AVAIL))
     def use(years):
         out = training_years(years, y, walk_forward)
         if not out:
@@ -290,15 +306,17 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     feats, afeats = nc.V6_FEATURES, pav.FEATURES_V6
     train = pd.concat([games[t] for t in phase_train], ignore_index=True)
     ok = np.isfinite(train[feats].to_numpy(float)).all(axis=1)
-    base = nc.fit_logit(train.loc[ok, feats].values, train.loc[ok, "win"], feats)
+    base = fit(train.loc[ok, feats].values, train.loc[ok], feats)
     test = games[y].copy()
     test["gmin"] = np.minimum(test["gp_home"], test["gp_away"])
     test["p_home"], test["model_tag"], test["route"] = np.nan, None, None
-    test["carry_p_home"] = np.nan
+    test["carry_p_home"], test["margin_home"] = np.nan, np.nan
     fin = np.isfinite(test[feats].to_numpy(float)).all(axis=1)
     test.loc[fin, "p_home"] = nc.predict(base, test.loc[fin, feats].values)
-    test.loc[fin, "model_tag"], test.loc[fin, "route"] = build_site.MODEL_TAG_V8, "base"
-    print(f"season {y}: v8 base on {int(fin.sum())}/{len(test)} games (fit n="
+    test.loc[fin, "margin_home"] = nc.predict_margin(base, test.loc[fin, feats].values)
+    test.loc[fin, "model_tag"], test.loc[fin, "route"] = tag, "base"
+    ver = "v9" if margin else "v8"
+    print(f"season {y}: {ver} base on {int(fin.sum())}/{len(test)} games (fit n="
           f"{int(ok.sum())})", flush=True)
     tkey = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d") + test["home"] + test["away"]
     if terms and y in terms:
@@ -308,16 +326,18 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
                 t, weights, talent=tal(t), talent0=tal0(t)), terms[t]) for t in others])
             tr = tr[np.minimum(tr["gp_home"], tr["gp_away"]) >= 1]
             ok = np.isfinite(tr[afeats].to_numpy(float)).all(axis=1)
-            am = nc.fit_logit(tr.loc[ok, afeats].values, tr.loc[ok, "win"], afeats)
+            am = fit(tr.loc[ok, afeats].values, tr.loc[ok], afeats)
             te = pav.with_terms(test, terms[y])
             te = te[(te["gmin"] >= 1) & np.isfinite(te[afeats].to_numpy(float)).all(axis=1)]
-            pmap = dict(zip(te["slate_date"] + te["home"] + te["away"],
-                            nc.predict(am, te[afeats].values)))
+            tk = te["slate_date"] + te["home"] + te["away"]
+            pmap = dict(zip(tk, nc.predict(am, te[afeats].values)))
+            mmap = dict(zip(tk, nc.predict_margin(am, te[afeats].values)))
             hit = tkey.isin(pmap)
             test.loc[hit, "p_home"] = tkey[hit].map(pmap).to_numpy(float)
-            test.loc[hit, "model_tag"] = build_site.MODEL_TAG_V8_AVAIL
+            test.loc[hit, "margin_home"] = tkey[hit].map(mmap).to_numpy(float)
+            test.loc[hit, "model_tag"] = tag_av
             test.loc[hit, "route"] = "avail"
-            print(f"season {y}: v8 availability on {int(hit.sum())}/{len(test)} games "
+            print(f"season {y}: {ver} availability on {int(hit.sum())}/{len(test)} games "
                   f"(fit on {others}, n={int(ok.sum())})", flush=True)
     # the carryover logit (its P for H1 / H6, and the fallback before game 10)
     early = cold_start.fit_early(use(game_years), weights)
@@ -343,7 +363,7 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
         test.loc[miss, "p_home"] = nc.predict(v4, test.loc[miss, nc.PHASE_FEATURES].values)
         test.loc[miss, "model_tag"], test.loc[miss, "route"] = build_site.MODEL_TAG_V4, "v4"
     test = test[test["p_home"].notna()].reset_index(drop=True)
-    print(f"season {y}: v8 routes {test['route'].value_counts().to_dict()}", flush=True)
+    print(f"season {y}: {ver} routes {test['route'].value_counts().to_dict()}", flush=True)
     return test, weights, base
 
 
@@ -370,14 +390,16 @@ def rescore(recon, test):
         p_lean=np.round(np.where(lean_home, p, 1 - p), 5),
         model_tag=src["model_tag"].to_numpy(),
         carry_p_home=(np.round(src["carry_p_home"].astype(float).to_numpy(), 5)
-                      if "carry_p_home" in src else np.nan))
+                      if "carry_p_home" in src else np.nan),
+        margin_home=(np.round(src["margin_home"].astype(float).to_numpy(), 2)
+                     if "margin_home" in src else np.nan))
     for c in MODEL_COLUMNS:
         out[c] = out[c].astype(object)
         out.loc[hit, c] = new[c]
     return out, int(hit.sum())
 
 
-def attach_espn(test, sleep=0.25):
+def attach_espn(test, sleep=0.25, basis="reconstructed"):
     """Map each (date, away, home) to an ESPN event; fetch one book's open/close."""
     rows = []
     for date, day in test.groupby(test["date"].dt.strftime("%Y-%m-%d")):
@@ -401,7 +423,7 @@ def attach_espn(test, sleep=0.25):
                 game_id=g["game_id"], slate_date=date, season=int(r["year"]),
                 tip_utc=g["tip_utc"], snapshot_utc=np.nan,
                 model_tag=r.get("model_tag", build_site.MODEL_TAG),
-                basis="reconstructed",
+                basis=basis,
                 home=r["home"], away=r["away"],
                 gp_home=r.get("gp_home", np.nan), gp_away=r.get("gp_away", np.nan),
                 home_b2b=r["h_b2b"], away_b2b=r["a_b2b"],
@@ -410,6 +432,8 @@ def attach_espn(test, sleep=0.25):
                 p_lean=round(p if lean_home else 1 - p, 5),
                 carry_p_home=(round(float(r["carry_p_home"]), 5)
                               if pd.notna(r.get("carry_p_home", np.nan)) else np.nan),
+                margin_home=(round(float(r["margin_home"]), 2)
+                             if pd.notna(r.get("margin_home", np.nan)) else np.nan),
             )
             rows.append(rec)
             led = pd.DataFrame([rec], columns=ledger.COLUMNS)
@@ -472,28 +496,45 @@ def main(argv=None):
                     help="score with the v6 routing (no talent on games 1-9)")
     ap.add_argument("--v7", action="store_true",
                     help="score with the v7 routing (games 1-9 on the early logit)")
+    ap.add_argument("--v8", action="store_true",
+                    help="score with v8 (the v9 routing fitted on the win, not the margin)")
     ap.add_argument("--kalshi", action="store_true",
                     help="fill only Kalshi's open/close on existing graded rows")
+    ap.add_argument("--rebuild", action="store_true",
+                    help="the season in progress: score its played games after the fact "
+                         "and write data/nba_rebuilt.csv (basis rebuilt), replacing it")
     a = ap.parse_args(argv)
     if a.kalshi:
         return backfill_kalshi(a.seasons)
+    if a.rebuild and (a.rescore or min(a.seasons) <= max(PHASE_YEARS)):
+        raise SystemExit("--rebuild takes only seasons in progress (after "
+                         f"{max(PHASE_YEARS)}) and no --rescore")
     terms = None
     if not a.no_avail:
         archive = pav.ReportArchive(os.path.join(a.cache, "injury_reports"))
         terms = {}
         try:
-            for t in REPORT_YEARS:
-                terms[t], s = pav.season_terms(t, archive, a.cache)
+            # the season in progress (rebuilt from its played games) reads its
+            # own reports too; it is never a training season
+            for t in sorted(set(REPORT_YEARS) | {y for y in a.seasons if y > max(REPORT_YEARS)}):
+                try:
+                    terms[t], s = pav.season_terms(t, archive, a.cache)
+                except Exception as e:  # noqa: BLE001 - that season scores without the report
+                    if t in REPORT_YEARS:
+                        raise
+                    print(f"report season {t}: no terms ({e!r})", flush=True)
+                    continue
                 print(f"report season {t}: {s['with_report']}/{s['games']} "
                       f"games with a report, {len(s['covered'])} covered",
                       flush=True)
         finally:
             archive.save()
-    v8 = not (a.v4 or a.v5 or a.v6 or a.v7)
+    v8 = not (a.v4 or a.v5 or a.v6 or a.v7)        # v8 or v9: one faded rating
+    margin = v8 and not a.v8
 
     def season(y):
         if v8:
-            return reconstruct_season_v8(y, terms=terms)
+            return reconstruct_season_v8(y, terms=terms, margin=margin)
         return reconstruct_season(y, terms=terms, v5=not a.v4, v6=not (a.v4 or a.v5),
                                   v7=not (a.v4 or a.v5 or a.v6))
     if a.rescore:
@@ -521,19 +562,24 @@ def main(argv=None):
         ledger.save(df, ledger.RECON_PATH)
         print(f"wrote {ledger.RECON_PATH}: {len(df)} rows", flush=True)
         return 0
-    out = [ledger.load(ledger.RECON_PATH)]
+    path = ledger.REBUILT_PATH if a.rebuild else ledger.RECON_PATH
+    # a rebuild replaces the file: every played game is rescored from scratch
+    out = [] if a.rebuild else [ledger.load(ledger.RECON_PATH)]
     for y in a.seasons:
         test, _, model = season(y)
         print(f"season {y}: {len(test)} games scored; logit {model}", flush=True)
-        rec = attach_espn(test)
+        rec = attach_espn(test, basis="rebuilt" if a.rebuild else "reconstructed")
+        if a.rebuild:                        # graded games only
+            rec = rec[pd.to_numeric(rec["home_won"], errors="coerce").isin([0, 1])]
         by_book = rec["close_book"].value_counts().to_dict()
         print(f"season {y}: {len(rec)} matched to ESPN; closes by book {by_book}",
               flush=True)
         out.append(rec)
-    df = pd.concat([d for d in out if len(d)], ignore_index=True)
+    df = pd.concat([d for d in out if len(d)], ignore_index=True) if any(
+        len(d) for d in out) else ledger.empty()
     df = df.drop_duplicates("game_id", keep="last")
-    ledger.save(df, ledger.RECON_PATH)
-    print(f"wrote {ledger.RECON_PATH}: {len(df)} rows", flush=True)
+    ledger.save(df, path)
+    print(f"wrote {path}: {len(df)} rows", flush=True)
     return 0
 
 

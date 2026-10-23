@@ -1,4 +1,4 @@
-# Model guidelines (v6): strengths, weaknesses and rules of use
+# Model guidelines (v6; v8 / v9 notes added): strengths, weaknesses and rules of use
 
 Owner's request, 2026-10-21: step back from the individual studies and say,
 from all of them together, what the model is good for, what it is not, and
@@ -49,6 +49,14 @@ seasons (2016-17 to 2025-26) and ten seasons no fit has seen (2004-05 to
    (re-checked 2026-10-21 on v6; `research/dk_hypotheses.py` §7). On the
    model's side of the close it claims +6 pp of win probability and
    realises about −1 pp.
+5. **Its spread is now its own (v9, 2026-10-23).** Fitting the same terms
+   on the final margin instead of the win keeps win-probability accuracy
+   (−0.0008 ± 0.0010 log loss, games 1+, passes G7) and gives a margin
+   that misses the final score by 10.52 points on average against 10.59 for
+   13.5 × Φ⁻¹(P), with half the home bias; it ties the opening spread and
+   trails the closing one by 0.24–0.29 points (`research/margin_model.py`).
+   The registered H5 / H6 keep the 13.5 conversion; the card's spread lean
+   reads the model's margin.
 
 ## 2. Strengths
 

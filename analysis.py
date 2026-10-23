@@ -945,7 +945,7 @@ def with_open_spreads(g, path=None):
         o[["game_id"] + cols], on="game_id", how="left")
 
 
-def ats_sides(g, price, sigma=ATS_SIGMA):
+def ats_sides(g, price, sigma=ATS_SIGMA, own_margin=False):
     """The model's side against one price's spread, per game; no result
     needed (ats_side_picks grades it, ats_card shows it on the Today page).
 
@@ -956,8 +956,14 @@ def ats_sides(g, price, sigma=ATS_SIGMA):
     in ATS_MAIN_LINE) and a model P. Per game: opener (game 0), early
     (games 1-9; stage), side,
     home, edge, line (the side's), model_line (the model's line for that
-    side, -its margin), ml, q (no-vig cover probability), model_p, and the
-    home line and prices; indexed like `g`.
+    side, -its margin), ml, q (no-vig cover probability), model_p, own
+    (the margin is the model's own), and the home line and prices; indexed
+    like `g`.
+
+    own_margin=True (display only, never a registered rule): where a row
+    records the model's own margin (margin_home, model v9) it is used in
+    place of sigma * Phi^-1(P), with that row's sigma = margin / Phi^-1(P)
+    for the cover probability. H5 / H6 keep the frozen conversion.
     """
     if g is None or not len(g) or f"{price}_spread" not in g.columns:
         return pd.DataFrame()
@@ -971,7 +977,15 @@ def ats_sides(g, price, sigma=ATS_SIGMA):
         return pd.DataFrame()
     g, line, hso, aso, ph = (x[ok] for x in (g, line, hso, aso, ph))
     nd = NormalDist()
-    m = np.array([sigma * nd.inv_cdf(p) for p in ph])          # model home margin
+    z = np.array([nd.inv_cdf(p) for p in ph])
+    m = sigma * z                                              # model home margin
+    sig = np.full(len(m), float(sigma))
+    own = np.zeros(len(m), bool)
+    if own_margin and price != "first" and "margin_home" in g.columns:
+        mo = pd.to_numeric(g["margin_home"], errors="coerce").to_numpy(float)
+        own = np.isfinite(mo) & (np.abs(z) > 1e-6) & (mo * z > 0)
+        m = np.where(own, mo, m)
+        sig = np.where(own, mo / np.where(own, z, 1.0), sig)
     edge = m + line.to_numpy()
     home = edge > 0
     q_home = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
@@ -980,23 +994,24 @@ def ats_sides(g, price, sigma=ATS_SIGMA):
         game_id=g["game_id"].to_numpy(), opener=opener, early=early,
         side=np.where(home, g["home"], g["away"]), home=home, edge=np.abs(edge),
         line=np.where(home, line, -line), model_line=np.where(home, -m, m),
-        model_p=[nd.cdf(abs(e) / sigma) for e in edge],
+        model_p=[nd.cdf(abs(e) / s) for e, s in zip(edge, sig)], own=own,
         q=np.where(home, q_home, 1 - q_home), ml=np.where(home, hso, aso),
         home_line=line.to_numpy(), hso=hso.to_numpy(), aso=aso.to_numpy()),
         index=g.index)
 
 
-def ats_side_picks(g, price, sigma=ATS_SIGMA):
+def ats_side_picks(g, price, sigma=ATS_SIGMA, own_margin=False):
     """Flat 1u spread bets on the model's side at one price (ats_sides),
     graded: result, units, its no-vig null and break-even, and fav_units,
     1u on the spread favourite of the same game at the same price (pick'em:
-    the shorter price; tie: home). Finished games only."""
+    the shorter price; tie: home). Finished games only. own_margin: the
+    model's recorded margin where there is one (display only)."""
     if g is None or not len(g):
         return pd.DataFrame()
     margin = (pd.to_numeric(g["home_pts"], errors="coerce")
               - pd.to_numeric(g["away_pts"], errors="coerce"))
     done = margin.notna() & pd.to_numeric(g["home_won"], errors="coerce").isin([0, 1])
-    s = ats_sides(g[done], price, sigma)
+    s = ats_sides(g[done], price, sigma, own_margin)
     if not len(s):
         return pd.DataFrame()
     margin, line = margin[s.index], s["home_line"]
@@ -1042,12 +1057,14 @@ def spread_lean(row, sigma=ATS_SIGMA):
     its prices and p_home, as ats_sides reads them): dict(side, line,
     model_line, ml, edge, model_p, q), or None without a main-line spread or
     a model P. Display only, the Picks card's spread lean, refreshed with the
-    pregame row; the graded spread picks are H5 / H6 (ats_card)."""
-    s = ats_sides(pd.DataFrame([row]), "pre", sigma)
+    pregame row; the graded spread picks are H5 / H6 (ats_card). A v9 row
+    uses the model's own margin (margin_home; own True)."""
+    s = ats_sides(pd.DataFrame([row]), "pre", sigma, own_margin=True)
     if not len(s):
         return None
     r = s.iloc[0]
-    return {k: r[k] for k in ("side", "line", "model_line", "ml", "edge", "model_p", "q")}
+    return {k: r[k] for k in ("side", "line", "model_line", "ml", "edge", "model_p", "q",
+                              "own")}
 
 
 def ats_summary(g, sigma=ATS_SIGMA):
