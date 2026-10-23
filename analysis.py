@@ -342,6 +342,22 @@ PICK_RULES = (
 # value-side rules at bettable prices and stay on the scoreboard.
 SHOWN_RULES = ("lean",)
 EARLY_BELOW = 10     # nba_composite.MIN_GAMES: below it v2 uses the carryover model
+
+
+def stage(g):
+    """(opener, early) masks by the fewer games either team has played:
+    opener = game 0 (scored from model v8 on; no rule covers it), early =
+    games 1-9 (H1, H6), neither = games 10+ (H2-H5). Unknown games played
+    count as games 10+, as before v8."""
+    mn = np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
+                 pd.to_numeric(g["gp_away"], errors="coerce")).to_numpy()
+    return mn == 0, (mn >= 1) & (mn < EARLY_BELOW)
+
+
+def on_stage(d, hyp):
+    """The rows of picks / ats_sides output `d` whose stage a hypothesis
+    covers: games 1-9 for an early rule, games 10+ otherwise; game 0 never."""
+    return d["early"] if hyp["early"] else ~d["early"] & ~d["opener"]
 # The share of the model's disagreement with the price that outcomes bore out
 # at the opening line, games 10+ (research/open_shrinkage.py, 2026-10-22: w
 # fitted on the other priced season +0.43 / +0.36; at the close it is ~0).
@@ -391,6 +407,7 @@ def picks(g, price="close"):
     ok = (qh.between(0, 1, inclusive="neither") & hml.notna() & aml.notna()
           & ph.notna() & won.isin([0, 1])).to_numpy()
     g, hml, aml, qh, ph, won = (x[ok] for x in (g, hml, aml, qh, ph, won))
+    opener, early = stage(g)
     fav_home = (qh >= 0.5).to_numpy()
     fav_units = [market.unit_profit(m, w) for m, w in
                  zip(np.where(fav_home, hml, aml),
@@ -406,10 +423,7 @@ def picks(g, price="close"):
             keep = (ph != qh).to_numpy()
         ml = np.where(home, hml, aml)
         d = pd.DataFrame(dict(
-            rule=rule, game_id=g["game_id"].to_numpy(),
-            early=(np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
-                           pd.to_numeric(g["gp_away"], errors="coerce"))
-                   < EARLY_BELOW).to_numpy(),
+            rule=rule, game_id=g["game_id"].to_numpy(), opener=opener, early=early,
             side=np.where(home, g["home"], g["away"]),
             model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
             ml=ml, won=np.where(home, won, 1 - won),
@@ -454,8 +468,9 @@ def z_vs_null(r):
 
 
 def roi_summary(g, price="close"):
-    """[(rule label, [roi rows])] for SHOWN_RULES: all picks, and early
-    (games 1-9) vs later when both exist. Descriptive, not filters."""
+    """[(rule label, [roi rows])] for SHOWN_RULES: all picks, and games 10+,
+    1-9 and 0 (opening night, from v8) when they mix. Descriptive, not
+    filters."""
     p = picks(g, price)
     if not len(p):
         return []
@@ -465,9 +480,10 @@ def roi_summary(g, price="close"):
             continue
         d = p[p["rule"] == rule]
         rows = [roi_row("All picks", d)]
-        if d["early"].any() and (~d["early"]).any():
-            rows += [roi_row("Games 10+", d[~d["early"]]),
-                     roi_row("Games 1–9", d[d["early"]])]
+        late = ~d["early"] & ~d["opener"]
+        if (d["early"] | d["opener"]).any() and late.any():
+            rows += [roi_row("Games 10+", d[late]), roi_row("Games 1–9", d[d["early"]]),
+                     roi_row("Game 0", d[d["opener"]])]
         out.append((label, [r for r in rows if r]))
     return out
 
@@ -600,11 +616,11 @@ def hypothesis_picks(g, hyp, price):
         p = ats_side_picks(g, price, hyp["sigma"])
         if not len(p):
             return p
-        return p[(p["early"] == hyp["early"]) & (p["edge"] >= hyp["min_edge"])]
+        return p[on_stage(p, hyp) & (p["edge"] >= hyp["min_edge"])]
     p = picks(g, price)
     if not len(p):
         return p
-    d = p[(p["rule"] == "value") & (p["early"] == hyp["early"])
+    d = p[(p["rule"] == "value") & on_stage(p, hyp)
           & (p["edge"] >= hyp["min_edge"])]
     if hyp["favourite"]:
         d = d[d["q"] > 0.5]
@@ -937,7 +953,8 @@ def ats_sides(g, price, sigma=ATS_SIGMA):
     "pre", "open", "close": that spread with p_home. The model's home margin
     is sigma * Phi^-1(P); edge = margin + home line (points): home if
     edge > 0, else away; `edge` is |edge|. Only main-line prices (both sides
-    in ATS_MAIN_LINE) and a model P. Per game: early (games 1-9), side,
+    in ATS_MAIN_LINE) and a model P. Per game: opener (game 0), early
+    (games 1-9; stage), side,
     home, edge, line (the side's), model_line (the model's line for that
     side, -its margin), ml, q (no-vig cover probability), model_p, and the
     home line and prices; indexed like `g`.
@@ -958,11 +975,9 @@ def ats_sides(g, price, sigma=ATS_SIGMA):
     edge = m + line.to_numpy()
     home = edge > 0
     q_home = np.array([market.devig(h, a) for h, a in zip(hso, aso)])
+    opener, early = stage(g)
     return pd.DataFrame(dict(
-        game_id=g["game_id"].to_numpy(),
-        early=(np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
-                       pd.to_numeric(g["gp_away"], errors="coerce"))
-               < EARLY_BELOW).to_numpy(),
+        game_id=g["game_id"].to_numpy(), opener=opener, early=early,
         side=np.where(home, g["home"], g["away"]), home=home, edge=np.abs(edge),
         line=np.where(home, line, -line), model_line=np.where(home, -m, m),
         model_p=[nd.cdf(abs(e) / sigma) for e in edge],
@@ -991,7 +1006,7 @@ def ats_side_picks(g, price, sigma=ATS_SIGMA):
     def units(mls, res):
         return [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
                 for m, r in zip(mls, res)]
-    d = s[["game_id", "early", "side", "line", "edge", "model_p", "q", "ml"]].assign(
+    d = s[["game_id", "opener", "early", "side", "line", "edge", "model_p", "q", "ml"]].assign(
         result=np.where(s["home"], res_home, 1 - res_home),
         fav_units=units(np.where(fav_home, s["hso"], s["aso"]),
                         np.where(fav_home, res_home, 1 - res_home)))
@@ -1013,7 +1028,7 @@ def ats_card(row):
         if hyp.get("market") != "ats":
             continue
         s = ats_sides(carry_view(g) if hyp["early"] else g, hyp["native"], hyp["sigma"])
-        if not len(s) or bool(s["early"].iloc[0]) != hyp["early"]:
+        if not len(s) or not bool(on_stage(s, hyp).iloc[0]):
             continue
         r = s.iloc[0]
         return dict(hyp=hyp, bet=bool(r["edge"] >= hyp["min_edge"]),

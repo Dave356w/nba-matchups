@@ -367,7 +367,23 @@ Before a PR, run:
   .csv`, fetched once by the build from opening night, frozen). H1 / H6
   stay on the carryover P (`carry_p_home`, games 1–9); v7's
   `model/logit_early.json` is retired. Tags `..._fade10_phase_luck_talent_
-  ft_v8` / `..._ft_avail_v8`. Data note: in 2015-16 to 2017-18, 161–163 ESPN box scores a season
+  ft_v8` / `..._ft_avail_v8`. **Active since 2026-10-22:** preseason boxes
+  `9f9ac3f` (10 seasons, 0 failed requests, 30 teams each), refit `567753d`
+  (base n = 11,687, availability n = 4,847), rescore `3f10659` (2,450
+  rows: every row v8, 1,209 a season on the availability logit; the 32
+  game-0 rows v7 never wrote added, all ESPN BET; `carry_p_home` identical
+  on the 276 early rows, so H1 n 115 +17.8% and H6 n 201 +3.6% stand).
+  First native v8 row: DEN @ OKC, 2026-10-22, game 0 for DEN. Game 0 is
+  in no hypothesis (`analysis.stage`: H1 / H6 read games 1–9, H2–H5 games
+  10+; the Ledger's lean folds show it as "Game 0"). Re-check on the v8
+  rows (G10; `diagnostics/model_review`, `diagnostics/dk_hypotheses`, ± 95%):
+  model − close, games 10+, +0.0174 ± 0.0112 (2025-26 DK; v6 +0.0184) /
+  +0.0152 ± 0.0101 (2024-25 ESPN BET; v6 +0.0143); games 1–9 −0.0225 ±
+  0.0253 / −0.0009 ± 0.0260 (ESPN BET 2024-25 / 2025-26), unresolved; the
+  DraftKings backtest vs null at the open H2 +4.5 ± 6.7 (n = 417), H3/H4
+  +22.9 ± 24.4 (n = 124), H5 +6.6 ± 7.1 (n = 697), at the close −3.6 /
+  +7.0 / +0.5; the retired value bet at the DK close −12.7% (null −4.1%).
+  Data note: in 2015-16 to 2017-18, 161–163 ESPN box scores a season
   record no minutes; talent then reads the team's last box with minutes
   (both arms, every fit since v5).
 - ROI is the product goal: the ledger page grades 1u flat bets on the lean

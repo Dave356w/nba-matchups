@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Model review: where v6 stands against the market and the outcomes (HINDSIGHT).
+"""Model review: where the current model stands against the market and the outcomes (HINDSIGHT).
 
   python research/model_review.py
 
@@ -104,9 +104,8 @@ def frame(recon):
     g["q_open"] = analysis.price_q_home(g, "open")
     g["p"] = pd.to_numeric(g["p_home"], errors="coerce")
     g["y"] = pd.to_numeric(g["home_won"], errors="coerce")
-    g["early"] = (np.fmin(pd.to_numeric(g["gp_home"], errors="coerce"),
-                          pd.to_numeric(g["gp_away"], errors="coerce"))
-                  < analysis.EARLY_BELOW)
+    opener, g["early"] = analysis.stage(g)          # game 0 (v8) is neither route
+    g["late"] = ~opener & ~g["early"]
     g["month"] = pd.to_datetime(g["slate_date"]).dt.month
     ok = g["q_close"].between(0, 1, inclusive="neither") & g["p"].between(0, 1)
     return g[ok]
@@ -134,7 +133,7 @@ def block_scores(g):
     L = ["== 1. Scores vs the close and the outcomes (log loss / Brier: negative = "
          "model better)"]
     for label, x in groups(g):
-        for route, r in (("games 10+", x[~x["early"]]), ("games 1-9", x[x["early"]])):
+        for route, r in (("games 10+", x[x["late"]]), ("games 1-9", x[x["early"]])):
             if len(r) < 30:
                 continue
             y = r["y"].to_numpy(float)
@@ -164,7 +163,7 @@ def block_scores(g):
 def block_where(g):
     L = ["== 2. Where the gap to the close sits (games 10+, model - close log loss)"]
     for label, x in groups(g):
-        x = x[~x["early"]]
+        x = x[x["late"]]
         if len(x) < 100:
             continue
         L.append(f"  {label}")
@@ -194,7 +193,7 @@ def block_claims(g):
         qcol = f"q_{price}"
         L.append(f"  at the {price}:")
         for label, x in groups(g):
-            x = x[~x["early"] & x[qcol].between(0, 1, inclusive="neither")]
+            x = x[x["late"] & x[qcol].between(0, 1, inclusive="neither")]
             if len(x) < 100:
                 continue
             home = x["p"] > x[qcol]
