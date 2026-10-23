@@ -1,10 +1,11 @@
 name: Fit model
 
 # Preseason refit (report §8): download Basketball-Reference season tables and
-# game logs, fit composite weights on completed seasons, fit the v8 base logit
-# on every game of the game-log seasons and the v8 availability logit on the
+# game logs, fit composite weights on completed seasons, fit the v9 base model
+# on every game of the game-log seasons and the v9 availability model on the
 # covered games 1+ of the injury-report seasons (both on the faded rating,
-# nba_composite.fade_v8_games), commit model/weights.json, model/logit.json
+# nba_composite.fade_v8_games, and fitted on the final margin; the files keep
+# their logit*.json names), commit model/weights.json, model/logit.json
 # and model/logit_avail.json. The frozen logits are not refitted:
 # model/logit_v4.json (the v4 fallback, games 10+) and model/logit_early_v6.json
 # (the carryover logit: H1 / H6's P, the fallback before game 10, preseason).
@@ -79,16 +80,17 @@ jobs:
         run: |
           rm -f model/weights.json model/logit.json model/logit_early.json
           python nba_composite.py fit-weights --years ${{ inputs.weight_years }}
-          # v8: the v6 terms (delta, b2b_net, delta * season phase, opponent
+          # v9: v8's terms (delta, b2b_net, delta * season phase, opponent
           # 3-point luck, roster talent, own FT% gap) on the faded rating, every
-          # game from game 0 (MODEL.md "v8").
-          python nba_composite.py fit-logit --v8 --years ${{ inputs.logit_years }}
-      - name: Fit availability logit (v8)
+          # game from game 0, fitted by least squares on the final margin
+          # (MODEL.md "v9"; P = Phi(m / sigma)).
+          python nba_composite.py fit-logit --v9 --years ${{ inputs.logit_years }}
+      - name: Fit availability model (v9)
         run: |
           # Covered games 1+ of the box-score seasons with an NBA injury report;
           # the first box season needs the BPM table of the season before it.
           rm -f model/logit_avail.json
-          python player_availability.py fit --v8 --years ${{ inputs.avail_years }}
+          python player_availability.py fit --v9 --years ${{ inputs.avail_years }}
       - name: Commit model
         run: |
           git config user.name  "github-actions[bot]"

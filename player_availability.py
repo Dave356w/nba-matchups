@@ -1194,14 +1194,16 @@ def fit_fixed(G, base, fixed=FIXED_V5, features=None):
 
 
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
-        v5=True, v6=True, v8=False):
+        v5=True, v6=True, v8=False, v9=False):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
     phase=True (v4) adds delta * season phase to the v3 features; v5=True
     also adds luck_def and talent_diff (needs the seasons' box scores);
     v6=True (with v5) also adds ft_diff, the own FT% gap. v8=True: the v6
     features on the faded rating (nba_composite.fade_v8_games), every
     covered game from game 1 (at game 0 no player has a share of the window,
-    so those games use the base logit)."""
+    so those games use the base logit). v9=True: v8's features and games,
+    fitted by least squares on the final margin (nba_composite.fit_margin)."""
+    v8 = v8 or v9
     v6 = (v6 and v5) or v8
     v5 = v5 or v8
     weights = nc.load_json("weights.json")
@@ -1229,7 +1231,8 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     feats = (FEATURES_V6 if v6 else FEATURES_V5 if v5 else
              FEATURES_V4 if phase else FEATURES)
     G = G[np.isfinite(G[feats].to_numpy(float)).all(axis=1)]
-    m = nc.fit_logit(G[feats].to_numpy(float), G["win"], feats)
+    m = (nc.fit_margin(G[feats].to_numpy(float), G["margin"], feats) if v9 else
+         nc.fit_logit(G[feats].to_numpy(float), G["win"], feats))
     if phase or v5:
         m["season_days"] = nc.SEASON_DAYS
     if v8:
@@ -1239,8 +1242,9 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
               "replacement_bpm": REPLACEMENT_BPM, "bpm_shrink_mp": BPM_SHRINK_MP})
     nc.save_json(m, MODEL_FILE)
     coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
+    sig = f"  sigma={m['sigma']:.2f} (margin model)" if nc.is_margin(m) else ""
     print(f"saved model/{MODEL_FILE}  intercept={m['intercept']:.3f}  {coefs}  "
-          f"n={m['n_games']}")
+          f"n={m['n_games']}{sig}")
     return m
 
 
@@ -1259,9 +1263,12 @@ def main(argv=None):
                     help="fit the v5 features (no ft_diff)")
     ap.add_argument("--v8", action="store_true",
                     help="fit v8: the v6 features on the faded rating, games 1+")
+    ap.add_argument("--v9", action="store_true",
+                    help="fit v9: v8's features and games, least squares on the margin")
     a = ap.parse_args(argv)
     fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
-        v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase), v8=a.v8)
+        v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase), v8=a.v8,
+        v9=a.v9)
     return 0
 
 

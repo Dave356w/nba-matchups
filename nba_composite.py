@@ -8,7 +8,8 @@ Pipeline
   2. fit-weights Ridge-fit 8 four-factor features to win% on team-season data.
   3. backtest    Fit logit on one season, score another (both directions).
   4. fit-logit   Fit P(home win) on completed seasons (delta, b2b; --phase adds delta*phase;
-                 --v8 the production logit: v6 terms on the faded rating, every game).
+                 --v8: v6 terms on the faded rating, every game; --v9 the
+                 production model: the same, fitted on the final margin).
   5. score       Score a day's slate from decayed pre-game composites.
 
 Model
@@ -43,6 +44,7 @@ Game logs:    https://www.basketball-reference.com/teams/{TM}/{year}/gamelog/
 import argparse
 import io
 import json
+import math
 import re
 import sys
 import time
@@ -84,6 +86,13 @@ V6_FEATURES = V5_FEATURES + ["ft_diff"]
 # same totals; the logits keep V6_FEATURES (fade_v8_games builds them).
 FADE_RHO = 0.25
 FADE_GAMES = 10
+# v9 (owner's decision 2026-10-23; research/margin_model.py): v8's inputs,
+# routes and seasons, fitted by least squares on the final home margin
+# (overtime included) instead of logistically on the win. A model file with
+# "link": "margin" predicts the margin m = intercept + coef . x, and
+# P(home win) = Phi(m / sigma), sigma = the fit's residual SD (predict,
+# predict_margin).
+MARGIN_LINK = "margin"
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
@@ -484,6 +493,7 @@ def fade_v8_games(y, weights, half_life=HALF_LIFE, refresh=False, talent=None,
                          "luck_def": x["luck_def"],
                          "talent_diff": tal(tm, i, r["date"]) - tal(opp, j, r["date"]),
                          "ft_diff": x["ft_diff"],
+                         "margin": float(r["pts"] - r["opp_pts"]),
                          "win": int(r["pts"] > r["opp_pts"])})
     return pd.DataFrame(rows)
 
@@ -564,10 +574,49 @@ def fit_logit(X, win, features=None, l2=1e-3, iters=50, offset=None):
             "intercept": float(beta[0]), "coef": beta[1:].tolist()}
 
 
-def predict(model, X):
+def fit_margin(X, margin, features=None):
+    """v9: ordinary least squares of the final home margin on X (with an
+    intercept). sigma is the residual SD (n - k - 1 degrees of freedom), so
+    P(home win) = Phi(m / sigma) (predict)."""
     X = np.asarray(X, float)
     if X.ndim == 1:
         X = X[:, None]
+    X1 = np.column_stack([np.ones(len(X)), X])
+    y = np.asarray(margin, float)
+    beta, *_ = np.linalg.lstsq(X1, y, rcond=None)
+    res = y - X1 @ beta
+    sigma = float(np.sqrt(res @ res / max(1, len(y) - X1.shape[1])))
+    return {"features": list(features) if features else None, "link": MARGIN_LINK,
+            "intercept": float(beta[0]), "coef": beta[1:].tolist(), "sigma": sigma}
+
+
+def is_margin(model):
+    """A v9 margin model (fit_margin) rather than a logit."""
+    return model is not None and model.get("link") == MARGIN_LINK
+
+
+def norm_cdf(x):
+    x = np.asarray(x, float)
+    return 0.5 * (1 + np.vectorize(math.erf, otypes=[float])(x / math.sqrt(2)))
+
+
+def predict_margin(model, X):
+    """A margin model's predicted home margin (points); NaN for a logit."""
+    X = np.asarray(X, float)
+    if X.ndim == 1:
+        X = X[:, None]
+    if not is_margin(model):
+        return np.full(len(X), np.nan)
+    return model["intercept"] + X @ np.asarray(model["coef"])
+
+
+def predict(model, X):
+    """P(home win): the logit's, or Phi(m / sigma) for a margin model."""
+    X = np.asarray(X, float)
+    if X.ndim == 1:
+        X = X[:, None]
+    if is_margin(model):
+        return norm_cdf(predict_margin(model, X) / model["sigma"])
     return 1 / (1 + np.exp(-(model["intercept"] + X @ np.asarray(model["coef"]))))
 
 
@@ -672,6 +721,9 @@ def main():
         s.add_argument("--v8", action="store_true",
                        help="fit-logit: v8, the v6 features on the faded rating, "
                             "every game from game 0 (preseason rosters at game 0)")
+        s.add_argument("--v9", action="store_true",
+                       help="fit-logit: v9, v8's features and games fitted by least "
+                            "squares on the final margin (P = Phi(m / sigma))")
         s.add_argument("--box-cache", default=None,
                        help="--v5: directory of box_<season>.csv (default research/output)")
     a = ap.parse_args()
@@ -719,7 +771,7 @@ def main():
         weights = load_json("weights.json") if (MODEL_DIR / "weights.json").exists() \
             else fit_weights(parse_years(a.train_years))
         save_json(weights, "weights.json")
-        if a.v8:
+        if a.v8 or a.v9:
             import player_availability as pav   # lazy: it imports this module
             G = pd.concat([fade_v8_games(y, weights, a.half_life,
                                          talent=pav.season_talent(y, a.box_cache),
@@ -737,15 +789,18 @@ def main():
         else:
             G = pd.concat([build_games(y, weights, a.half_life) for y in parse_years(a.years)])
             feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
-        m = fit_logit(G[feats].values, G["win"], feats)
+        m = (fit_margin(G[feats].values, G["margin"], feats) if a.v9 else
+             fit_logit(G[feats].values, G["win"], feats))
         m.update({"half_life": a.half_life, "n_games": int(len(G)), "years": parse_years(a.years)})
-        if a.phase or a.v5 or a.v6 or a.v8:
+        if a.phase or a.v5 or a.v6 or a.v8 or a.v9:
             m["season_days"] = SEASON_DAYS
-        if a.v8:
+        if a.v8 or a.v9:
             m.update({"fade_rho": FADE_RHO, "fade_games": FADE_GAMES})
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
-        print(f"saved model/logit.json  intercept={m['intercept']:.3f} (home edge)  {coefs}  n={m['n_games']}")
+        sig = f"  sigma={m['sigma']:.2f} (margin model)" if is_margin(m) else ""
+        print(f"saved model/logit.json  intercept={m['intercept']:.3f} (home edge)  {coefs}  "
+              f"n={m['n_games']}{sig}")
 
     elif a.cmd == "score":
         df = score_slate(a.year, a.date, a.half_life, a.refresh)

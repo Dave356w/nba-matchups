@@ -43,9 +43,13 @@ def check(path):
     elif list(df.columns) == ledger.PRE_CARRY_COLUMNS:
         print(f"note {path}: pre-v7 schema; carry_p_home / first_carry_p_home "
               "added (blank) on the next write")
+    elif list(df.columns) == ledger.PRE_MARGIN_COLUMNS:
+        print(f"note {path}: pre-v9 schema; margin_home added (blank) on the "
+              "next write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_CARRY_COLUMNS,
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_MARGIN_COLUMNS,
+                            ledger.PRE_CARRY_COLUMNS,
                             ledger.PRE_PREGAME_SPREAD_COLUMNS,
                             ledger.PRE_KALSHI_COLUMNS, ledger.PRE_SEEN_COLUMNS,
                             ledger.PRE_FIRST_COLUMNS, ledger.PRE_SPREAD_COLUMNS):
@@ -107,6 +111,16 @@ def check(path):
                          pd.to_numeric(df["gp_away"], errors="coerce"))
             if (cp.notna() & ~(gp < 10)).any():
                 errs.append(f"{path}: {c} on a game outside games 1-9")
+    if "margin_home" in df.columns:
+        # a model margin only beside its P, on the same side of 50%
+        m = pd.to_numeric(df["margin_home"], errors="coerce")
+        pp = pd.to_numeric(df["p_home"], errors="coerce")
+        if (m.notna() & pp.isna()).any():
+            errs.append(f"{path}: margin_home on a row without p_home")
+        if (m.notna() & ~m.between(-60, 60)).any():
+            errs.append(f"{path}: margin_home outside +-60")
+        if (m.notna() & (m != 0) & ((m > 0) != (pp > 0.5))).any():
+            errs.append(f"{path}: margin_home and p_home disagree on the favourite")
     return errs
 
 
@@ -212,7 +226,17 @@ def main():
     for path in sorted(glob.glob(os.path.join("data", "nba_box_pre_[0-9][0-9][0-9][0-9].csv"))):
         errs += check_pre_box(path)
     errs += check(ledger.PRESEASON_PATH)
-    for path in (ledger.NATIVE_PATH, ledger.RECON_PATH):     # exchanges: preseason only
+    errs += check(ledger.REBUILT_PATH)
+    if os.path.exists(ledger.REBUILT_PATH):
+        rb = pd.read_csv(ledger.REBUILT_PATH, dtype={"game_id": str})
+        if not rb["basis"].eq("rebuilt").all():
+            errs.append(f"{ledger.REBUILT_PATH}: basis other than rebuilt")
+        if rb["first_snapshot_utc"].notna().any() or rb["pre_q_home"].notna().any():
+            errs.append(f"{ledger.REBUILT_PATH}: a pregame price on a rebuilt row")
+        if pd.to_numeric(rb["home_won"], errors="coerce").isna().any():
+            errs.append(f"{ledger.REBUILT_PATH}: an ungraded rebuilt row")
+    for path in (ledger.NATIVE_PATH, ledger.RECON_PATH, ledger.REBUILT_PATH):
+        # exchanges: preseason only
         if os.path.exists(path):
             df = pd.read_csv(path, dtype={"game_id": str})
             cols = [c for c in ("pre_book", "close_book", "first_book") if c in df]

@@ -60,6 +60,13 @@ RECON_PATH = os.path.join("data", "nba_reconstructed.csv")
 # lock as the native ledger, written by build_site.score_preseason. Never
 # read by the ledger or calibration pages, the hypotheses or any fit.
 PRESEASON_PATH = os.path.join("data", "nba_preseason.csv")
+# Rebuilt rows (basis "rebuilt", owner's request 2026-10-23): the season in
+# progress, its played games scored after the fact by the current model
+# (backfill_history.py --rebuild: every fit on earlier seasons only, features
+# from games before each date, the archived pregame injury report) and priced
+# at the close. Hindsight like the reconstructed rows: never pooled with the
+# native forward record, the reconstructed seasons, the hypotheses or a fit.
+REBUILT_PATH = os.path.join("data", "nba_rebuilt.csv")
 
 COLUMNS = [
     # identity
@@ -126,6 +133,17 @@ PRE_CARRY_COLUMNS = list(COLUMNS)
 CARRY_COLUMNS = ["carry_p_home"]
 FIRST_CARRY_COLUMNS = ["first_carry_p_home"]
 COLUMNS = COLUMNS + CARRY_COLUMNS + FIRST_CARRY_COLUMNS
+# Schema before the model margin: `load` reads it with margin_home blank and
+# the next save writes the current schema (2026-10-23).
+PRE_MARGIN_COLUMNS = list(COLUMNS)
+# Model v9 (owner's decision 2026-10-23) predicts the final home margin
+# (points, + = home by) and derives P from it; margin_home records it, blank
+# for rows scored by a logit (v8 and earlier, the carryover and v4
+# fallbacks). Refreshed with the pregame snapshot until tip, frozen after;
+# the reconstructed rows get it from the rescore. The pre-registered H5 / H6
+# keep their frozen 13.5 x Phi^-1(P) margin and do not read it.
+MARGIN_COLUMNS = ["margin_home"]
+COLUMNS = COLUMNS + MARGIN_COLUMNS
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
 FIRST_COLUMNS = (COLUMNS[COLUMNS.index("first_snapshot_utc"):
                          COLUMNS.index("seen_utc")] + KALSHI_FIRST_COLUMNS
@@ -169,7 +187,8 @@ PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
 LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = ([c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
-                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS + CARRY_COLUMNS)
+                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS + CARRY_COLUMNS
+                   + MARGIN_COLUMNS)
 GRADE_COLUMNS = [c for c in COLUMNS
                  if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS]
 

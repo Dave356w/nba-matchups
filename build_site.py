@@ -35,6 +35,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from statistics import NormalDist
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -106,12 +107,20 @@ MODEL_TAG_V7_EARLY = "fourfactors_hl25_b2b_carry25_talent_early_v7"
 # H1 and H6. Model files carry "fade_games" (is_v8).
 MODEL_TAG_V8 = "fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_v8"
 MODEL_TAG_V8_AVAIL = "fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_avail_v8"
+# v9 = v8's inputs, routes and seasons, fitted by least squares on the final
+# home margin (owner's decision 2026-10-23; research/margin_model.py): the
+# model predicts the margin m and P(home win) = Phi(m / sigma)
+# (nba_composite.fit_margin / predict). Rows record m (margin_home), the
+# model's own spread. The fallbacks (carryover, frozen v4) are unchanged
+# logits and keep their tags. Model files carry "link": "margin" (is_v9).
+MODEL_TAG_V9 = "fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_v9"
+MODEL_TAG_V9_AVAIL = "fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_avail_v9"
 # Exhibition rows (data/nba_preseason.csv, score_preseason): the v2 carryover
 # logit on last season's games alone.
 PRESEASON_TAG = "fourfactors_hl25_b2b_carry25_preseason_g0"
 FALLBACK_FILE = "logit_v4.json"
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
-              MODEL_TAG_V6_AVAIL, MODEL_TAG_V8_AVAIL)
+              MODEL_TAG_V6_AVAIL, MODEL_TAG_V8_AVAIL, MODEL_TAG_V9_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -182,6 +191,11 @@ def is_v8(model):
     return model is not None and model.get("fade_games") is not None
 
 
+def is_v9(model):
+    """v9: v8 fitted on the final margin (nba_composite.is_margin)."""
+    return is_v8(model) and nc.is_margin(model)
+
+
 def is_early_talent(early):
     """The v7 early logit (talent_diff in its features)."""
     return early is not None and "talent_diff" in (early.get("features") or [])
@@ -189,6 +203,8 @@ def is_early_talent(early):
 
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
+    if is_v9(model):
+        return MODEL_TAG_V9_AVAIL if avail else MODEL_TAG_V9
     if is_v8(model):
         return MODEL_TAG_V8_AVAIL if avail else MODEL_TAG_V8
     if avail:
@@ -255,11 +271,13 @@ def score_game_v8(logs, home, away, date, weights, model, prior_logs=None,
     played, talent0[team] (its preseason roster) before; `avail` terms use
     `avail_model` from game 1 on. Missing terms: the carryover logit `carry`
     before game 10 (MODEL_TAG), the frozen v4 `fallback` after, else abstain.
-    Games 1-9 also carry carry_p_home (H1 and H6)."""
+    Games 1-9 also carry carry_p_home (H1 and H6). v9 (margin) models also
+    give margin_home, the predicted home margin; the logit fallbacks do not."""
     hl = model.get("half_life", nc.HALF_LIFE) if half_life is None else half_life
     date = pd.Timestamp(date)
     out = dict(gp_home=np.nan, gp_away=np.nan, home_b2b=np.nan,
-               away_b2b=np.nan, delta=np.nan, p_home=np.nan, lean=np.nan,
+               away_b2b=np.nan, delta=np.nan, p_home=np.nan, margin_home=np.nan,
+               lean=np.nan,
                p_lean=np.nan)
     prior_logs = prior_logs or {}
     empty = pd.DataFrame(columns=["date"] + nc.COLS + nc.X3)
@@ -308,7 +326,10 @@ def score_game_v8(logs, home, away, date, weights, model, prior_logs=None,
             use, out["model_tag"] = fallback, model_tag(fallback)
         else:
             return out
-    p = float(nc.predict(use, [[vals[f] for f in use["features"]]])[0])
+    xs = [[vals[f] for f in use["features"]]]
+    p = float(nc.predict(use, xs)[0])
+    if nc.is_margin(use):                 # v9: the model's own home margin
+        out["margin_home"] = round(float(nc.predict_margin(use, xs)[0]), 2)
     if cd is not None and 1 <= g < nc.MIN_GAMES:
         cv = nc.logit_inputs(cd, rh, ra, date, opening)
         out["carry_p_home"] = round(float(nc.predict(
@@ -503,7 +524,8 @@ def route(row, model):
         return "abstain"
     if is_v8(model):
         tag = row.get("model_tag")
-        return ("avail" if tag in AVAIL_TAGS else "base" if tag == MODEL_TAG_V8
+        return ("avail" if tag in AVAIL_TAGS else
+                "base" if tag in (MODEL_TAG_V8, MODEL_TAG_V9)
                 else "carry" if tag == MODEL_TAG else "v4")
     if min(row.get("gp_home", 0), row.get("gp_away", 0)) < nc.MIN_GAMES:
         return "early"
@@ -827,12 +849,13 @@ padding:6px 8px;margin:0 -8px;border-radius:9px}
 .g-team .px{display:flex;flex-direction:column;gap:3px;font:700 13.5px/1 var(--mono);font-variant-numeric:tabular-nums}
 .g-team .px small{font:500 11.5px/1 var(--mono);color:var(--faint)}
 .g-team.picked{background:rgba(var(--accent),.09)}
-.g-team .nm{font:700 16px/1.2 var(--sans);display:flex;align-items:center;min-width:0}
-.g-team .nm .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.g-team .nm small{font:600 11.5px/1 var(--mono);color:var(--faint);margin-left:6px}
+.g-team .nm{font:700 16px/1.2 var(--sans);display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.g-team .nm .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%}
+.g-team .nm .sub{display:flex;align-items:center;gap:6px}
+.g-team .nm small{font:600 11.5px/1 var(--mono);color:var(--faint)}
 .g-team .sc{font:800 18px/1 var(--mono);min-width:28px;text-align:right;font-variant-numeric:tabular-nums}
-.g-team.picked .nm::after{content:"LEAN";font:800 9.5px/1 var(--sans);letter-spacing:.08em;color:var(--accent-on);
-background:rgb(var(--accent));border-radius:4px;padding:3px 5px;margin-left:8px;flex:none}
+.lean-pill{font:800 9.5px/1 var(--sans);font-style:normal;letter-spacing:.08em;text-transform:uppercase;
+color:var(--accent-on);background:rgb(var(--accent));border-radius:4px;padding:3px 5px;flex:none}
 .tchip{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:var(--r-pill);
 background:var(--surface-2);font:800 11px/1 var(--mono);position:relative}
 .tchip .logo{position:absolute;inset:3px;width:28px;height:28px;object-fit:contain}
@@ -1099,9 +1122,9 @@ def page(title, active, body, built):
             + f"</a><nav class='nav' aria-label='Main navigation'>{nav}</nav>"
             f"{THEME_BUTTON}</header><main id='main-content'>{sub}{body}</main>"
             "<footer class='foot'><div>Built "
-            f"<span class='stamp'>{esc(built)}</span>. Win probabilities from "
-            "prior-game four factors, roster talent and the NBA injury report; "
-            "the market is a benchmark only and never enters the model. "
+            f"<span class='stamp'>{esc(built)}</span>. Predicted margins and win "
+            "probabilities from prior-game four factors, roster talent and the NBA "
+            "injury report; the market is a benchmark only and never enters the model. "
             "Not betting advice.</div><div class='r'>Research: "
             f"{research_links} · <a href='{report.REPORT_NAME}'>{report.REPORT_NAME}</a>"
             f"</div></footer></div>{OPEN_JS}</body></html>")
@@ -1195,7 +1218,11 @@ def ats_note(r, a):
     """The card's account of the ATS hypothesis that covers this game
     (analysis.ats_card): the pick at its registered price, or why not."""
     key, side = a["hyp"]["key"], esc(a["side"])
-    gap = (f"model line {side} {line_txt(round(a['model_line'], 1))} vs market "
+    # H6 (games 1-9) is graded on the carryover P it was registered on
+    # (analysis.carry_view), not the v8 P the card shows
+    who = (f"carryover model's line (the model {key} was registered on; the "
+           "card's model P is the current model's)") if a["hyp"]["early"] else "model line"
+    gap = (f"{who} {side} {line_txt(round(a['model_line'], 1))} vs market "
            f"{line_txt(a['line'])}: {a['edge']:.1f} pts")
     if not a["bet"]:
         return (f"<p class='note'><b>{key}</b> (pre-registered, against the "
@@ -1209,7 +1236,8 @@ def ats_note(r, a):
     return (f"<p class='note'><b>{key} pick</b> (pre-registered, against the "
             f"spread): <b>{side} {line_txt(a['line'])}</b> at {ml_txt(a['ml'])}"
             f"{book_tag(r.get('first_book'))}, from the first snapshot "
-            f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; model cover "
+            f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; "
+            f"{'carryover' if a['hyp']['early'] else 'model'} cover "
             f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig).{moved} "
             "Graded on the <a href='grades.html#hypotheses'>Ledger</a> at this "
             "price, win or lose.</p>")
@@ -1267,11 +1295,13 @@ def band_panel(part, key, kind):
 
 def spread_line(kind, a):
     """A card's spread line: the side and its line, the edge in points, and
-    the model's line beside the market's at the side's price."""
+    the model's line beside the market's at the side's price. An early pick
+    (H6) names its model: the carryover P it is graded on, not the card's."""
     side = esc(a["side"])
+    model = "Carryover" if a.get("hyp", {}).get("early") else "Model"
     return (f"<div class='pick-lines'><span class='kind'>{kind}</span><span class='pk'>"
             f"{side} {line_txt(a['line'])}</span><span class='edge'>{a['edge']:.1f} "
-            f"pts vs the line</span></div><div class='g-mk'><span>Model {side} "
+            f"pts vs the line</span></div><div class='g-mk'><span>{model} {side} "
             f"{line_txt(round(a['model_line'], 1))}</span> · <span>Market "
             f"{side} {line_txt(a['line'])}</span> · <span>at {ml_txt(a['ml'])}"
             "</span></div>")
@@ -1286,10 +1316,12 @@ def spread_lean_note(r, a, ats):
               "The graded spread picks are the pre-registered H5 (games 10+) and H6 "
               "(games 1–9)" + (", and neither covers a team's first game." if gp == 0
                                else "."))
+    src = ("the model's predicted margin" if a.get("own")
+           else f"13.5 × Φ⁻¹(P), from its win probability")
     return (f"<p class='note'><b>Lean · spread</b>: <b>{side} {line_txt(a['line'])}</b>"
             f" at {ml_txt(a['ml'])}{book_tag(r.get('pre_book'))}, the latest "
             f"pregame line: model line {side} {line_txt(round(a['model_line'], 1))} "
-            f"vs market {line_txt(a['line'])}, {a['edge']:.1f} pts; model cover "
+            f"({src}) vs market {line_txt(a['line'])}, {a['edge']:.1f} pts; model cover "
             f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig). The model's side "
             f"of the spread, refreshed each build until tip: shown, not graded. {graded}</p>")
 
@@ -1406,7 +1438,7 @@ def record_tiles(scope):
     r = scope["row"]
     c = sig_cls(analysis.z_vs_null(r))
     return ("<div class='gr-summary'>"
-            + _stat("Record", f"{r['w']}–{r['l']}", f"W–L · {r['n']} bets · "
+            + _stat("Record", f"{r['w']}–{r['l']}", f"W–L · {r['n']} bet{'' if r['n'] == 1 else 's'} · "
                     f"{_scope_txt(scope)}")
             + _stat("Win rate", pct(r["actual"]), f"Break-even {pct(r['breakeven'])} "
                     "at the prices taken", meter=(r["actual"], r["breakeven"]))
@@ -1535,7 +1567,7 @@ HOW_INDEX = (
     f"{nc.FADE_GAMES} its rating still blends in last season (weight "
     f"{nc.FADE_RHO:g} × (1 − games played ÷ {nc.FADE_GAMES})), and before its "
     "first game its roster is its preseason box scores. <b>injury report</b>: "
-    "from each team's second game the latest NBA injury report is folded in "
+    "from each team's game 1 (its second game) the latest NBA injury report is folded in "
     "(Out/Doubtful players, weighted by last season's BPM). The model also "
     "grows the rating's weight through the season, discounts opponents' "
     "3-point shooting (mostly luck), adds roster talent (minutes share × last "
@@ -1546,7 +1578,9 @@ HOW_INDEX = (
     "rules (H6 games 1–9, H5 games 10+; see the <a href='grades.html#hypotheses'>"
     "Ledger</a>). From the first snapshot with a model probability and a "
     "spread, the model's line (13.5 × Φ⁻¹(P) as a margin) must beat the "
-    "market's by at least 1 point at a main-line price. It is fixed when "
+    "market's by at least 1 point at a main-line price. H6 reads P from the "
+    "carryover model it was registered on (labelled <b>Carryover</b>), not "
+    "the current model's P shown on the card. It is fixed when "
     "first written and graded at that price, win or lose, even if the line "
     "moves later.</p>"
     "<p class='note'><b>Historical band</b> (an opened card): where this "
@@ -1579,8 +1613,9 @@ def _team_row(r, code, side, p):
     small = esc(code) if side == "away" else f"@ {esc(code)}"
     return (f"<div class='g-team{' picked' if picked else ''}'>"
             f"<div class='tchip'><span>{esc(code)}</span>{logo_html(code)}</div>"
-            f"<span class='nm'><span class='tn'>{esc(TEAM_NAMES.get(code, code))}"
-            f"<small>{small}</small></span></span>"
+            f"<span class='nm'><span class='tn'>{esc(TEAM_NAMES.get(code, code))}</span>"
+            f"<span class='sub'><small>{small}</small>"
+            + ("<i class='lean-pill'>Lean</i>" if picked else "") + "</span></span>"
             f"<span class='wp'>{pct(wp, 0) if np.isfinite(wp) else '—'}</span>"
             f"<span class='px'>{ml_txt(r.get(f'pre_{side}_ml'))}"
             f"<small>{line_txt(line) if np.isfinite(line) else ''}</small></span>"
@@ -1621,8 +1656,8 @@ def injury_block(r, injuries):
     return ("<h3>Injuries</h3><div class='inj'>" + "".join(cols) + "</div>"
             f"<p>ESPN's injury list as of {tip_pt(snap)}, refreshed each build "
             "until tip and frozen after. The model does not read it: from each "
-            "team's second game it reads the NBA's official injury report (Out "
-            "and Doubtful count as out); a team's first game has no injury "
+            "team's game 1 (its second game) it reads the NBA's official injury report (Out "
+            "and Doubtful count as out); a team's game 0 has no injury "
             "terms.</p>")
 
 
@@ -1676,7 +1711,8 @@ def game_card(r, injuries=None, bands=None):
         tag = r.get("model_tag")
         early_row = (pd.notna(r["gp_home"])
                      and min(r["gp_home"], r["gp_away"]) < nc.MIN_GAMES)
-        if early_row and tag in (MODEL_TAG_V8, MODEL_TAG_V8_AVAIL):
+        if early_row and tag in (MODEL_TAG_V8, MODEL_TAG_V8_AVAIL,
+                                 MODEL_TAG_V9, MODEL_TAG_V9_AVAIL):
             flags.append("<span class='badge' title='The rating still blends in "
                          "last season; it fades out by game 10'>early season</span>")
         elif early_row:
@@ -1686,11 +1722,22 @@ def game_card(r, injuries=None, bands=None):
         if tag in AVAIL_TAGS:
             flags.append("<span class='badge'>injury report</span>")
         bk = esc(src) if src else "Market"
-        det.append("<h3>Model vs market</h3>" + table(["", esc(away), esc(home)], [
-            ["Model", pct(1 - p), pct(p)],
-            [f"{bk} (no-vig)", pct(1 - q_home), pct(q_home)],
-            [f"{bk} moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])]],
-            left=(0,)))
+        # the spread each side would get: the model's own margin (v9) or
+        # 13.5 x Phi^-1(P) (earlier rows), beside the book's pregame line
+        mh = pd.to_numeric(r.get("margin_home"), errors="coerce")
+        own = np.isfinite(mh)
+        if not own:
+            mh = analysis.ATS_SIGMA * NormalDist().inv_cdf(min(max(p, 1e-6), 1 - 1e-6))
+        ln = pd.to_numeric(r.get("pre_spread"), errors="coerce")
+        trs = [["Model", pct(1 - p), pct(p)],
+               [f"{bk} (no-vig)", pct(1 - q_home), pct(q_home)],
+               [f"{bk} moneyline", ml_txt(r["pre_away_ml"]), ml_txt(r["pre_home_ml"])],
+               ["Model spread" + ("" if own else " (from P)"),
+                line_txt(round(float(mh), 1)), line_txt(round(-float(mh), 1))]]
+        if np.isfinite(ln):
+            trs.append([f"{bk} spread", line_txt(-ln), line_txt(ln)])
+        det.append("<h3>Model vs market</h3>" + table(["", esc(away), esc(home)], trs,
+                                                       left=(0,)))
         det.append("<div class='tiles'>"
                    + tile("Edge", f"{pp(ps - q, cls=False)} pp" if np.isfinite(q) else "—",
                           f"{esc(r['lean'])}: model {pct(pl)}, market {pct(q)}")
@@ -1841,14 +1888,175 @@ def _game_rows(native, scope):
     return rows.sort_values(["slate_date", "tip_utc"], ascending=[False, True]), ats
 
 
+def rebuilt_scope(rebuilt, native=None):
+    """This season's rebuilt rows (data/nba_rebuilt.csv; owner's request
+    2026-10-23): every graded game scored after the fact by the current
+    model, at the pages' market close (DraftKings), the latest season. The
+    lean at the close, the model's side of the closing spread (its own
+    margin), proper scores and the margin's miss. Hindsight: never pooled
+    with the native record. None without such rows."""
+    if rebuilt is None or not len(rebuilt):
+        return None
+    h = analysis.with_close(ledger.graded(rebuilt))
+    if not len(h):
+        return None
+    h = h[h["close_book"].astype(str) == analysis.HYPOTHESIS_BOOK]
+    if not len(h):
+        return None
+    season = pd.to_numeric(h["season"], errors="coerce").max()
+    h = h[pd.to_numeric(h["season"], errors="coerce") == season].copy()
+    h["game_id"] = h["game_id"].astype(str)
+    p = analysis.picks(h, "close")
+    p = p[p["rule"] == "lean"] if len(p) else p
+    ats = analysis.ats_side_picks(h, "close", own_margin=True)
+    live = set()
+    if native is not None and len(native):
+        n = native[pd.to_numeric(native["p_home"], errors="coerce").notna()]
+        live = set(n["game_id"].astype(str))
+    # the model's margin: its own (v9) or, on logit rows, 13.5 x Phi^-1(P)
+    nd = NormalDist()
+    ph = pd.to_numeric(h["p_home"], errors="coerce").clip(1e-6, 1 - 1e-6)
+    m = pd.to_numeric(h["margin_home"], errors="coerce")
+    h["model_margin"] = m.where(m.notna(), [analysis.ATS_SIGMA * nd.inv_cdf(x) for x in ph])
+    h["final_margin"] = (pd.to_numeric(h["home_pts"], errors="coerce")
+                         - pd.to_numeric(h["away_pts"], errors="coerce"))
+    return dict(h=h, season=season, book=analysis.HYPOTHESIS_BOOK,
+                picks=p.reset_index(drop=True) if len(p) else p,
+                row=analysis.roi_row("lean", p) if len(p) else None,
+                ats=ats, ats_row=analysis.ats_row("spread", ats) if len(ats) else None,
+                live=live, tags=sorted(h["model_tag"].dropna().astype(str).unique()))
+
+
+REBUILT_LEAD = ("Every graded game this season, opening night included, scored "
+                "<b>after the fact</b> by the current model ({ver}): features from games "
+                "before each date and the NBA injury report published before tip, every "
+                "fit on earlier seasons only, priced at the {where}. It shows how the "
+                "model you see today would have read the games already played, including "
+                "the ones the live model did not price. It is <b>hindsight, not the "
+                "record</b>: the live record above was written before tip and is never "
+                "pooled with it.")
+
+
+def rebuilt_tiles(rs):
+    """Lean at the close, the model's spread side at the close, the proper
+    scores and the margin's miss, on the rebuilt rows; colour at >= 2 SE."""
+    h, r, a = rs["h"], rs["row"], rs["ats_row"]
+    tiles = []
+    if r:
+        c = sig_cls(analysis.z_vs_null(r))
+        tiles.append(_stat("Lean · moneyline", f"{r['w']}–{r['l']}",
+                           f"ROI <span class='{c}'>{100 * r['roi']:+.1f}%</span> ± "
+                           f"{se_txt(r['roi_se'])} (1 SE) · null {100 * r['roi_null']:+.1f}% "
+                           f"· market favourite {fav_txt(r)}"))
+    if a:
+        c = sig_cls(analysis.z_vs_null(a))
+        tiles.append(_stat("Model's side · spread",
+                           f"{a['w']}–{a['l']}" + (f"–{a['push']}" if a["push"] else ""),
+                           f"cover {pct(a['actual'])} (break-even {pct(a['breakeven'])}) · "
+                           f"ROI <span class='{c}'>{100 * a['roi']:+.1f}%</span> ± "
+                           f"{se_txt(a['roi_se'])} (1 SE) · null {100 * a['roi_null']:+.1f}%",
+                           meter=(a["actual"], a["breakeven"])))
+    sc = analysis.scoring(h)
+    if sc:
+        zl = (-sc["d_logloss"] / sc["d_logloss_se"]
+              if sc["d_logloss_se"] and np.isfinite(sc["d_logloss_se"]) else float("nan"))
+        tiles.append(_stat("Log loss · model / market",
+                           f"{sc['model']['logloss']:.3f} / {sc['market']['logloss']:.3f}",
+                           f"model − market <span class='{sig_cls(zl)}'>{sc['d_logloss']:+.4f}"
+                           f"</span> ± {se4(sc['d_logloss_se'])} (1 SE) · {sc['n']} games · "
+                           f"{resolved_txt(zl, 'model better', 'market better')}"))
+    fm, mm = h["final_margin"].to_numpy(float), h["model_margin"].to_numpy(float)
+    cl = -pd.to_numeric(h["close_spread"], errors="coerce").to_numpy(float)
+    ok = np.isfinite(fm) & np.isfinite(mm) & np.isfinite(cl)
+    if ok.sum():
+        d = np.abs(mm[ok] - fm[ok]) - np.abs(cl[ok] - fm[ok])
+        se = d.std(ddof=1) / np.sqrt(len(d)) if len(d) > 1 else float("nan")
+        z = -d.mean() / se if np.isfinite(se) and se > 0 else float("nan")
+        tiles.append(_stat("Spread miss · model / close",
+                           f"{np.abs(mm[ok] - fm[ok]).mean():.1f} / "
+                           f"{np.abs(cl[ok] - fm[ok]).mean():.1f}",
+                           f"mean points off the final margin · model − close "
+                           f"<span class='{sig_cls(z)}'>"
+                           f"{d.mean():+.1f}</span> ± "
+                           f"{f'{se:.1f}' if np.isfinite(se) else '—'} pts (1 SE) · "
+                           f"{int(ok.sum())} games"))
+    return "<div class='gr-summary'>" + "".join(tiles) + "</div>"
+
+
+def rebuilt_section(rs, detail=True):
+    """The rebuilt section of Results (detail: the game-by-game table) and
+    Performance (tiles only)."""
+    head = ("<h2 class='sec' id='rebuilt'>This season, rebuilt after the fact "
+            "<span class='badge'>hindsight</span></h2>")
+    if not rs:
+        return head + ("<div class='empty'>Appears once this season's played games "
+                       "have been rebuilt (Backfill history, rebuild).</div>")
+    ver = model_version(rs["tags"]) or "the current model"
+    where = f"{esc(market.BOOK_NAMES[rs['book']])} close"
+    out = [head, "<p class='sec-lead'>" + REBUILT_LEAD.format(ver=ver, where=where) + "</p>",
+           rebuilt_tiles(rs)]
+    if not detail:
+        out.append("<p class='note'>Game by game on <a href='results.html#rebuilt'>"
+                   "Results</a>.</p>")
+        return "".join(out)
+    h = rs["h"].sort_values(["slate_date", "tip_utc"], ascending=[False, True])
+    lean = {str(g): r for g, r in rs["picks"].set_index("game_id").iterrows()} \
+        if len(rs["picks"]) else {}
+    ats = {str(r["game_id"]): r for _, r in rs["ats"].iterrows()} if len(rs["ats"]) else {}
+    head_cols = ("Game", "Live pick", "Model", "Model spread", "Close", "Final",
+                 "Lean", "Spread side")
+    for i, (date, g) in enumerate(h.groupby("slate_date", sort=False)):
+        trs = []
+        for _, r in g.iterrows():
+            gid = str(r["game_id"])
+            ln, sp = lean.get(gid), ats.get(gid)
+            home_line = pd.to_numeric(r["close_spread"], errors="coerce")
+            fav = r["home"] if r["p_home"] >= 0.5 else r["away"]
+            mline = -r["model_margin"] if fav == r["home"] else r["model_margin"]
+            trs.append(
+                f"<tr><td><span class='team-code'>{esc(r['away'])} @ {esc(r['home'])}"
+                f"</span><br><span class='mut small'>{tip_pt(r['tip_utc'])}</span></td>"
+                f"<td class='small'>{'yes' if gid in rs['live'] else 'no'}</td>"
+                f"<td class='n'>{esc(fav)} {pct(max(r['p_home'], 1 - r['p_home']))}</td>"
+                f"<td class='n'>{esc(fav)} {line_txt(round(float(mline), 1))}</td>"
+                f"<td class='n'>{pct(r['close_q_home'])} home"
+                + (f"<br><span class='mut small'>home {line_txt(home_line)}</span>"
+                   if np.isfinite(home_line) else "") + "</td>"
+                f"<td class='n'>{int(r['away_pts'])}–{int(r['home_pts'])}</td>"
+                + (f"<td>{esc(ln['side'])} {_result_badge(int(ln['won']))} "
+                   f"<span class='mono small'>{ln['units']:+.2f}u</span></td>" if ln is not None
+                   else "<td>—</td>")
+                + (f"<td>{esc(sp['side'])} {line_txt(sp['line'])} {_result_badge(sp['result'])}"
+                   f" <span class='mono small'>{sp['units']:+.2f}u</span></td>" if sp is not None
+                   else "<td>—</td>") + "</tr>")
+        cols = "".join(f"<th{' class=n' if c in ('Model', 'Model spread', 'Close', 'Final') else ''}>"
+                       f"{c}</th>" for c in head_cols)
+        tbl = (f"<div class='gr-tablewrap'><table class='gr'><thead><tr>{cols}</tr></thead>"
+               f"<tbody>{''.join(trs)}</tbody></table></div>")
+        day = pd.Timestamp(date).strftime("%a %b %-d")
+        out.append(fold(f"{esc(day)} · {len(g)} game{'s' if len(g) != 1 else ''} rebuilt",
+                        tbl, open_=i == 0))
+    out.append("<p class='note'>Model: the side the rebuilt model favoured and its win "
+               "probability. Model spread: that side's line from the model's own predicted "
+               "margin (v9; earlier rows 13.5 × Φ⁻¹(P)). Close: the no-vig home probability "
+               "and the home line at the close. Lean: one unit on the favoured side at the "
+               "closing moneyline; spread side: one unit on the model's side of the closing "
+               "spread. Live pick: whether the live model wrote a probability before tip "
+               "(opening night's games had none). ROI is read against its null, not zero; "
+               f"± is 1 SE and colour marks only a gap of at least {SIG:g} SE.</p>")
+    return "".join(out)
+
+
 def _result_badge(r):
     return ("<span class='badge w'>W</span>" if r == 1 else
             "<span class='badge l'>L</span>" if r == 0 else "<span class='badge'>P</span>")
 
 
-def render_results(native, built, today):
-    """Results: every graded pick this season, by slate, newest first."""
+def render_results(native, built, today, rebuilt=None):
+    """Results: every graded pick this season, by slate, newest first; then
+    this season rebuilt after the fact (rebuilt_section), apart."""
     scope = public_scope(native)
+    rb = rebuilt_section(rebuilt_scope(rebuilt, native))
     body = [_head(f"{season_txt(season_for(today))} season", "Results",
                   "Every graded pick this season, written before tip. The lean "
                   "is one unit on the model's side at the pregame price; spread "
@@ -1861,6 +2069,7 @@ def render_results(native, built, today):
     if not scope:
         body.append("<div class='empty'>No graded picks yet. Results appear the "
                     "morning after the first games with a model probability.</div>")
+        body.append(rb)
         return page("NBA results", "results.html", "".join(body), built)
     rows, ats = _game_rows(native, scope)
     for i, (date, g) in enumerate(rows.groupby("slate_date", sort=False)):
@@ -1887,10 +2096,24 @@ def render_results(native, built, today):
         day = pd.Timestamp(date).strftime("%a %b %-d")
         body.append(fold(f"{esc(day)} · {w}–{n - w}<span class='rt'>"
                          f"{g['units'].sum():+.2f}u</span>", tbl, open_=i == 0))
-    body.append(f"<p class='note'>Lean record: {_scope_txt(scope)}. The full "
-                "record, both bases and every book, is on the "
-                "<a href='grades.html'>Ledger</a>.</p>")
+    body.append(f"<p class='note'>Lean record: {_scope_txt(scope)}. "
+                + _unpriced_txt(native, scope) + "The full record, both bases and "
+                "every book, is on the <a href='grades.html'>Ledger</a>.</p>")
+    body.append(rb)
     return page("NBA results", "results.html", "".join(body), built)
+
+
+def _unpriced_txt(native, scope):
+    """Why the live record has fewer games than were played: graded games
+    in the record's season the live model wrote no probability for."""
+    g = ledger.graded(native)
+    g = g[pd.to_numeric(g["season"], errors="coerce") == scope["sec"]["season"]]
+    n = int(pd.to_numeric(g["p_home"], errors="coerce").isna().sum())
+    if not n:
+        return ""
+    return (f"{n} graded game{'s' if n != 1 else ''} this season had no live pick "
+            "(the model then in use did not score them; opening night under v6); "
+            "they are in the <a href='#rebuilt'>rebuilt</a> section below. ")
 
 
 def market_scope(native):
@@ -2152,7 +2375,7 @@ def _forecast_section(scope):
     return "".join(out)
 
 
-def render_performance(native, built, today):
+def render_performance(native, built, today, rebuilt=None):
     """Performance: running units and same-game baselines for the lean."""
     scope = public_scope(native)
     body = [_head(f"{season_txt(season_for(today))} season", "Performance",
@@ -2217,6 +2440,7 @@ def render_performance(native, built, today):
     body.append(_forecast_section(scope))
     body += ["<h2 class='sec'>Spread picks</h2>", spread_tiles(native),
              spread_charts(native),
+             rebuilt_section(rebuilt_scope(rebuilt, native), detail=False),
              "<p class='note'>Calibration on every season, the pre-registered "
              "hypotheses, the rebuilt seasons and the model's coefficients are on "
              "the <a href='grades.html'>Research</a> pages.</p>"]
@@ -2297,7 +2521,7 @@ def render_model(native, recon, built):
             f"{nc.FADE_GAMES}; before a team's first game its roster is its "
             "preseason box scores.</p>" + table(
                 ["Game", "Formula", "Model file"],
-                [["The NBA injury report covers it (from each team's game 1)",
+                [["The NBA injury report covers it (from each team's game 1, its second game)",
                   "availability logit", "<code>model/logit_avail.json</code>"],
                  ["Otherwise (game 0 included)", "base logit",
                   "<code>model/logit.json</code>"],
@@ -3350,8 +3574,10 @@ def write_pages(native, recon, today, model_ok, pre=None):
     built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
     (OUT_DIR / "index.html").write_text(render_index(native, today, built, model_ok,
                                                      recon, ledger.load_injuries()))
-    (OUT_DIR / "results.html").write_text(render_results(native, built, today))
-    (OUT_DIR / "performance.html").write_text(render_performance(native, built, today))
+    rebuilt = ledger.load(ledger.REBUILT_PATH)
+    (OUT_DIR / "results.html").write_text(render_results(native, built, today, rebuilt))
+    (OUT_DIR / "performance.html").write_text(render_performance(native, built, today,
+                                                                 rebuilt))
     (OUT_DIR / "grades.html").write_text(render_grades(native, recon, built))
     (OUT_DIR / "market-calibration.html").write_text(
         render_calibration(native, recon, built))

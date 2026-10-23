@@ -1,4 +1,18 @@
-# Model v8
+# Model v9
+
+**v9** (owner's decision 2026-10-23; "v9" at the end): v8 below, unchanged
+in its inputs, routes and training seasons, but each route is fitted by
+least squares on the final home margin instead of logistically on the win.
+The model predicts the home margin m (points, overtime included) and
+P(home win) = Φ(m / σ), σ = the route's residual SD on the training seasons
+(`nba_composite.fit_margin` / `predict`; model files carry `"link":
+"margin"`). Rows record m as `margin_home`, the model's own spread. Tags:
+`fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_avail_v9` and
+`fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_v9`; the carryover
+and v4 fallbacks are unchanged logits with their tags (no margin). H1 / H6
+stay on the carryover P, and H5 / H6 keep their frozen 13.5 × Φ⁻¹(P).
+Activation: "Fit model" (`--v9`), then "Backfill history" (rescore; and
+`rebuild` for the season in progress).
 
 **v8** (owner's decision 2026-10-22, active since 2026-10-22: refit
 `567753d`, reconstructed rows re-scored `3f10659`; "v8" below): one model for every game,
@@ -167,7 +181,11 @@ Doubtful, else 1 if he was on the team's previous box score, else 0.
 - **ATS (display only)**: the ledger maps p_home to an implied margin with a
   fixed σ = 13.5 points (`analysis.ATS_SIGMA`). This is an unvalidated
   assumption used to pick an ATS side; it is not a calibrated spread model
-  and changes no prediction.
+  and changes no prediction. From v9 a row records the model's own margin
+  (`margin_home`), and the card's spread lean (`analysis.spread_lean`) uses
+  it, with the row's σ = m / Φ⁻¹(P) for the cover probability; rows without
+  it (v8 and earlier, the fallbacks) keep the conversion. The registered
+  H5 / H6 keep 13.5 × Φ⁻¹(P) whatever the row records.
 
 ## 6. Evidence
 
@@ -357,11 +375,13 @@ changing the model, is [`docs/model_guidelines.md`](docs/model_guidelines.md)
 
 | Step | Workflow | Command |
 |---|---|---|
-| Weights, base and availability logits (v8) | Fit model | `nba_composite.py fit-weights`, `fit-logit --v8`, `player_availability.py fit --v8` |
-| Availability logit alone | Fit availability | `python player_availability.py fit --v8 --years 2023-2026` |
+| Weights, base and availability models (v9) | Fit model | `nba_composite.py fit-weights`, `fit-logit --v9`, `player_availability.py fit --v9` |
+| Availability model alone | Fit availability | `python player_availability.py fit --v9 --years 2023-2026` |
 | Box scores and preseason box scores | Box-score history | `python research/box_history.py --seasons 2016-2019 2021-2026 --commit` |
 | v8 test | Unified model (v8) | `python research/unified.py` |
+| v9 test | Margin model | `python research/margin_model.py` |
 | Reconstructed rows | Backfill history | `python backfill_history.py --seasons 2025 2026 --rescore` |
+| Rebuilt rows (season in progress) | Backfill history, `rebuild` | `python backfill_history.py --seasons 2027 --rebuild` |
 | §6.1 | Walk-forward backtest | `python research/walk_forward.py --seasons 2025 2026 --avail --v5` (v6 gate: `--v6`) |
 | §6.2 phase | Calibration shape | `python research/calibration_shape.py --seasons 2025 2026` |
 | Open vs close, H1–H3 | Open vs close | `python research/open_price.py --seasons 2025 2026` |
@@ -398,6 +418,10 @@ commit), because every historical test game was covered.
   of logits for every game, game 0 included ("v8" below). Missing terms
   fall back to the carryover logit (v2 tag) before game 10 and the v4 logit
   after; v7's `model/logit_early.json` is retired.
+- `fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_v9` /
+  `..._ft_margin_avail_v9`: v8's inputs and routes fitted by least squares
+  on the final margin, P = Φ(m / σ), m recorded as `margin_home` ("v9"
+  below). Same fallbacks and tags as v8.
 
 ## v5 (active since 2026-09-30)
 
@@ -567,6 +591,59 @@ rows (H1 n 115 +17.8%, H6 n 201 +3.6%, unchanged). Game 0 is in no
 pre-registered rule (`analysis.stage`). On the re-scored rows, games 10+,
 model − close +0.0174 ± 0.0112 (2025-26 DK) and +0.0152 ± 0.0101 (2024-25
 ESPN BET), log loss, ± 95% (`diagnostics/model_review/RESULTS.txt`).
+
+## v9 (owner's decision, 2026-10-23)
+
+Question (owner's, 2026-10-23): can a model fitted directly on margins give
+the spread, and is it also accurate for win probability? v8 fits the win by
+logistic regression and the pages turned P into a margin with the fixed,
+unvalidated 13.5 × Φ⁻¹(P) (§5).
+
+- **Fit** (`nba_composite.fit_margin`): ordinary least squares of the final
+  home margin (overtime included) on v8's terms, per route: the base model
+  on every game of the game-log seasons (`fit-logit --v9`), the
+  availability model on every covered game from game 1 (`player_availability.py
+  fit --v9`). σ is the route's residual SD (n − k − 1).
+- **Prediction** (`nba_composite.predict` / `predict_margin`): m = intercept
+  + coef · x; P(home win) = Φ(m / σ). `build_site.score_game_v8` records m
+  as `margin_home` beside P; the fallbacks (the carryover logit before game
+  10, the frozen v4 logit after) are logits and record no margin.
+- **Unchanged**: the faded rating, every term and its construction, the
+  routes, the training seasons, the injury-report rule, H1 / H6's carryover
+  P, H5 / H6's frozen 13.5 conversion, the lean (P ≥ 0.5), the card's shrunk
+  edge and EV.
+
+Test (`research/margin_model.py`, workflow "Margin model", run 39997006384,
+`diagnostics/margin_model/RESULTS.txt`): v8's inputs, routes and seasons
+rebuilt walk-forward (every fit on earlier seasons; the rebuilt v8 matches
+the recorded v8 − close), 2016–26, ± 95%, M − v8 on the same games:
+
+| Games | n | Log loss | Brier | Seasons better |
+|---|---|---|---|---|
+| 1+ | 10,767 | −0.0008 ± 0.0010 | −0.0003 ± 0.0004 | 4 of 9 |
+| 1–9 | 1,258 | −0.0015 ± 0.0027 | −0.0007 ± 0.0011 | |
+| 10–19 | 1,375 | −0.0016 ± 0.0030 | −0.0005 ± 0.0012 | |
+| 20+ | 8,134 | −0.0006 ± 0.0012 | −0.0002 ± 0.0005 | |
+
+Calibration slope 1.08 (v8 0.95). Against the close, games 10+ (G7):
+2024-25 ESPN BET −0.0014 ± 0.0030 (Brier −0.0005), 2025-26 DK −0.0004 ±
+0.0028 (Brier −0.0001): not worse on either large book-season, no
+tripwire; M − close +0.0144 / +0.0170 (v8 +0.0158 / +0.0174). 2025-26 ESPN
+BET games 1–9 (n = 138) +0.0080 ± 0.0073, worse, small. Spread: M's margin
+misses the final margin by 10.52 points on average (RMSE 13.46, home bias
++0.37) against 10.59 (13.53, +0.78) for v8's 13.5 × Φ⁻¹(P), −0.065 ± 0.027
+pooled; it trails the closing spread by 0.24–0.29 points of MAE and ties
+the opening one. At the open its edge reads like v8's (cover slope +0.54 /
++0.34 vs +0.48 / +0.31), at the close nothing. Equal accuracy for win
+probability, a slightly better spread, no gain against the close.
+
+Activation: (1) "Fit model" fits both v9 models (same seasons as v8);
+(2) "Backfill history" `--rescore` re-scores the reconstructed rows with v9
+(prices and results kept; `margin_home` filled); (3) "Backfill history"
+`rebuild` for 2027 writes `data/nba_rebuilt.csv`: this season's played games
+scored after the fact by v9 (owner's request, 2026-10-23; hindsight, never
+pooled with the native record). The build follows the model files; native
+rows keep the tag and P they were written under.
 
 ## Version rule
 
