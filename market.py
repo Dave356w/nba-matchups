@@ -40,7 +40,7 @@ ESPNBET_PROVIDER_ID = "58"
 # listed here (notably 59, ESPN BET live/in-game odds) is ignored.
 BOOKS = ((DK_PROVIDER_ID, "dk"), (ESPNBET_PROVIDER_ID, "espnbet"))
 BOOK_NAMES = {"dk": "DraftKings", "espnbet": "ESPN BET", "kalshi": "Kalshi"}
-# Exchanges priced outside ESPN (kalshi.py). Only the preseason ledger reads
+# Historical exchange labels and research-only price arithmetic. No production process reads
 # them; pick_pregame / pick_close never do, so no regular-season row can.
 EXCHANGES = ("kalshi",)
 # Kalshi's taker fee per contract, as a share of p(1 - p) (kalshi_cost).

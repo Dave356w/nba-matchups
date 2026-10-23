@@ -34,37 +34,6 @@ def row(**kw):
     return r
 
 
-def test_kalshi_pregame_columns_follow_the_pregame_and_first_locks():
-    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row()], now=BEFORE)
-    r = led.iloc[0]
-    assert r["kalshi_pre_home_ml"] == -140 and r["kalshi_first_home_ml"] == -140
-    led, _, _ = ledger.upsert_pregame(led, [row(kalshi_pre_home_ml=-160)], now=LATER)
-    r = led.iloc[0]
-    assert r["kalshi_pre_home_ml"] == -160          # refreshed before tip
-    assert r["kalshi_first_home_ml"] == -140         # first snapshot: written once
-    led2, acc, _ = ledger.upsert_pregame(led, [row(kalshi_pre_home_ml=-999)], now=AFTER)
-    assert not acc and led2.iloc[0]["kalshi_pre_home_ml"] == -160   # frozen at tip
-    assert set(ledger.KALSHI_PRE_COLUMNS) <= set(ledger.PREGAME_COLUMNS)
-    assert set(ledger.KALSHI_FIRST_COLUMNS) <= set(ledger.WRITE_ONCE_COLUMNS)
-    assert set(ledger.KALSHI_GRADE_COLUMNS) <= set(ledger.GRADE_COLUMNS)
-
-
-def test_kalshi_close_only_on_a_completed_game_and_only_grade_columns():
-    led, _, _ = ledger.upsert_pregame(ledger.empty(), [row()], now=BEFORE)
-    before = led[ledger.PREGAME_COLUMNS + ledger.FIRST_COLUMNS].copy()
-    k = dict(kalshi_close_home_ml=-170, kalshi_close_away_ml=150,
-             kalshi_close_q_home=0.62, kalshi_open_home_ml=-140,
-             kalshi_open_away_ml=125)
-    assert not ledger.apply_result(led, "401", dict(completed=False, home_pts=50,
-                                                    away_pts=40), None, k)
-    assert pd.isna(led.iloc[0]["kalshi_close_q_home"])        # never while pending
-    assert ledger.apply_result(led, "401", dict(completed=True, home_pts=110,
-                                                away_pts=104), None, k)
-    pd.testing.assert_frame_equal(led[ledger.PREGAME_COLUMNS + ledger.FIRST_COLUMNS],
-                                  before)
-    assert led.iloc[0]["kalshi_close_q_home"] == 0.62
-
-
 def test_pre_kalshi_file_loads_with_blank_kalshi_columns(tmp_path):
     led, _, _ = ledger.upsert_pregame(ledger.empty(), [row()], now=BEFORE)
     p = tmp_path / "x.csv"
@@ -91,64 +60,14 @@ def with_kalshi(df, frac=1.0, shift=0.03, seed=0):
     return df
 
 
-@pytest.fixture
-def kalshi_native(monkeypatch):
-    """The view as it was 2026-10-06 to 10-21: native rows priced by Kalshi."""
-    monkeypatch.setattr(analysis, "KALSHI_BASES", ("native",))
-
-
 def test_pages_grade_every_basis_at_its_sportsbook_by_default():
     # owner's decision, 2026-10-21: live and rebuilt games on DraftKings
-    assert analysis.KALSHI_BASES == ()
     df = pd.concat([with_kalshi(synth(30, 1, "native")),
                     with_kalshi(synth(30, 2, "reconstructed"))], ignore_index=True)
     v = analysis.market_view(df)
+    assert v is df
     assert (v["close_book"] == "dk").all() and (v["pre_book"] == "dk").all()
     assert v["close_q_home"].equals(df["close_q_home"])
-
-
-def test_market_view_prices_each_row_by_one_market(kalshi_native):
-    df = with_kalshi(synth(200, 1), frac=0.5)
-    df["first_snapshot_utc"] = "2026-11-19T15:00:00Z"
-    v = analysis.market_view(df)
-    k = df["kalshi_close_q_home"].notna()
-    assert (v.loc[k, "close_book"] == "kalshi").all()
-    assert (v.loc[k, "pre_book"] == "kalshi").all()
-    assert (v.loc[k, "first_book"] == "kalshi").all()
-    assert (v.loc[k, "close_q_home"] == df.loc[k, "kalshi_close_q_home"]).all()
-    assert (v.loc[k, "pre_home_ml"] == df.loc[k, "kalshi_pre_home_ml"]).all()
-    w = v.drop(columns="spread_book")                 # the one added column
-    pd.testing.assert_frame_equal(w.loc[~k], df.loc[~k].astype(w.dtypes.to_dict()),
-                                  check_dtype=False)
-    # model, result and the input frame are untouched
-    assert (v["p_home"] == df["p_home"]).all() and (v["home_won"] == df["home_won"]).all()
-    assert (df.loc[k, "close_book"] == "dk").all()
-    assert (v["spread_book"] == df["close_book"]).all()   # the ATS line's book
-    # pages split by book: Kalshi rows form their own section, never pooled
-    books = dict(analysis.book_split(analysis.with_close(ledger.graded(v))))
-    assert set(books) == {"dk", "kalshi"} and len(books["kalshi"]) == k.sum()
-
-
-def test_market_view_leaves_reconstructed_rows_on_their_sportsbook(kalshi_native):
-    df = with_kalshi(synth(40, 2, "reconstructed"))
-    v = analysis.market_view(df)
-    assert (v["close_book"] == "dk").all()
-    assert v["close_q_home"].equals(df["close_q_home"])
-    # a frame mixing bases converts only the native rows
-    mix = pd.concat([with_kalshi(synth(20, 3, "native")), df], ignore_index=True)
-    v = analysis.market_view(mix)
-    assert set(v.loc[v["basis"] == "native", "close_book"]) == {"kalshi"}
-    assert set(v.loc[v["basis"] == "reconstructed", "close_book"]) == {"dk"}
-
-
-def test_market_view_pending_rows_use_kalshi_pregame(kalshi_native):
-    df = with_kalshi(synth(20, 2))
-    df.loc[:9, ["home_won", "home_pts", "away_pts"]] = np.nan
-    df.loc[:9, ledger.KALSHI_GRADE_COLUMNS] = np.nan
-    v = analysis.market_view(df)
-    assert (v.loc[:9, "pre_book"] == "kalshi").all()
-    assert v.loc[:9, "close_book"].eq("dk").all()            # no close yet
-    assert v.loc[:9, "close_q_home"].equals(df.loc[:9, "close_q_home"].astype(float))
 
 
 def test_hypotheses_stay_on_sportsbook_prices(tmp_path, monkeypatch):
@@ -228,7 +147,7 @@ def test_backfill_kalshi_fills_only_kalshi_columns(tmp_path, monkeypatch):
     asked = []
     monkeypatch.setattr(kalshi, "grade_odds",
                         lambda d, h, a, t: asked.append(d) or dict(k))
-    assert backfill_history.main(["--seasons", "2025", "2026", "--kalshi"]) == 0
+    assert __import__("research.kalshi_backfill", fromlist=["backfill_kalshi"]).backfill_kalshi([2025, 2026]) == 0
     after = ledger.load(ledger.RECON_PATH)
     assert len(asked) == 20                          # 2024-25 has no Kalshi
     other = [c for c in ledger.COLUMNS if c not in ledger.KALSHI_COLUMNS]
@@ -237,39 +156,8 @@ def test_backfill_kalshi_fills_only_kalshi_columns(tmp_path, monkeypatch):
     assert (after.loc[s26, "kalshi_close_q_home"] == 0.62).all()
     assert after.loc[~s26, "kalshi_close_q_home"].isna().all()
     asked.clear()
-    backfill_history.main(["--seasons", "2026", "--kalshi"])
+    __import__("research.kalshi_backfill", fromlist=["backfill_kalshi"]).backfill_kalshi([2026])
     assert not asked                                 # filled rows are skipped
-
-
-def test_missing_kalshi_close_is_retried_for_kalshi_seasons():
-    df = synth(10, 6)
-    df["slate_date"] = "2026-11-18"
-    df["season"] = [2025] * 5 + [2027] * 5
-    m = ledger.missing_close(df, "2026-11-19", kalshi=True)
-    assert len(m) == 5 and (m["season"] == 2027).all()
-    assert not len(ledger.missing_close(df, "2026-11-19"))     # book close present
-
-
-def test_build_adds_kalshi_pregame_and_survives_a_failure(monkeypatch):
-    js = {"events": [{"event_ticker": "KXNBAGAME-26NOV19UTAGSW", "markets": [
-        {"ticker": "KXNBAGAME-26NOV19UTAGSW-GSW", "yes_ask_dollars": "0.6200",
-         "yes_bid_dollars": "0.6100"},
-        {"ticker": "KXNBAGAME-26NOV19UTAGSW-UTA", "yes_ask_dollars": "0.3900",
-         "yes_bid_dollars": "0.3800"}]}]}
-    monkeypatch.setattr(kalshi, "open_games", lambda: kalshi.parse_events(js))
-    rows = [dict(slate_date="2026-11-19", home="GSW", away="UTA"),
-            dict(slate_date="2026-11-19", home="BOS", away="LAL")]
-    build_site.add_kalshi_pregame(rows, "2026-11-19")
-    assert rows[0]["kalshi_pre_home_ml"] == market.american_from_prob(
-        market.kalshi_cost(0.62))
-    assert abs(rows[0]["kalshi_pre_q_home"] - 0.615 / (0.615 + 0.385)) < 1e-4
-    assert np.isnan(rows[1]["kalshi_pre_home_ml"])           # not listed
-    def boom():
-        raise OSError("down")
-    monkeypatch.setattr(kalshi, "open_games", boom)
-    rows = [dict(slate_date="2026-11-19", home="GSW", away="UTA")]
-    build_site.add_kalshi_pregame(rows, "2026-11-19")
-    assert "kalshi_pre_home_ml" not in rows[0]               # book only
 
 
 def test_postponed_game_keeps_its_original_ticker_date(monkeypatch):

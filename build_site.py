@@ -17,10 +17,9 @@ Steps
      same pregame lock (shown on the Picks cards; the model does not read it),
      and Sleeper's (RotoWire's) projected lineups to data/nba_sleeper.csv
      (first and latest pregame snapshot; research data, read by nothing).
-     Preseason games go to data/nba_preseason.csv instead (score_preseason),
-     graded the same way and never mixed with the native ledger.
+     Exhibitions are excluded; historical preseason rows stay untouched.
   3. Render public/index.html, grades.html, market-calibration.html and
-     preseason.html.
+     model.html.
 
 The model is nba_composite.py, unchanged. This file only feeds it pregame game
 logs (games strictly before the slate date) and records what it said.
@@ -43,7 +42,6 @@ import pandas as pd
 
 import analysis
 import cold_start
-import kalshi
 import ledger
 import market
 import nba_composite as nc
@@ -291,30 +289,9 @@ def espn_close(row):
                              prefer=pre_book if pd.notna(pre_book) else None)
 
 
-def kalshi_close(row):
-    """Kalshi's last pregame-minute pair for a graded preseason row."""
-    return kalshi.close_odds(str(row["slate_date"]), row["home"], row["away"],
-                             row["tip_utc"])
-
-
-def kalshi_grade(row):
-    """Kalshi's close and open for a graded regular-season row (from 2025-26),
-    beside the sportsbook's: kalshi.grade_odds."""
-    if not pd.to_numeric(row["season"], errors="coerce") >= ledger.KALSHI_FROM_SEASON:
-        return None
-    return kalshi.grade_odds(str(row["slate_date"]), row["home"], row["away"],
-                             row["tip_utc"])
-
-
-def grade(led, today, close=espn_close, kalshi_close_fn=None):
-    """Final scores for finished games from earlier slates, with the closing
-    pair from `close(row)` (ESPN books; kalshi_close for preseason rows) and,
-    with `kalshi_close_fn` (kalshi_grade, regular season), Kalshi's beside it.
-    Recent graded rows still missing a close (ledger.missing_close) are
-    asked again."""
-    todo = pd.concat([ledger.pending(led, today), ledger.missing_close(led, today)]
-                     + ([ledger.missing_close(led, today, kalshi=True)]
-                        if kalshi_close_fn else []))
+def grade(led, today, close=espn_close):
+    """Grade finished regular-season rows at their sportsbook close."""
+    todo = pd.concat([ledger.pending(led, today), ledger.missing_close(led, today)])
     todo = todo[~todo.index.duplicated()]
     if not len(todo):
         return led, 0
@@ -335,13 +312,7 @@ def grade(led, today, close=espn_close, kalshi_close_fn=None):
             except Exception as e:  # noqa: BLE001
                 log(f"grade {gid}: odds failed ({e!r}); graded without close")
                 odds = None
-            k = None
-            if kalshi_close_fn is not None:
-                try:
-                    k = kalshi_close_fn(row)
-                except Exception as e:  # noqa: BLE001
-                    log(f"grade {gid}: Kalshi failed ({e!r}); retried next build")
-            n += ledger.apply_result(led, gid, g, odds, k)
+            n += ledger.apply_result(led, gid, g, odds)
     return led, n
 
 
@@ -433,23 +404,7 @@ def score_slate(today, weights, model, now=None):
         r["route"] = route(r, model)
         add_pregame_price(r)
         rows.append(r)
-    add_kalshi_pregame(rows, today)
     return rows
-
-
-def add_kalshi_pregame(rows, today):
-    """Kalshi's live pair beside each row's sportsbook price, in place
-    (kalshi_pre_*; the pages' market where present, analysis.market_view).
-    One request per build; a failure leaves the rows on the book alone."""
-    try:
-        book = kalshi.open_games()
-    except Exception as e:  # noqa: BLE001
-        log(f"kalshi pregame failed ({e!r}); rows keep the sportsbook only")
-        return
-    for r in rows:
-        o = kalshi.pregame_odds(book, r["slate_date"], r["home"], r["away"])
-        for k in ("home_ml", "away_ml", "q_home"):
-            r[f"kalshi_pre_{k}"] = o.get(f"cur_{k}", np.nan)
 
 
 def add_pregame_price(r):
@@ -473,48 +428,6 @@ def add_pregame_price(r):
     r["pre_spread"] = odds.get("cur_spread")
     r["pre_home_spread_odds"] = odds.get("cur_home_spread_odds")
     r["pre_away_spread_odds"] = odds.get("cur_away_spread_odds")
-
-
-def score_preseason(today, weights, now=None):
-    """Transitional exhibition tracking with the primary v9 game-0 scorer.
-    Kept separate from regular-season rows and all hypothesis records.
-    """
-    games = [g for g in market.scoreboard(today)
-             if g["season_type"] == market.PRESEASON
-             and g["home"] in market.BBR_TEAMS and g["away"] in market.BBR_TEAMS]
-    if not games:
-        return []
-    now = now or ledger.utc_now()
-    pre = [g for g in games
-           if g["state"] == "pre" and ledger.parse_utc(g["tip_utc"]) > now]
-    _, model = load_model()
-    if not pre or model is None:
-        return []
-    prior = nc.load_logs(season_for(today) - 1)
-    try:
-        book = kalshi.open_games()
-        note = None
-    except Exception as e:  # noqa: BLE001
-        log(f"preseason: Kalshi fetch failed ({e!r}); rows unpriced")
-        book, note = {}, f"Kalshi fetch failed: {type(e).__name__}"
-    rows = []
-    for g in pre:
-        home, away = g["home"], g["away"]
-        r = dict(game_id=g["game_id"], slate_date=today, season=season_for(today),
-                 tip_utc=g["tip_utc"], model_tag=PRESEASON_TAG, home=home,
-                 away=away, gp_home=0, gp_away=0, route="preseason")
-        r.update(score_game_v8({}, home, away, today, weights, model,
-                               prior_logs=prior, opening=today, talent0={}))
-        r["route"] = "preseason"
-        odds = kalshi.pregame_odds(book, today, home, away)
-        if not odds:
-            r["price_note"] = note or "no Kalshi market with asks on both sides"
-        r["pre_book"] = odds.get("book")
-        r["pre_home_ml"] = odds.get("cur_home_ml")
-        r["pre_away_ml"] = odds.get("cur_away_ml")
-        r["pre_q_home"] = odds.get("cur_q_home", np.nan)       # kalshi.mid_q
-        rows.append(r)
-    return rows
 
 
 # ------------------------------------------------------------- rendering ---
@@ -852,7 +765,7 @@ ASSETS = Path(__file__).resolve().parent / "assets" / "fonts"
 PUBLIC_PAGES = (("index.html", "Picks"), ("results.html", "Results"),
                 ("performance.html", "Performance"))
 RESEARCH_PAGES = (("grades.html", "Ledger"), ("market-calibration.html", "Calibration"),
-                  ("model.html", "Model"), ("preseason.html", "Preseason"))
+                  ("model.html", "Model"))
 PAGES = PUBLIC_PAGES + RESEARCH_PAGES
 THEME_BUTTON = (
     "<button class='theme' type='button' onclick='toggleTheme()' "
@@ -1632,8 +1545,7 @@ def render_index(led, today, built, model_ok, recon=None, injuries=None, now=Non
         return page("NBA picks", "index.html", head + tiles +
                     "<div class='empty'>No regular-season games scored for this "
                     "date (off day, preseason, or the build ran after tip). "
-                    "Exhibition games are tracked on the <a href='preseason.html'>"
-                    "Preseason</a> research page.</div>" + how, built)
+                    "</div>" + how, built)
     no_p = pd.to_numeric(day["p_home"], errors="coerce").isna()
     now = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz="UTC")
     tipped = pd.to_datetime(day["tip_utc"], utc=True, errors="coerce") <= now
@@ -3215,82 +3127,6 @@ def _model_section(body, h, first):
     body.append("</details>")
 
 
-# ------------------------------------------------------------- preseason ---
-def render_preseason(pre, built):
-    """Exhibition rows (data/nba_preseason.csv) on their own page: model vs
-    the close on the same games, one closing book x season at a time, then
-    the flat-bet record at the pregame price and every row. Nothing here is
-    pooled with the native or reconstructed ledgers."""
-    body = ["<h1>Preseason</h1><p class='lead'>Exhibition games, scored by "
-            "the primary v9 game-0 route, with historical tags preserved, "
-            "and priced from Kalshi. Starters rest, so these rows "
-            "show how far the offseason view travels, not regular-season "
-            "skill.</p><div class='flag-note'>Tracked apart from everything "
-            "else: never in the Ledger, Calibration, hypotheses or any fit "
-            f"(tag <code>{esc(PRESEASON_TAG)}</code>).</div>",
-            READ_KEY.replace("Native</dt><dd>Written before tip and frozen: "
-                             "the forward test.",
-                             "Preseason</dt><dd>Written before tip and "
-                             "frozen, like native rows, but exhibitions.")]
-    if not len(pre):
-        body.append("<p class='note'>No preseason games recorded yet. The "
-                    "daily build writes them from the first preseason slate "
-                    "it sees.</p>")
-        return page("NBA preseason", "preseason.html", "".join(body), built)
-    g = ledger.graded(pre)
-    h = analysis.with_close(g)
-    scored = pd.to_numeric(pre["p_home"], errors="coerce").notna()
-    priced = pd.to_numeric(pre["pre_q_home"], errors="coerce").notna()
-    body.append(f"<p class='note'>{len(pre)} games recorded: {int(scored.sum())} "
-                f"with a model P, {int(priced.sum())} with a pregame price, "
-                f"{len(g)} graded, {len(h)} graded with a model P and a "
-                "close.</p>")
-    secs = []
-    for book, hb in analysis.book_split(h):
-        bname = market.BOOK_NAMES[book]
-        for season in sorted(hb["season"].dropna().unique()):
-            stxt = season_txt(season)
-            secs.append(dict(h=hb[hb["season"] == season], id=_slug("pre", book, stxt),
-                             label=f"Preseason · {bname} close · {stxt}",
-                             title=f"<span class='badge recon'>Preseason · exhibition</span>"
-                                   f"{esc(bname)} close · {stxt}"))
-    if not secs:
-        body.append("<p class='note'>No graded games with a model P and a "
-                    "close yet.</p>")
-    _model_sections(body, secs)
-    for sec in secs:
-        roi = analysis.roi_summary(sec["h"], price="pre")
-        if roi:
-            body.append(f"<h3>Flat 1u bets at the pregame price — "
-                        f"{esc(sec['label'])}</h3>")
-            body.append(_roi_table(roi))
-    rows = []
-    for _, r in pre.sort_values(["slate_date", "tip_utc"], ascending=False).iterrows():
-        won = pd.to_numeric(r["home_won"], errors="coerce")
-        final = ("pending" if not np.isfinite(won) else
-                 f"{int(r['away_pts'])}–{int(r['home_pts'])}")
-        rows.append([esc(r["slate_date"]), f"{esc(r['away'])} @ {esc(r['home'])}",
-                     pct(pd.to_numeric(r["p_home"], errors="coerce")),
-                     pct(pd.to_numeric(r["pre_q_home"], errors="coerce"))
-                     + book_tag(r["pre_book"]),
-                     pct(pd.to_numeric(r["close_q_home"], errors="coerce"))
-                     + book_tag(r["close_book"]),
-                     final])
-    body.append("<details class='more' open><summary>Game by game <span "
-                "class='mut'>— newest first</span></summary>")
-    body.append(table(["Date", "Away @ Home", "Model P(home)",
-                       "Pregame q(home)", "Close q(home)", "Final (away–home)"],
-                      rows, left=(0, 1), key=(2,)))
-    body.append("</details><p class='note'>q is the no-vig market probability. "
-                "Prices are refreshed each build until tip and frozen after; "
-                "prices are Kalshi's YES asks with the taker fee included "
-                "(as American odds: what a bet costs); q is the bid/ask "
-                "midpoints normalised (the market's view), and the close is "
-                "the last 1-minute Kalshi candle before tip. b2b_net is read "
-                "from the previous day's scoreboard.</p>")
-    return page("NBA preseason", "preseason.html", "".join(body), built)
-
-
 def snapshot_injuries(rows):
     """Pregame injury lists for today's accepted rows -> data/nba_injuries.csv.
 
@@ -3348,8 +3184,8 @@ def write_pages(native, recon, today, model_ok, pre=None):
     (OUT_DIR / "grades.html").write_text(render_grades(native, recon, built))
     (OUT_DIR / "market-calibration.html").write_text(
         render_calibration(native, recon, built))
-    (OUT_DIR / "preseason.html").write_text(
-        render_preseason(ledger.empty() if pre is None else pre, built))
+    # A reused output directory must not publish the retired page.
+    (OUT_DIR / "preseason.html").unlink(missing_ok=True)
     (OUT_DIR / "model.html").write_text(render_model(native, recon, built))
     # The quotable plain-text readout, as the sibling projects keep it:
     # published beside the pages; main() also commits it under data/.
@@ -3368,7 +3204,6 @@ def main(argv=None):
     today = a.date or et_today()
     native = ledger.load(ledger.NATIVE_PATH)
     recon = ledger.load(ledger.RECON_PATH)
-    pre = ledger.load(ledger.PRESEASON_PATH)
     weights, model = load_model()
     model_ok = weights is not None and model is not None
     global ACTIVE_TAGS
@@ -3376,7 +3211,7 @@ def main(argv=None):
         ACTIVE_TAGS = active_tags(model, load_avail())
 
     if not a.render_only:
-        native, n = grade(native, today, kalshi_close_fn=kalshi_grade)
+        native, n = grade(native, today)
         log(f"graded {n} game(s)")
         if model_ok:
             try:
@@ -3391,21 +3226,7 @@ def main(argv=None):
         else:
             log("no fitted model in model/ -- skipping slate scoring")
         ledger.save(native, ledger.NATIVE_PATH)
-        # exhibitions: their own file, graded and scored the same way
-        pre, n = grade(pre, today, close=kalshi_close)
-        rows = []
-        if model_ok:
-            try:
-                rows = score_preseason(today, weights)
-            except Exception as e:  # noqa: BLE001
-                log(f"preseason scoring failed ({e!r})")
-        pre, acc, rej = ledger.upsert_pregame(pre, rows, basis="preseason")
-        if n or acc:
-            log(f"preseason: graded {n}, {len(acc)} rows written, "
-                f"{len(rej)} rejected {rej}")
-        if len(pre):
-            ledger.save(pre, ledger.PRESEASON_PATH)
-    text = write_pages(native, recon, today, model_ok, pre)
+    text = write_pages(native, recon, today, model_ok)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(text, encoding="utf-8")
     log(f"wrote {OUT_DIR}/" + ", ".join(h for h, _ in PAGES)

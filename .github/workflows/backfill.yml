@@ -14,10 +14,6 @@ on:
         description: 'Only re-score existing rows with the current model (keep prices/results)'
         type: boolean
         default: true
-      kalshi:
-        description: 'Only fill Kalshi open/close on existing graded rows (2025-26 on); no refit'
-        type: boolean
-        default: false
       rebuild:
         description: 'Season in progress (e.g. 2027): rebuild its played games with the current model into data/nba_rebuilt.csv (rescore off)'
         type: boolean
@@ -65,24 +61,20 @@ jobs:
           key: injury-reports-${{ github.run_id }}
           restore-keys: injury-reports-
       - name: Download seasons and logs
-        if: ${{ !inputs.kalshi }}
         # 2020: the season before 2021 (last season in the v8 rating)
         run: python nba_composite.py download --years 2015-2026
       - name: Refresh the season in progress
-        if: ${{ !inputs.kalshi && inputs.rebuild }}
+        if: ${{ inputs.rebuild }}
         # its season page and logs change daily: refetch them
         run: python nba_composite.py download --years ${{ inputs.seasons }} --refresh
       - name: Reconstruct
-        if: ${{ !inputs.kalshi && !inputs.rebuild }}
+        if: ${{ !inputs.rebuild }}
         run: python backfill_history.py --seasons ${{ inputs.seasons }} ${{ inputs.rescore && '--rescore' || '' }}
       - name: Rebuild the season in progress
-        if: ${{ !inputs.kalshi && inputs.rebuild }}
+        if: ${{ inputs.rebuild }}
         run: python backfill_history.py --seasons ${{ inputs.seasons }} --rebuild
-      - name: Kalshi prices
-        if: ${{ inputs.kalshi }}
-        run: python backfill_history.py --seasons ${{ inputs.seasons }} --kalshi
       - name: Post-rescore model checks
-        if: ${{ inputs.rescore && !inputs.kalshi && !inputs.rebuild }}
+        if: ${{ inputs.rescore && !inputs.rebuild }}
         run: |
           python research/model_review.py
           python research/dk_hypotheses.py
@@ -93,7 +85,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/
           git diff --cached --quiet && exit 0
-          git commit -m "${{ inputs.rebuild && 'rebuilt season' || 'reconstructed history' }} ${{ inputs.seasons }}${{ inputs.kalshi && ' (Kalshi prices)' || '' }}"
+          git commit -m "${{ inputs.rebuild && 'rebuilt season' || 'reconstructed history' }} ${{ inputs.seasons }}"
           for i in 1 2 3 4; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
             sleep $((2**i))
