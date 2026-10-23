@@ -74,6 +74,13 @@ jobs:
       - name: Validate publication boundary
         run: python -c "import build_site; build_site.validate_public_output()"
 
+      - name: Keep internal research workbench
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-workbench
+          path: diagnostics/site/
+          retention-days: 7
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

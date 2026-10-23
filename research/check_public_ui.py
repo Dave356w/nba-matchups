@@ -60,6 +60,8 @@ def main():
             target.mkdir()
             pages = PublicSite(ui,native,day,'UI verification · Pacific time').render()
             for filename, html in pages.items():
+                if name == 'fixture':
+                    html = html.replace("<main id='main-content'>", "<main id='main-content'><div class='flag-note' role='note'>UI test fixture · synthetic data for verification</div>")
                 (target/filename).write_text(html,encoding='utf-8')
         handler = functools.partial(SimpleHTTPRequestHandler,directory=str(root))
         server = ThreadingHTTPServer(('127.0.0.1',0),handler)
@@ -89,7 +91,7 @@ def main():
                         page.screenshot(path=str(out/f'{device}-{filename[:-5]}.jpg'),full_page=True,type='jpeg',quality=85)
                         checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
                     page.goto(f'{base}/fixture/index.html')
-                    page.get_by_role('button',name='Tracked',exact=False).click()
+                    page.locator('[data-show="tracked"]').click()
                     assert page.locator('.gcard:visible').count()==4
                     page.locator('.gcard summary').first.click()
                     assert page.get_by_role('heading',name='Recorded before play',exact=True).is_visible()

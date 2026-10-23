@@ -51,8 +51,8 @@ CSS = """
 .public-filters label{font-size:11px;color:var(--muted);font-weight:650}.public-filters select{display:block;min-height:42px;margin-top:4px;border:1px solid var(--line);border-radius:8px;padding:8px 30px 8px 10px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
 .seg{flex-wrap:wrap}.seg button{min-height:42px}.rule-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0}
 .rule-panel{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:20px;min-width:0}
-.rule-panel h2{font-size:18px;margin:0 0 6px;letter-spacing:-.02em}.rule-panel>p{font-size:12px;color:var(--muted);margin:0 0 18px}
-.stage-panel{padding:16px 0;border-top:1px solid var(--line-2)}.stage-panel h3{font-size:12px;margin:0 0 10px;color:var(--muted)}
+.rule-panel h2{font-size:18px;margin:0 0 6px;letter-spacing:-.02em;text-transform:none}.rule-panel>p{font-size:12px;color:var(--muted);margin:0 0 18px;min-height:38px}
+.stage-panel{padding:16px 0;border-top:1px solid var(--line-2)}.stage-panel h3{font-size:12px;margin:0 0 10px;color:var(--muted);text-transform:none;letter-spacing:0}
 .stage-panel .record{font:750 28px var(--sans);letter-spacing:-.03em}.stage-panel .sample{font-size:12px;color:var(--muted);margin-left:8px}
 .stage-panel .empty-stage{font-size:14px;font-weight:600;margin:6px 0}.stage-panel .empty-help{font-size:12px;color:var(--muted)}
 .stage-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;font-size:11px;color:var(--muted)}
@@ -122,7 +122,7 @@ class PublicSite:
         u = self.ui
         return (f"<div class='public-head'><div><div class='eyebrow'>{u.season_txt(self.season)} · NBA forecasts</div>"
                 f"<h1>{u.esc(title)}</h1><p>{desc}</p></div>"
-                + (f"<div class='update'>Forecast updated<time>{u.esc(self.built)}</time></div>" if update else "") + "</div>")
+                + (f"<div class='update'>Page updated<time>{u.esc(self.built)}</time></div>" if update else "") + "</div>")
 
     def selection(self, rec):
         u, s = self.ui, rec["signal"]
@@ -172,7 +172,7 @@ class PublicSite:
         q = number("pre_q_home") if dk else np.nan
         detail = (f"<h3>Forecast and market</h3><p>{u.esc(row.away)} @ {u.esc(row.home)} · {u.esc(book)} prices. "
                   f"Market home win probability: {u.pct(q)} with the bookmaker margin removed. "
-                  "The forecast above is the latest saved pregame view. Prices and forecasts freeze at tip.</p>")
+                  f"Forecast saved at {u.tip_pt(row.get('snapshot_utc'))}. Prices and forecasts freeze at tip.</p>")
         if recs:
             detail += (f"<h3>Recorded before play</h3><p>Tracked at {u.tip_pt(row.get('first_snapshot_utc'))}. "
                        "The selections and prices above stay fixed even if the forecast or market changes later. "
@@ -213,7 +213,7 @@ class PublicSite:
             options = (("rule","Test",[("all","All tests")]+[(s,n) for _,n,s in RULES]),
                        ("stage","Stage",[("all","Both stages"),("early","Early · games 1–9"),("established","Established · games 10+")]),
                        ("season","Season",[("all","All seasons")]+[(str(s),u.season_txt(s)) for s in seasons]))
-            body += "<div class='public-filters'>" + "".join(f"<label>{name}<select data-result-filter='{key}'>"+"".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></label>" for key,name,opts in options) + "</div>"
+            body += "<div class='public-filters'>" + "".join(f"<div><label for='filter-{key}'>{name}</label><select id='filter-{key}' data-result-filter='{key}'>"+"".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></div>" for key,name,opts in options) + "</div>"
             labels = ["Game", "Test / stage", "Recorded pick", "First snapshot", "Outcome", "Return"]
             rows = []
             for rec in sorted(self.records, key=lambda r:(str(r['row'].tip_utc),r['slug']), reverse=True):
@@ -252,9 +252,11 @@ class PublicSite:
         c = u.sig_cls(z)
         chart_records = sorted((rec for rec in records if rec['grade'] is not None),key=lambda rec:str(rec['row'].tip_utc))
         chart = u.units_svg([rec['grade']['units'] for rec in chart_records], "Cumulative return",width=560)
+        uncertainty = (f"ROI uncertainty ±{u.se_txt(r['roi_se'])} pp (1 SE)."
+                       if np.isfinite(r['roi_se']) else "More graded picks are needed to estimate uncertainty.")
         return (start+f"<span class='record'>{record}</span><span class='sample'>{r['n']} graded · {pending} pending</span>"
                 f"<div class='stage-stats'><div>Return<b>{r['units']:+.2f}u</b></div><div>ROI<b class='{c}'>{100*r['roi']:+.1f}%</b></div></div>"
-                f"<p class='null'>ROI uncertainty ±{u.se_txt(r['roi_se'])} pp (1 SE). Market-price baseline {100*r['roi_null']:+.1f}%.</p>"
+                f"<p class='null'>{uncertainty} Market-price baseline {100*r['roi_null']:+.1f}%.</p>"
                 f"<details><summary>Benchmarks and return chart</summary><p>Flat 1 unit per pick. Same-game market favourite ROI {u.fav_txt(r)}. "
                 f"Model at first snapshot: {u.esc(' / '.join(models) or 'recorded model')}. "
                 "Colour marks a gap of at least two standard errors from the market-price baseline.</p>"+chart+"</details></section>")

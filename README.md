@@ -19,7 +19,8 @@ four approved HTML pages and `.nojekyll`; stale files and directories are
 removed, and an allowlist is checked again before the Pages upload.
 `diagnostics/site/` is the generated internal workbench, including the full
 Ledger, retired archive display, calibration/model pages and plain-text
-report. It is not uploaded to Pages. The quotable `data/ledger_report.txt`
+report. It is kept as a separate `research-workbench` Actions artifact for
+seven days and is not uploaded to Pages. The quotable `data/ledger_report.txt`
 continues to be maintained by the build bot. This separation does not make
 the public GitHub repository private.
 

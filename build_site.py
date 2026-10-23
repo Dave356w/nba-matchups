@@ -14,12 +14,12 @@ Steps
      of the first listed book in market.BOOKS (DraftKings, then ESPN BET);
      written to data/nba_ledger.csv only while before tip. Each game's ESPN
      injury list is snapshotted alongside to data/nba_injuries.csv under the
-     same pregame lock (shown on the Picks cards; the model does not read it),
+     same pregame lock (internal research only; the model does not read it),
      and Sleeper's (RotoWire's) projected lineups to data/nba_sleeper.csv
      (first and latest pregame snapshot; research data, read by nothing).
      Exhibitions are excluded; historical preseason rows stay untouched.
-  3. Render public/index.html, grades.html, market-calibration.html and
-     model.html.
+  3. Render Today, Results, Performance and How it works into public/;
+     keep the full research workbench outside the published directory.
 
 The model is nba_composite.py, unchanged. This file only feeds it pregame game
 logs (games strictly before the slate date) and records what it said.
@@ -3133,7 +3133,7 @@ def _model_section(body, h, first):
 def snapshot_injuries(rows):
     """Pregame injury lists for today's accepted rows -> data/nba_injuries.csv.
 
-    Shown on the Picks cards (`injury_block`); the model does not use them.
+    Shown in the internal workbench (`injury_block`); the model does not use them.
     The snapshot time is taken after the fetch, and a game at or after tip
     is never touched.
     """
