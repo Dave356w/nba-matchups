@@ -874,9 +874,6 @@ margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .band{margin:12px 0 6px}
 .band-t{font:700 11px/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .band-l{margin:3px 0 0;font:600 12.5px/1.35 var(--mono);color:var(--mut)}
-.band-bar{display:flex;gap:3px;margin:8px 0}
-.band-bar span{height:8px;flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:4px}
-.band-bar span.on{background:rgba(var(--accent),.75);border-color:rgb(var(--accent))}
 .band-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 4px}
 .band-stats>div{min-width:0;padding:8px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px}
 .band-stats small{display:block;font:650 10.5px/1.35 var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
@@ -1243,28 +1240,38 @@ def ats_note(r, a):
             "price, win or lose.</p>")
 
 
+def _be_ml(p):
+    """A break-even probability as American odds (0.6 -> -150, 0.4 -> +150)."""
+    p = min(max(float(p), 1e-6), 1 - 1e-6)
+    return -100 * p / (1 - p) if p >= 0.5 else 100 * (1 - p) / p
+
+
 def band_panel(part, key, kind):
-    """A card's historical band panel (owner's request, 2026-10-23, after the
-    XwOBA cards; analysis.card_bands / card_band): where this card's price
-    (moneyline) or line (spread) sits among the model's past picks, one of
-    CARD_BANDS equal-count bands, and how the market and the model did there:
-    the market on both sides of every graded DraftKings game at the close, the
-    model's live picks this season and its rebuilt picks (hindsight), never
-    pooled. Descriptive, not a forecast for this game."""
+    """A card's price-context panel (owner's request and decision, 2026-10-23;
+    analysis.card_bands / card_band): how sides priced (moneyline) or lined
+    (spread) like this card's did, in a window centred on its own break-even
+    probability or line: the market on both sides of every graded DraftKings
+    game at the close, the model's live picks this season and its rebuilt
+    picks (hindsight), never pooled. Descriptive, not a forecast."""
     if not part:
         return ""
     ml = kind == "ml"
-    title = "Moneyline · historical price band" if ml else "Spread · historical line band"
-    hit = analysis.card_band(part, key)
-    if not hit:
-        return (f"<div class='band'><div class='band-t'>{title}</div><p>This "
-                f"{'price' if ml else 'line'} is outside the range of the model's past "
-                "picks; no comparison.</p></div>")
-    row, i, total = hit
-    fmt = ml_txt if ml else line_txt
-    rng = (fmt(row["lo"]) if row["lo"] == row["hi"]
-           else f"{fmt(row['lo'])} to {fmt(row['hi'])}")
-    bar = "".join(f"<span{' class=on' if j == i else ''}></span>" for j in range(total))
+    title = ("Moneyline · games priced like this" if ml
+             else "Spread · games lined like this")
+    row = analysis.card_band(part, key, kind)
+    if not row:
+        return (f"<div class='band'><div class='band-t'>{title}</div><p>Too few graded "
+                f"DraftKings sides at {'prices' if ml else 'lines'} near this one; no "
+                "comparison.</p></div>")
+    if ml:
+        rng = (f"break-even {100 * row['lo']:.1f}–{100 * row['hi']:.1f}% · prices "
+               f"{ml_txt(round(_be_ml(row['lo'])))} to {ml_txt(round(_be_ml(row['hi'])))}")
+        span = f"±{100 * row['width']:.1f} pts of break-even"
+    else:
+        rng = f"lines {line_txt(round(row['lo'], 1))} to {line_txt(round(row['hi'], 1))}"
+        span = f"±{row['width']:.1f} pts of line"
+    rng += f" · this {'price' if ml else 'line'} {span}" + (
+        " (widened to reach enough games)" if row["widened"] else "")
     won = "won" if ml else "covered"
 
     def rec_tile(name, r, extra=""):
@@ -1281,16 +1288,15 @@ def band_panel(part, key, kind):
     seasons = ", ".join(season_txt(x) for x in part.get("rebuilt_seasons", []))
     n_live, n_reb = part["n_market_games"]
     return (f"<div class='band'><div class='band-t'>{title}</div>"
-            f"<div class='band-l'>{esc(rng)} · band {i + 1} of {total}</div>"
-            f"<div class='band-bar' role='img' aria-label='band {i + 1} of {total}'>{bar}</div>"
+            f"<div class='band-l'>{esc(rng)}</div>"
             "<div class='band-stats'>" + mk
             + rec_tile("Model · live", row["live"])
             + rec_tile("Model · rebuilt", row["rebuilt"],
                        f" · {seasons + ', ' if seasons else ''}hindsight")
             + f"</div><p class='band-n'>% {won} vs the no-vig implied, at "
-            f"{'prices' if ml else 'lines'} in this band. Market: both sides of "
-            f"{n_live + n_reb} graded DraftKings games ({n_live} this season). Live "
-            "and rebuilt picks are never pooled. Descriptive, not a forecast.</p></div>")
+            f"{'prices' if ml else 'lines'} in this window. Market: every side in it "
+            f"from {n_live + n_reb} graded DraftKings games ({n_live} this season). "
+            "Live and rebuilt picks are never pooled. Descriptive, not a forecast.</p></div>")
 
 
 def spread_line(kind, a):
@@ -1583,16 +1589,19 @@ HOW_INDEX = (
     "the current model's P shown on the card. It is fixed when "
     "first written and graded at that price, win or lose, even if the line "
     "moves later.</p>"
-    "<p class='note'><b>Historical band</b> (an opened card): where this "
-    "game's moneyline price, and its spread line, sit among the model's past "
-    f"picks (one of {analysis.CARD_BANDS} bands with equal numbers of picks), "
-    "and how often sides in that band won or covered against the no-vig "
-    "probability their price implied. <b>Market</b>: both sides of every graded "
+    "<p class='note'><b>Games priced like this</b> (an opened card): how often "
+    "sides at prices near this game's moneyline (within "
+    f"±{100 * analysis.CARD_WINDOW['ml']:.1f} points of its break-even "
+    "probability), and at lines near its spread (within "
+    f"±{analysis.CARD_WINDOW['ats']:g} point), won or covered against the no-vig "
+    "probability their price implied; the window widens when too few games "
+    f"fall in it (fewer than {analysis.CARD_MIN_SIDES} market sides). "
+    "<b>Market</b>: both sides of every graded "
     "DraftKings game at its closing price or line. <b>Model · live</b>: this "
     "season's picks at the pregame price, as the record grades them. <b>Model · "
     "rebuilt</b>: the rebuilt seasons' picks at the close, hindsight (each "
     "season left out of its own fit, not a track record). The two model "
-    "records are never pooled. The bands describe the past; they are not a "
+    "records are never pooled. These records describe the past; they are not a "
     "forecast for this game and not a filter.</p>"
     "<p class='note'><b>Lean · spread</b>: on every other card, the model's "
     "side against the latest spread (the side its line beats, by how many "
@@ -1722,7 +1731,7 @@ def game_card(r, injuries=None, bands=None):
         if tag in AVAIL_TAGS:
             flags.append("<span class='badge'>injury report</span>")
         bk = esc(src) if src else "Market"
-        # the spread each side would get: the model's own margin (v9) or
+        # the line each side would get: the model's own margin (v9) or
         # 13.5 x Phi^-1(P) (earlier rows), beside the book's pregame line
         mh = pd.to_numeric(r.get("margin_home"), errors="coerce")
         own = np.isfinite(mh)

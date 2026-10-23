@@ -195,16 +195,20 @@ owner directs the product.
   (`analysis.spread_lean`: `ats_sides` at `pre`, σ 13.5, main-line prices;
   refreshed until tip), labelled shown, not graded (taken on every game at
   the close it returns about the hold: the retired spread value side).
-  An opened card also carries two historical band panels (owner's request
+  An opened card also carries two price-context panels (owner's request
   and decision, 2026-10-23, after the XwOBA market cards;
-  `analysis.card_bands` / `card_band`, `build_site.band_panel`): where its
-  moneyline price (by break-even probability) and its spread line sit among
-  the model's past DraftKings picks, one of `analysis.CARD_BANDS` = 8
-  equal-count bands, with the market's record there (both sides of every
-  graded DraftKings game at the close, clipped to the band's range), the
-  model's live record (native picks at the pregame price) and its rebuilt
-  record (reconstructed picks at the close, labelled hindsight) side by
-  side, never pooled. This is the one place a public page shows
+  `analysis.card_bands` / `card_band`, `build_site.band_panel`): "games
+  priced like this" and "games lined like this", a window centred on the
+  card's own moneyline break-even probability (± `analysis.CARD_WINDOW`
+  0.025) or its side's spread line (± 1 point), widened by half again up to
+  `CARD_WINDOW_MAX` (0.08 / 3 points) until `CARD_MIN_SIDES` = 60 market
+  sides fall in it, with the market's record there (both sides of every
+  graded DraftKings game at the close), the model's live record (native
+  picks at the pregame price) and its rebuilt record (reconstructed picks at
+  the close, labelled hindsight) side by side, never pooled. It replaced the
+  8 equal-count bands of the model's picks (owner's decision, 2026-10-23):
+  the model rarely leans an underdog, so its cheapest band ran +600 to −115
+  and set a −115 card beside a market averaging 33.6% implied. This is the one place a public page shows
   reconstructed rows (owner's decision, 2026-10-23); descriptive, not a
   forecast or a filter. An opened card lists each team's ESPN injury
   list as recorded (owner's request, 2026-10-22; `build_site.injury_block`:

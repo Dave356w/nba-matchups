@@ -594,32 +594,54 @@ def _with_spreads(d, seed):
     return d[d["home_pts"] != d["away_pts"]].reset_index(drop=True)
 
 
-def test_card_bands_count_live_and_rebuilt_apart():
+def test_card_context_counts_live_and_rebuilt_apart():
     native = ledger.graded(_with_spreads(synth(80, 3, "native"), 1))
     recon = ledger.graded(_with_spreads(synth(400, 4, "reconstructed"), 2))
     b = analysis.card_bands(native, recon)
     for kind in ("ml", "ats"):
-        part = b[kind]
-        assert part["n_market_games"] == (len(native), len(recon))
-        live = sum(r["live"]["n"] for r in part["bands"] if r["live"])
-        rebuilt = sum(r["rebuilt"]["n"] for r in part["bands"] if r["rebuilt"])
+        pool = b[kind]
+        assert pool["n_market_games"] == (len(native), len(recon))
         ml = kind == "ml"
         want = (lambda g, px: len(analysis.picks(g, px).query("rule == 'lean'")) if ml
                 else len(analysis.ats_side_picks(g, px)))
-        assert live == want(native, "pre") and rebuilt == want(recon, "close")   # never pooled
-        assert sum(r["market"]["n"] for r in part["bands"] if r["market"]) \
-            <= 2 * (len(native) + len(recon))                          # both sides, clipped
-        assert analysis.card_band(part, part["key_max"] + 1) is None    # outside the range
-        assert analysis.card_band(part, part["key_min"]) is not None
+        assert len(pool["live"][0]) == want(native, "pre")            # never pooled
+        assert len(pool["rebuilt"][0]) == want(recon, "close")
+        assert len(pool["market"][0]) <= 2 * (len(native) + len(recon))   # both sides
+        key = 0.6 if ml else -3.5
+        w = analysis.card_band(pool, key, kind)
+        assert w["lo"] < key < w["hi"] and abs(w["lo"] + w["hi"] - 2 * key) < 1e-12
+        mk = pool["market"][0]
+        assert w["market"]["n"] == int(((mk >= w["lo"]) & (mk <= w["hi"])).sum())
+        assert analysis.card_band(pool, np.nan, kind) is None
 
 
-def test_opened_card_shows_both_band_panels():
+def test_card_window_is_centred_on_the_price_and_widens_only_when_thin():
+    # 200 sides at break-even 0.55, a handful far away: a -122 card sees only
+    # its neighbours, never the long underdogs an equal-count band took in
+    k = np.r_[np.full(200, 0.55), np.full(40, 0.20)]
+    won = np.r_[np.ones(110), np.zeros(90), np.zeros(40)]
+    q = k.copy()
+    pool = dict(market=(k, won, q), live=(np.array([]),) * 3,
+                rebuilt=(np.array([0.55, 0.21]), np.array([1.0, 0.0]), np.array([0.55, 0.21])))
+    w = analysis.card_band(pool, 0.55, "ml")
+    assert not w["widened"] and w["width"] == analysis.CARD_WINDOW["ml"]
+    assert w["market"]["n"] == 200 and abs(w["market"]["implied"] - 0.55) < 1e-12
+    assert w["rebuilt"]["n"] == 1 and w["live"] is None
+    # a thin price widens, but never past CARD_WINDOW_MAX
+    far = analysis.card_band(pool, 0.30, "ml")
+    assert far is None or far["width"] <= analysis.CARD_WINDOW_MAX["ml"] + 1e-12
+    thin = analysis.card_band(pool, 0.27, "ml")
+    assert thin is not None and thin["widened"] and thin["market"]["n"] == 40
+
+
+def test_opened_card_shows_both_context_panels():
     recon = ledger.graded(_with_spreads(synth(400, 4, "reconstructed"), 2))
     bands = analysis.card_bands(ledger.graded(ledger.empty()), recon)
     r = _with_pre_spread(_ats_pending(gp=3, first_p=0.66), 0.66, -7.5)
     card = build_site.game_card(r, bands=bands)
-    assert "Moneyline · historical price band" in card
-    assert "Spread · historical line band" in card
+    assert "Moneyline · games priced like this" in card
+    assert "Spread · games lined like this" in card
+    assert "break-even" in card and "band " not in card
     assert card.count("<small>Model · live</small><strong>—</strong>") == 2  # no live picks yet
     assert "hindsight" in card and "never pooled" in card
     assert "historical" not in build_site.game_card(r)                    # no history: no panel
