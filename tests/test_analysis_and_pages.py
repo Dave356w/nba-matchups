@@ -1,3 +1,4 @@
+from conftest import write_research
 from statistics import NormalDist
 
 import numpy as np
@@ -100,7 +101,7 @@ def test_roi_splits_early_games_when_present():
 
 def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(synth(200, 1, "native"),
+    write_research(synth(200, 1, "native"),
                            synth(300, 2, "reconstructed"),
                            "2026-11-19", model_ok=True)
     cal = (tmp_path / "market-calibration.html").read_text()
@@ -123,7 +124,7 @@ def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
 
 def test_pages_render_empty(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(ledger.empty(), ledger.empty(), "2026-10-01",
+    write_research(ledger.empty(), ledger.empty(), "2026-10-01",
                            model_ok=False)
     assert "Fit model" in (tmp_path / "index.html").read_text()
     assert "No graded" in (tmp_path / "market-calibration.html").read_text()
@@ -140,7 +141,7 @@ def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     monkeypatch.setattr(analysis, "HIDDEN_BOOKS", ())       # every book shown
     recon = _two_books()
-    build_site.write_pages(ledger.empty(), recon, "2026-11-19", model_ok=True)
+    write_research(ledger.empty(), recon, "2026-11-19", model_ok=True)
     cal = (tmp_path / "market-calibration.html").read_text()
     grades = (tmp_path / "grades.html").read_text()
     for page_ in (cal, grades):
@@ -156,7 +157,7 @@ def test_books_get_separate_sections_never_pooled(tmp_path, monkeypatch):
 def test_pages_and_report_leave_out_espn_bet(tmp_path, monkeypatch):
     # ESPN BET is no longer offered (owner's decision, 2026-10-21)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    txt = build_site.write_pages(ledger.empty(), _two_books(), "2026-11-19",
+    txt = write_research(ledger.empty(), _two_books(), "2026-11-19",
                                  model_ok=True)
     pages = {f: (tmp_path / f).read_text() for f in
              ("grades.html", "market-calibration.html", "model.html")}
@@ -236,7 +237,7 @@ def test_roi_by_band_filters_model_tag_and_page_shows_current(tmp_path, monkeypa
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
     monkeypatch.setattr(build_site, "ACTIVE_TAGS", [build_site.MODEL_TAG_V4,
                                                     build_site.MODEL_TAG_V4_AVAIL])
-    build_site.write_pages(df, synth(200, 10, "reconstructed"), "2026-11-19",
+    write_research(df, synth(200, 10, "reconstructed"), "2026-11-19",
                            model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "ROI by price band" in grades and "EV null (pp)" in grades
@@ -246,7 +247,7 @@ def test_roi_by_band_filters_model_tag_and_page_shows_current(tmp_path, monkeypa
 def test_single_bet_band_shows_a_dash_not_nan(tmp_path, monkeypatch):
     df = synth(200, 11)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(df, ledger.empty(), "2026-11-19", model_ok=True)
+    write_research(df, ledger.empty(), "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert ">nan<" not in grades and "v1 model" not in grades
     assert build_site.se_txt(float("nan")) == "—" and build_site.se_txt(0.023) == "2.3"
@@ -258,7 +259,7 @@ def test_seasons_get_separate_sections_never_pooled(tmp_path, monkeypatch):
                        synth(50, 4, "reconstructed")
                        .assign(season=2026, game_id=lambda d: "s" + d["game_id"])],
                       ignore_index=True)
-    build_site.write_pages(ledger.empty(), recon, "2026-11-19", model_ok=True)
+    write_research(ledger.empty(), recon, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "DraftKings close · 2024-25" in grades and "120 graded games" in grades
     assert "DraftKings close · 2025-26" in grades and "50 graded games" in grades
@@ -306,7 +307,7 @@ def test_hypotheses_use_frozen_rules_and_render_native_beside_hindsight(tmp_path
     assert all(analysis.hypothesis_picks(g, h, h["native"]).empty
                for h in (h1, h2, h3, h6))
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(df, synth(200, 15, "reconstructed"), "2026-11-19",
+    write_research(df, synth(200, 15, "reconstructed"), "2026-11-19",
                            model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "Pre-registered hypotheses" in grades
@@ -331,14 +332,14 @@ def test_native_empty_state_counts_pending_rows(tmp_path, monkeypatch):
     nat = synth(5, 16)
     nat[["home_won", "home_pts", "away_pts", "close_home_ml", "close_away_ml",
          "close_q_home"]] = np.nan
-    build_site.write_pages(nat, synth(50, 17, "reconstructed"), "2026-11-19",
+    write_research(nat, synth(50, 17, "reconstructed"), "2026-11-19",
                            model_ok=True)
     assert "5 pregame rows recorded, 5 waiting" in (tmp_path / "grades.html").read_text()
 
 
 def test_one_graded_game_renders_dashes_not_nan(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(synth(1, 18), synth(1, 19, "reconstructed"),
+    write_research(synth(1, 18), synth(1, 19, "reconstructed"),
                            "2026-11-19", model_ok=True)
     for f in ("grades.html", "market-calibration.html"):
         s = (tmp_path / f).read_text()
@@ -385,7 +386,7 @@ def test_h4_graded_at_the_first_snapshot_on_the_page(tmp_path, monkeypatch):
     d4 = analysis.hypothesis_picks(g, h4, "first")
     assert len(d4) > len(d3)                        # different P, different bets
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(df, synth(200, 23, "reconstructed"), "2026-11-19",
+    write_research(df, synth(200, 23, "reconstructed"), "2026-11-19",
                            model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "<b>H4</b>" in grades and "at the first snapshot" in grades
@@ -508,7 +509,7 @@ def test_h5_h6_by_season_partition_the_pooled_scoreboard(tmp_path, monkeypatch):
     assert [(p["book"], p["season"]) for p in by_dk["H5"] if p["row"]] == [("dk", 2026)]
     # the page and the report show DraftKings only (ESPN BET is not offered)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
+    write_research(nat, rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "H5 games 1–9 / 10+ by season — never pooled" in grades
     assert "DraftKings 2025-26" in grades and "ESPN BET 2024-25" not in grades
@@ -594,7 +595,7 @@ def test_ats_bands_on_the_ledger_and_in_the_report(tmp_path, monkeypatch):
                             "open_away_spread_odds"])
     monkeypatch.setattr(analysis, "OPEN_SPREADS", str(cache))
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    txt = build_site.write_pages(ledger.empty(), rec, "2026-11-19", model_ok=True)
+    txt = write_research(ledger.empty(), rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     assert "By the picked side&#x27;s spread" in grades or \
         "By the picked side's spread" in grades

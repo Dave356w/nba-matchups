@@ -104,8 +104,8 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     pd.testing.assert_frame_equal(ledger.load_sleeper(), frozen_slp)
     pd.testing.assert_frame_equal(
         ledger.load(ledger.NATIVE_PATH)[ledger.WRITE_ONCE_COLUMNS], once)
-    assert "1–0" in (tmp_path / "public" / "grades.html").read_text() or \
-        "0–1" in (tmp_path / "public" / "grades.html").read_text()
+    assert "1–0" in (tmp_path / "diagnostics" / "site" / "grades.html").read_text() or \
+        "0–1" in (tmp_path / "diagnostics" / "site" / "grades.html").read_text()
 
 
 def test_build_tags_v3_with_availability_and_falls_back(tmp_path, monkeypatch, weights, model):

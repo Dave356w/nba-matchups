@@ -71,6 +71,9 @@ jobs:
           done
           echo "::error::ledger push failed"; exit 1
 
+      - name: Validate publication boundary
+        run: python -c "import build_site; build_site.validate_public_output()"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

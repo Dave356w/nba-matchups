@@ -72,11 +72,20 @@ v9 rows, explicitly information only, apart from native and DraftKings.
 
 ## Use and monitoring (G1–G6)
 
+Public presentation (owner approval 2026-10-23): Today shows current forecasts
+and explicitly frozen tracked picks. Results and Performance report only
+registered native selections, separately by test, stage and season. Keep
+all qualifying wins, losses, pushes and pending picks visible. Do not make
+a legacy all-game lean record the headline of the active tests. Retired
+rules, reconstructed evidence, adjusted edge/EV, price windows and model
+diagnostics remain in the internal workbench and research reports. Publish
+an explicit four-page allowlist; research outputs are outside `public/`.
+
 1. Read model P as a forecast, not a promise of profit. The no-vig close is
    the better probability where the comparison resolves. No-vig q differs
    from posted break-even: judge ROI/EV against the market-hold null.
 2. Never size a bet by raw disagreement with the close. Cards display
-   shrunk edge/EV using w=0.40; this does not change model P or any rule.
+   no adjusted edge/EV. Internal research retains w=0.40; this does not change model P or any rule.
 3. Evaluate book × season × basis × stage separately, against the null
    and the same-game market favourite. Native is forward evidence;
    reconstructed and current-season rebuilt rows are hindsight. Never pool.

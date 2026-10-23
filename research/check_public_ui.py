@@ -1,0 +1,136 @@
+"""CI browser checks for the public tool, using live data and labelled fixtures.
+
+Run after installing playwright and Chromium. Screenshots are CI artifacts;
+fixture predictions/results are never written to the ledger or public site.
+"""
+from __future__ import annotations
+
+import functools
+import json
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+import sys
+import tempfile
+import threading
+
+import numpy as np
+import pandas as pd
+from playwright.sync_api import sync_playwright
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import build_site as ui  # noqa: E402
+import ledger  # noqa: E402
+from public_site import PublicSite  # noqa: E402
+
+
+def fixture():
+    rows = []
+    for i, (gp, won, margin) in enumerate(((3, 1, 12), (3, 0, -5), (3, 1, 6), (30, None, None))):
+        row = dict.fromkeys(ledger.COLUMNS, np.nan)
+        row.update(game_id=f'fixture-{i}', basis='native', season=2027,
+            slate_date='2026-11-19', tip_utc='2026-11-20T03:00:00Z',
+            home='BOS', away='NYK', model_tag=ui.MODEL_TAG_V9,
+            first_model_tag=ui.MODEL_TAG_V9, gp_home=gp, gp_away=30,
+            p_home=.8, p_lean=.8, lean='BOS', margin_home=11.2,
+            first_p_home=.8, first_snapshot_utc='2026-11-19T15:07:00Z',
+            pre_book='dk', first_book='dk', close_book='dk',
+            pre_home_ml=-150, pre_away_ml=130, pre_q_home=.6,
+            first_home_ml=-150, first_away_ml=130, first_q_home=.6,
+            first_spread=-6, first_home_spread_odds=-110,
+            first_away_spread_odds=-110, pre_spread=-6,
+            home_won=np.nan if won is None else won,
+            home_pts=np.nan if margin is None else 100+margin,
+            away_pts=np.nan if margin is None else 100)
+        rows.append(row)
+    return pd.DataFrame(rows, columns=ledger.COLUMNS)
+
+
+def main():
+    _, model = ui.load_model()
+    ui.ACTIVE_TAGS = ui.active_tags(model, ui.load_avail()) if model else [ui.MODEL_TAG_V9]
+    out = ROOT/'diagnostics'/'public_ui'/'screenshots'
+    out.mkdir(parents=True, exist_ok=True)
+    checks = []
+    with tempfile.TemporaryDirectory() as folder:
+        root = Path(folder)
+        for name, native, day in (('live',ledger.load(ledger.NATIVE_PATH),ui.et_today()),
+                                  ('fixture',fixture(),'2026-11-19')):
+            target = root/name
+            target.mkdir()
+            pages = PublicSite(ui,native,day,'UI verification · Pacific time').render()
+            for filename, html in pages.items():
+                (target/filename).write_text(html,encoding='utf-8')
+        handler = functools.partial(SimpleHTTPRequestHandler,directory=str(root))
+        server = ThreadingHTTPServer(('127.0.0.1',0),handler)
+        thread = threading.Thread(target=server.serve_forever,daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{server.server_port}'
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                page = browser.new_page()
+                errors = []
+                page.on('pageerror',lambda e: errors.append(str(e)))
+                # Stable pregame UI: score overlays are verified separately below.
+                page.route('**/apis/site/v2/sports/basketball/nba/scoreboard?**',
+                           lambda route: route.fulfill(json={'events':[]}))
+                for device, width, height in (('desktop',1440,1000),('mobile',390,844)):
+                    page.set_viewport_size({'width':width,'height':height})
+                    for filename, label in ui.PUBLIC_PAGES:
+                        page.goto(f'{base}/live/{filename}')
+                        page.get_by_role('heading',level=1).wait_for()
+                        assert page.locator('.nav [aria-current="page"]').count()==1
+                        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                        assert page.get_by_role('link',name='Research',exact=True).count()==0
+                        if filename=='index.html' and page.locator('.gcard').count():
+                            top=page.locator('.gcard').first.bounding_box()['y']
+                            assert top < height-100,(device,'first game is below the fold',top)
+                        page.screenshot(path=str(out/f'{device}-{filename[:-5]}.jpg'),full_page=True,type='jpeg',quality=85)
+                        checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
+                    page.goto(f'{base}/fixture/index.html')
+                    page.get_by_role('button',name='Tracked',exact=False).click()
+                    assert page.locator('.gcard:visible').count()==4
+                    page.locator('.gcard summary').first.click()
+                    assert page.get_by_role('heading',name='Recorded before play',exact=True).is_visible()
+                    page.get_by_role('button',name='Toggle colour theme').click()
+                    assert page.locator('html').get_attribute('data-theme') in ('dark','light')
+                    page.screenshot(path=str(out/f'{device}-fixture-tracked.jpg'),full_page=True,type='jpeg',quality=85)
+                    page.goto(f'{base}/fixture/results.html')
+                    assert page.locator('[data-result-row]').count()==12
+                    for result in ('Win','Loss','Push','Pending'):
+                        assert page.locator('.result-badge',has_text=result).count()>0,result
+                    page.get_by_label('Test',exact=True).select_option('spread')
+                    assert page.locator('[data-result-row]:visible').count()==4
+                    page.get_by_label('Stage',exact=True).select_option('established')
+                    assert page.locator('[data-result-row]:visible').count()==1
+                    page.get_by_label('Stage',exact=True).select_option('early')
+                    assert page.locator('[data-result-row]:visible').count()==3
+                    page.screenshot(path=str(out/f'{device}-fixture-results.jpg'),full_page=True,type='jpeg',quality=85)
+                    page.goto(f'{base}/fixture/performance.html')
+                    assert page.get_by_text('1–1–1',exact=True).count()==1
+                    page.get_by_text('Benchmarks and return chart',exact=True).first.click()
+                    page.screenshot(path=str(out/f'{device}-fixture-performance.jpg'),full_page=True,type='jpeg',quality=85)
+                    checks.append(f'{device}: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed')
+                assert not errors,errors
+                # Live-score overlay may update status/score only, never a selection.
+                page.unroute_all()
+                page.route('**/apis/site/v2/sports/basketball/nba/scoreboard?**',lambda route: route.fulfill(json={'events':[{
+                    'id':'fixture-3','status':{'type':{'state':'in','name':'STATUS_IN_PROGRESS'},'period':2,'displayClock':'4:00'},
+                    'competitions':[{'competitors':[{'homeAway':'home','score':'42'},{'homeAway':'away','score':'38'}]}]}]}))
+                page.goto(f'{base}/fixture/index.html')
+                live=page.locator('[data-gid="fixture-3"]')
+                live.locator('.st').filter(has_text='Q2 4:00').wait_for()
+                assert live.locator('.sc[data-side="home"]').inner_text()=='42'
+                assert live.locator('.tracked-line').count()==3
+                checks.append('Live-score overlay updated status and scores without changing three frozen selections')
+                browser.close()
+        finally:
+            server.shutdown()
+    result='\n'.join(checks)+'\n'
+    (out.parent/'CHECKS.txt').write_text(result)
+    print(result)
+
+
+if __name__=='__main__':
+    main()

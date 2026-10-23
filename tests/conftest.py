@@ -77,3 +77,9 @@ def weights():
 def model():
     return {"features": ["delta", "b2b_net"], "intercept": 0.241,
             "coef": [0.0374, 0.327], "half_life": 25.0}
+
+
+def write_research(*args, **kwargs):
+    """Render the backend workbench into the test's dedicated output folder."""
+    import build_site
+    return build_site.write_research(*args, **kwargs, out_dir=build_site.OUT_DIR)

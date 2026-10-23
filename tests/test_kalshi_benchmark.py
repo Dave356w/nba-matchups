@@ -3,6 +3,7 @@ view's one-market-per-row rule (analysis.market_view, for bases in
 KALSHI_BASES: none since 2026-10-21, when the pages moved to DraftKings),
 the hypotheses staying on sportsbook prices, the historical candle format,
 grading and backfill."""
+from conftest import write_research
 import urllib.error
 from datetime import datetime, timezone
 
@@ -77,7 +78,7 @@ def test_hypotheses_stay_on_sportsbook_prices(tmp_path, monkeypatch):
         df["open_home_ml"], df["open_away_ml"] = df["close_home_ml"], df["close_away_ml"]
     raw = analysis.hypothesis_rows(nat, rec, book=analysis.HYPOTHESIS_BOOK)
     monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
-    build_site.write_pages(nat, rec, "2026-11-19", model_ok=True)
+    write_research(nat, rec, "2026-11-19", model_ok=True)
     grades = (tmp_path / "grades.html").read_text()
     # native and rebuilt sections both on the DraftKings close (2026-10-21)
     nat_html = grades[grades.index("id='forward'"):grades.index("id='rebuilt'")]
