@@ -6,14 +6,8 @@ name: Fit model
 # covered games 1+ of the injury-report seasons (both on the faded rating,
 # nba_composite.fade_v8_games, and fitted on the final margin; the files keep
 # their logit*.json names), commit model/weights.json, model/logit.json
-# and model/logit_avail.json. The frozen logits are not refitted:
-# model/logit_v4.json (the v4 fallback, games 10+) and model/logit_early_v6.json
-# (the carryover logit: H1 / H6's P, the fallback before game 10, preseason).
-# v7's model/logit_early.json is retired (removed by the first v8 refit).
-# Box scores and preseason box scores come from data/ (committed by
-# "Box-score history"), else the espn-box cache, else ESPN.
-# `download` fetches every listed year's season page and 30 game logs:
-# ~350 requests at 4 s each (the site allows ~20/min), about 25 minutes.
+# and model/logit_avail.json.
+# Historical carryover/v4 fits live under research/legacy_models, never loaded by production.
 
 on:
   workflow_dispatch:
@@ -22,7 +16,7 @@ on:
         description: 'Team-season years for composite weights'
         default: '2015-2019 2021-2026'
       logit_years:
-        description: 'Game-log years for the v8 base logit (every game)'
+        description: 'Game-log years for the v9 base margin model (every game)'
         default: '2016-2019 2021-2026'
       avail_years:
         description: 'Box-score / injury-report seasons for the v8 availability logit'

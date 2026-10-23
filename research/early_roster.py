@@ -49,7 +49,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "research"))
 
 import backfill_history as bf  # noqa: E402
-import cold_start  # noqa: E402
+from research import legacy_cold_start as cold_start  # noqa: E402
 import ledger  # noqa: E402
 import market  # noqa: E402
 import model_review as mr  # noqa: E402

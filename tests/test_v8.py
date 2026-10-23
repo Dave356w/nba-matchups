@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 import build_site
-import cold_start
+from research import legacy_cold_start as cold_start
 import nba_composite as nc
 import player_availability as pav
 from conftest import make_log
@@ -83,26 +83,10 @@ def test_availability_from_game_one_and_carry_p_for_games_one_to_nine(weights):
     g = score(cur, prior, date, weights, avail_model=AVAIL, avail=av)
     assert 1 <= min(g["gp_home"], g["gp_away"]) < 10
     assert g["model_tag"] == build_site.MODEL_TAG_V8_AVAIL
-    ih, ia = int(g["gp_home"]), int(g["gp_away"])
-    cd = cold_start.carry_delta(cur["A"], ih, prior["A"], cur["B"], ia, prior["B"],
-                                weights, rho=0.25)
-    rh = nc.rest_days(cur["A"], ih, pd.Timestamp(date))
-    ra = nc.rest_days(cur["B"], ia, pd.Timestamp(date))
-    want = nc.predict(CARRY, [[cd, int(ra == 0) - int(rh == 0)]])[0]
-    assert abs(g["carry_p_home"] - want) < 1e-5                   # H1 / H6 unchanged
-    late = score(*teams(30), "2027-02-01", weights)
-    assert "carry_p_home" not in late
+    assert "carry_p_home" not in g
 
 
-def test_missing_terms_fall_back_by_stage(weights):
-    cur, prior = teams(30)
-    early = score(cur, prior, "2026-11-02", weights, talent=None)
-    assert early["model_tag"] == build_site.MODEL_TAG             # the carryover logit
-    assert abs(early["p_home"] - early["carry_p_home"]) < 1e-5
-    late = score(cur, prior, "2027-02-01", weights, talent=None)
-    assert late["model_tag"] == build_site.MODEL_TAG_V4           # the frozen v4 logit
-    none = score(cur, prior, "2027-02-01", weights, talent=None, fallback=None)
-    assert np.isnan(none["p_home"])
+
 
 
 def test_v8_uses_only_games_before_the_slate_date(weights):
@@ -222,7 +206,7 @@ def test_game_zero_rows_enter_no_hypothesis_and_get_their_own_fold():
     df["gp_away"] = [4] * 100 + [5] * 100 + [30] * 100
     g = ledger.graded(df)
     ids = lambda lo, hi: set(df["game_id"].iloc[lo:hi])     # noqa: E731
-    for hyp in analysis.HYPOTHESES:
+    for hyp in analysis.active_hypotheses():
         if hyp.get("market") == "ats":
             continue
         got = set(analysis.hypothesis_picks(g, hyp, "close")["game_id"])

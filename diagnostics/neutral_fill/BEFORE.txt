@@ -1,0 +1,6 @@
+V9 NEUTRAL-INPUT CHECK — BEFORE IMPLEMENTATION
+Same-game fallback inventory; hindsight only.
+nba_reconstructed.csv: 2450 scored, 0 non-v9 fallback cases
+nba_rebuilt.csv: 16 scored, 0 non-v9 fallback cases
+No missing-input cases in these rebuilt seasons: paired comparison n=0.
+No empirical improvement can be claimed. Controlled missing-input regressions are required.

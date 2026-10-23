@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 import build_site
-import cold_start
+from research import legacy_cold_start as cold_start
 import nba_composite as nc
 from conftest import make_log
 
@@ -101,58 +101,12 @@ def _carry_inputs(cur, prior, date, weights):
     return d, int(ra == 0) - int(rh == 0)
 
 
-def test_v7_early_adds_talent_and_records_the_carryover_p(weights, model):
-    cur, prior = _teams(5)
-    date = "2026-11-05"
-    talent = lambda tm, d: {"A": 5.0, "B": 1.0}[tm]          # noqa: E731
-    r = build_site.score_game(cur, "A", "B", date, weights, model, early=EARLY_TAL,
-                              prior_logs=prior, talent=talent, carry=EARLY)
-    d, b2b = _carry_inputs(cur, prior, date, weights)
-    assert abs(r["p_home"] - nc.predict(EARLY_TAL, [[d, b2b, 4.0]])[0]) < 1e-5
-    assert r["model_tag"] == build_site.MODEL_TAG_V7_EARLY
-    assert abs(r["carry_p_home"] - nc.predict(EARLY, [[d, b2b]])[0]) < 1e-5
-    assert r["carry_p_home"] != r["p_home"]
 
 
-def test_v7_early_without_talent_uses_the_carryover_logit(weights, model):
-    cur, prior = _teams(5)
-    date = "2026-11-05"
-    r = build_site.score_game(cur, "A", "B", date, weights, model, early=EARLY_TAL,
-                              prior_logs=prior, talent=None, carry=EARLY)
-    d, b2b = _carry_inputs(cur, prior, date, weights)
-    p = nc.predict(EARLY, [[d, b2b]])[0]
-    assert abs(r["p_home"] - p) < 1e-5 and r["carry_p_home"] == r["p_home"]
-    assert r["model_tag"] == build_site.model_tag(model)     # the pre-v7 early tag
-    # no carryover logit at all: the v7 early route abstains rather than guess
-    r0 = build_site.score_game(cur, "A", "B", date, weights, model, early=EARLY_TAL,
-                               prior_logs=prior, talent=None)
-    assert np.isnan(r0["p_home"])
 
 
-def test_v6_early_files_record_their_own_p_as_carry(weights, model):
-    cur, prior = _teams(5)
-    r = build_site.score_game(cur, "A", "B", "2026-11-05", weights, model,
-                              early=EARLY, prior_logs=prior)
-    assert r["carry_p_home"] == r["p_home"] and r["model_tag"] == build_site.model_tag(model)
-    late = build_site.score_game(*_teams(30)[:1], "A", "B", "2027-02-01", weights, model,
-                                 early=EARLY, prior_logs=_teams(30)[1], carry=EARLY)
-    assert "carry_p_home" not in late                       # games 10+: none
 
 
-def test_load_carry_prefers_the_frozen_logit(tmp_path, monkeypatch):
-    import json
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "model").mkdir()
-    (tmp_path / "model" / "logit_early.json").write_text(json.dumps(EARLY_TAL))
-    assert build_site.load_carry() is None                  # v7 file, nothing frozen
-    (tmp_path / "model" / "logit_early_v6.json").write_text(json.dumps(EARLY))
-    assert build_site.load_carry()["features"] == ["delta", "b2b_net"]
-    (tmp_path / "model" / "logit_early_v6.json").unlink()
-    (tmp_path / "model" / "logit_early.json").write_text(json.dumps(EARLY))
-    assert build_site.load_carry()["coef"] == EARLY["coef"]  # pre-v7 files
-    assert build_site.active_tags({"features": ["delta"]}, None, early=EARLY_TAL)[-1] \
-        == build_site.MODEL_TAG_V7_EARLY
-    assert build_site.model_version(["x_ft_v6", build_site.MODEL_TAG_V7_EARLY]) == "v7"
 
 
 def test_fit_early_with_talent_drops_game_zero(weights):

@@ -60,6 +60,23 @@ warnings.filterwarnings("ignore")
 BASE = "https://www.basketball-reference.com"
 CACHE = Path("bbr_cache")
 MODEL_DIR = Path("model")
+
+# Missing optional inputs carry no directional contribution. Core ratings,
+# schedule and phase are never invented. Shared by live and historical scoring.
+NEUTRAL_FEATURES = ("talent_diff", "luck_def", "ft_diff", "av_min", "av_bpm")
+
+
+def neutral_features(frame, features):
+    """Copy feature columns, zero missing optional terms, and flag changed rows."""
+    out = frame.reindex(columns=features).copy()
+    changed = pd.Series(False, index=frame.index)
+    for f in NEUTRAL_FEATURES:
+        if f not in out:
+            continue
+        missing = ~np.isfinite(pd.to_numeric(out[f], errors="coerce"))
+        changed |= missing
+        out.loc[missing, f] = 0.0
+    return out, changed
 HALF_LIFE = 25.0      # games; 20-45 was essentially flat in testing
 MIN_GAMES = 10        # both teams must have played this many games
 RIDGE_LAMBDA = 0.1
@@ -649,39 +666,26 @@ def schedule_for(y, date, refresh=False):
 
 
 def score_slate(y, date, half_life=HALF_LIFE, refresh=False, logs=None,
-                schedule=None, weights=None, model=None):
-    """P(home win) for `date`'s games from the checked-in base logit (games
-    10+ only; the daily build adds carryover and availability). Features come
-    from logit_inputs, phase from the season's opening night."""
+                schedule=None, weights=None, model=None, prior_logs=None):
+    """Use the same primary scorer as the site, with neutral optional inputs."""
+    import build_site
     weights = weights or load_json("weights.json")
     model = model or load_json("logit.json")
-    if "talent_diff" in model["features"]:
-        # v5 needs player box scores (talent_diff), which only the daily build
-        # keeps; the CLI scores with the frozen v4 logit, as the build does
-        # for any game whose v5 terms are missing.
-        model = load_json("logit_v4.json")
-        print("score: v5 needs box-score talent; scoring with the v4 logit",
-              file=sys.stderr)
-    logs = logs if logs is not None else load_logs(y, refresh)
+    supplied = logs is not None
+    logs = logs if supplied else load_logs(y, refresh)
+    if prior_logs is None and not supplied:
+        try:
+            prior_logs = load_logs(y - 1)
+        except Exception:
+            prior_logs = {}
     date = pd.Timestamp(date)
-    opening = season_opening(logs)
     games = schedule if schedule is not None else schedule_for(y, date, refresh)
     out = []
     for h, a in games:
-        ih = int((logs[h]["date"] < date).sum())
-        ia = int((logs[a]["date"] < date).sum())
-        if min(ih, ia) < MIN_GAMES:
-            out.append((h, a, np.nan, np.nan, np.nan, np.nan, ih, ia))
-            continue
-        fh = decayed_features(logs[h], ih, half_life)
-        fa = decayed_features(logs[a], ia, half_life)
-        d = composite(fh - fa, weights["sd"], weights["w"])
-        rh, ra = rest_days(logs[h], ih, date), rest_days(logs[a], ia, date)
-        vals = logit_inputs(d, rh, ra, date, opening)
-        x = [vals[f] for f in model["features"]]
-        out.append((h, a, d, float(predict(model, [x])[0]), int(rh == 0), int(ra == 0), ih, ia))
-    return pd.DataFrame(out, columns=["home", "away", "delta", "p_home",
-                                      "home_b2b", "away_b2b", "gp_home", "gp_away"])
+        row = build_site.score_game(logs, h, a, date, weights, model,
+                                    prior_logs=prior_logs, half_life=half_life)
+        out.append(dict(home=h, away=a, **row))
+    return pd.DataFrame(out)
 
 
 # ----------------------------------------------------------------------------
