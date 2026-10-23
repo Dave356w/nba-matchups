@@ -297,6 +297,42 @@ def test_card_says_why_there_is_no_ats_bet():
     assert "H6" not in build_site.game_card(r)
 
 
+def _with_pre_spread(r, p, line, home_odds=-110, away_odds=-110):
+    r = r.copy()
+    r["p_home"], r["pre_spread"] = p, line
+    r["pre_home_spread_odds"], r["pre_away_spread_odds"] = home_odds, away_odds
+    r["lean"] = r["home"] if p >= 0.5 else r["away"]
+    return r
+
+
+def test_every_card_with_a_probability_has_one_spread_line():
+    # no rule bets (0.1 pts at the first snapshot): the model's side against
+    # the latest spread, shown and labelled as not graded
+    r = _with_pre_spread(_ats_pending(gp=3, first_p=0.66), 0.66, -7.5)   # home by 5.6
+    card = build_site.game_card(r)
+    assert card.count("<div class='pick-lines'><span class='kind'>Lean · spread") == 1
+    assert "<span class='pk'>AWY +7.5</span><span class='edge'>1.9 pts vs the line" in card
+    assert "Model AWY +5.6</span> · <span>Market AWY +7.5</span>" in card
+    assert "shown, not graded" in card and "rule below" in card
+    assert "<b>H6</b> (pre-registered, against the spread): no bet" in card
+    assert "Spread pick" not in card
+    # the registered pick when its rule bets, and no lean line beside it
+    card = build_site.game_card(_with_pre_spread(_ats_pending(gp=3), 0.75, -5.5))
+    assert "Spread pick · H6</span>" in card and "Lean · spread" not in card
+    # game 0: no rule covers it, the card says so
+    r = _with_pre_spread(_ats_pending(gp=3), 0.675, -7.5)
+    r["gp_away"] = 0
+    card = build_site.game_card(r)
+    assert "Lean · spread" in card and "AWY +7.5" in card and "Spread pick" not in card
+    assert "neither covers a team's first game" in card
+    # no model probability, or an alternate-line price: no spread line
+    r = _with_pre_spread(_ats_pending(gp=3), np.nan, -7.5)
+    r[["first_p_home", "p_lean", "lean"]] = np.nan
+    assert "Lean · spread" not in build_site.game_card(r)
+    assert "Lean · spread" not in build_site.game_card(
+        _with_pre_spread(_ats_pending(gp=3, first_p=0.66), 0.66, -7.5, home_odds=320))
+
+
 def test_card_pick_is_the_side_the_ledger_grades():
     for p, line in ((0.75, -5.5), (0.40, -2.5), (0.55, 6.5)):
         r = _ats_pending(gp=3, first_p=p, line=line)

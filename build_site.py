@@ -1203,6 +1203,35 @@ def ats_note(r, a):
             "price, win or lose.</p>")
 
 
+def spread_line(kind, a):
+    """A card's spread line: the side and its line, the edge in points, and
+    the model's line beside the market's at the side's price."""
+    side = esc(a["side"])
+    return (f"<div class='pick-lines'><span class='kind'>{kind}</span><span class='pk'>"
+            f"{side} {line_txt(a['line'])}</span><span class='edge'>{a['edge']:.1f} "
+            f"pts vs the line</span></div><div class='g-mk'><span>Model {side} "
+            f"{line_txt(round(a['model_line'], 1))}</span> · <span>Market "
+            f"{side} {line_txt(a['line'])}</span> · <span>at {ml_txt(a['ml'])}"
+            "</span></div>")
+
+
+def spread_lean_note(r, a, ats):
+    """The card's account of its spread lean (analysis.spread_lean): the
+    model's side against the latest spread, not a graded pick."""
+    side = esc(a["side"])
+    gp = np.fmin(*(pd.to_numeric(r.get(c), errors="coerce") for c in ("gp_home", "gp_away")))
+    graded = ("The graded spread pick is the pre-registered rule below." if ats else
+              "The graded spread picks are the pre-registered H5 (games 10+) and H6 "
+              "(games 1–9)" + (", and neither covers a team's first game." if gp == 0
+                               else "."))
+    return (f"<p class='note'><b>Lean · spread</b>: <b>{side} {line_txt(a['line'])}</b>"
+            f" at {ml_txt(a['ml'])}{book_tag(r.get('pre_book'))}, the latest "
+            f"pregame line: model line {side} {line_txt(round(a['model_line'], 1))} "
+            f"vs market {line_txt(a['line'])}, {a['edge']:.1f} pts; model cover "
+            f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig). The model's side "
+            f"of the spread, refreshed each build until tip: shown, not graded. {graded}</p>")
+
+
 def book_tag(book):
     """Visible label naming a sportsbook price's book; Kalshi prices (the
     Preseason page's only market) carry none."""
@@ -1457,7 +1486,13 @@ HOW_INDEX = (
     "spread, the model's line (13.5 × Φ⁻¹(P) as a margin) must beat the "
     "market's by at least 1 point at a main-line price. It is fixed when "
     "first written and graded at that price, win or lose, even if the line "
-    "moves later.</p>")
+    "moves later.</p>"
+    "<p class='note'><b>Lean · spread</b>: on every other card, the model's "
+    "side against the latest spread (the side its line beats, by how many "
+    "points), refreshed each build until tip. It shows the model's view of the "
+    "spread; it is not graded. Taken on every game at the closing line it "
+    "returned about the market's hold in hindsight (no edge after the vig; "
+    "the retired spread value side), which is why only H5 and H6 are bet.</p>")
 
 
 def _team_row(r, code, side, p):
@@ -1592,19 +1627,20 @@ def game_card(r, injuries=None):
                    + tile("Composite Δ", f"{float(r['delta']):+.1f}",
                           "home − away, win-% points")
                    + "</div>")
+    # one spread line per card: the registered H5 / H6 pick when its rule
+    # bets, else the model's side against the latest spread (display only)
     ats = analysis.ats_card(r)
+    lean_sp = analysis.spread_lean(r) if np.isfinite(p) else None
+    spread = []
+    if ats and ats["bet"]:
+        lines.append(spread_line(f"Spread pick · {ats['hyp']['key']}", ats))
+    elif lean_sp:
+        lines.append(spread_line("Lean · spread", lean_sp))
+        spread.append(spread_lean_note(r, lean_sp, ats))
     if ats:
-        if ats["bet"]:
-            side = esc(ats["side"])
-            lines.append(
-                f"<div class='pick-lines'><span class='kind'>Spread pick · "
-                f"{ats['hyp']['key']}</span><span class='pk'>{side} "
-                f"{line_txt(ats['line'])}</span><span class='edge'>{ats['edge']:.1f} "
-                f"pts vs the line</span></div><div class='g-mk'><span>Model {side} "
-                f"{line_txt(round(ats['model_line'], 1))}</span> · <span>Market "
-                f"{side} {line_txt(ats['line'])}</span> · <span>at {ml_txt(ats['ml'])}"
-                "</span></div>")
-        det.append("<h3>Spread rule</h3>" + ats_note(r, ats))
+        spread.append(ats_note(r, ats))
+    if spread:
+        det.append("<h3>Spread</h3>" + "".join(spread))
     det.append(injury_block(r, injuries))
     b2b = [x for x, f in ((away, r["away_b2b"]), (home, r["home_b2b"])) if f == 1]
     if b2b:
