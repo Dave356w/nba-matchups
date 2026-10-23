@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
+import nba_composite as nc
 
 import build_site
 import ledger
@@ -202,7 +203,7 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
     monkeypatch.setattr(market, "scoreboard", scoreboard)
     monkeypatch.setattr(market, "book_odds", odds)
     monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
-    monkeypatch.setattr(build_site, "load_early", lambda: early)
+    monkeypatch.setattr(build_site, "load_model", lambda: (weights, __import__("test_v9").MBASE))
     monkeypatch.setattr(build_site.nc, "load_logs", lambda y: prior)
     monkeypatch.setattr(build_site.kalshi, "get", kget)
 
@@ -211,9 +212,9 @@ def test_preseason_track(tmp_path, monkeypatch, weights, model):
     pre = ledger.load(ledger.PRESEASON_PATH)
     assert list(pre["game_id"]) == ["9201"]
     r = pre.iloc[0]
-    assert r["basis"] == "preseason" and r["model_tag"] == build_site.PRESEASON_TAG
+    assert r["basis"] == "preseason" and r["model_tag"] == build_site.MODEL_TAG_V9_NEUTRAL
     assert r["first_route"] == "preseason" and r["gp_home"] == 0
-    assert r["away_b2b"] == 1 and r["home_b2b"] == 0
+    assert r["away_b2b"] == 0 and r["home_b2b"] == 0
     assert r["delta"] > 0 and r["lean"] == "BOS" and 0.5 < r["p_home"] < 1
     # Kalshi asks with the taker fee: BOS 0.62 -> 0.6365 -> -175; LAL 0.41 -> +134
     assert r["pre_book"] == "kalshi" and r["first_book"] == "kalshi"

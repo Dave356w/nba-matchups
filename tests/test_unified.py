@@ -8,7 +8,7 @@ import pandas as pd
 _here = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(_here, ".."))
 sys.path.insert(0, os.path.join(_here, "..", "research"))
-import cold_start  # noqa: E402
+from research import legacy_cold_start as cold_start  # noqa: E402
 import nba_composite as nc  # noqa: E402
 import player_availability as pav  # noqa: E402
 

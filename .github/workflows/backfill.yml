@@ -81,6 +81,11 @@ jobs:
       - name: Kalshi prices
         if: ${{ inputs.kalshi }}
         run: python backfill_history.py --seasons ${{ inputs.seasons }} --kalshi
+      - name: Post-rescore model checks
+        if: ${{ inputs.rescore && !inputs.kalshi && !inputs.rebuild }}
+        run: |
+          python research/model_review.py
+          python research/dk_hypotheses.py
       - run: python validate_data_files.py
       - name: Commit
         run: |

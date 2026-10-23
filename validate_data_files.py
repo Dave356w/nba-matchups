@@ -102,6 +102,8 @@ def check(path):
     p = pd.to_numeric(df["p_home"], errors="coerce").dropna()
     if not p.between(0, 1).all():
         errs.append(f"{path}: p_home outside [0,1]")
+    # Blank carryover columns are valid for the primary-only scorer; existing
+    # historical values retain the original probability and stage checks.
     for c in ledger.CARRY_COLUMNS + ledger.FIRST_CARRY_COLUMNS:
         if c in df.columns:
             cp = pd.to_numeric(df[c], errors="coerce")

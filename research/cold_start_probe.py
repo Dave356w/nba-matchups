@@ -50,7 +50,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import cold_start  # noqa: E402
+from research import legacy_cold_start as cold_start  # noqa: E402
 import market  # noqa: E402
 import nba_composite as nc  # noqa: E402
 

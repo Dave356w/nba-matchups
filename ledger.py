@@ -125,11 +125,8 @@ COLUMNS = COLUMNS + PREGAME_SPREAD_COLUMNS + FIRST_SPREAD_COLUMNS
 # save writes the current schema (2026-10-22, before any native row had a
 # model P).
 PRE_CARRY_COLUMNS = list(COLUMNS)
-# Model v7 (owner's decision 2026-10-22): games 1-9 are scored with roster
-# talent; the v2-v6 carryover logit's P is recorded beside it for those games
-# (blank otherwise), because hypotheses H1 and H6 were registered on it and
-# stay on it (analysis.carry_view). carry_p_home is refreshed with the pregame
-# snapshot until tip; first_carry_p_home is written once with first_*.
+# Historical carryover columns are kept for old rows. New snapshots leave
+# them blank, refreshes preserve existing values, and grading cannot write them.
 CARRY_COLUMNS = ["carry_p_home"]
 FIRST_CARRY_COLUMNS = ["first_carry_p_home"]
 COLUMNS = COLUMNS + CARRY_COLUMNS + FIRST_CARRY_COLUMNS
@@ -147,7 +144,7 @@ COLUMNS = COLUMNS + MARGIN_COLUMNS
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
 FIRST_COLUMNS = (COLUMNS[COLUMNS.index("first_snapshot_utc"):
                          COLUMNS.index("seen_utc")] + KALSHI_FIRST_COLUMNS
-                 + FIRST_SPREAD_COLUMNS + FIRST_CARRY_COLUMNS)
+                 + FIRST_SPREAD_COLUMNS)
 # Where each first_* column comes from: a pregame column, or (report, route)
 # a key of the scored row that is not itself a ledger column.
 FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_tag",
@@ -160,7 +157,7 @@ FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_
                 **dict(zip(FIRST_SPREAD_COLUMNS, PREGAME_SPREAD_COLUMNS)),
                 **dict(zip(FIRST_CARRY_COLUMNS, CARRY_COLUMNS))}
 # Columns written once and never refreshed or graded.
-WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS
+WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS + FIRST_CARRY_COLUMNS
 # String-valued columns (kept as object dtype).
 TEXT_COLUMNS = ("pre_book", "close_book", "first_book", "first_model_tag",
                 "first_snapshot_utc", "first_report_utc", "first_route",
@@ -187,10 +184,10 @@ PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
 LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = ([c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
-                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS + CARRY_COLUMNS
+                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS
                    + MARGIN_COLUMNS)
 GRADE_COLUMNS = [c for c in COLUMNS
-                 if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS]
+                 if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS and c not in CARRY_COLUMNS]
 
 
 # Pregame injury snapshots: one row per listed player (or one "NONE" row per
@@ -276,6 +273,9 @@ def upsert_pregame(led, rows, now=None, basis="native"):
         rec["game_id"] = gid
         rec["snapshot_utc"] = fmt_utc(now)
         rec["basis"] = basis
+        # Historical carryover columns are retained but no longer written.
+        for c in CARRY_COLUMNS + FIRST_CARRY_COLUMNS:
+            rec[c] = np.nan
         for c in WRITE_ONCE_COLUMNS:
             rec[c] = np.nan
         src = {**rec, "report_utc": r.get("report_utc", np.nan),
