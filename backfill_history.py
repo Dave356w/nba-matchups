@@ -190,11 +190,11 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
                 fin = np.isfinite(te[af].to_numpy(float)).all(axis=1)
                 pmap = dict(zip(key[fin], nc.predict(am, te.loc[fin, af].values)))
                 hit = tkey.isin(pmap)
-                test.loc[hit, col] = tkey[hit].map(pmap)
+                test.loc[hit, col] = tkey[hit].map(pmap).to_numpy(float)
                 if col == "p_v5":                 # the v6 gate's v5 arm
                     test.loc[hit, "route"] = "avail"
                 if col == "p_home" or not v5:
-                    test.loc[hit, "p_home"] = tkey[hit].map(pmap)
+                    test.loc[hit, "p_home"] = tkey[hit].map(pmap).to_numpy(float)
                     test.loc[hit, "model_tag"] = tag
                     test.loc[hit, "route"] = "avail"
                 print(f"season {y}: availability arm ({'v6' if af is pav.FEATURES_V6 else 'v5' if af is pav.FEATURES_V5 else 'v4'}) "
@@ -204,7 +204,7 @@ def reconstruct_season(y, game_years=GAME_YEARS, weight_years=WEIGHT_YEARS,
                     test.loc[hit, "p_fixed"] = test.loc[hit, "p_home"]
                     fm = pav.fit_fixed(tr.loc[ok], base5)
                     fx = dict(zip(key[fin], nc.predict(fm, te.loc[fin, af].values)))
-                    test.loc[hit, "p_fixed"] = tkey[hit].map(fx)
+                    test.loc[hit, "p_fixed"] = tkey[hit].map(fx).to_numpy(float)
                     print(f"season {y}: fixed-talent arm  " + "  ".join(
                         f"{f}={c:+.4f}" for f, c in zip(fm["features"], fm["coef"]))
                         + f"  (free fit: " + "  ".join(
@@ -314,7 +314,7 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
             pmap = dict(zip(te["slate_date"] + te["home"] + te["away"],
                             nc.predict(am, te[afeats].values)))
             hit = tkey.isin(pmap)
-            test.loc[hit, "p_home"] = tkey[hit].map(pmap)
+            test.loc[hit, "p_home"] = tkey[hit].map(pmap).to_numpy(float)
             test.loc[hit, "model_tag"] = build_site.MODEL_TAG_V8_AVAIL
             test.loc[hit, "route"] = "avail"
             print(f"season {y}: v8 availability on {int(hit.sum())}/{len(test)} games "
@@ -327,10 +327,12 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
         ekey = pd.to_datetime(e["date"]).dt.strftime("%Y-%m-%d") + e["home"] + e["away"]
         cp, cd = dict(zip(ekey, e["p_carry"])), dict(zip(ekey, e["delta"]))
         early_g = test["gmin"].between(1, nc.MIN_GAMES - 1)
-        test.loc[early_g, "carry_p_home"] = tkey[early_g].map(cp)
+        # .to_numpy(float): an empty selection maps to an object Series,
+        # which pandas refuses to set into a float column
+        test.loc[early_g, "carry_p_home"] = tkey[early_g].map(cp).to_numpy(float)
         miss = test["p_home"].isna() & (test["gmin"] < nc.MIN_GAMES) & tkey.isin(cp)
-        test.loc[miss, "p_home"] = tkey[miss].map(cp)
-        test.loc[miss, "delta"] = tkey[miss].map(cd)
+        test.loc[miss, "p_home"] = tkey[miss].map(cp).to_numpy(float)
+        test.loc[miss, "delta"] = tkey[miss].map(cd).to_numpy(float)
         test.loc[miss, "model_tag"], test.loc[miss, "route"] = build_site.MODEL_TAG, "carry"
     miss = test["p_home"].isna() & (test["gmin"] >= nc.MIN_GAMES)
     if miss.any():

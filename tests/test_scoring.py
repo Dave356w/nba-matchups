@@ -63,7 +63,8 @@ def test_every_shipped_model_feature_is_built_by_logit_inputs():
     avail |= {"ft_diff"}                   # v6: added by build_site.score_game
     assert set(nc.V5_FEATURES) - set(vals) == {"luck_def", "talent_diff"}
     assert set(nc.V6_FEATURES) - set(vals) == {"luck_def", "talent_diff", "ft_diff"}
-    for name in ("logit.json", "logit_avail.json", "logit_early.json"):
+    # v8 retired logit_early.json; the carryover and v4 logits are frozen
+    for name in ("logit.json", "logit_avail.json", "logit_early_v6.json", "logit_v4.json"):
         missing = set(_real(name)["features"]) - set(vals) - avail
         assert not missing, (name, missing)
     assert vals["b2b_net"] == -1 and vals["phase"] == 81 / nc.SEASON_DAYS
