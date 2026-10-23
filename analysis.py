@@ -1300,22 +1300,20 @@ def market_by_side(m):
     return out
 
 
-# --------------------------------------------- per-card historical bands
-# The Picks card's "historical band" panels (owner's request, 2026-10-23,
-# after the XwOBA site's market cards): where the card's price or line sits
-# among the model's past picks, and how those picks and the market did
-# there. Descriptive only, never a forecast for the game or a filter.
-CARD_BANDS = 8
-
-
-def _equal_bands(x, bands=CARD_BANDS):
-    """Inner edges of `bands` equal-count bands over x; ties stay in one band,
-    so heavy ties (half-point lines) can leave fewer bands."""
-    x = np.asarray(x, float)
-    x = x[np.isfinite(x)]
-    if len(x) < bands * 4:
-        return None
-    return np.unique(np.quantile(x, np.linspace(0, 1, bands + 1)[1:-1]))
+# --------------------------------------------- per-card price context
+# The Picks card's "price context" panels (owner's request, 2026-10-23,
+# after the XwOBA site's market cards; owner's decision the same day to
+# replace the 8 equal-count bands): how sides priced like this card's did.
+# A window centred on the card's own key, the price's break-even probability
+# (moneyline) or the side's line (spread), so the comparison is always at
+# this price: equal-count bands were wide where the model rarely picks (its
+# cheapest eighth ran from +600 to -115, and the market there averaged a
+# 34% price beside a -115 card). The window starts at CARD_WINDOW and widens
+# by half again up to CARD_WINDOW_MAX until CARD_MIN_SIDES market sides fall
+# in it. Descriptive only, never a forecast for the game or a filter.
+CARD_WINDOW = {"ml": 0.025, "ats": 1.0}        # break-even points / line points
+CARD_WINDOW_MAX = {"ml": 0.08, "ats": 3.0}
+CARD_MIN_SIDES = 60
 
 
 def _band_rec(key, won, q, take):
@@ -1374,64 +1372,65 @@ def _model_sides(g, kind, price):
 
 
 def card_bands(gn, gr, book=HYPOTHESIS_BOOK):
-    """{"ml": part, "ats": part} for the Picks card panels, from graded native
-    (gn) and reconstructed (gr) rows priced by `book` (DraftKings). Each part: edges (on the key), the key range,
-    and per band its printed price/line range, the market (both sides of every
-    graded game at the close, native and reconstructed games, counted
-    apart), the live record (native leans at the pregame price, as the public
-    record grades them) and the rebuilt record (reconstructed leans at the
-    close; hindsight), never pooled. None for a part without enough picks."""
+    """{"ml": pool, "ats": pool} for the Picks card panels, from graded native
+    (gn) and reconstructed (gr) rows priced by `book` (DraftKings): every
+    side the card's window can draw on, by key. Each pool: market (both
+    sides of every graded game at the close, native and reconstructed games,
+    counted apart in n_market_games), live (native leans at the pregame
+    price, as the public record grades them) and rebuilt (reconstructed
+    leans at the close; hindsight), never pooled; each (key, won, q). None
+    for a pool with fewer than CARD_MIN_SIDES market sides. card_band reads
+    one card's window from it."""
     out = {}
     for kind in ("ml", "ats"):
-        live = _model_sides(on_book(gn, "pre", book), kind, "pre")
-        reb = _model_sides(on_book(gr, "close", book), kind, "close")
-        keys = np.r_[live[0], reb[0]]
-        edges = _equal_bands(keys)
-        if edges is None:
-            out[kind] = None
-            continue
-        shown_px = np.r_[live[3], reb[3]]
         books = [on_book(g, "close", book) for g in (gn, gr)]
         mk = [_market_sides(g, kind) for g in books if g is not None and len(g)]
-        mkey = np.concatenate([m[0] for m in mk]) if mk else np.array([])
-        mwon = np.concatenate([m[1] for m in mk]) if mk else np.array([])
-        mq = np.concatenate([m[2] for m in mk]) if mk else np.array([])
-        m_ok = np.isfinite(mkey) & np.isfinite(mwon) & np.isfinite(mq)
-        mkey, mwon, mq = mkey[m_ok], mwon[m_ok], mq[m_ok]
-        band = lambda k: np.searchsorted(edges, k, side="right")  # noqa: E731
-        bl, br, bk, bm = band(live[0]), band(reb[0]), band(keys), band(mkey)
-        rows = []
-        for j in range(len(edges) + 1):
-            px, kk = shown_px[bk == j], keys[bk == j]
-            if not len(px):
-                continue
-            # the market's sides are clipped to the band's own range, so the
-            # outer bands do not take in every longer price
-            inside = (bm == j) & (mkey >= kk.min()) & (mkey <= kk.max())
-            rows.append(dict(index=j, lo=float(np.min(px)), hi=float(np.max(px)),
-                             market=_band_rec(mkey, mwon, mq, inside),
-                             live=_band_rec(live[0], live[1], live[2], bl == j),
-                             rebuilt=_band_rec(reb[0], reb[1], reb[2], br == j)))
-        out[kind] = dict(edges=edges, key_min=float(np.nanmin(keys)),
-                         key_max=float(np.nanmax(keys)), bands=rows,
-                         n_market_games=tuple(int(len(g)) if g is not None else 0
-                                              for g in books),
-                         rebuilt_seasons=sorted({int(x) for x in pd.to_numeric(
-                             books[1]["season"], errors="coerce").dropna()})
-                         if books[1] is not None and len(books[1]) else [])
+        if not mk:
+            out[kind] = None
+            continue
+        m = tuple(np.concatenate([x[i] for x in mk]) for i in range(3))
+        ok = np.isfinite(m[0]) & np.isfinite(m[1]) & np.isfinite(m[2])
+        if ok.sum() < CARD_MIN_SIDES:
+            out[kind] = None
+            continue
+        live = _model_sides(on_book(gn, "pre", book), kind, "pre")[:3]
+        reb = _model_sides(on_book(gr, "close", book), kind, "close")[:3]
+        out[kind] = dict(
+            market=tuple(x[ok] for x in m), live=live, rebuilt=reb,
+            n_market_games=tuple(int(len(g)) if g is not None else 0 for g in books),
+            rebuilt_seasons=sorted({int(x) for x in pd.to_numeric(
+                books[1]["season"], errors="coerce").dropna()})
+            if books[1] is not None and len(books[1]) else [])
     return out
 
 
-def card_band(part, key):
-    """(band row, its position, the number of bands) for one card's key (the
-    break-even probability of its price, or its line); None when the key is
-    missing or outside the picks' range."""
-    if not part or key is None or not np.isfinite(key):
+def card_band(pool, key, kind="ml"):
+    """One card's price context: the window around its key (the break-even
+    probability of its price, or its side's line) and the market, live and
+    rebuilt records inside it, each from _band_rec. The window is
+    CARD_WINDOW[kind] either side, widened by half again (to at most
+    CARD_WINDOW_MAX) until CARD_MIN_SIDES market sides fall in it; None when
+    the key is missing or even the widest window holds fewer than
+    BAND_MIN_N market sides. dict(lo, hi, width, widened, market, live,
+    rebuilt)."""
+    if not pool or key is None or not np.isfinite(key):
         return None
-    if key < part["key_min"] or key > part["key_max"]:
+    mkey = pool["market"][0]
+    w, top = CARD_WINDOW[kind], CARD_WINDOW_MAX[kind]
+    while True:
+        n = int(((mkey >= key - w) & (mkey <= key + w)).sum())
+        if n >= CARD_MIN_SIDES or w >= top:
+            break
+        w = min(top, w * 1.5)
+    if n < BAND_MIN_N:
         return None
-    j = int(np.searchsorted(part["edges"], key, side="right"))
-    for i, row in enumerate(part["bands"]):
-        if row["index"] == j:
-            return row, i, len(part["bands"])
-    return None
+
+    def rec(sides):
+        k = np.asarray(sides[0], float)
+        if not len(k):
+            return None
+        return _band_rec(k, np.asarray(sides[1], float), np.asarray(sides[2], float),
+                         (k >= key - w) & (k <= key + w))
+    return dict(lo=key - w, hi=key + w, width=w, widened=w > CARD_WINDOW[kind] + 1e-12,
+                market=rec(pool["market"]), live=rec(pool["live"]),
+                rebuilt=rec(pool["rebuilt"]))
