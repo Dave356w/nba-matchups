@@ -56,8 +56,7 @@ def test_season_rows_split_book_and_season_never_pooled():
 def test_report_prints_null_and_fav_beside_every_roi_and_keeps_bases_apart():
     nat, rec = synth(150, 35, "native"), synth(200, 36, "reconstructed")
     txt = report.report_text(nat, rec, ledger.empty(), ["tag_v6"])
-    for head in ("== NATIVE", "== PRE-REGISTERED HYPOTHESES", "== RECONSTRUCTED",
-                 "== PRESEASON"):
+    for head in ("== NATIVE", "== PRE-REGISTERED HYPOTHESES", "== RECONSTRUCTED"):
         assert txt.count(head) == 1
     assert txt.index("== NATIVE") < txt.index("== RECONSTRUCTED")
     roi_lines = [ln for ln in txt.splitlines() if " ROI " in ln and "n=" in ln]

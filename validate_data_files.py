@@ -58,6 +58,7 @@ def check(path):
             priced = pd.to_numeric(df[q], errors="coerce").notna()
             if not df.loc[priced, col].isin(books).all():
                 errs.append(f"{path}: {col} missing or unknown on a priced row")
+    # Retired price columns and the preseason CSV remain validated as history.
     if "kalshi_close_q_home" in df.columns:
         kq = pd.to_numeric(df["kalshi_close_q_home"], errors="coerce")
         if (kq.notna() & ~kq.between(0, 1, inclusive="neither")).any():

@@ -1,4 +1,6 @@
-"""Kalshi exchange prices for preseason games (data/nba_preseason.csv only).
+"""Research only: production does not import or call this module.
+
+Kalshi exchange prices for preseason games (data/nba_preseason.csv only).
 
 Kalshi lists every NBA game, preseason included, in the KXNBAGAME series:
 one event per game (ticker KXNBAGAME-26OCT03MIATOR = date, away, home) with

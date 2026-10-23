@@ -143,8 +143,7 @@ MARGIN_COLUMNS = ["margin_home"]
 COLUMNS = COLUMNS + MARGIN_COLUMNS
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
 FIRST_COLUMNS = (COLUMNS[COLUMNS.index("first_snapshot_utc"):
-                         COLUMNS.index("seen_utc")] + KALSHI_FIRST_COLUMNS
-                 + FIRST_SPREAD_COLUMNS)
+                         COLUMNS.index("seen_utc")] + FIRST_SPREAD_COLUMNS)
 # Where each first_* column comes from: a pregame column, or (report, route)
 # a key of the scored row that is not itself a ledger column.
 FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_tag",
@@ -157,7 +156,7 @@ FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_
                 **dict(zip(FIRST_SPREAD_COLUMNS, PREGAME_SPREAD_COLUMNS)),
                 **dict(zip(FIRST_CARRY_COLUMNS, CARRY_COLUMNS))}
 # Columns written once and never refreshed or graded.
-WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS + FIRST_CARRY_COLUMNS
+WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS + FIRST_CARRY_COLUMNS + KALSHI_FIRST_COLUMNS
 # String-valued columns (kept as object dtype).
 TEXT_COLUMNS = ("pre_book", "close_book", "first_book", "first_model_tag",
                 "first_snapshot_utc", "first_report_utc", "first_route",
@@ -184,10 +183,10 @@ PRE_SPREAD_COLUMNS = [c for c in PRE_FIRST_COLUMNS if c not in SPREAD_COLUMNS]
 LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = ([c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
-                   + KALSHI_PRE_COLUMNS + PREGAME_SPREAD_COLUMNS
+                   + PREGAME_SPREAD_COLUMNS
                    + MARGIN_COLUMNS)
 GRADE_COLUMNS = [c for c in COLUMNS
-                 if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS and c not in CARRY_COLUMNS]
+                 if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS and c not in CARRY_COLUMNS and c not in KALSHI_COLUMNS]
 
 
 # Pregame injury snapshots: one row per listed player (or one "NONE" row per
@@ -274,7 +273,7 @@ def upsert_pregame(led, rows, now=None, basis="native"):
         rec["snapshot_utc"] = fmt_utc(now)
         rec["basis"] = basis
         # Historical carryover columns are retained but no longer written.
-        for c in CARRY_COLUMNS + FIRST_CARRY_COLUMNS:
+        for c in CARRY_COLUMNS + FIRST_CARRY_COLUMNS + KALSHI_COLUMNS:
             rec[c] = np.nan
         for c in WRITE_ONCE_COLUMNS:
             rec[c] = np.nan
@@ -435,13 +434,12 @@ def upsert_sleeper(df, snaps, now=None):
             accepted, rejected)
 
 
-def apply_result(led, game_id, game, odds, kalshi_odds=None):
+def apply_result(led, game_id, game, odds):
     """Grade one row from a scoreboard game dict and ONE book's odds (or None).
 
-    `odds` is what market.pick_close returns: that book's open/close plus its
-    `book` label. `kalshi_odds` (kalshi.grade_odds) holds the KALSHI_GRADE_COLUMNS
-    keys, written beside the book's. Writes only GRADE_COLUMNS, and only for a
-    completed game with scores.
+    `odds` is one sportsbook's open/close and book label. Historical
+    exchange columns are preserved and never written by production grading.
+    Only completed games with scores can receive a close.
     """
     hit = led.index[led["game_id"].astype(str) == str(game_id)]
     if not len(hit) or not game or not game.get("completed"):
@@ -472,10 +470,6 @@ def apply_result(led, game_id, game, odds, kalshi_odds=None):
             for c in SPREAD_COLUMNS:
                 if odds.get(c) is not None:
                     led.at[i, c] = odds[c]
-    for c in KALSHI_GRADE_COLUMNS:
-        v = (kalshi_odds or {}).get(c)
-        if v is not None and np.isfinite(v):
-            led.at[i, c] = v
     return True
 
 
@@ -490,22 +484,19 @@ CLOSE_RETRY_DAYS = 7   # graded rows with no close are re-asked this long
 KALSHI_FROM_SEASON = 2026   # Kalshi's KXNBAGAME lists games from the 2025 play-in
 
 
-def missing_close(led, today, days=CLOSE_RETRY_DAYS, kalshi=False):
+def missing_close(led, today, days=CLOSE_RETRY_DAYS):
     """Graded rows with no closing pair from the last `days` slates before
     `today`: grading found the result but no close (a failed or empty odds
-    fetch), so the next builds ask again. `kalshi` asks about the Kalshi
-    close instead (seasons from KALSHI_FROM_SEASON). Finished games only, so
+    fetch), so the next builds ask again. Finished games only, so
     a close is still never written to a pending row."""
     if not len(led):
         return led
     d = pd.to_datetime(led["slate_date"].astype(str), errors="coerce")
     t = pd.Timestamp(today)
     won = pd.to_numeric(led["home_won"], errors="coerce").isin([0, 1])
-    pre = "kalshi_close" if kalshi else "close"
+    pre = "close"
     no_close = (pd.to_numeric(led[f"{pre}_home_ml"], errors="coerce").isna()
                 | pd.to_numeric(led[f"{pre}_away_ml"], errors="coerce").isna())
-    if kalshi:
-        no_close &= pd.to_numeric(led["season"], errors="coerce") >= KALSHI_FROM_SEASON
     return led[won & no_close & (d < t) & (d >= t - pd.Timedelta(days=days))]
 
 
