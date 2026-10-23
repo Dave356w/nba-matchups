@@ -179,7 +179,19 @@ owner directs the product.
   else "Lean · spread", the model's side against the latest pregame spread
   (`analysis.spread_lean`: `ats_sides` at `pre`, σ 13.5, main-line prices;
   refreshed until tip), labelled shown, not graded (taken on every game at
-  the close it returns about the hold: the retired spread value side). An opened card lists each team's ESPN injury
+  the close it returns about the hold: the retired spread value side).
+  An opened card also carries two historical band panels (owner's request
+  and decision, 2026-10-23, after the XwOBA market cards;
+  `analysis.card_bands` / `card_band`, `build_site.band_panel`): where its
+  moneyline price (by break-even probability) and its spread line sit among
+  the model's past DraftKings picks, one of `analysis.CARD_BANDS` = 8
+  equal-count bands, with the market's record there (both sides of every
+  graded DraftKings game at the close, clipped to the band's range), the
+  model's live record (native picks at the pregame price) and its rebuilt
+  record (reconstructed picks at the close, labelled hindsight) side by
+  side, never pooled. This is the one place a public page shows
+  reconstructed rows (owner's decision, 2026-10-23); descriptive, not a
+  forecast or a filter. An opened card lists each team's ESPN injury
   list as recorded (owner's request, 2026-10-22; `build_site.injury_block`:
   the game's last pregame snapshot in `data/nba_injuries.csv`, frozen at
   tip, most serious status first, its time in PT), display only: the model

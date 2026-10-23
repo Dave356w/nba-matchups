@@ -848,6 +848,18 @@ margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .g-flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .g-note{font:500 12px/1.4 var(--sans);color:var(--faint);margin-top:8px}
 .g-detail{padding:14px 16px 18px}
+.band{margin:12px 0 6px}
+.band-t{font:700 11px/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.band-l{margin:3px 0 0;font:600 12.5px/1.35 var(--mono);color:var(--mut)}
+.band-bar{display:flex;gap:3px;margin:8px 0}
+.band-bar span{height:8px;flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:4px}
+.band-bar span.on{background:rgba(var(--accent),.75);border-color:rgb(var(--accent))}
+.band-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 4px}
+.band-stats>div{min-width:0;padding:8px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px}
+.band-stats small{display:block;font:650 10.5px/1.35 var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
+.band-stats strong{display:block;font:750 16px/1.4 var(--mono);font-variant-numeric:tabular-nums}
+.band-stats .vs{display:block;font:500 11.5px/1.4 var(--mono);color:var(--mut);overflow-wrap:anywhere}
+.g-detail p.band-n{font-size:12px;color:var(--faint);margin:6px 0 0}
 .g-detail h3{font:750 12px/1.2 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
 .g-detail p{margin:8px 0;font-size:13.5px;color:var(--muted)}
 .g-detail .gr-tablewrap{box-shadow:none}
@@ -1203,6 +1215,56 @@ def ats_note(r, a):
             "price, win or lose.</p>")
 
 
+def band_panel(part, key, kind):
+    """A card's historical band panel (owner's request, 2026-10-23, after the
+    XwOBA cards; analysis.card_bands / card_band): where this card's price
+    (moneyline) or line (spread) sits among the model's past picks, one of
+    CARD_BANDS equal-count bands, and how the market and the model did there:
+    the market on both sides of every graded DraftKings game at the close, the
+    model's live picks this season and its rebuilt picks (hindsight), never
+    pooled. Descriptive, not a forecast for this game."""
+    if not part:
+        return ""
+    ml = kind == "ml"
+    title = "Moneyline · historical price band" if ml else "Spread · historical line band"
+    hit = analysis.card_band(part, key)
+    if not hit:
+        return (f"<div class='band'><div class='band-t'>{title}</div><p>This "
+                f"{'price' if ml else 'line'} is outside the range of the model's past "
+                "picks; no comparison.</p></div>")
+    row, i, total = hit
+    fmt = ml_txt if ml else line_txt
+    rng = (fmt(row["lo"]) if row["lo"] == row["hi"]
+           else f"{fmt(row['lo'])} to {fmt(row['hi'])}")
+    bar = "".join(f"<span{' class=on' if j == i else ''}></span>" for j in range(total))
+    won = "won" if ml else "covered"
+
+    def rec_tile(name, r, extra=""):
+        if not r:
+            return (f"<div><small>{name}</small><strong>—</strong>"
+                    "<span class='vs'>no graded picks yet</span></div>")
+        wl = f"{r['w']}–{r['l']}" + (f"–{r['p']}" if r["p"] else "")
+        return (f"<div><small>{name}</small><strong>{pct(r['actual'])}</strong>"
+                f"<span class='vs'>{wl} · implied {pct(r['implied'])}{extra}</span></div>")
+    m = row["market"]
+    mk = (f"<div><small>Market</small><strong>{pct(m['actual'])}</strong>"
+          f"<span class='vs'>{m['n']} sides · implied {pct(m['implied'])}</span></div>"
+          if m else "<div><small>Market</small><strong>—</strong></div>")
+    seasons = ", ".join(season_txt(x) for x in part.get("rebuilt_seasons", []))
+    n_live, n_reb = part["n_market_games"]
+    return (f"<div class='band'><div class='band-t'>{title}</div>"
+            f"<div class='band-l'>{esc(rng)} · band {i + 1} of {total}</div>"
+            f"<div class='band-bar' role='img' aria-label='band {i + 1} of {total}'>{bar}</div>"
+            "<div class='band-stats'>" + mk
+            + rec_tile("Model · live", row["live"])
+            + rec_tile("Model · rebuilt", row["rebuilt"],
+                       f" · {seasons + ', ' if seasons else ''}hindsight")
+            + f"</div><p class='band-n'>% {won} vs the no-vig implied, at "
+            f"{'prices' if ml else 'lines'} in this band. Market: both sides of "
+            f"{n_live + n_reb} graded DraftKings games ({n_live} this season). Live "
+            "and rebuilt picks are never pooled. Descriptive, not a forecast.</p></div>")
+
+
 def spread_line(kind, a):
     """A card's spread line: the side and its line, the edge in points, and
     the model's line beside the market's at the side's price."""
@@ -1487,6 +1549,17 @@ HOW_INDEX = (
     "market's by at least 1 point at a main-line price. It is fixed when "
     "first written and graded at that price, win or lose, even if the line "
     "moves later.</p>"
+    "<p class='note'><b>Historical band</b> (an opened card): where this "
+    "game's moneyline price, and its spread line, sit among the model's past "
+    f"picks (one of {analysis.CARD_BANDS} bands with equal numbers of picks), "
+    "and how often sides in that band won or covered against the no-vig "
+    "probability their price implied. <b>Market</b>: both sides of every graded "
+    "DraftKings game at its closing price or line. <b>Model · live</b>: this "
+    "season's picks at the pregame price, as the record grades them. <b>Model · "
+    "rebuilt</b>: the rebuilt seasons' picks at the close, hindsight (each "
+    "season left out of its own fit, not a track record). The two model "
+    "records are never pooled. The bands describe the past; they are not a "
+    "forecast for this game and not a filter.</p>"
     "<p class='note'><b>Lean · spread</b>: on every other card, the model's "
     "side against the latest spread (the side its line beats, by how many "
     "points), refreshed each build until tip. It shows the model's view of the "
@@ -1553,7 +1626,7 @@ def injury_block(r, injuries):
             "terms.</p>")
 
 
-def game_card(r, injuries=None):
+def game_card(r, injuries=None, bands=None):
     """One game (the NFL site's card): both teams with model WP, the lean
     and its price, the spread pick when H5/H6 bets; tap for the model
     against the market and each team's injury list (`injury_block`). Reads
@@ -1627,6 +1700,8 @@ def game_card(r, injuries=None):
                    + tile("Composite Δ", f"{float(r['delta']):+.1f}",
                           "home − away, win-% points")
                    + "</div>")
+        if bands and has_ml:
+            det.append(band_panel(bands.get("ml"), market.implied(ml), "ml"))
     # one spread line per card: the registered H5 / H6 pick when its rule
     # bets, else the model's side against the latest spread (display only)
     ats = analysis.ats_card(r)
@@ -1639,6 +1714,9 @@ def game_card(r, injuries=None):
         spread.append(spread_lean_note(r, lean_sp, ats))
     if ats:
         spread.append(ats_note(r, ats))
+    shown_sp = ats if ats and ats["bet"] else lean_sp
+    if bands and shown_sp:
+        spread.append(band_panel(bands.get("ats"), float(shown_sp["line"]), "ats"))
     if spread:
         det.append("<h3>Spread</h3>" + "".join(spread))
     det.append(injury_block(r, injuries))
@@ -1738,7 +1816,10 @@ def render_index(led, today, built, model_ok, recon=None, injuries=None, now=Non
                      "</button>" for k, t in (("all", "All"), ("upcoming", "Upcoming"),
                                                ("live", "Live"), ("final", "Final")))
            + "</div>")
-    cards = [game_card(r, injuries) for _, r in day.sort_values("tip_utc").iterrows()]
+    bands = analysis.card_bands(
+        ledger.graded(analysis.market_view(led)),
+        ledger.graded(analysis.market_view(recon)) if recon is not None and len(recon) else None)
+    cards = [game_card(r, injuries, bands) for _, r in day.sort_values("tip_utc").iterrows()]
     return page("NBA picks", "index.html",
                 head + tiles + note
                 + f"<div class='toolbar'><h2 class='sec'>Today’s games</h2>{seg}</div>"
