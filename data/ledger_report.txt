@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-24T00:38:09Z; latest graded slate 2026-10-22 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-10-24T05:48:21Z; latest graded slate 2026-10-23 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_v9 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_avail_v9 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_neutral_v9 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_neutral_avail_v9
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -8,21 +8,21 @@ Bases, books and seasons are never pooled. Price bands are descriptive, not filt
 Market: DraftKings, native and reconstructed rows alike. Historical Kalshi columns remain without new writes. The hypotheses stay on the sportsbook prices they were registered on.
 Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of 2024-25 and 2025-26 before 25 Nov are left out; their rows stay in data/nba_reconstructed.csv.
 
-== NATIVE (pregame-locked, forward): 28 rows, 16 graded, 12 pending
--- DraftKings close, 2026-27: 1 graded on 1 slates
+== NATIVE (pregame-locked, forward): 36 rows, 28 graded, 8 pending
+-- DraftKings close, 2026-27: 13 graded on 2 slates
   at the first snapshot (earliest priced; model P written then):
     Lean — the model's favourite
-      All picks                n=1     1-0          +0.29u  ROI  +29.4% +/-   --  (null -4.1%, z --)  win 100.0% vs q 74.1%  | fav +29.4%
+      All picks                n=13    8-5          -0.54u  ROI   -4.2% +/- 22.6  (null -4.1%, z -0.0)  win 61.5% vs q 60.7%  | fav -5.8%
   at the pregame snapshot (last before tip):
     Lean — the model's favourite
-      All picks                n=1     1-0          +0.29u  ROI  +29.4% +/-   --  (null -4.1%, z --)  win 100.0% vs q 74.1%  | fav +29.4%
+      All picks                n=13    6-7          -4.42u  ROI  -34.0% +/- 21.1  (null -4.2%, z -1.4)  win 46.2% vs q 61.4%  | fav -6.3%
   at the close:
     Lean — the model's favourite
-      All picks                n=1     1-0          +0.29u  ROI  +29.4% +/-   --  (null -4.1%, z --)  win 100.0% vs q 74.1%  | fav +29.4%
-  Log loss  model 0.3936  close 0.2999  model - close +0.0936 +/- -- (1 SE; negative = model better; z --)
-  Brier     model 0.1059  close 0.0671  model - close +0.0387 +/- --
-  Lean accuracy 100.0%  vs close favourite 100.0%  (accuracy is not calibration)
-  CLV (lean, same book): +0.00 pp +/- -- (1 SE), beat the close 0% of 1
+      All picks                n=13    6-7          -4.48u  ROI  -34.4% +/- 20.9  (null -4.2%, z -1.5)  win 46.2% vs q 61.7%  | fav -6.8%
+  Log loss  model 0.6786  close 0.6221  model - close +0.0565 +/- 0.0398 (1 SE; negative = model better; z +1.4)
+  Brier     model 0.2434  close 0.2182  model - close +0.0252 +/- 0.0184
+  Lean accuracy 46.2%  vs close favourite 61.5%  (accuracy is not calibration)
+  CLV (lean, same book): +0.29 pp +/- 0.13 (1 SE), beat the close 31% of 13
 
 == PRE-REGISTERED HYPOTHESES (frozen; analysis.HYPOTHESES)
   Native at the registered price beside the hindsight rule on the reconstructed rows. Never pooled; one season is not a verdict.
