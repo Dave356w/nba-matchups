@@ -27,8 +27,15 @@ Composite weights are fitted once per fold on WEIGHT_YEARS before Y (team
 season tables exist only for completed seasons). Every input uses games
 strictly before each date (fade_v8_games). Fits use complete rows, as the
 shipped fit does; predictions set a missing optional term to zero
-(nc.neutral_features) and skip rows missing a core rating. Base route only:
-the injury-report arm is not refitted here.
+(nc.neutral_features) and skip rows missing a core rating.
+
+Injury-report arm (--avail, added 2026-10-27 on the owner's request): the
+same three arms on v9's availability route (player_availability.FEATURES_V6,
+av_min / av_bpm from the last NBA injury report at least LEAD_MINUTES
+before tip, season_terms), fitted on the covered games 1+ of the report
+seasons before Y (S) plus season Y's covered games before each slate (D,
+Dw), as the shipped fit uses covered games 1+ of its report seasons. Folds
+2024-2027 (2023 has no earlier report season); scored on covered games.
 
 Readings: D - S and Dw - S log loss, Brier, margin MSE and bias against
 outcomes, by season and stage (game 0, games 1-9, 10+), pooled over seasons
@@ -63,6 +70,9 @@ SEASONS = [2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026, 2027]
 HALF_LIFE_DAYS = 365.0
 Z95 = 1.96
 ARMS = ("S", "D", "Dw")
+AVAIL_FEATS = list(pav.FEATURES_V6)
+REPORT_YEARS = [2023, 2024, 2025, 2026, 2027]
+AVAIL_SEASONS = [2024, 2025, 2026, 2027]
 _PHI = np.vectorize(NormalDist().cdf, otypes=[float])
 
 
@@ -106,9 +116,9 @@ def games(y, weights):
     return g
 
 
-def wls(df, w=None):
-    """(intercept, coef, sigma) of margin on FEATS, complete rows."""
-    X = np.column_stack([np.ones(len(df)), df[FEATS].to_numpy(float)])
+def wls(df, w=None, feats=FEATS):
+    """(intercept, coef, sigma) of margin on feats, complete rows."""
+    X = np.column_stack([np.ones(len(df)), df[feats].to_numpy(float)])
     y = df["margin"].to_numpy(float)
     w = np.ones(len(df)) if w is None else np.asarray(w, float)
     sw = np.sqrt(w)
@@ -120,41 +130,76 @@ def wls(df, w=None):
     return b, sigma
 
 
-def predict(b, sigma, test):
-    X, _ = nc.neutral_features(test, FEATS)
+def predict(b, sigma, test, feats=FEATS):
+    X, _ = nc.neutral_features(test, feats)
     m = b[0] + X.to_numpy(float) @ b[1:]
     return m, _PHI(m / sigma)
 
 
-def fold(Y):
-    """Per-game S / D / Dw predictions for season Y and the intercept paths."""
-    wts = nc.fit_weights(bf.training_years(bf.WEIGHT_YEARS, Y, True))
-    past = pd.concat([games(t, wts) for t in GAME_YEARS if t < Y], ignore_index=True)
-    past = past[np.isfinite(past[FEATS + ["margin"]].to_numpy(float)).all(axis=1)]
-    cur = games(Y, wts)
+def arms(past, cur, feats, Y, label):
+    """S / D / Dw predictions on cur (season Y) from past (earlier seasons)."""
+    past = past[np.isfinite(past[feats + ["margin"]].to_numpy(float)).all(axis=1)]
     cur = cur[np.isfinite(cur[CORE].to_numpy(float)).all(axis=1)].copy()
-    cur_ok = np.isfinite(cur[FEATS + ["margin"]].to_numpy(float)).all(axis=1)
-    bS, sS = wls(past)
-    cur["m_S"], cur["p_S"] = predict(bS, sS, cur)
+    cur_ok = np.isfinite(cur[feats + ["margin"]].to_numpy(float)).all(axis=1)
+    bS, sS = wls(past, feats=feats)
+    cur["m_S"], cur["p_S"] = predict(bS, sS, cur, feats)
     path = []
     for d, idx in cur.groupby("date").groups.items():
         seen = cur[cur_ok & (cur["date"] < d)]
         tr = pd.concat([past, seen], ignore_index=True)
-        bD, sD = wls(tr) if len(seen) else (bS, sS)
+        bD, sD = wls(tr, feats=feats) if len(seen) else (bS, sS)
         age = (d - tr["date"]).dt.days.to_numpy(float)
-        bW, sW = wls(tr, 0.5 ** (age / HALF_LIFE_DAYS))
+        bW, sW = wls(tr, 0.5 ** (age / HALF_LIFE_DAYS), feats)
         t = cur.loc[idx]
-        cur.loc[idx, "m_D"], cur.loc[idx, "p_D"] = predict(bD, sD, t)
-        cur.loc[idx, "m_Dw"], cur.loc[idx, "p_Dw"] = predict(bW, sW, t)
+        cur.loc[idx, "m_D"], cur.loc[idx, "p_D"] = predict(bD, sD, t, feats)
+        cur.loc[idx, "m_Dw"], cur.loc[idx, "p_Dw"] = predict(bW, sW, t, feats)
         path.append(dict(date=d, n_seen=len(seen), int_D=bD[0], int_Dw=bW[0],
-                         sigma_D=sD, sigma_Dw=sW, **{f"Dw_{f}": c for f, c in zip(FEATS, bW[1:])}))
+                         sigma_D=sD, sigma_Dw=sW, **{f"Dw_{f}": c for f, c in zip(feats, bW[1:])}))
     mn = np.fmin(cur["gp_home"], cur["gp_away"])
     cur["stage"] = np.where(mn == 0, "game 0", np.where(mn < 10, "games 1-9", "games 10+"))
     cur["season"] = Y
-    log(f"fold {Y}: {len(cur)} games, train {len(past)} past rows, S intercept "
+    log(f"{label} fold {Y}: {len(cur)} games, train {len(past)} past rows, S intercept "
         f"{bS[0]:+.2f} sigma {sS:.2f}; D end intercept {path[-1]['int_D']:+.2f}, "
         f"Dw end {path[-1]['int_Dw']:+.2f}")
-    return cur, pd.DataFrame(path).assign(season=Y), dict(zip(["intercept"] + FEATS, bS), sigma=sS)
+    return cur, pd.DataFrame(path).assign(season=Y), dict(zip(["intercept"] + feats, bS), sigma=sS)
+
+
+def fold(Y):
+    """Per-game S / D / Dw predictions for season Y and the intercept paths."""
+    wts = fold_weights(Y)
+    past = pd.concat([games(t, wts) for t in GAME_YEARS if t < Y], ignore_index=True)
+    return arms(past, games(Y, wts), FEATS, Y, "base")
+
+
+_weights = {}
+
+
+def fold_weights(Y):
+    if Y not in _weights:
+        _weights[Y] = nc.fit_weights(bf.training_years(bf.WEIGHT_YEARS, Y, True))
+    return _weights[Y]
+
+
+def report_terms(t):
+    """Season t's covered-game availability terms (season_terms), cached."""
+    path = os.path.join(pav.DEFAULT_CACHE, f"dyn_terms_{t}.csv")
+    if os.path.exists(path):
+        return pd.read_csv(path)
+    terms, _ = pav.season_terms(t, pav.ReportArchive(pav.REPORT_DIR))
+    terms.to_csv(path, index=False)
+    return terms
+
+
+def covered_games(t, wts):
+    """Season t's covered games 1+ with the availability terms."""
+    g = games(t, wts).merge(report_terms(t), on=["slate_date", "home", "away"], how="inner")
+    return g[np.minimum(g["gp_home"], g["gp_away"]) >= 1]
+
+
+def avail_fold(Y):
+    wts = fold_weights(Y)
+    past = pd.concat([covered_games(t, wts) for t in REPORT_YEARS if t < Y], ignore_index=True)
+    return arms(past, covered_games(Y, wts), AVAIL_FEATS, Y, "avail")
 
 
 # ---------------------------------------------------------------- market --
@@ -242,26 +287,32 @@ def path_block(paths):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--seasons", nargs="+", type=int, default=SEASONS)
+    ap.add_argument("--seasons", nargs="+", type=int, default=None)
+    ap.add_argument("--avail", action="store_true",
+                    help="the injury-report route (writes the *_avail outputs)")
     a = ap.parse_args()
+    run, seasons, tag = ((avail_fold, AVAIL_SEASONS, "_avail") if a.avail
+                         else (fold, SEASONS, ""))
     preds, paths, statics = [], [], {}
-    for Y in a.seasons:
-        p, pa, s = fold(Y)
+    for Y in a.seasons or seasons:
+        p, pa, s = run(Y)
         preds.append(p)
         paths.append(pa)
         statics[Y] = s
     P, paths = pd.concat(preds, ignore_index=True), pd.concat(paths, ignore_index=True)
-    head = [__doc__.strip().splitlines()[0], "",
+    route = ("injury-report route: covered games 1+ of the report seasons"
+             if a.avail else "base route: every game")
+    head = [__doc__.strip().splitlines()[0], f"Route: {route}.", "",
             "Static fits (S) by fold: " + "; ".join(
                 f"{y} int {s['intercept']:+.2f} sigma {s['sigma']:.2f}" for y, s in statics.items()),
             ""]
     L = head + outcome_block(P) + market_block(P, market_rows()) + path_block(paths)
     os.makedirs(OUT, exist_ok=True)
-    with open(os.path.join(OUT, "RESULTS.txt"), "w") as f:
+    with open(os.path.join(OUT, f"RESULTS{tag}.txt"), "w") as f:
         f.write("\n".join(L) + "\n")
-    P.drop(columns=["date"]).to_csv(os.path.join(OUT, "predictions.csv"), index=False,
+    P.drop(columns=["date"]).to_csv(os.path.join(OUT, f"predictions{tag}.csv"), index=False,
                                     float_format="%.5g")
-    paths.to_csv(os.path.join(OUT, "paths.csv"), index=False, float_format="%.5g")
+    paths.to_csv(os.path.join(OUT, f"paths{tag}.csv"), index=False, float_format="%.5g")
     print("\n".join(L))
 
 
