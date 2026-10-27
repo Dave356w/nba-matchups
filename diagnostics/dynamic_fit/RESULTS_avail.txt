@@ -1,0 +1,50 @@
+Dynamic chronological fit: the v9 base margin model refitted before every
+Route: injury-report route: covered games 1+ of the report seasons.
+
+Static fits (S) by fold: 2024 int +2.51 sigma 12.62; 2025 int +2.36 sigma 13.28; 2026 int +2.17 sigma 13.45; 2027 int +2.06 sigma 13.64
+
+== 1. Against outcomes (arm - S, negative = arm better; ± 95%)
+  all seasons (description; seasons differ)
+    games 1+   S logloss 0.5922  D-S logloss -0.0013 ± 0.0009 (n 3669)  MSE -0.60 ± 0.43  |  Dw-S logloss -0.0015 ± 0.0014 (n 3669)  MSE -0.74 ± 0.72
+    games 1-9  S logloss 0.5993  D-S logloss +0.0001 ± 0.0009 (n 453)  MSE -0.01 ± 0.42  |  Dw-S logloss +0.0012 ± 0.0022 (n 453)  MSE +0.59 ± 1.10
+    games 10+  S logloss 0.5912  D-S logloss -0.0015 ± 0.0010 (n 3216)  MSE -0.69 ± 0.49  |  Dw-S logloss -0.0019 ± 0.0016 (n 3216)  MSE -0.93 ± 0.81
+  season 2024
+    games 1+   S logloss 0.6004  D-S logloss -0.0027 ± 0.0022 (n 1215)  MSE -1.21 ± 1.05  |  Dw-S logloss -0.0034 ± 0.0032 (n 1215)  MSE -1.44 ± 1.48
+    games 1-9  S logloss 0.6196  D-S logloss +0.0001 ± 0.0022 (n 141)  MSE +0.26 ± 1.00  |  Dw-S logloss +0.0001 ± 0.0041 (n 141)  MSE +0.48 ± 1.85
+    games 10+  S logloss 0.5978  D-S logloss -0.0031 ± 0.0025 (n 1074)  MSE -1.40 ± 1.18  |  Dw-S logloss -0.0038 ± 0.0036 (n 1074)  MSE -1.70 ± 1.65
+  season 2025
+    games 1+   S logloss 0.5925  D-S logloss -0.0002 ± 0.0010 (n 1209)  MSE -0.18 ± 0.55  |  Dw-S logloss +0.0002 ± 0.0019 (n 1209)  MSE -0.01 ± 0.97
+    games 1-9  S logloss 0.5958  D-S logloss +0.0015 ± 0.0013 (n 138)  MSE +0.37 ± 0.67  |  Dw-S logloss +0.0040 ± 0.0035 (n 138)  MSE +1.80 ± 2.10
+    games 10+  S logloss 0.5920  D-S logloss -0.0004 ± 0.0011 (n 1071)  MSE -0.25 ± 0.62  |  Dw-S logloss -0.0003 ± 0.0020 (n 1071)  MSE -0.24 ± 1.05
+  season 2026
+    games 1+   S logloss 0.5827  D-S logloss -0.0010 ± 0.0009 (n 1209)  MSE -0.43 ± 0.54  |  Dw-S logloss -0.0015 ± 0.0022 (n 1209)  MSE -0.76 ± 1.29
+    games 1-9  S logloss 0.5764  D-S logloss -0.0013 ± 0.0010 (n 138)  MSE -0.63 ± 0.61  |  Dw-S logloss -0.0002 ± 0.0037 (n 138)  MSE -0.05 ± 2.02
+    games 10+  S logloss 0.5836  D-S logloss -0.0009 ± 0.0010 (n 1071)  MSE -0.41 ± 0.60  |  Dw-S logloss -0.0016 ± 0.0024 (n 1071)  MSE -0.85 ± 1.43
+  season 2027
+    games 1+   S logloss 0.6215  D-S logloss -0.0002 ± 0.0007 (n 36)  MSE -0.15 ± 0.27  |  Dw-S logloss +0.0001 ± 0.0102 (n 36)  MSE -1.19 ± 4.00
+    games 1-9  S logloss 0.6215  D-S logloss -0.0002 ± 0.0007 (n 36)  MSE -0.15 ± 0.27  |  Dw-S logloss +0.0001 ± 0.0102 (n 36)  MSE -1.19 ± 4.00
+
+  Home lean, predicted minus actual home margin, by season (games 1+; ± 95%):
+    2024  S +0.27 ± 0.79  D +0.26 ± 0.78  Dw +0.20 ± 0.78  (n 1215)
+    2025  S +0.56 ± 0.78  D +0.50 ± 0.78  Dw +0.38 ± 0.78  (n 1209)
+    2026  S +0.43 ± 0.80  D +0.38 ± 0.80  Dw +0.17 ± 0.80  (n 1209)
+    2027  S +5.86 ± 4.36  D +5.84 ± 4.36  Dw +5.49 ± 4.40  (n 36)
+
+== 2. Against the close, each basis x book x season alone (± 95%)
+   logloss arm - close (negative = arm better); lean = arm margin + close home line
+  native        dk      2027 games 1+   n   36  S +0.0389 ± 0.0536 lean +0.47  |  D +0.0388 ± 0.0535 lean +0.45  |  Dw +0.0390 ± 0.0535 lean +0.10
+  native        dk      2027 games 1-9  n   36  S +0.0389 ± 0.0536 lean +0.47  |  D +0.0388 ± 0.0535 lean +0.45  |  Dw +0.0390 ± 0.0535 lean +0.10
+  reconstructed dk      2026 games 1+   n  964  S +0.0170 ± 0.0107 lean +0.29  |  D +0.0162 ± 0.0106 lean +0.22  |  Dw +0.0158 ± 0.0105 lean -0.01
+  reconstructed dk      2026 games 10+  n  964  S +0.0170 ± 0.0107 lean +0.29  |  D +0.0162 ± 0.0106 lean +0.22  |  Dw +0.0158 ± 0.0105 lean -0.01
+  reconstructed espnbet 2025 games 1+   n 1209  S +0.0104 ± 0.0087 lean +0.43  |  D +0.0102 ± 0.0086 lean +0.37  |  Dw +0.0105 ± 0.0086 lean +0.25
+  reconstructed espnbet 2025 games 1-9  n  138  S -0.0211 ± 0.0245 lean +0.27  |  D -0.0196 ± 0.0247 lean +0.27  |  Dw -0.0171 ± 0.0245 lean +0.13
+  reconstructed espnbet 2025 games 10+  n 1071  S +0.0144 ± 0.0092 lean +0.45  |  D +0.0140 ± 0.0092 lean +0.39  |  Dw +0.0141 ± 0.0091 lean +0.26
+  reconstructed espnbet 2026 games 1+   n  245  S +0.0022 ± 0.0202 lean +0.21  |  D +0.0004 ± 0.0203 lean +0.24  |  Dw -0.0001 ± 0.0211 lean +0.10
+  reconstructed espnbet 2026 games 1-9  n  138  S +0.0071 ± 0.0270 lean +0.12  |  D +0.0058 ± 0.0270 lean +0.14  |  Dw +0.0069 ± 0.0278 lean -0.03
+  reconstructed espnbet 2026 games 10+  n  107  S -0.0041 ± 0.0305 lean +0.33  |  D -0.0066 ± 0.0307 lean +0.37  |  Dw -0.0092 ± 0.0324 lean +0.27
+
+== 3. Intercept (home edge, pts) of D and Dw at points in each season
+  2024  10-26 D +2.51 Dw +2.42  12-07 D +2.61 Dw +2.60  01-19 D +2.57 Dw +2.55  03-04 D +2.43 Dw +2.34  04-14 D +2.35 Dw +2.23
+  2025  10-25 D +2.36 Dw +2.26  12-05 D +2.41 Dw +2.40  01-18 D +2.23 Dw +2.02  03-04 D +2.26 Dw +2.11  04-13 D +2.17 Dw +1.97
+  2026  10-24 D +2.17 Dw +1.96  12-04 D +2.15 Dw +1.96  01-16 D +2.13 Dw +1.94  03-03 D +2.02 Dw +1.69  04-12 D +2.06 Dw +1.84
+  2027  10-23 D +2.06 Dw +1.84  10-24 D +2.03 Dw +1.75  10-25 D +2.03 Dw +1.73  10-26 D +2.02 Dw +1.70
