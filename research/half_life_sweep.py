@@ -78,7 +78,7 @@ def fold(Y, h):
 
 
 def report():
-    P = pd.concat([pd.read_csv(os.path.join(OUT, f"predictions_hl{h}.csv"))
+    P = pd.concat([pd.read_csv(os.path.join(OUT, f"predictions_hl{h}.csv"), dtype={"hl": str})
                    for h in HALF_LIVES], ignore_index=True)
     key = ["season", "slate_date", "home", "away"]
     W = P.pivot_table(index=key + ["stage", "margin"], columns="hl", values=["m", "p"])
