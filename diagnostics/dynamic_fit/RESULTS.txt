@@ -1,0 +1,99 @@
+Dynamic chronological fit: the v9 base margin model refitted before every
+
+Static fits (S) by fold: 2017 int +2.62 sigma 11.71; 2018 int +2.84 sigma 11.99; 2019 int +2.55 sigma 12.16; 2021 int +2.56 sigma 12.40; 2022 int +2.24 sigma 12.73; 2023 int +2.10 sigma 12.98; 2024 int +2.16 sigma 12.93; 2025 int +2.17 sigma 13.08; 2026 int +2.11 sigma 13.17; 2027 int +2.08 sigma 13.30
+
+== 1. Against outcomes (arm - S, negative = arm better; ± 95%)
+  all seasons (description; seasons differ)
+    games 1+   S logloss 0.6137  D-S logloss -0.0001 ± 0.0003 (n 10803)  MSE -0.21 ± 0.13  |  Dw-S logloss +0.0003 ± 0.0009 (n 10803)  MSE -0.31 ± 0.43
+    game 0     S logloss 0.6176  D-S logloss +0.0000 ± 0.0002 (n 159)  MSE -0.01 ± 0.07  |  Dw-S logloss +0.0042 ± 0.0050 (n 159)  MSE +1.06 ± 2.01
+    games 1-9  S logloss 0.6331  D-S logloss -0.0001 ± 0.0005 (n 1294)  MSE -0.04 ± 0.19  |  Dw-S logloss +0.0003 ± 0.0027 (n 1294)  MSE -0.15 ± 1.05
+    games 10+  S logloss 0.6110  D-S logloss -0.0001 ± 0.0004 (n 9509)  MSE -0.23 ± 0.15  |  Dw-S logloss +0.0003 ± 0.0010 (n 9509)  MSE -0.33 ± 0.47
+  season 2017
+    games 1+   S logloss 0.6190  D-S logloss -0.0001 ± 0.0020 (n 1214)  MSE -0.34 ± 0.79  |  Dw-S logloss +0.0002 ± 0.0030 (n 1214)  MSE -0.41 ± 1.17
+    game 0     S logloss 0.6099  D-S logloss +0.0002 ± 0.0016 (n 16)  MSE -0.10 ± 0.53  |  Dw-S logloss +0.0007 ± 0.0040 (n 16)  MSE +0.18 ± 2.03
+    games 1-9  S logloss 0.5907  D-S logloss +0.0016 ± 0.0025 (n 140)  MSE +0.69 ± 1.03  |  Dw-S logloss +0.0025 ± 0.0039 (n 140)  MSE +1.12 ± 1.59
+    games 10+  S logloss 0.6227  D-S logloss -0.0003 ± 0.0023 (n 1074)  MSE -0.48 ± 0.89  |  Dw-S logloss -0.0002 ± 0.0033 (n 1074)  MSE -0.61 ± 1.30
+  season 2018
+    games 1+   S logloss 0.6173  D-S logloss -0.0003 ± 0.0012 (n 1214)  MSE -0.56 ± 0.46  |  Dw-S logloss +0.0004 ± 0.0021 (n 1214)  MSE -0.44 ± 0.80
+    game 0     S logloss 0.5931  D-S logloss +0.0003 ± 0.0005 (n 16)  MSE +0.08 ± 0.22  |  Dw-S logloss +0.0000 ± 0.0046 (n 16)  MSE +0.58 ± 2.67
+    games 1-9  S logloss 0.7080  D-S logloss -0.0010 ± 0.0025 (n 139)  MSE -0.12 ± 0.88  |  Dw-S logloss -0.0017 ± 0.0049 (n 139)  MSE +0.17 ± 2.00
+    games 10+  S logloss 0.6056  D-S logloss -0.0002 ± 0.0013 (n 1075)  MSE -0.61 ± 0.50  |  Dw-S logloss +0.0007 ± 0.0023 (n 1075)  MSE -0.52 ± 0.87
+  season 2019
+    games 1+   S logloss 0.6055  D-S logloss +0.0004 ± 0.0005 (n 1214)  MSE +0.10 ± 0.27  |  Dw-S logloss +0.0018 ± 0.0013 (n 1214)  MSE +0.52 ± 0.59
+    game 0     S logloss 0.5731  D-S logloss -0.0001 ± 0.0003 (n 16)  MSE -0.03 ± 0.11  |  Dw-S logloss +0.0082 ± 0.0091 (n 16)  MSE +1.90 ± 4.03
+    games 1-9  S logloss 0.5995  D-S logloss +0.0005 ± 0.0011 (n 140)  MSE -0.06 ± 0.59  |  Dw-S logloss +0.0037 ± 0.0036 (n 140)  MSE +0.52 ± 1.51
+    games 10+  S logloss 0.6063  D-S logloss +0.0003 ± 0.0006 (n 1074)  MSE +0.11 ± 0.30  |  Dw-S logloss +0.0016 ± 0.0014 (n 1074)  MSE +0.52 ± 0.64
+  season 2021
+    games 1+   S logloss 0.6360  D-S logloss -0.0004 ± 0.0011 (n 1064)  MSE -0.64 ± 0.50  |  Dw-S logloss -0.0006 ± 0.0049 (n 1064)  MSE -1.91 ± 2.26
+    game 0     S logloss 0.6564  D-S logloss +0.0001 ± 0.0006 (n 16)  MSE -0.02 ± 0.16  |  Dw-S logloss +0.0015 ± 0.0044 (n 16)  MSE -0.06 ± 0.73
+    games 1-9  S logloss 0.7275  D-S logloss -0.0025 ± 0.0021 (n 140)  MSE -0.95 ± 0.75  |  Dw-S logloss -0.0156 ± 0.0135 (n 140)  MSE -5.75 ± 5.25
+    games 10+  S logloss 0.6221  D-S logloss -0.0001 ± 0.0013 (n 924)  MSE -0.60 ± 0.56  |  Dw-S logloss +0.0016 ± 0.0053 (n 924)  MSE -1.32 ± 2.48
+  season 2022
+    games 1+   S logloss 0.6284  D-S logloss -0.0004 ± 0.0007 (n 1214)  MSE -0.23 ± 0.32  |  Dw-S logloss -0.0012 ± 0.0039 (n 1214)  MSE -0.60 ± 1.86
+    game 0     S logloss 0.6180  D-S logloss +0.0002 ± 0.0002 (n 16)  MSE +0.15 ± 0.25  |  Dw-S logloss +0.0116 ± 0.0308 (n 16)  MSE +7.44 ± 11.46
+    games 1-9  S logloss 0.6419  D-S logloss +0.0009 ± 0.0008 (n 141)  MSE +0.05 ± 0.27  |  Dw-S logloss +0.0024 ± 0.0143 (n 141)  MSE -0.90 ± 5.25
+    games 10+  S logloss 0.6266  D-S logloss -0.0005 ± 0.0008 (n 1073)  MSE -0.26 ± 0.36  |  Dw-S logloss -0.0016 ± 0.0040 (n 1073)  MSE -0.56 ± 1.99
+  season 2023
+    games 1+   S logloss 0.6323  D-S logloss +0.0000 ± 0.0005 (n 1214)  MSE +0.05 ± 0.20  |  Dw-S logloss +0.0025 ± 0.0026 (n 1214)  MSE +0.78 ± 1.14
+    game 0     S logloss 0.6333  D-S logloss -0.0002 ± 0.0004 (n 16)  MSE -0.00 ± 0.09  |  Dw-S logloss +0.0042 ± 0.0301 (n 16)  MSE -4.05 ± 7.89
+    games 1-9  S logloss 0.6290  D-S logloss -0.0004 ± 0.0008 (n 141)  MSE -0.20 ± 0.29  |  Dw-S logloss +0.0050 ± 0.0103 (n 141)  MSE -0.26 ± 3.17
+    games 10+  S logloss 0.6327  D-S logloss +0.0001 ± 0.0006 (n 1073)  MSE +0.08 ± 0.23  |  Dw-S logloss +0.0022 ± 0.0026 (n 1073)  MSE +0.91 ± 1.22
+  season 2024
+    games 1+   S logloss 0.6022  D-S logloss -0.0001 ± 0.0003 (n 1215)  MSE +0.00 ± 0.15  |  Dw-S logloss +0.0007 ± 0.0014 (n 1215)  MSE +0.55 ± 0.92
+    game 0     S logloss 0.5989  D-S logloss -0.0000 ± 0.0000 (n 15)  MSE -0.00 ± 0.01  |  Dw-S logloss +0.0105 ± 0.0152 (n 15)  MSE +1.34 ± 6.85
+    games 1-9  S logloss 0.6320  D-S logloss +0.0001 ± 0.0003 (n 141)  MSE +0.07 ± 0.15  |  Dw-S logloss +0.0019 ± 0.0056 (n 141)  MSE +1.56 ± 2.57
+    games 10+  S logloss 0.5983  D-S logloss -0.0001 ± 0.0003 (n 1074)  MSE -0.01 ± 0.17  |  Dw-S logloss +0.0005 ± 0.0015 (n 1074)  MSE +0.42 ± 0.99
+  season 2025
+    games 1+   S logloss 0.5967  D-S logloss -0.0002 ± 0.0003 (n 1209)  MSE -0.10 ± 0.18  |  Dw-S logloss -0.0002 ± 0.0016 (n 1209)  MSE -0.21 ± 0.98
+    game 0     S logloss 0.5955  D-S logloss -0.0003 ± 0.0004 (n 16)  MSE -0.19 ± 0.23  |  Dw-S logloss -0.0056 ± 0.0057 (n 16)  MSE -4.25 ± 5.37
+    games 1-9  S logloss 0.5970  D-S logloss +0.0002 ± 0.0004 (n 138)  MSE +0.17 ± 0.23  |  Dw-S logloss +0.0026 ± 0.0035 (n 138)  MSE +1.79 ± 2.61
+    games 10+  S logloss 0.5966  D-S logloss -0.0002 ± 0.0004 (n 1071)  MSE -0.14 ± 0.20  |  Dw-S logloss -0.0005 ± 0.0017 (n 1071)  MSE -0.47 ± 1.06
+  season 2026
+    games 1+   S logloss 0.5881  D-S logloss -0.0002 ± 0.0003 (n 1209)  MSE -0.22 ± 0.20  |  Dw-S logloss -0.0009 ± 0.0020 (n 1209)  MSE -1.25 ± 1.40
+    game 0     S logloss 0.6926  D-S logloss +0.0001 ± 0.0002 (n 16)  MSE -0.04 ± 0.03  |  Dw-S logloss +0.0053 ± 0.0116 (n 16)  MSE +0.58 ± 4.72
+    games 1-9  S logloss 0.5762  D-S logloss -0.0000 ± 0.0003 (n 138)  MSE -0.02 ± 0.16  |  Dw-S logloss +0.0030 ± 0.0044 (n 138)  MSE +0.81 ± 2.25
+    games 10+  S logloss 0.5896  D-S logloss -0.0002 ± 0.0003 (n 1071)  MSE -0.24 ± 0.22  |  Dw-S logloss -0.0014 ± 0.0022 (n 1071)  MSE -1.51 ± 1.55
+  season 2027
+    games 1+   S logloss 0.6169  D-S logloss -0.0003 ± 0.0006 (n 36)  MSE -0.04 ± 0.33  |  Dw-S logloss -0.0043 ± 0.0110 (n 36)  MSE -1.48 ± 3.25
+    game 0     S logloss 0.6037  D-S logloss -0.0000 ± 0.0001 (n 16)  MSE +0.04 ± 0.06  |  Dw-S logloss +0.0056 ± 0.0150 (n 16)  MSE +6.96 ± 8.77
+    games 1-9  S logloss 0.6169  D-S logloss -0.0003 ± 0.0006 (n 36)  MSE -0.04 ± 0.33  |  Dw-S logloss -0.0043 ± 0.0110 (n 36)  MSE -1.48 ± 3.25
+
+  Home lean, predicted minus actual home margin, by season (games 1+; ± 95%):
+    2017  S -0.53 ± 0.71  D -0.37 ± 0.71  Dw -0.26 ± 0.71  (n 1214)
+    2018  S +0.93 ± 0.71  D +0.76 ± 0.71  Dw +0.69 ± 0.71  (n 1214)
+    2019  S -0.08 ± 0.73  D -0.06 ± 0.73  Dw -0.12 ± 0.73  (n 1214)
+    2021  S +1.67 ± 0.84  D +1.49 ± 0.84  Dw +0.84 ± 0.84  (n 1064)
+    2022  S +0.70 ± 0.79  D +0.63 ± 0.79  Dw -0.07 ± 0.79  (n 1214)
+    2023  S -0.48 ± 0.71  D -0.41 ± 0.71  Dw -0.59 ± 0.71  (n 1214)
+    2024  S -0.11 ± 0.79  D -0.09 ± 0.79  Dw -0.12 ± 0.79  (n 1215)
+    2025  S +0.34 ± 0.78  D +0.31 ± 0.78  Dw +0.20 ± 0.78  (n 1209)
+    2026  S +0.36 ± 0.81  D +0.35 ± 0.81  Dw +0.13 ± 0.81  (n 1209)
+    2027  S +6.18 ± 4.34  D +6.18 ± 4.33  Dw +5.91 ± 4.36  (n 36)
+
+== 2. Against the close, each basis x book x season alone (± 95%)
+   logloss arm - close (negative = arm better); lean = arm margin + close home line
+  native        dk      2027 games 1+   n   36  S +0.0343 ± 0.0539 lean +0.79  |  D +0.0340 ± 0.0539 lean +0.79  |  Dw +0.0300 ± 0.0518 lean +0.52
+  native        dk      2027 game 0     n   16  S +0.0390 ± 0.0753 lean -0.26  |  D +0.0390 ± 0.0752 lean -0.26  |  Dw +0.0445 ± 0.0689 lean -0.54
+  native        dk      2027 games 1-9  n   36  S +0.0343 ± 0.0539 lean +0.79  |  D +0.0340 ± 0.0539 lean +0.79  |  Dw +0.0300 ± 0.0518 lean +0.52
+  reconstructed dk      2026 games 1+   n  964  S +0.0232 ± 0.0120 lean +0.20  |  D +0.0231 ± 0.0120 lean +0.17  |  Dw +0.0221 ± 0.0120 lean -0.07
+  reconstructed dk      2026 games 10+  n  964  S +0.0232 ± 0.0120 lean +0.20  |  D +0.0231 ± 0.0120 lean +0.17  |  Dw +0.0221 ± 0.0120 lean -0.07
+  reconstructed espnbet 2025 games 1+   n 1209  S +0.0146 ± 0.0103 lean +0.21  |  D +0.0144 ± 0.0103 lean +0.18  |  Dw +0.0144 ± 0.0103 lean +0.07
+  reconstructed espnbet 2025 game 0     n   16  S +0.0529 ± 0.0530 lean +1.02  |  D +0.0526 ± 0.0532 lean +1.02  |  Dw +0.0473 ± 0.0519 lean +0.84
+  reconstructed espnbet 2025 games 1-9  n  138  S -0.0199 ± 0.0260 lean +0.16  |  D -0.0197 ± 0.0260 lean +0.15  |  Dw -0.0172 ± 0.0256 lean +0.02
+  reconstructed espnbet 2025 games 10+  n 1071  S +0.0190 ± 0.0111 lean +0.21  |  D +0.0188 ± 0.0111 lean +0.19  |  Dw +0.0185 ± 0.0111 lean +0.07
+  reconstructed espnbet 2026 games 1+   n  245  S +0.0040 ± 0.0210 lean +0.23  |  D +0.0036 ± 0.0210 lean +0.24  |  Dw +0.0038 ± 0.0213 lean +0.12
+  reconstructed espnbet 2026 game 0     n   15  S +0.0432 ± 0.0854 lean -0.02  |  D +0.0433 ± 0.0853 lean -0.01  |  Dw +0.0480 ± 0.0828 lean -0.18
+  reconstructed espnbet 2026 games 1-9  n  138  S +0.0069 ± 0.0286 lean +0.19  |  D +0.0069 ± 0.0287 lean +0.20  |  Dw +0.0099 ± 0.0289 lean +0.03
+  reconstructed espnbet 2026 games 10+  n  107  S +0.0002 ± 0.0309 lean +0.28  |  D -0.0006 ± 0.0308 lean +0.29  |  Dw -0.0041 ± 0.0314 lean +0.24
+
+== 3. Intercept (home edge, pts) of D and Dw at points in each season
+  2017  10-25 D +2.62 Dw +2.70  12-05 D +2.63 Dw +2.67  01-16 D +2.70 Dw +2.77  03-03 D +2.78 Dw +2.86  04-12 D +2.84 Dw +2.94
+  2018  10-17 D +2.84 Dw +2.94  11-29 D +2.70 Dw +2.64  01-11 D +2.61 Dw +2.47  02-28 D +2.57 Dw +2.41  04-11 D +2.53 Dw +2.36
+  2019  10-16 D +2.55 Dw +2.39  11-28 D +2.55 Dw +2.43  01-10 D +2.56 Dw +2.49  02-27 D +2.58 Dw +2.55  04-10 D +2.57 Dw +2.52
+  2021  12-22 D +2.56 Dw +2.52  01-27 D +2.46 Dw +1.93  03-03 D +2.39 Dw +1.74  04-12 D +2.31 Dw +1.53  05-16 D +2.22 Dw +1.36
+  2022  10-19 D +2.24 Dw +1.41  11-30 D +2.22 Dw +1.55  01-11 D +2.18 Dw +1.54  02-27 D +2.09 Dw +1.34  04-10 D +2.10 Dw +1.51
+  2023  10-18 D +2.10 Dw +1.51  11-30 D +2.14 Dw +1.79  01-11 D +2.19 Dw +2.08  02-27 D +2.22 Dw +2.23  04-09 D +2.18 Dw +2.05
+  2024  10-24 D +2.16 Dw +1.99  12-06 D +2.19 Dw +2.18  01-18 D +2.20 Dw +2.24  03-04 D +2.18 Dw +2.14  04-14 D +2.16 Dw +2.09
+  2025  10-22 D +2.17 Dw +2.12  12-03 D +2.17 Dw +2.15  01-17 D +2.13 Dw +1.93  03-03 D +2.14 Dw +2.03  04-13 D +2.11 Dw +1.91
+  2026  10-21 D +2.11 Dw +1.91  12-01 D +2.11 Dw +1.92  01-14 D +2.10 Dw +1.90  03-02 D +2.06 Dw +1.69  04-12 D +2.08 Dw +1.83
+  2027  10-20 D +2.08 Dw +1.83  10-21 D +2.08 Dw +1.82  10-23 D +2.09 Dw +1.90  10-25 D +2.07 Dw +1.80  10-26 D +2.07 Dw +1.77
