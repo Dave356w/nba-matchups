@@ -1,0 +1,35 @@
+ORB% instead of ORB per 100: v9's base margin model, walk-forward, two arms.
+
+Games scored by both arms: 10966. Each row: pct - per100 (negative = pct better), ± 95%.
+
+== 1. Against outcomes (log loss, Brier, margin MSE)
+  games 1+   n 10807  per100 log loss 0.6136  pct - per100 -0.0003 ± 0.0002  Brier -0.0001 ± 0.0001  MSE -0.16 ± 0.10  better in 8 of 10
+  game 0     n   159  per100 log loss 0.6176  pct - per100 +0.0002 ± 0.0012  Brier +0.0001 ± 0.0006  MSE +0.04 ± 0.50  better in 4 of 10
+  games 1-9  n  1298  per100 log loss 0.6328  pct - per100 -0.0003 ± 0.0006  Brier -0.0001 ± 0.0003  MSE -0.17 ± 0.22  better in 7 of 10
+  games 10+  n  9509  per100 log loss 0.6110  pct - per100 -0.0003 ± 0.0002  Brier -0.0001 ± 0.0001  MSE -0.15 ± 0.11  better in 6 of 9
+
+  By season, games 1+:
+    2017  n  1214  log loss -0.0007 ± 0.0010  MSE -0.18 ± 0.37
+    2018  n  1214  log loss +0.0000 ± 0.0006  MSE +0.01 ± 0.23
+    2019  n  1214  log loss -0.0000 ± 0.0006  MSE -0.02 ± 0.23
+    2021  n  1064  log loss -0.0001 ± 0.0006  MSE -0.03 ± 0.27
+    2022  n  1214  log loss +0.0004 ± 0.0005  MSE +0.22 ± 0.22
+    2023  n  1214  log loss -0.0004 ± 0.0007  MSE -0.19 ± 0.30
+    2024  n  1215  log loss -0.0012 ± 0.0006  MSE -0.57 ± 0.30
+    2025  n  1209  log loss -0.0003 ± 0.0006  MSE -0.21 ± 0.30
+    2026  n  1209  log loss -0.0007 ± 0.0008  MSE -0.44 ± 0.40
+    2027  n    40  log loss -0.0013 ± 0.0034  MSE +0.29 ± 1.62
+
+== 2. Against the close, each basis x book x season alone (log loss arm - close, ± 95%)
+  reconstructed dk      2026 games 1+   n  964  per100 +0.0232 ± 0.0120  pct +0.0228 ± 0.0121  pct - per100 -0.0005 ± 0.0009
+  reconstructed dk      2026 games 10+  n  964  per100 +0.0232 ± 0.0120  pct +0.0228 ± 0.0121  pct - per100 -0.0005 ± 0.0009
+  reconstructed espnbet 2025 games 1+   n 1209  per100 +0.0146 ± 0.0103  pct +0.0143 ± 0.0103  pct - per100 -0.0003 ± 0.0006
+  reconstructed espnbet 2025 games 1-9  n  138  per100 -0.0199 ± 0.0260  pct -0.0191 ± 0.0260  pct - per100 +0.0008 ± 0.0012
+  reconstructed espnbet 2025 games 10+  n 1071  per100 +0.0190 ± 0.0111  pct +0.0186 ± 0.0111  pct - per100 -0.0004 ± 0.0006
+  reconstructed espnbet 2026 games 1+   n  245  per100 +0.0040 ± 0.0210  pct +0.0023 ± 0.0211  pct - per100 -0.0016 ± 0.0018
+  reconstructed espnbet 2026 games 1-9  n  138  per100 +0.0069 ± 0.0286  pct +0.0067 ± 0.0289  pct - per100 -0.0002 ± 0.0020
+  reconstructed espnbet 2026 games 10+  n  107  per100 +0.0002 ± 0.0309  pct -0.0033 ± 0.0310  pct - per100 -0.0035 ± 0.0031
+
+== 3. Composite weights, last fold (share of |w| per SD; R2 on team-season win%)
+  per100 fold 2027  R2 0.9214  off eFG 0.292  off TOV 0.113  off ORB 0.119  off FTr 0.046  def eFG 0.209  def TOV 0.107  def ORB 0.060  def FTr 0.053  | ORB 0.179
+  pct    fold 2027  R2 0.9251  off eFG 0.274  off TOV 0.129  off ORB 0.120  off FTr 0.040  def eFG 0.196  def TOV 0.124  def ORB 0.069  def FTr 0.047  | ORB 0.190
