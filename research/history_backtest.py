@@ -562,48 +562,10 @@ def part_c(folds, era):
     return L
 
 
-def draft_picks(year):
-    """norm_name -> pick in the year's NBA draft (BBR draft page, cached)."""
-    h = nc.fetch(f"{nc.BASE}/draft/NBA_{year}.html", nc.CACHE / f"draft_{year}.html")
-    m = re.search(r'<table[^>]*id="stats".*?</table>', nc.uncomment(h), re.S)
-    df = pd.read_html(io.StringIO(m.group(0)))[0]
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [x[-1] for x in df.columns]
-    df = df[pd.to_numeric(df["Pk"], errors="coerce").notna()]
-    return {pav.norm_name(n): int(k) for n, k in zip(df["Player"], df["Pk"])
-            if isinstance(n, str)}
-
-
-def rookie_curve(seasons):
-    """(a, b, n): rookie-season BPM ~ a + b log(pick), weighted by minutes,
-    over the rookies of `seasons` (drafted the summer before each)."""
-    X, Y, W = [], [], []
-    for t in seasons:
-        bpm = pav.load_bpm(t)
-        for name, pick in draft_picks(t - 1).items():
-            rec = bpm.get(name)
-            if rec is None or not (np.isfinite(rec[0]) and rec[1] > 0):
-                continue
-            X.append(np.log(pick))
-            Y.append(rec[0])
-            W.append(rec[1])
-    X, Y, sw = np.asarray(X), np.asarray(Y), np.sqrt(np.asarray(W, float))
-    A = np.column_stack([np.ones_like(X), X]) * sw[:, None]
-    a, b = np.linalg.lstsq(A, Y * sw, rcond=None)[0]
-    return float(a), float(b), len(X)
-
-
-def rookie_values(value, box, bpm, picks, curve):
-    """value with each drafted rookie (no BPM row last season) at the
-    rookie BPM his pick predicts, above replacement; (value, n rookies)."""
-    out, n = dict(value), 0
-    a, b = curve[:2]
-    for pid, name in box.drop_duplicates("player_id").set_index("player_id")["name"].items():
-        key = pav.norm_name(name)
-        if bpm.get(key) is None and key in picks:
-            out[pid] = a + b * np.log(picks[key]) - pav.REPLACEMENT_BPM
-            n += 1
-    return out, n
+# A9's rookie valuation is production's v10 one (player_availability).
+draft_picks = pav.draft_picks
+rookie_curve = pav.rookie_curve
+rookie_values = pav.rookie_values
 
 
 def rookie_column(folds):

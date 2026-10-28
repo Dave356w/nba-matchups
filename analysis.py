@@ -320,11 +320,18 @@ def stage(g):
 def on_stage(d, hyp):
     """The rows of picks / ats_sides output `d` whose stage a hypothesis
     covers: games 1-9 for an early rule, games 10+ otherwise; game 0 never.
-    New early segments require v9 at the price's own snapshot."""
+    New early segments require a v9 or v10 tag at the price's own snapshot
+    (v10 amendment, 2026-10-28); older tags never enter them."""
     keep = d["early"] if hyp["early"] else ~d["early"] & ~d["opener"]
     if hyp.get("requires_v9"):
-        keep = keep & d["model_tag"].astype(str).str.endswith("_v9")
+        keep = keep & d["model_tag"].astype(str).str.endswith(EARLY_TAG_SUFFIXES)
     return keep
+
+
+# First-snapshot model tags the games 1-9 rows accept (CLAUDE.md amendments
+# of 2026-10-23 and 2026-10-28).
+EARLY_TAG_SUFFIXES = ("_v9", "_v10")
+V10_REGISTRATION_UTC = "2026-10-28T18:16:46Z"
 # The share of the model's disagreement with the price that outcomes bore out
 # at the opening line, games 10+ (research/open_shrinkage.py, 2026-10-22: w
 # fitted on the other priced season +0.43 / +0.36; at the close it is ~0).

@@ -110,6 +110,15 @@ FADE_GAMES = 10
 # P(home win) = Phi(m / sigma), sigma = the fit's residual SD (predict,
 # predict_margin).
 MARGIN_LINK = "margin"
+# v10 (owner's decision 2026-10-28; research/v10_candidate.py, arm v10h25):
+# v9 with the composite's rebounding factors as ORB% = ORB / (ORB + opponent
+# DRB) instead of offensive rebounds per 100 (weights.json "orb": "pct"),
+# drafted rookies valued by pick in talent_diff and av_bpm
+# (player_availability.rookie_curve), and the injury-report route refitted
+# before each slate (player_availability.refit). Model files carry
+# "version": 10; v9 files score exactly as before.
+V10 = 10
+ORB_PCT = "pct"
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
 
@@ -176,22 +185,30 @@ def season_table(html, table_id):
     return df.apply(pd.to_numeric, errors="coerce")
 
 
-def rates_from_per100(o, p):
-    """Team-season features from BBR per-100 team (o) and opponent (p) tables."""
-    def f(d):
+def rates_from_per100(o, p, orb_pct=False):
+    """Team-season features from BBR per-100 team (o) and opponent (p) tables.
+    orb_pct (v10): the rebounding factors as ORB% (own ORB over own ORB plus
+    the opponents' DRB, and the opponents' likewise) instead of per 100."""
+    def f(d, opp):
+        orb = d["ORB"] / (d["ORB"] + opp["DRB"]) * 100 if orb_pct else d["ORB"]
         return ((d["FG"] + 0.5 * d["3P"]) / d["FGA"] * 100,
-                d["TOV"], d["ORB"], d["FTA"] / d["FGA"] * 100)
-    a, b = f(o), f(p)
+                d["TOV"], orb, d["FTA"] / d["FGA"] * 100)
+    a, b = f(o, p), f(p, o)
     return np.column_stack([a[0], -a[1], a[2], a[3], -b[0], b[1], -b[2], -b[3]])
 
 
-def load_team_season(y):
+def is_orb_pct(weights):
+    """Composite weights fitted on ORB% (v10) rather than ORB per 100."""
+    return bool(weights) and weights.get("orb") == ORB_PCT
+
+
+def load_team_season(y, orb_pct=False):
     html = season_html(y)
     o = season_table(html, "per_poss-team")
     p = season_table(html, "per_poss-opponent").loc[o.index]
     adv = season_table(html, "advanced-team").loc[o.index]
     win_pct = (adv["W"] / (adv["W"] + adv["L"])).values
-    X = rates_from_per100(o, p)
+    X = rates_from_per100(o, p, orb_pct)
     ok = ~np.isnan(X).any(1) & ~np.isnan(win_pct)
     return X[ok], win_pct[ok]
 
@@ -239,8 +256,9 @@ def load_logs(y, refresh=False):
 # ----------------------------------------------------------------------------
 # Features from raw totals
 # ----------------------------------------------------------------------------
-def features_from_totals(t):
-    """t: length-16 array in COLS order (weighted or unweighted sums)."""
+def features_from_totals(t, orb_pct=False):
+    """t: length-16 array in COLS order (weighted or unweighted sums).
+    orb_pct (v10): rebounding as ORB / (ORB + opponent DRB) x 100."""
     T = dict(zip(STATS, t[:8]))
     O = dict(zip(STATS, t[8:]))
 
@@ -253,7 +271,11 @@ def features_from_totals(t):
         return ((a["FG"] + 0.5 * a["3P"]) / a["FGA"] * 100,
                 a["TOV"] / p * 100, a["ORB"] / p * 100, a["FTA"] / a["FGA"] * 100)
     a, b = four(T), four(O)
-    return np.array([a[0], -a[1], a[2], a[3], -b[0], b[1], -b[2], -b[3]])
+    f = np.array([a[0], -a[1], a[2], a[3], -b[0], b[1], -b[2], -b[3]])
+    if orb_pct:
+        f[2] = T["ORB"] / (T["ORB"] + O["DRB"]) * 100
+        f[6] = -O["ORB"] / (O["ORB"] + T["DRB"]) * 100
+    return f
 
 
 def rest_days(log, i, date=None):
@@ -279,10 +301,10 @@ def decayed_features(log, i, half_life=HALF_LIFE):
 # ----------------------------------------------------------------------------
 # Composite weights (team-season ridge)
 # ----------------------------------------------------------------------------
-def fit_weights(years, lam=RIDGE_LAMBDA):
+def fit_weights(years, lam=RIDGE_LAMBDA, orb_pct=False):
     Xs, ys = [], []
     for y in years:
-        X, w = load_team_season(y)
+        X, w = load_team_season(y, orb_pct)
         Xs.append(X - X.mean(0))            # center within season (era-neutral)
         ys.append(w - w.mean())
     Xa = np.vstack(Xs)
@@ -292,8 +314,11 @@ def fit_weights(years, lam=RIDGE_LAMBDA):
     w = np.linalg.solve(Z.T @ Z + lam * np.eye(Z.shape[1]), Z.T @ t)
     pred = Z @ w
     r2 = 1 - ((t - pred) ** 2).sum() / (t ** 2).sum()
-    return {"years": list(years), "sd": sd.tolist(), "w": w.tolist(),
-            "lambda": lam, "r2_in_sample": float(r2)}
+    out = {"years": list(years), "sd": sd.tolist(), "w": w.tolist(),
+           "lambda": lam, "r2_in_sample": float(r2)}
+    if orb_pct:
+        out["orb"] = ORB_PCT
+    return out
 
 
 def save_json(obj, name):
@@ -437,11 +462,12 @@ def fade_side(log, i, prior, lg_pct, weights, half_life=HALF_LIFE):
     t = fade_totals(log, i, prior, fade_rho(i), half_life)
     if t is None:
         return None
-    f = features_from_totals(np.array([t[c] for c in COLS], float))
+    pct = is_orb_pct(weights)
+    f = features_from_totals(np.array([t[c] for c in COLS], float), orb_pct=pct)
     luck = float("nan")
     if set(X3) <= set(t) and np.isfinite(lg_pct):
         r = regress_3p(t, "O", lg_pct)
-        fr = features_from_totals(np.array([r[c] for c in COLS], float))
+        fr = features_from_totals(np.array([r[c] for c in COLS], float), orb_pct=pct)
         luck = composite(fr, weights["sd"], weights["w"]) - composite(f, weights["sd"], weights["w"])
     ft = 100.0 * t["TFT"] / t["TFTA"] if t["TFTA"] > 0 else float("nan")
     return f, luck, ft
@@ -728,6 +754,10 @@ def main():
         s.add_argument("--v9", action="store_true",
                        help="fit-logit: v9, v8's features and games fitted by least "
                             "squares on the final margin (P = Phi(m / sigma))")
+        s.add_argument("--v10", action="store_true",
+                       help="fit-weights: rebounding as ORB%%; fit-logit: v10, v9's routing "
+                            "with drafted rookies valued by pick in talent_diff (needs "
+                            "weights fitted with --v10)")
         s.add_argument("--box-cache", default=None,
                        help="--v5: directory of box_<season>.csv (default research/output)")
     a = ap.parse_args()
@@ -741,7 +771,7 @@ def main():
             print("downloaded", y)
 
     elif a.cmd == "fit-weights":
-        wts = fit_weights(parse_years(a.years))
+        wts = fit_weights(parse_years(a.years), orb_pct=a.v10)
         save_json(wts, "weights.json")
         print(f"saved model/weights.json  (in-sample R2 {wts['r2_in_sample']:.3f})")
         for n, wi, s in zip(FEATURES, wts["w"], wts["sd"]):
@@ -775,10 +805,13 @@ def main():
         weights = load_json("weights.json") if (MODEL_DIR / "weights.json").exists() \
             else fit_weights(parse_years(a.train_years))
         save_json(weights, "weights.json")
-        if a.v8 or a.v9:
+        if a.v10 and not is_orb_pct(weights):
+            sys.exit("--v10 needs model/weights.json fitted with fit-weights --v10 (ORB%)")
+        if a.v8 or a.v9 or a.v10:
             import player_availability as pav   # lazy: it imports this module
             G = pd.concat([fade_v8_games(y, weights, a.half_life,
-                                         talent=pav.season_talent(y, a.box_cache),
+                                         talent=pav.season_talent(y, a.box_cache,
+                                                                  rookies=a.v10),
                                          talent0=pav.preseason_talent(y, cache_dir=a.box_cache))
                            for y in parse_years(a.years)])
             feats = V6_FEATURES
@@ -793,13 +826,16 @@ def main():
         else:
             G = pd.concat([build_games(y, weights, a.half_life) for y in parse_years(a.years)])
             feats = PHASE_FEATURES if a.phase else LOGIT_FEATURES
-        m = (fit_margin(G[feats].values, G["margin"], feats) if a.v9 else
+        m = (fit_margin(G[feats].values, G["margin"], feats) if a.v9 or a.v10 else
              fit_logit(G[feats].values, G["win"], feats))
         m.update({"half_life": a.half_life, "n_games": int(len(G)), "years": parse_years(a.years)})
-        if a.phase or a.v5 or a.v6 or a.v8 or a.v9:
+        if a.phase or a.v5 or a.v6 or a.v8 or a.v9 or a.v10:
             m["season_days"] = SEASON_DAYS
-        if a.v8 or a.v9:
+        if a.v8 or a.v9 or a.v10:
             m.update({"fade_rho": FADE_RHO, "fade_games": FADE_GAMES})
+        if a.v10:
+            m.update({"version": V10, "orb": ORB_PCT,
+                      "rookies": pav.rookie_meta(max(parse_years(a.years)) + 1)})
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
         sig = f"  sigma={m['sigma']:.2f} (margin model)" if is_margin(m) else ""

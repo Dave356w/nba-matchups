@@ -74,10 +74,19 @@ MODEL_TAG_V9 = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_v9'
 MODEL_TAG_V9_AVAIL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_avail_v9'
 MODEL_TAG_V9_NEUTRAL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_neutral_v9'
 MODEL_TAG_V9_NEUTRAL_AVAIL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_margin_neutral_avail_v9'
+# v10 (CLAUDE.md amendment 2026-10-28): ORB%, drafted rookies by pick, and
+# the report route refitted before each slate. v9 files keep v9's tags.
+MODEL_TAG_V10 = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v10'
+MODEL_TAG_V10_AVAIL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_avail_v10'
+MODEL_TAG_V10_NEUTRAL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v10'
+MODEL_TAG_V10_NEUTRAL_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
+                               'margin_neutral_avail_v10')
+NEUTRAL_TAGS = (MODEL_TAG_V9_NEUTRAL, MODEL_TAG_V9_NEUTRAL_AVAIL,
+                MODEL_TAG_V10_NEUTRAL, MODEL_TAG_V10_NEUTRAL_AVAIL)
 PRESEASON_TAG = 'fourfactors_hl25_b2b_carry25_preseason_g0'
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
               MODEL_TAG_V6_AVAIL, MODEL_TAG_V8_AVAIL, MODEL_TAG_V9_AVAIL,
-              MODEL_TAG_V9_NEUTRAL_AVAIL)
+              MODEL_TAG_V9_NEUTRAL_AVAIL, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -144,6 +153,19 @@ def is_v9(model):
     return is_v8(model) and nc.is_margin(model)
 
 
+def is_v10(model):
+    """v10: v9 on ORB% weights, rookies by pick, report route refitted per
+    slate (model files carry "version": 10)."""
+    return is_v9(model) and model.get("version") == nc.V10
+
+
+def neutral_tag(model, avail):
+    """The neutral-input tag of a v9 / v10 route."""
+    if is_v10(model):
+        return MODEL_TAG_V10_NEUTRAL_AVAIL if avail else MODEL_TAG_V10_NEUTRAL
+    return MODEL_TAG_V9_NEUTRAL_AVAIL if avail else MODEL_TAG_V9_NEUTRAL
+
+
 def is_early_talent(early):
     """The v7 early logit (talent_diff in its features)."""
     return early is not None and "talent_diff" in (early.get("features") or [])
@@ -151,6 +173,8 @@ def is_early_talent(early):
 
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
+    if is_v10(model):
+        return MODEL_TAG_V10_AVAIL if avail else MODEL_TAG_V10
     if is_v9(model):
         return MODEL_TAG_V9_AVAIL if avail else MODEL_TAG_V9
     if is_v8(model):
@@ -168,6 +192,9 @@ def active_tags(model, avail_model, fallback=None, early=None):
     """Tags the current model files produce (page footer, ledger split),
     including the v4 fallback's when the base model is v5 and the v7 early
     tag when the early logit has talent."""
+    if is_v10(model):
+        return [MODEL_TAG_V10, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL,
+                MODEL_TAG_V10_NEUTRAL_AVAIL]
     if is_v9(model):
         return [MODEL_TAG_V9, MODEL_TAG_V9_AVAIL, MODEL_TAG_V9_NEUTRAL, MODEL_TAG_V9_NEUTRAL_AVAIL]
     tags = [model_tag(model)]
@@ -255,8 +282,7 @@ def score_game_v8(logs, home, away, date, weights, model, prior_logs=None,
     vals = filled.iloc[0].to_dict()
     out["model_tag"] = model_tag(use, avail=use is avail_model)
     if is_v9(use) and (bool(neutral.iloc[0]) or injury_filled):
-        out["model_tag"] = (MODEL_TAG_V9_NEUTRAL_AVAIL if use is avail_model
-                            else MODEL_TAG_V9_NEUTRAL)
+        out["model_tag"] = neutral_tag(use, use is avail_model)
     xs = [[vals[f] for f in use["features"]]]
     p = float(nc.predict(use, xs)[0])
     if nc.is_margin(use):                 # v9: the model's own home margin
@@ -336,9 +362,9 @@ def route(row, model):
         return "abstain"
     if is_v8(model):
         tag = row.get("model_tag")
-        return ("neutral" if tag in (MODEL_TAG_V9_NEUTRAL, MODEL_TAG_V9_NEUTRAL_AVAIL) else
+        return ("neutral" if tag in NEUTRAL_TAGS else
                 "avail" if tag in AVAIL_TAGS else
-                "base" if tag in (MODEL_TAG_V8, MODEL_TAG_V9)
+                "base" if tag in (MODEL_TAG_V8, MODEL_TAG_V9, MODEL_TAG_V10)
                 else "carry" if tag == MODEL_TAG else "v4")
     if min(row.get("gp_home", 0), row.get("gp_away", 0)) < nc.MIN_GAMES:
         return "early"
@@ -374,13 +400,18 @@ def score_slate(today, weights, model, now=None):
     avail_model, live = load_avail(), None
     if avail_model is not None or is_v5(model):     # v5 needs box-score talent
         try:
+            rookies = (pav.rookies_for(season_for(today), model.get("rookies"))
+                       if is_v10(model) else None)
             live = pav.LiveAvailability(season_for(today), today,
-                                        now.astimezone(ET).replace(tzinfo=None))
+                                        now.astimezone(ET).replace(tzinfo=None),
+                                        rookies=rookies)
             log(f"availability: report {live.report_time} "
                 f"({0 if live.report is None else len(live.report)} rows); "
                 f"BPM covers {100 * live.bpm_minutes:.0f}% of minutes")
         except Exception as e:  # noqa: BLE001 - base / v4 fallback rows
             log(f"availability failed ({e!r}); primary model uses neutral optional inputs")
+    if is_v10(avail_model):
+        avail_model = refit_avail(avail_model, today, weights, live, prior)
     opening = nc.season_opening(logs) or pd.Timestamp(today)
     talent = getattr(live, "talent", None)
     talent0 = getattr(live, "talent0", None)
@@ -407,6 +438,31 @@ def score_slate(today, weights, model, now=None):
         add_pregame_price(r)
         rows.append(r)
     return rows
+
+
+def refit_avail(avail_model, today, weights, live, prior=None):
+    """v10's report route for today's slate: refitted on its training games
+    plus this season's covered games 1+ before today (pav.refit). Tips come
+    from the native ledger. On any failure the fitted file is used as is
+    (logged); its tags are the same."""
+    if live is None:
+        return avail_model
+    try:
+        led = ledger.load(ledger.NATIVE_PATH)
+        tips = dict(zip(led["game_id"].astype(str), led["tip_utc"].astype(str)))
+        archive = pav.ReportArchive(live.report_dir, now=live.now_et)
+        try:
+            extra = pav.season_rows(season_for(today), today, weights, live.box, live.value,
+                                    live.talent, live.talent0, tips, archive, prior)
+        finally:
+            archive.save()
+        m = pav.refit(avail_model, extra)
+        log(f"v10 report route refitted with {m['n_refit']} games of this season "
+            f"(intercept {m['intercept']:+.2f}, sigma {m['sigma']:.2f})")
+        return m
+    except Exception as e:  # noqa: BLE001 - the season-start fit still scores
+        log(f"v10 refit failed ({e!r}); report route uses the fitted file")
+        return avail_model
 
 
 def add_pregame_price(r):
@@ -2218,6 +2274,7 @@ def render_model(native, recon, built):
     native, recon = analysis.market_view(native), analysis.market_view(recon)
     _w, base = load_model()
     avail = load_avail()
+    ver = "v10" if is_v10(base) else "v9"
     body = ["<h1>Model</h1><p class='lead'>Goal: flat 1u ROI on the model's "
             "side, judged against the market-correct null and the market "
             "favourite on the same games; log loss and Brier against the close "
@@ -2227,13 +2284,17 @@ def render_model(native, recon, built):
             "<p class='note'>Active tags: "
             + " / ".join(f"<code>{esc(t)}</code>" for t in ACTIVE_TAGS) + "</p>"]
     body.append(
-        "<h2>Routing</h2><p class='note'>One v9 model for every game. The rating "
+        f"<h2>Routing</h2><p class='note'>One {ver} model for every game. The rating "
         "fades last season out by game 10. The covered injury-report arm starts "
         "at game 1; otherwise the base arm is used. Missing optional inputs "
         "contribute zero and receive a distinct neutral-input tag. Missing core "
-        "ratings abstain. No carryover or v4 fallback is loaded.</p>")
-    coefs = [_coef_table("v9 base margin (every game)", base),
-             _coef_table("v9 injury-report margin (games 1+)", avail)]
+        "ratings abstain. No carryover or v4 fallback is loaded."
+        + (" v10: rebounding as ORB%, drafted rookies valued by pick, and the "
+           "injury-report arm refitted before each slate on its training seasons "
+           "plus this season's covered games (the coefficients below are the "
+           "season-start fit)." if ver == "v10" else "") + "</p>")
+    coefs = [_coef_table(f"{ver} base margin (every game)", base),
+             _coef_table(f"{ver} injury-report margin (games 1+)", avail)]
     body.append("<h2>Fitted coefficients</h2><p class='note'>P(home) = Φ(margin / residual sigma). The margin is intercept "
                 "+ Σ coef × term, fitted by least squares on "
                 "earlier seasons; a change to them or to a term is a new model "

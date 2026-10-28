@@ -1,4 +1,13 @@
-# Model v9
+# Model v10 (implemented; live once "Fit model" runs with version v10)
+
+**v10** (owner's decision 2026-10-28; CLAUDE.md "Model v10 amendment";
+"v10" at the end): v9 below with three changes, from
+`research/v10_candidate.py` (arm v10h25). Half-life, terms, routes and
+training seasons are v9's. Tags end `_v10`
+(`fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v10`,
+`..._margin_avail_v10`, and their `neutral` variants). Until the v10 files
+are fitted the build keeps scoring v9, with v9's tags.
+
 
 **v9** (owner's decision 2026-10-23; "v9" at the end): v8 below, unchanged
 in its inputs, routes and training seasons, but each route is fitted by
@@ -644,6 +653,49 @@ Activation: (1) "Fit model" fits both v9 models (same seasons as v8);
 scored after the fact by v9 (owner's request, 2026-10-23; hindsight, never
 pooled with the native record). The build follows the model files; native
 rows keep the tag and P they were written under.
+
+## v10 (owner's decision, 2026-10-28)
+
+- **ORB%** (`nba_composite.features_from_totals` / `rates_from_per100`,
+  `orb_pct`): the composite's two rebounding factors are ORB / (ORB +
+  opponent DRB) × 100 for the team and its opponents, instead of offensive
+  rebounds per 100 possessions, in the game features (and so in opponents'
+  3P luck) and in the team-season weight fit. `model/weights.json` records
+  `"orb": "pct"`; the rating reads it (`is_orb_pct`).
+- **Rookies by pick** (`player_availability.rookie_curve` /
+  `rookie_values`): a drafted rookie with no BPM row last season is valued
+  at the rookie-season BPM his pick predicts, a + b log(pick), fitted
+  minutes-weighted on the rookies of 2014-15 to last season, instead of at
+  replacement, in talent_diff and av_bpm. Game 0's preseason talent gives
+  rookies no minutes role and is unchanged. The model files store that
+  season's curve and draft picks (`"rookies"`), so the build fetches no
+  draft page.
+- **Per-slate report route** (`player_availability.refit`,
+  `build_site.refit_avail`): before each slate the injury-report model is
+  refitted by least squares on its saved training games
+  (`model/avail_train.csv`) plus this season's covered games 1+ already
+  played, with the same features and the same 30-minute report rule
+  (`season_rows`). The base route stays the season-start fit. A failed
+  refit scores with the fitted file (same tag) and is logged.
+- **Backfill** (`backfill_history.reconstruct_season_v8(..., v10=True)`,
+  chosen automatically when `model/logit.json` is v10): the same three
+  changes, each slate's report route refitted on games before it
+  (`slate_refits`).
+
+Test (`research/v10_candidate.py`, `diagnostics/v10_candidate/RESULTS.txt`):
+walk-forward 2017–2027 on production routing, v10 − v9 on the same 10,966
+games, ± 95%: games 1+ log loss −0.0009 ± 0.0004 (Brier −0.0004 ± 0.0002,
+better in 8 of 10 seasons); report route −0.0022 ± 0.0010; against the
+close, games 10+, DraftKings 2025-26 −0.0017 ± 0.0015 and ESPN BET 2024-25
+−0.0012 ± 0.0015 (Brier agrees); games 1–9 −0.0004 ± 0.0007, with ESPN BET
+2024-25 games 1–9 +0.0024 ± 0.0021. Passes G7; largest season gain 0.0039.
+
+Activation: (1) "Fit model" with version v10 (weights, base model, report
+model and its training games); (2) "Backfill history" `--rescore` and
+`rebuild` (they follow the v10 files); (3) model review, DraftKings and
+History backtests. Native rows keep the tag and P they were first written
+under; the games 1–9 tests accept `_v9` and `_v10` first tags
+(`analysis.EARLY_TAG_SUFFIXES`).
 
 ## Version rule
 

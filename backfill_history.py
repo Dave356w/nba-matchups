@@ -87,17 +87,26 @@ from research.legacy_backfill import reconstruct_season  # closed-research compa
 def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
                           talent0=None, weight_years=WEIGHT_YEARS,
                           phase_years=PHASE_YEARS, report_years=REPORT_YEARS,
-                          game_years=GAME_YEARS, margin=False):
+                          game_years=GAME_YEARS, margin=False, v10=False):
     """Reconstruct with the same v9 base/report arms as live scoring.
     Optional missing terms contribute zero and receive neutral-input tags;
     core missing inputs abstain. Fits exclude the test season (or use only
     earlier seasons with walk_forward). No carryover/v4 model is fitted.
     margin=False retains the archived v8 link for research only.
+    v10=True (with margin): ORB% weights, drafted rookies valued by pick
+    (`talent` / `terms` must be built with rookies), and the report route
+    refitted before each slate on its training seasons plus season y's
+    covered games before that slate, as the build does (pav.refit).
     """
+    margin = margin or v10
     fit = ((lambda X, t, f: nc.fit_margin(X, t["margin"], f)) if margin else
            (lambda X, t, f: nc.fit_logit(X, t["win"], f)))
-    tag, tag_av = ((build_site.MODEL_TAG_V9, build_site.MODEL_TAG_V9_AVAIL) if margin
+    tag, tag_av = ((build_site.MODEL_TAG_V10, build_site.MODEL_TAG_V10_AVAIL) if v10 else
+                   (build_site.MODEL_TAG_V9, build_site.MODEL_TAG_V9_AVAIL) if margin
                    else (build_site.MODEL_TAG_V8, build_site.MODEL_TAG_V8_AVAIL))
+    tag_n, tag_nav = ((build_site.MODEL_TAG_V10_NEUTRAL, build_site.MODEL_TAG_V10_NEUTRAL_AVAIL)
+                      if v10 else (build_site.MODEL_TAG_V9_NEUTRAL,
+                                   build_site.MODEL_TAG_V9_NEUTRAL_AVAIL))
     def use(years):
         out = training_years(years, y, walk_forward)
         if not out:
@@ -108,7 +117,7 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     def tal(t):
         if t not in memo:
             try:
-                memo[t] = pav.season_talent(t)
+                memo[t] = pav.season_talent(t, rookies=True) if v10 else pav.season_talent(t)
             except Exception as e:  # noqa: BLE001 - rows fall back
                 print(f"season {t}: no talent ({e!r})", flush=True)
                 memo[t] = None
@@ -123,7 +132,8 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
                 memo0[t] = {}
         return memo0[t]
 
-    weights = nc.fit_weights(use(weight_years))
+    weights = (nc.fit_weights(use(weight_years), orb_pct=True) if v10 else
+               nc.fit_weights(use(weight_years)))
     phase_train = use(phase_years)
     games = {t: nc.fade_v8_games(t, weights, talent=tal(t), talent0=tal0(t))
              for t in set(phase_train) | {y}}
@@ -139,7 +149,7 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     test.loc[fin, "p_home"] = nc.predict(base, test.loc[fin, feats].values)
     test.loc[fin, "margin_home"] = nc.predict_margin(base, test.loc[fin, feats].values)
     test.loc[fin, "model_tag"], test.loc[fin, "route"] = tag, "base"
-    ver = "v9" if margin else "v8"
+    ver = "v10" if v10 else "v9" if margin else "v8"
     print(f"season {y}: {ver} base on {int(fin.sum())}/{len(test)} games (fit n="
           f"{int(ok.sum())})", flush=True)
     tkey = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d") + test["home"] + test["away"]
@@ -160,8 +170,11 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
             usable = np.isfinite(values.to_numpy(float)).all(axis=1)
             te, values, changed = te[usable], values[usable], changed[usable]
             tk = te["slate_date"] + te["home"] + te["away"]
-            pmap = dict(zip(tk, nc.predict(am, values.values)))
-            mmap = dict(zip(tk, nc.predict_margin(am, values.values)))
+            if v10:
+                pv, mv = slate_refits(am, tr.loc[ok], te, values)
+            else:
+                pv, mv = nc.predict(am, values.values), nc.predict_margin(am, values.values)
+            pmap, mmap = dict(zip(tk, pv)), dict(zip(tk, mv))
             neutral_keys = set(tk[changed])
             hit = tkey.isin(pmap)
             test.loc[hit, "p_home"] = tkey[hit].map(pmap).to_numpy(float)
@@ -170,7 +183,7 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
             test.loc[hit, "route"] = "avail"
             neutral_hit = hit & tkey.isin(neutral_keys)
             if margin:
-                test.loc[neutral_hit, "model_tag"] = build_site.MODEL_TAG_V9_NEUTRAL_AVAIL
+                test.loc[neutral_hit, "model_tag"] = tag_nav
             test.loc[neutral_hit, "route"] = "neutral"
             print(f"season {y}: {ver} availability on {int(hit.sum())}/{len(test)} games "
                   f"(fit on {others}, n={int(ok.sum())})", flush=True)
@@ -182,11 +195,29 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     if miss.any():
         test.loc[miss, "p_home"] = nc.predict(base, values.loc[miss].values)
         test.loc[miss, "margin_home"] = nc.predict_margin(base, values.loc[miss].values)
-        test.loc[miss, "model_tag"] = build_site.MODEL_TAG_V9_NEUTRAL if margin else tag
+        test.loc[miss, "model_tag"] = tag_n if margin else tag
         test.loc[miss, "route"] = "neutral"
     test = test[test["p_home"].notna()].reset_index(drop=True)
     print(f"season {y}: {ver} routes {test['route'].value_counts().to_dict()}", flush=True)
     return test, weights, base
+
+
+def slate_refits(model, train, te, values):
+    """v10's per-slate report route on season rows `te` (with their model
+    inputs `values`): each slate scored by `model` refitted on `train` plus
+    te's complete covered games before that slate (pav.refit), as the
+    build does live. Returns (P, margin) arrays aligned with te."""
+    feats = model["features"]
+    train = train[feats + ["margin"]]
+    dates = pd.to_datetime(te["date"]).to_numpy()
+    done = np.isfinite(te[feats + ["margin"]].to_numpy(float)).all(axis=1)
+    p, m = np.full(len(te), np.nan), np.full(len(te), np.nan)
+    for d in np.unique(dates):
+        idx = dates == d
+        mod = pav.refit(model, te.loc[done & (dates < d), feats + ["margin"]], train)
+        p[idx] = nc.predict(mod, values.values[idx])
+        m[idx] = nc.predict_margin(mod, values.values[idx])
+    return p, m
 
 
 def rescore(recon, test):
@@ -284,6 +315,8 @@ def main(argv=None):
                     help="score with the v7 routing (games 1-9 on the early logit)")
     ap.add_argument("--v8", action="store_true",
                     help="score with v8 (the v9 routing fitted on the win, not the margin)")
+    ap.add_argument("--v9", action="store_true",
+                    help="score with v9 even when model/ holds v10 files")
     ap.add_argument("--rebuild", action="store_true",
                     help="the season in progress: score its played games after the fact "
                          "and write data/nba_rebuilt.csv (basis rebuilt), replacing it")
@@ -291,6 +324,13 @@ def main(argv=None):
     if a.rebuild and (a.rescore or min(a.seasons) <= max(PHASE_YEARS)):
         raise SystemExit("--rebuild takes only seasons in progress (after "
                          f"{max(PHASE_YEARS)}) and no --rescore")
+    # v10 when the committed model files are v10 (the live model), unless an
+    # earlier version is asked for
+    older = a.v4 or a.v5 or a.v6 or a.v7 or a.v8 or a.v9
+    try:
+        v10 = not older and build_site.is_v10(nc.load_json("logit.json"))
+    except (FileNotFoundError, ValueError):
+        v10 = False
     terms = None
     if not a.no_avail:
         archive = pav.ReportArchive(os.path.join(a.cache, "injury_reports"))
@@ -300,7 +340,8 @@ def main(argv=None):
             # own reports too; it is never a training season
             for t in sorted(set(REPORT_YEARS) | {y for y in a.seasons if y > max(REPORT_YEARS)}):
                 try:
-                    terms[t], s = pav.season_terms(t, archive, a.cache)
+                    terms[t], s = (pav.season_terms(t, archive, a.cache, rookies=True) if v10
+                                   else pav.season_terms(t, archive, a.cache))
                 except Exception as e:  # noqa: BLE001 - that season scores without the report
                     if t in REPORT_YEARS:
                         raise
@@ -316,7 +357,7 @@ def main(argv=None):
 
     def season(y):
         if v8:
-            return reconstruct_season_v8(y, terms=terms, margin=margin)
+            return reconstruct_season_v8(y, terms=terms, margin=margin, v10=v10)
         return reconstruct_season(y, terms=terms, v5=not a.v4, v6=not (a.v4 or a.v5),
                                   v7=not (a.v4 or a.v5 or a.v6))
     if a.rescore:

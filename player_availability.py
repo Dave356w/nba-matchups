@@ -233,9 +233,78 @@ def load_bpm(y, stat="BPM"):
     return parse_advanced(html, stat)
 
 
-def player_values(box, bpm):
+# v10 (nba_composite.V10): drafted rookies -- no BPM row last season -- are
+# valued at the rookie-season BPM their pick predicts, a + b log(pick),
+# fitted minutes-weighted on the rookies of earlier seasons only (history
+# backtest A9; research/v10_candidate.py), instead of at replacement.
+ROOKIE_FIRST = 2015      # first season whose rookies fit the curve
+
+
+def draft_picks(year):
+    """norm_name -> pick in the year's NBA draft (BBR draft page, cached)."""
+    h = nc.fetch(f"{nc.BASE}/draft/NBA_{year}.html", nc.CACHE / f"draft_{year}.html")
+    m = re.search(r'<table[^>]*id="stats".*?</table>', nc.uncomment(h), re.S)
+    df = pd.read_html(io.StringIO(m.group(0)))[0]
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [x[-1] for x in df.columns]
+    df = df[pd.to_numeric(df["Pk"], errors="coerce").notna()]
+    return {norm_name(n): int(k) for n, k in zip(df["Player"], df["Pk"])
+            if isinstance(n, str)}
+
+
+def rookie_curve(seasons):
+    """(a, b, n): rookie-season BPM ~ a + b log(pick), weighted by minutes,
+    over the rookies of `seasons` (drafted the summer before each)."""
+    X, Y, W = [], [], []
+    for t in seasons:
+        bpm = load_bpm(t)
+        for name, pick in draft_picks(t - 1).items():
+            rec = bpm.get(name)
+            if rec is None or not (np.isfinite(rec[0]) and rec[1] > 0):
+                continue
+            X.append(np.log(pick))
+            Y.append(rec[0])
+            W.append(rec[1])
+    X, Y, sw = np.asarray(X), np.asarray(Y), np.sqrt(np.asarray(W, float))
+    A = np.column_stack([np.ones_like(X), X]) * sw[:, None]
+    a, b = np.linalg.lstsq(A, Y * sw, rcond=None)[0]
+    return float(a), float(b), len(X)
+
+
+def rookie_meta(season):
+    """What season `season`'s v10 rookie values need, fitted on earlier
+    seasons only: {'season', 'curve': [a, b, n], 'picks': {name: pick}}
+    (stored in the v10 model files; the build reads it, no draft fetch)."""
+    return {"season": int(season), "curve": list(rookie_curve(range(ROOKIE_FIRST, season))),
+            "picks": draft_picks(season - 1)}
+
+
+def rookies_for(season, meta=None):
+    """(picks, curve) for season `season`: the model file's when it is for
+    this season, else fitted now on earlier seasons."""
+    if meta and int(meta.get("season", -1)) == int(season):
+        return meta["picks"], tuple(meta["curve"])
+    m = rookie_meta(season)
+    return m["picks"], tuple(m["curve"])
+
+
+def rookie_values(value, box, bpm, picks, curve):
+    """value with each drafted rookie (no BPM row last season) at the
+    rookie BPM his pick predicts, above replacement; (value, n rookies)."""
+    out, n = dict(value), 0
+    a, b = curve[:2]
+    for pid, name in box.drop_duplicates("player_id").set_index("player_id")["name"].items():
+        key = norm_name(name)
+        if bpm.get(key) is None and key in picks:
+            out[pid] = a + b * np.log(picks[key]) - REPLACEMENT_BPM
+            n += 1
+    return out, n
+
+
+def player_values(box, bpm, rookies=None):
     """player_id -> points per game above replacement per full 48 minutes:
-    shrunk last-season BPM minus REPLACEMENT_BPM (0 for unmatched)."""
+    shrunk last-season BPM minus REPLACEMENT_BPM (0 for unmatched; v10:
+    rookies=(picks, curve) values drafted rookies by pick)."""
     names = box.drop_duplicates("player_id").set_index("player_id")["name"]
     mins = box.groupby("player_id")["minutes"].sum()
     vals, hit, hit_min = {}, 0, 0.0
@@ -249,6 +318,8 @@ def player_values(box, bpm):
         b, mp, _ = rec
         shrunk = REPLACEMENT_BPM + (b - REPLACEMENT_BPM) * mp / (mp + BPM_SHRINK_MP)
         vals[pid] = shrunk - REPLACEMENT_BPM
+    if rookies is not None:
+        vals, _ = rookie_values(vals, box, bpm, *rookies)
     return vals, hit / max(len(names), 1), hit_min / max(float(mins.sum()), 1.0)
 
 
@@ -429,12 +500,13 @@ def preseason_talent(y, opening=None, cache_dir=None, data_dir=None):
                          load_bpm(y - 1))
 
 
-def season_talent(y, cache_dir=None):
+def season_talent(y, cache_dir=None, rookies=False):
     """talent_fn for season y from its box scores (fetch_box, cached) and
-    season y - 1's BPM table (no lookahead)."""
+    season y - 1's BPM table (no lookahead); rookies=True (v10) values
+    drafted rookies by pick (curve on earlier seasons)."""
     box = fetch_box(y, cache_dir=cache_dir or DEFAULT_CACHE)
     bpm = load_bpm(y - 1)
-    value, _, _ = player_values(box, bpm)
+    value, _, _ = player_values(box, bpm, rookies_for(y) if rookies else None)
     return talent_fn(box, value, arrival_roles(box, bpm))
 
 
@@ -1113,10 +1185,12 @@ class LiveAvailability:
     availability terms) but keeps talent."""
 
     def __init__(self, season, today, now_et, data_dir="data",
-                 report_dir=os.path.join("bbr_cache", "injury_reports")):
+                 report_dir=os.path.join("bbr_cache", "injury_reports"), rookies=None):
         self.box = update_box(season, today, data_dir)
         bpm = load_bpm(season - 1)
-        self.value, _, self.bpm_minutes = player_values(self.box, bpm)
+        self.report_dir, self.now_et = report_dir, now_et
+        # rookies (v10): (picks, curve) -- drafted rookies valued by pick
+        self.value, _, self.bpm_minutes = player_values(self.box, bpm, rookies)
         self.talent = talent_fn(self.box, self.value, arrival_roles(self.box, bpm))
         self.talent0 = {}                    # v8: each team's game-0 roster
         try:
@@ -1151,14 +1225,15 @@ class LiveAvailability:
                     report=f"{self.report_time:%Y-%m-%d %H:%M}")
 
 
-def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES):
+def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES,
+                 rookies=False):
     """Pregame od availability terms (home - away) for every game of season t,
     from box scores before each game and the NBA report at least
     `lead_minutes` before tip. Independent of the composite weights.
     Only games the report covers get terms; the rest fall back to the base
     model (the same routing as LiveAvailability.terms)."""
     box = fetch_box(t, cache_dir=cache_dir)
-    value, _, _ = player_values(box, load_bpm(t - 1))
+    value, _, _ = player_values(box, load_bpm(t - 1), rookies_for(t) if rookies else None)
     st, s = game_statuses(box, fetch_tips(t, cache_dir), archive, lead_minutes)
     archive.save()
     av = game_availability(box, value, present=present_map(st, "od"))
@@ -1194,7 +1269,7 @@ def fit_fixed(G, base, fixed=FIXED_V5, features=None):
 
 
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
-        v5=True, v6=True, v8=False, v9=False):
+        v5=True, v6=True, v8=False, v9=False, v10=False):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
     phase=True (v4) adds delta * season phase to the v3 features; v5=True
     also adds luck_def and talent_diff (needs the seasons' box scores);
@@ -1202,19 +1277,25 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     features on the faded rating (nba_composite.fade_v8_games), every
     covered game from game 1 (at game 0 no player has a share of the window,
     so those games use the base logit). v9=True: v8's features and games,
-    fitted by least squares on the final margin (nba_composite.fit_margin)."""
+    fitted by least squares on the final margin (nba_composite.fit_margin).
+    v10=True: v9 on ORB% weights with drafted rookies valued by pick; the
+    covered training games are also saved (TRAIN_FILE) so the build can
+    refit before each slate with this season's covered games added (refit)."""
+    v9 = v9 or v10
     v8 = v8 or v9
     v6 = (v6 and v5) or v8
     v5 = v5 or v8
     weights = nc.load_json("weights.json")
+    if v10 and not nc.is_orb_pct(weights):
+        raise SystemExit("--v10 needs model/weights.json fitted with fit-weights --v10 (ORB%)")
     archive = ReportArchive(os.path.join(cache_dir, "injury_reports"))
     frames = []
     try:
         for t in years:
-            terms, s = season_terms(t, archive, cache_dir, lead_minutes)
+            terms, s = season_terms(t, archive, cache_dir, lead_minutes, rookies=v10)
             if v8:
                 g = with_terms(nc.fade_v8_games(
-                    t, weights, talent=season_talent(t, cache_dir),
+                    t, weights, talent=season_talent(t, cache_dir, rookies=v10),
                     talent0=preseason_talent(t, cache_dir=cache_dir)), terms)
                 g = g[np.minimum(g["gp_home"], g["gp_away"]) >= 1]
             else:
@@ -1240,12 +1321,76 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     m.update({"half_life": nc.HALF_LIFE, "n_games": int(len(G)),
               "years": list(years), "lead_minutes": lead_minutes, "rule": "od",
               "replacement_bpm": REPLACEMENT_BPM, "bpm_shrink_mp": BPM_SHRINK_MP})
+    if v10:
+        m.update({"version": nc.V10, "orb": nc.ORB_PCT, "refit": "slate",
+                  "train_file": TRAIN_FILE, "rookies": rookie_meta(max(years) + 1)})
+        G["season"] = G["year"]
+        save_train(G, feats)
     nc.save_json(m, MODEL_FILE)
     coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
     sig = f"  sigma={m['sigma']:.2f} (margin model)" if nc.is_margin(m) else ""
     print(f"saved model/{MODEL_FILE}  intercept={m['intercept']:.3f}  {coefs}  "
           f"n={m['n_games']}{sig}")
     return m
+
+
+# ---------------------------------------------------------- v10 refit -----
+TRAIN_FILE = "avail_train.csv"      # model/: the v10 report route's training games
+TRAIN_KEY = ["season", "slate_date", "home", "away"]
+
+
+def save_train(G, feats):
+    """The fitted games (key, features, margin) beside the model file."""
+    g = G.copy()
+    g["slate_date"] = pd.to_datetime(g["date"]).dt.strftime("%Y-%m-%d")
+    nc.MODEL_DIR.mkdir(exist_ok=True)
+    g[TRAIN_KEY + list(feats) + ["margin"]].to_csv(
+        nc.MODEL_DIR / TRAIN_FILE, index=False, float_format="%.6g")
+
+
+def load_train(model):
+    return pd.read_csv(nc.MODEL_DIR / model.get("train_file", TRAIN_FILE))
+
+
+def refit(model, extra, train=None):
+    """v10's per-slate report route: `model`'s fit redone on its saved
+    training games plus `extra` (this season's covered games 1+ before the
+    slate, complete rows), same features and least squares. Returns a copy
+    of the model with the new intercept, coef and sigma, n_refit = rows of
+    `extra` used; `model` unchanged when extra has none."""
+    feats = model["features"]
+    extra = extra if extra is not None else pd.DataFrame(columns=feats + ["margin"])
+    extra = extra[np.isfinite(extra.reindex(columns=feats + ["margin"]).to_numpy(float))
+                  .all(axis=1)]
+    out = dict(model, n_refit=int(len(extra)))
+    if not len(extra):
+        return out
+    train = load_train(model) if train is None else train
+    G = pd.concat([train[feats + ["margin"]], extra[feats + ["margin"]]], ignore_index=True)
+    m = nc.fit_margin(G[feats].to_numpy(float), G["margin"], feats)
+    out.update(intercept=m["intercept"], coef=m["coef"], sigma=m["sigma"])
+    return out
+
+
+def season_rows(season, before, weights, box, value, talent, talent0, tips, archive,
+                prior_logs=None, lead_minutes=LEAD_MINUTES):
+    """Season `season`'s covered games 1+ played before `before`, with the
+    report route's features and the margin: the rows v10's refit adds.
+    Features as fade_v8_games builds them (games strictly before each date);
+    av terms from the last report at least `lead_minutes` before each tip
+    (game_statuses), the same od rule as live scoring."""
+    before = pd.Timestamp(before)
+    g = nc.fade_v8_games(season, weights, talent=talent, talent0=talent0,
+                         prior_logs=prior_logs)
+    g = g[pd.to_datetime(g["date"]) < before]
+    played = box[pd.to_datetime(box["date"]) < before]
+    if not len(g) or not len(played):
+        return pd.DataFrame()
+    st, s = game_statuses(played, tips, archive, lead_minutes)
+    av = game_availability(played, value, present=present_map(st, "od"))
+    av = av[av["game_id"].isin(s["covered"])]
+    out = with_terms(g, av[["slate_date", "home", "away", "av_min", "av_bpm"]])
+    return out[np.minimum(out["gp_home"], out["gp_away"]) >= 1]
 
 
 def main(argv=None):
@@ -1265,10 +1410,13 @@ def main(argv=None):
                     help="fit v8: the v6 features on the faded rating, games 1+")
     ap.add_argument("--v9", action="store_true",
                     help="fit v9: v8's features and games, least squares on the margin")
+    ap.add_argument("--v10", action="store_true",
+                    help="fit v10: v9 on ORB%% weights, rookies by pick; saves the "
+                         "training games for the build's per-slate refit")
     a = ap.parse_args(argv)
     fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
         v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase), v8=a.v8,
-        v9=a.v9)
+        v9=a.v9, v10=a.v10)
     return 0
 
 
