@@ -101,6 +101,7 @@ def native_block(native):
                      f"{h['slate_date'].nunique()} slates")
         for price, what in (("first", "first snapshot (earliest priced; model P "
                                       "written then)"),
+                            ("lock", "5 h lock (first snapshot within 5 h of tip)"),
                             ("pre", "pregame snapshot (last before tip)"),
                             ("close", "close")):
             block = _summary_block(h, price)
@@ -124,12 +125,25 @@ def hypotheses_block(native, recon):
              "reconstructed rows. Never pooled; one season is not a verdict.",
              f"  {name} prices only, as on the Ledger page (ESPN BET is no longer "
              "offered); the registered pooled figures are in CLAUDE.md."]
-    lines.append("  ACTIVE: three first-snapshot tests; games 1–9 (·E) and 10+ never pooled.")
+    lines.append("  ACTIVE: three tests; games 1–9 (·E) and 10+ never pooled. First-snapshot "
+                 "rows close at the 5 h lock's activation; the lock rows (·L) start there.")
+    st = analysis.lock_status(native) if native is not None and len(native) else None
+    if st:
+        lines.append(f"  5 h lock active from slate {st['activation']}: {st['locked']} games "
+                     f"locked (median {st['lead_median_h']:.1f} h before tip), "
+                     f"{st['missed']} missed (no snapshot in the window).")
+    else:
+        lines.append("  5 h lock: no lock snapshot yet; the first-snapshot rows stay open.")
     for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
         if hyp.get("retired"):
             continue
-        lines.append(f"  {hyp['key']:<7} {hyp['rule']}")
-        lines.append("    " + roi_line("native @ first snapshot", nat, 26))
+        lines.append(f"  {hyp['key']:<9} {hyp['rule']}")
+        lines.append("    " + roi_line(f"native @ {analysis.PRICE_NAMES[hyp['native']]}", nat, 26))
+        c = analysis.hypothesis_clv(native, hyp, book)
+        if c:
+            lines.append(f"    {'CLV vs close':<26} {c['mean']:+.2f} {c['unit']} +/- "
+                         f"{_f(c['se'], '.2f')} (1 SE), toward the bet {100 * c['toward']:.0f}% "
+                         f"of {c['n']}")
         lines.append("    " + roi_line("hindsight @ open", hind, 26))
     lines.append("  EARLY HINDSIGHT ONLY: 276 ESPN BET early games, v9 primary P; "
                  "injury-timing caveat; never native evidence.")

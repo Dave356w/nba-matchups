@@ -45,6 +45,21 @@ def price_q_home(g, price):
                      index=g.index, dtype=float)
 
 
+# Frozen snapshot prices: the model P and tag recorded with them (first_* /
+# lock_*); every other price reads the row's latest p_home and model_tag.
+SNAPSHOT_PRICES = ("first", "lock")
+
+
+def p_col(price):
+    """The model P column a price is graded with."""
+    return f"{price}_p_home" if price in SNAPSHOT_PRICES else "p_home"
+
+
+def tag_col(price):
+    """The model tag column recorded with that P."""
+    return f"{price}_model_tag" if price in SNAPSHOT_PRICES else "model_tag"
+
+
 def with_close(g):
     """Graded rows with a usable close; adds q/ml/won for the lean side."""
     if not len(g):
@@ -328,9 +343,9 @@ def on_stage(d, hyp):
     return keep
 
 
-# First-snapshot model tags the games 1-9 rows accept (CLAUDE.md amendments
-# of 2026-10-23 and 2026-10-28).
-EARLY_TAG_SUFFIXES = ("_v9", "_v10")
+# Snapshot model tags the games 1-9 rows accept (CLAUDE.md amendments of
+# 2026-10-23, the v10 and the v11 amendments of 2026-10-28).
+EARLY_TAG_SUFFIXES = ("_v9", "_v10", "_v11")
 V10_REGISTRATION_UTC = "2026-10-28T18:16:46Z"
 # The share of the model's disagreement with the price that outcomes bore out
 # at the opening line, games 10+ (research/open_shrinkage.py, 2026-10-22: w
@@ -358,7 +373,8 @@ def picks(g, price="close"):
     price="open": the opening pair (graded rows; q devigged from it).
     price="first": the first pregame snapshot with a model P and a price
       (native rows, `first_*`), with the model P written at that snapshot:
-      what an early bettor had. Its lean is that P's side.
+      what an early bettor had. Its lean is that P's side. price="lock": the
+      five-hour lock (`lock_*`), read the same way.
     price="close": the closing pair (every basis; for reconstructed rows the
       value side is chosen against the close itself, i.e. with hindsight on
       the price). price="pre": the pregame snapshot pair -- the price that
@@ -375,8 +391,7 @@ def picks(g, price="close"):
     hml = pd.to_numeric(g[f"{price}_home_ml"], errors="coerce")
     aml = pd.to_numeric(g[f"{price}_away_ml"], errors="coerce")
     qh = price_q_home(g, price)
-    ph = pd.to_numeric(g["first_p_home" if price == "first" else "p_home"],
-                       errors="coerce")
+    ph = pd.to_numeric(g[p_col(price)], errors="coerce")
     won = pd.to_numeric(g["home_won"], errors="coerce")
     ok = (qh.between(0, 1, inclusive="neither") & hml.notna() & aml.notna()
           & ph.notna() & won.isin([0, 1])).to_numpy()
@@ -390,7 +405,7 @@ def picks(g, price="close"):
     out = []
     for rule, _label in PICK_RULES:
         if rule == "lean":
-            home = (ph >= 0.5).to_numpy() if price == "first" else lean_is_home(g)
+            home = (ph >= 0.5).to_numpy() if price in SNAPSHOT_PRICES else lean_is_home(g)
             keep = np.ones(len(ph), bool)
         else:
             home = (ph > qh).to_numpy()
@@ -401,8 +416,7 @@ def picks(g, price="close"):
             side=np.where(home, g["home"], g["away"]),
             model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
             ml=ml, won=np.where(home, won, 1 - won),
-            model_tag=g["first_model_tag" if price == "first"
-                        else "model_tag"].astype(str).to_numpy(),
+            model_tag=g[tag_col(price)].astype(str).to_numpy(),
             fav_units=fav_units, home_units=home_units))
         d = d[keep]
         d["breakeven"] = market.breakeven_prob(d["ml"])
@@ -569,11 +583,42 @@ HYPOTHESES += tuple(dict(h, key=h["key"] + "·E", early=True,
                          rule=h["rule"].replace("Games 10+", "Games 1–9"),
                          registered_utc=REGISTRATION_UTC, parent=h["key"])
                     for h in HYPOTHESES if h["key"] in ("H4", "H2·F", "H5"))
+# Five-hour lock amendment (CLAUDE.md, registered before any lock code or
+# snapshot): each active test gets new rows at the lock snapshot (lock_*,
+# ledger.LOCK_COLUMNS), same rule, thresholds, prices and stages. The
+# first-snapshot rows close with the last slate before the first slate with a
+# lock snapshot (lock_activation_slate); the two are never pooled.
+LOCK_REGISTRATION_UTC = "2026-10-28T21:30:29Z"
+HYPOTHESES += tuple(dict(h, key=h["key"] + "·L", native="lock", lock=True,
+                         rule=h["rule"] + " · 5 h lock",
+                         registered_utc=LOCK_REGISTRATION_UTC, parent=h["key"])
+                    for h in HYPOTHESES if not h.get("retired"))
 
 
 def active_hypotheses():
-    """Three tests, with distinct early/established rows; never pooled."""
+    """Three tests, with distinct early/established rows, at the first
+    snapshot (closed at the lock's activation) and the 5 h lock; never pooled."""
     return tuple(h for h in HYPOTHESES if not h.get("retired"))
+
+
+def lock_activation_slate(g):
+    """The first slate with a lock snapshot in `g` (ET date string), or None.
+    The first-snapshot rows keep only games from earlier slates. Pass the
+    whole native ledger: the graders drop ungraded games themselves."""
+    if g is None or not len(g) or "lock_snapshot_utc" not in g.columns:
+        return None
+    s = g.loc[g["lock_snapshot_utc"].notna(), "slate_date"].astype(str)
+    return s.min() if len(s) else None
+
+
+def native_scope(g, hyp, price):
+    """The rows a hypothesis may read at `price`: an active first-snapshot
+    row stops at the lock's activation slate; every other row is unchanged."""
+    if g is None or not len(g) or price != "first" or hyp.get("lock") \
+            or hyp.get("retired"):
+        return g
+    cut = lock_activation_slate(g)
+    return g if cut is None else g[g["slate_date"].astype(str) < cut]
 
 
 def retired_registration():
@@ -587,7 +632,7 @@ def early_hindsight(recon):
     g = on_book(recon, "close", "espnbet")
     out = []
     for hyp in active_hypotheses():
-        if not hyp["early"]:
+        if not hyp["early"] or hyp.get("lock"):
             continue
         ats = hyp.get("market") == "ats"
         rows = with_open_spreads(g) if ats else g
@@ -596,8 +641,8 @@ def early_hindsight(recon):
         out.append((hyp, r))
     return out
 
-PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "open": "open",
-               "close": "close"}
+PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "lock": "5 h lock",
+               "open": "open", "close": "close"}
 
 
 def _hypothesis_members(d, hyp):
@@ -620,9 +665,12 @@ def hypothesis_signals(g, hyp, price="first"):
     """
     if hyp.get("retired") or g is None or not len(g):
         return pd.DataFrame()
+    g = native_scope(g, hyp, price)
+    if not len(g):
+        return pd.DataFrame()
     if hyp.get("market") == "ats":
         return _hypothesis_members(ats_sides(g, price, hyp["sigma"]), hyp)
-    ph = pd.to_numeric(g["first_p_home" if price == "first" else "p_home"], errors="coerce")
+    ph = pd.to_numeric(g[p_col(price)], errors="coerce")
     qh = price_q_home(g, price)
     hml = pd.to_numeric(g[f"{price}_home_ml"], errors="coerce")
     aml = pd.to_numeric(g[f"{price}_away_ml"], errors="coerce")
@@ -633,7 +681,7 @@ def hypothesis_signals(g, hyp, price="first"):
     d = pd.DataFrame(dict(rule="value", game_id=g["game_id"].to_numpy(),
         opener=opener, early=early, side=np.where(home, g["home"], g["away"]),
         model_p=np.where(home, ph, 1 - ph), q=np.where(home, qh, 1 - qh),
-        ml=np.where(home, hml, aml), model_tag=g["first_model_tag" if price == "first" else "model_tag"].astype(str).to_numpy()))
+        ml=np.where(home, hml, aml), model_tag=g[tag_col(price)].astype(str).to_numpy()))
     d["edge"] = d["model_p"] - d["q"]
     return _hypothesis_members(d, hyp)
 
@@ -645,6 +693,9 @@ def hypothesis_picks(g, hyp, price):
     its edge in points (ats_side_picks). Retired rules return no live grades;
     their original figures and bets are read from the immutable archive."""
     if hyp.get("retired"):
+        return pd.DataFrame()
+    g = native_scope(g, hyp, price)
+    if g is None or not len(g):
         return pd.DataFrame()
     if hyp.get("market") == "ats":
         p = ats_side_picks(g, price, hyp["sigma"])
@@ -658,8 +709,8 @@ def hypothesis_picks(g, hyp, price):
 
 
 # The book behind each graded price (the hypotheses read raw rows: sportsbooks).
-PRICE_BOOK = {"first": "first_book", "pre": "pre_book", "open": "close_book",
-              "close": "close_book"}
+PRICE_BOOK = {"first": "first_book", "lock": "lock_book", "pre": "pre_book",
+              "open": "close_book", "close": "close_book"}
 # The book the pages grade the hypotheses on (owner's decision, 2026-10-21):
 # DraftKings only, as ESPN BET is no longer offered. The rules are unchanged;
 # a basis keeps the bets whose graded price came from this book (PRICE_BOOK).
@@ -706,7 +757,7 @@ def hypothesis_rows(native, recon, book=None):
     return out
 
 
-def hypothesis_by_season(native, recon, keys=("H5", "H5·E"), book=None):
+def hypothesis_by_season(native, recon, keys=("H5", "H5·E", "H5·L", "H5·E·L"), book=None):
     """[(hypothesis, [part])] for the hypotheses in `keys`: the same bets as
     hypothesis_rows (with the same `book`), split by basis x the graded
     price's book x season and never pooled (native first, newest season
@@ -736,11 +787,11 @@ def hypothesis_by_season(native, recon, keys=("H5", "H5·E"), book=None):
                                                                  how="left")
             groups = sorted(d.groupby(["book", "season"], dropna=False),
                             key=lambda t: (-t[0][1], order.get(t[0][0], 99)))
-            for (book, season), x in groups:
+            for (bk, season), x in groups:      # bk: never shadow `book`
                 r = (ats_row if ats else roi_row)(
                     "", x.drop(columns=["book", "season"]).reset_index(drop=True))
                 r["z"] = z_vs_null(r)
-                parts.append(dict(basis=basis, book=book, season=season,
+                parts.append(dict(basis=basis, book=bk, season=season,
                                   price=price, row=r))
         out.append((hyp, parts))
     return out
@@ -753,6 +804,8 @@ def hypothesis_groups():
     registration order."""
     out = {}
     for h in active_hypotheses():
+        if h.get("lock"):          # the same rule as its parent in hindsight
+            continue
         k = (h.get("market"), h["early"], h["favourite"], h["min_edge"],
              h.get("sigma"), h.get("carry", False))
         out.setdefault(k, []).append(h)
@@ -795,6 +848,46 @@ def reprice_at_close(g, d, hyp):
     out["breakeven"] = market.breakeven_prob(out["ml"])
     out["units_null"] = out["q"] * [market.decimal_payout(x) for x in out["ml"]] - 1
     return out
+
+
+def hypothesis_clv(native, hyp, book=HYPOTHESIS_BOOK):
+    """Closing-line value of one hypothesis's graded native bets: how far the
+    same book's close moved toward each bet from its registered price (no-vig
+    pp, or points for ATS; reprice_at_close). dict(n, mean, se, toward) or
+    None. The lock rows' CLV is the lock price against the close."""
+    if native is None or not len(native) or hyp.get("retired"):
+        return None
+    g = native[native["close_book"].astype(str) == book] if book else native
+    g = on_book(g, hyp["native"], book)
+    d = hypothesis_picks(g, hyp, hyp["native"]) if len(g) else pd.DataFrame()
+    if not len(d):
+        return None
+    c = reprice_at_close(g, d, hyp)
+    v = c["move"].to_numpy(float) if len(c) else np.array([])
+    v = v[np.isfinite(v)]
+    if not v.size:
+        return None
+    return dict(n=int(v.size), mean=float(v.mean()),
+                se=float(v.std(ddof=1) / np.sqrt(v.size)) if v.size > 1 else float("nan"),
+                toward=float((v > 0).mean()), unit="pts" if hyp.get("market") == "ats" else "pp")
+
+
+def lock_status(native, now=None):
+    """The five-hour lock's coverage on the native ledger: dict(activation,
+    locked, missed, lead_median_h) or None before activation. `missed` counts
+    games from the activation slate on whose tip has passed without a lock."""
+    cut = lock_activation_slate(native)
+    if cut is None:
+        return None
+    g = native[native["slate_date"].astype(str) >= cut]
+    tip = pd.to_datetime(g["tip_utc"], utc=True, errors="coerce")
+    lock = pd.to_datetime(g["lock_snapshot_utc"], utc=True, errors="coerce")
+    now = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz="UTC")
+    now = now.tz_localize("UTC") if now.tzinfo is None else now
+    lead = ((tip - lock).dt.total_seconds() / 3600).dropna()
+    return dict(activation=cut, locked=int(lock.notna().sum()),
+                missed=int((lock.isna() & (tip <= now)).sum()),
+                lead_median_h=float(lead.median()) if len(lead) else float("nan"))
 
 
 HALF_SEASON = "-02-01"   # the backtest's split: before / from 1 Feb of the end year
@@ -953,7 +1046,7 @@ def ats_row(label, d):
     )
 
 
-ATS_PRICES = ("first", "pre", "open", "close")   # *_spread, *_home/away_spread_odds
+ATS_PRICES = ("first", "lock", "pre", "open", "close")   # *_spread, *_home/away_spread_odds
 # A main-line spread price sits in this band (99.96% of the reconstructed
 # closes); ESPN's "open" is sometimes an alternate line (-20.5 at +320 for
 # a game that closed -11.5 at -110), which is no main-line bet.
@@ -1004,7 +1097,7 @@ def ats_sides(g, price, sigma=ATS_SIGMA, own_margin=False):
     num = lambda c: pd.to_numeric(g[c], errors="coerce")  # noqa: E731
     line, hso, aso = (num(f"{price}_{c}") for c in
                       ("spread", "home_spread_odds", "away_spread_odds"))
-    ph = num("first_p_home" if price == "first" else "p_home")
+    ph = num(p_col(price))
     ok = (line.notna() & hso.between(*ATS_MAIN_LINE) & aso.between(*ATS_MAIN_LINE)
           & ph.between(0, 1, inclusive="neither")).to_numpy()
     if not ok.any():
@@ -1015,7 +1108,7 @@ def ats_sides(g, price, sigma=ATS_SIGMA, own_margin=False):
     m = sigma * z                                              # model home margin
     sig = np.full(len(m), float(sigma))
     own = np.zeros(len(m), bool)
-    if own_margin and price != "first" and "margin_home" in g.columns:
+    if own_margin and price not in SNAPSHOT_PRICES and "margin_home" in g.columns:
         mo = pd.to_numeric(g["margin_home"], errors="coerce").to_numpy(float)
         own = np.isfinite(mo) & (np.abs(z) > 1e-6) & (mo * z > 0)
         m = np.where(own, mo, m)
@@ -1026,7 +1119,7 @@ def ats_sides(g, price, sigma=ATS_SIGMA, own_margin=False):
     opener, early = stage(g)
     return pd.DataFrame(dict(
         game_id=g["game_id"].to_numpy(), opener=opener, early=early,
-        model_tag=g.get("first_model_tag" if price == "first" else "model_tag",
+        model_tag=g.get(tag_col(price),
                         pd.Series("", index=g.index)).astype(str).to_numpy(),
         side=np.where(home, g["home"], g["away"]), home=home, edge=np.abs(edge),
         line=np.where(home, line, -line), model_line=np.where(home, -m, m),
@@ -1073,9 +1166,11 @@ def ats_card(row):
     native price, exactly as the Ledger grades it: dict(hyp, bet, side,
     line, model_line, ml, edge, model_p, q), bet = edge >= the rule's
     threshold. None when the row has no first snapshot with a main-line
-    spread, or no ATS rule covers its games played."""
+    spread, or no ATS rule covers its games played. A locked row reads its
+    5 h-lock rule (H5·L / H5·E·L) first."""
     g = pd.DataFrame([row])
-    for hyp in active_hypotheses():
+    hyps = sorted(active_hypotheses(), key=lambda h: not h.get("lock"))
+    for hyp in hyps:
         if hyp.get("market") != "ats":
             continue
         s = ats_sides(g, hyp["native"], hyp["sigma"])

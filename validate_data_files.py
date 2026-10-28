@@ -46,9 +46,13 @@ def check(path):
     elif list(df.columns) == ledger.PRE_MARGIN_COLUMNS:
         print(f"note {path}: pre-v9 schema; margin_home added (blank) on the "
               "next write")
+    elif list(df.columns) == ledger.PRE_LOCK_COLUMNS:
+        print(f"note {path}: pre-lock schema; lock_* columns added (blank) on "
+              "the next write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_MARGIN_COLUMNS,
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_LOCK_COLUMNS,
+                            ledger.PRE_MARGIN_COLUMNS,
                             ledger.PRE_CARRY_COLUMNS,
                             ledger.PRE_PREGAME_SPREAD_COLUMNS,
                             ledger.PRE_KALSHI_COLUMNS, ledger.PRE_SEEN_COLUMNS,
@@ -71,7 +75,8 @@ def check(path):
                                            errors="coerce").isna()).any():
             errs.append(f"{path}: close_spread on a row without a moneyline close")
     # a pregame spread comes only with its book's pregame moneyline
-    for line, q in (("pre_spread", "pre_q_home"), ("first_spread", "first_q_home")):
+    for line, q in (("pre_spread", "pre_q_home"), ("first_spread", "first_q_home"),
+                    ("lock_spread", "lock_q_home")):
         if line in df.columns:
             if (pd.to_numeric(df[line], errors="coerce").notna()
                     & pd.to_numeric(df[q], errors="coerce").isna()).any():
@@ -95,6 +100,24 @@ def check(path):
                 errs.append(f"{path}: seen_utc missing a time or not before tip")
             if (hs & has & (seen > first)).any():
                 errs.append(f"{path}: first snapshot earlier than the row's first sight")
+    if "lock_snapshot_utc" in df.columns:
+        # the five-hour lock: written once, within LOCK_LEAD_HOURS of tip, with
+        # a model P and a known book, never before the first snapshot
+        lock = pd.to_datetime(df["lock_snapshot_utc"], utc=True, errors="coerce")
+        tip = pd.to_datetime(df["tip_utc"], utc=True, errors="coerce")
+        hl = df["lock_snapshot_utc"].notna()
+        window = pd.Timedelta(hours=ledger.LOCK_LEAD_HOURS, minutes=1)
+        if (hl & (lock.isna() | ~(lock < tip) | (lock < tip - window))).any():
+            errs.append(f"{path}: lock snapshot missing a time or outside its window")
+        first = pd.to_datetime(df["first_snapshot_utc"], utc=True, errors="coerce")
+        if (hl & (first.isna() | (lock < first))).any():
+            errs.append(f"{path}: lock snapshot without or before the first snapshot")
+        books = {b for _, b in market.BOOKS} | set(market.EXCHANGES)
+        if not df.loc[hl, "lock_book"].isin(books).all():
+            errs.append(f"{path}: lock_book missing or unknown on a lock snapshot")
+        lp = pd.to_numeric(df["lock_p_home"], errors="coerce")
+        if (hl & ~lp.between(0, 1)).any():
+            errs.append(f"{path}: lock_p_home missing or outside [0,1]")
     if df["game_id"].duplicated().any():
         errs.append(f"{path}: duplicate game_id")
     won = pd.to_numeric(df["home_won"], errors="coerce").dropna()
@@ -234,7 +257,8 @@ def main():
         rb = pd.read_csv(ledger.REBUILT_PATH, dtype={"game_id": str})
         if not rb["basis"].eq("rebuilt").all():
             errs.append(f"{ledger.REBUILT_PATH}: basis other than rebuilt")
-        if rb["first_snapshot_utc"].notna().any() or rb["pre_q_home"].notna().any():
+        if (rb["first_snapshot_utc"].notna().any() or rb["pre_q_home"].notna().any()
+                or ("lock_snapshot_utc" in rb and rb["lock_snapshot_utc"].notna().any())):
             errs.append(f"{ledger.REBUILT_PATH}: a pregame price on a rebuilt row")
         if pd.to_numeric(rb["home_won"], errors="coerce").isna().any():
             errs.append(f"{ledger.REBUILT_PATH}: an ungraded rebuilt row")
@@ -242,7 +266,7 @@ def main():
         # exchanges: preseason only
         if os.path.exists(path):
             df = pd.read_csv(path, dtype={"game_id": str})
-            cols = [c for c in ("pre_book", "close_book", "first_book") if c in df]
+            cols = [c for c in ("pre_book", "close_book", "first_book", "lock_book") if c in df]
             if df[cols].isin(market.EXCHANGES).any().any():
                 errs.append(f"{path}: an exchange price outside the preseason ledger")
     if os.path.exists(ledger.PRESEASON_PATH):

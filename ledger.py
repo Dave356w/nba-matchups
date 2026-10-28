@@ -25,6 +25,11 @@ Invariants (tests/test_ledger.py pins each one):
     comes from the pregame moneyline's book and follows the same lock:
     refreshed until tip, frozen after; `first_spread` and its prices are
     written once with the rest of `first_*`. Grading never touches them.
+  * The five-hour lock (`lock_*`, LOCK_COLUMNS; CLAUDE.md amendment of
+    2026-10-28): the first snapshot with a model P and a priced pair taken
+    within LOCK_LEAD_HOURS of tip, written once like `first_*` and never
+    replaced or graded. The tracked bets read it; a game with no snapshot in
+    that window has no lock.
   * The row's very first snapshot (`seen_utc`, SEEN_COLUMNS) is written once
     when the row is created, with `seen_note` saying why `first_*` was not
     filled then (no price yet, odds fetch failed, model abstained; blank when
@@ -47,7 +52,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -141,6 +146,18 @@ PRE_MARGIN_COLUMNS = list(COLUMNS)
 # keep their frozen 13.5 x Phi^-1(P) margin and do not read it.
 MARGIN_COLUMNS = ["margin_home"]
 COLUMNS = COLUMNS + MARGIN_COLUMNS
+# Schema before the five-hour lock: `load` reads it with lock_* blank and the
+# next save writes the current schema (2026-10-28).
+PRE_LOCK_COLUMNS = list(COLUMNS)
+# Five-hour lock (CLAUDE.md amendment, 2026-10-28): the first pregame snapshot
+# with a model P and a price taken within LOCK_LEAD_HOURS of tip. Written once,
+# like first_*, and never refreshed or graded; the tracked bets read it.
+LOCK_LEAD_HOURS = 5
+LOCK_COLUMNS = ["lock_snapshot_utc", "lock_model_tag", "lock_p_home", "lock_book",
+                "lock_home_ml", "lock_away_ml", "lock_q_home", "lock_report_utc",
+                "lock_route", "lock_spread", "lock_home_spread_odds",
+                "lock_away_spread_odds"]
+COLUMNS = COLUMNS + LOCK_COLUMNS
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
 FIRST_COLUMNS = (COLUMNS[COLUMNS.index("first_snapshot_utc"):
                          COLUMNS.index("seen_utc")] + FIRST_SPREAD_COLUMNS)
@@ -155,12 +172,20 @@ FIRST_SOURCE = {"first_snapshot_utc": "snapshot_utc", "first_model_tag": "model_
                    for k in ("home_ml", "away_ml", "q_home")},
                 **dict(zip(FIRST_SPREAD_COLUMNS, PREGAME_SPREAD_COLUMNS)),
                 **dict(zip(FIRST_CARRY_COLUMNS, CARRY_COLUMNS))}
+LOCK_SOURCE = {"lock_snapshot_utc": "snapshot_utc", "lock_model_tag": "model_tag",
+               "lock_p_home": "p_home", "lock_book": "pre_book",
+               "lock_home_ml": "pre_home_ml", "lock_away_ml": "pre_away_ml",
+               "lock_q_home": "pre_q_home", "lock_report_utc": "report_utc",
+               "lock_route": "route",
+               **dict(zip(LOCK_COLUMNS[-3:], PREGAME_SPREAD_COLUMNS))}
 # Columns written once and never refreshed or graded.
-WRITE_ONCE_COLUMNS = FIRST_COLUMNS + SEEN_COLUMNS + FIRST_CARRY_COLUMNS + KALSHI_FIRST_COLUMNS
+WRITE_ONCE_COLUMNS = (FIRST_COLUMNS + SEEN_COLUMNS + FIRST_CARRY_COLUMNS
+                      + KALSHI_FIRST_COLUMNS + LOCK_COLUMNS)
 # String-valued columns (kept as object dtype).
 TEXT_COLUMNS = ("pre_book", "close_book", "first_book", "first_model_tag",
                 "first_snapshot_utc", "first_report_utc", "first_route",
-                "seen_utc", "seen_note")
+                "seen_utc", "seen_note", "lock_snapshot_utc", "lock_model_tag",
+                "lock_book", "lock_report_utc", "lock_route")
 SPREAD_COLUMNS = ["close_spread", "close_home_spread_odds",
                   "close_away_spread_odds"]
 # Schema before the Kalshi columns: `load` reads it with them blank and the
@@ -255,6 +280,7 @@ def upsert_pregame(led, rows, now=None, basis="native"):
     replaced only while its game is still before tip AND ungraded, so once a
     game starts its pregame record is frozen for good. The first snapshot
     with a model P and a price fills `first_*` once; later ones never do.
+    The first such snapshot within LOCK_LEAD_HOURS of tip fills `lock_*` once.
     A new row also gets `seen_*` once. Optional keys of a row: `report_utc`
     and `route` (copied to first_*), `price_note` (why it has no price).
     `basis` labels the rows ("native"; "preseason" for PRESEASON_PATH).
@@ -282,6 +308,7 @@ def upsert_pregame(led, rows, now=None, basis="native"):
         has_p = pd.notna(pd.to_numeric(rec["p_home"], errors="coerce"))
         has_q = pd.notna(pd.to_numeric(rec["pre_q_home"], errors="coerce"))
         usable = has_p and has_q
+        in_lock = now >= tip - timedelta(hours=LOCK_LEAD_HOURS)
         hit = led.index[led["game_id"].astype(str) == gid]
         if len(hit):
             old = led.loc[hit[0]]
@@ -297,10 +324,18 @@ def upsert_pregame(led, rows, now=None, basis="native"):
                     if led[c].dtype != object:
                         led[c] = led[c].astype(object)
                     led.at[hit[0], c] = src[FIRST_SOURCE[c]]
+            if usable and in_lock and pd.isna(old["lock_snapshot_utc"]):
+                for c in LOCK_COLUMNS:
+                    if led[c].dtype != object:
+                        led[c] = led[c].astype(object)
+                    led.at[hit[0], c] = src[LOCK_SOURCE[c]]
         else:
             if usable:
                 for c in FIRST_COLUMNS:
                     rec[c] = src[FIRST_SOURCE[c]]
+            if usable and in_lock:
+                for c in LOCK_COLUMNS:
+                    rec[c] = src[LOCK_SOURCE[c]]
             rec["seen_utc"] = rec["snapshot_utc"]
             rec["seen_note"] = "" if usable else "; ".join(
                 n for n in ((None if has_p else "no model P"),

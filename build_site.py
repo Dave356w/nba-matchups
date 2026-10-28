@@ -990,12 +990,14 @@ def ats_note(r, a):
     """The card's account of the ATS hypothesis that covers this game
     (analysis.ats_card): the pick at its registered price, or why not."""
     key, side = a["hyp"]["key"], esc(a["side"])
+    price = a["hyp"]["native"]
+    at = analysis.PRICE_NAMES[price]
     who = "model line"
     gap = (f"{who} {side} {line_txt(round(a['model_line'], 1))} vs market "
            f"{line_txt(a['line'])}: {a['edge']:.1f} pts")
     if not a["bet"]:
         return (f"<p class='note'><b>{key}</b> (pre-registered, against the "
-                f"spread): no bet. At the first snapshot the {gap}; the rule "
+                f"spread): no bet. At the {at} the {gap}; the rule "
                 f"needs {a['hyp']['min_edge']:g}.</p>")
     now = pd.to_numeric(r.get("pre_spread"), errors="coerce")
     if np.isfinite(now):
@@ -1004,8 +1006,8 @@ def ats_note(r, a):
              and now != a["line"] else "")
     return (f"<p class='note'><b>{key} pick</b> (pre-registered, against the "
             f"spread): <b>{side} {line_txt(a['line'])}</b> at {ml_txt(a['ml'])}"
-            f"{book_tag(r.get('first_book'))}, from the first snapshot "
-            f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; "
+            f"{book_tag(r.get(f'{price}_book'))}, from the {at} "
+            f"({tip_pt(r.get(f'{price}_snapshot_utc'))}): {gap}; "
             f"model cover "
             f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig).{moved} "
             "Graded on the <a href='grades.html#hypotheses'>Ledger</a> at this "
@@ -1234,14 +1236,17 @@ def public_ats(native):
     if native is None or not len(native):
         return []
     season = pd.to_numeric(native["season"], errors="coerce").max()
-    g = ledger.graded(native[pd.to_numeric(native["season"], errors="coerce") == season])
+    # the whole season, not only graded rows: the graders drop ungraded games,
+    # and the first-snapshot rows' close reads every lock (lock_activation_slate)
+    g = native[pd.to_numeric(native["season"], errors="coerce") == season]
     out = []
     for hyp in analysis.active_hypotheses():
         if hyp.get("market") != "ats":
             continue
         d = analysis.hypothesis_picks(g, hyp, hyp["native"]) if len(g) else pd.DataFrame()
         out.append((hyp, d))
-    return sorted(out, key=lambda t: not t[0]["early"])    # H6 (games 1-9) first
+    # lock rows first, then games 1-9 before games 10+
+    return sorted(out, key=lambda t: (not t[0].get("lock"), not t[0]["early"]))
 
 
 def spread_tiles(native):
@@ -1252,8 +1257,8 @@ def spread_tiles(native):
         label = f"Spread · {hyp['key']} · {games}"
         r = analysis.ats_row(hyp["key"], d) if len(d) else None
         if not r:
-            tiles.append(_stat(label, "0–0", "No graded bets yet · first-snapshot "
-                               "spread, edge ≥ 1 pt"))
+            tiles.append(_stat(label, "0–0", f"No graded bets yet · "
+                               f"{analysis.PRICE_NAMES[hyp['native']]} spread, edge ≥ 1 pt"))
             continue
         c = sig_cls(analysis.z_vs_null(r))
         tiles.append(_stat(
@@ -2674,6 +2679,15 @@ def _hypothesis_ats_bands(native, recon):
         + "".join(out))
 
 
+def _lock_txt(native):
+    """' (slate 2026-10-29; 41 locked, 0 missed)' or ' (not yet active)'."""
+    st = analysis.lock_status(native) if native is not None and len(native) else None
+    if not st:
+        return " (not yet active)"
+    return (f" (slate {st['activation']}; {st['locked']} locked, median "
+            f"{st['lead_median_h']:.1f} h before tip; {st['missed']} missed)")
+
+
 def _hypotheses(native, recon):
     book = analysis.HYPOTHESIS_BOOK
     name = market.BOOK_NAMES[book]
@@ -2701,7 +2715,7 @@ def _hypotheses(native, recon):
             h = cell(hind)
             h[0] += "<br><span class='mut'>at the open</span>"
             n = cell(nat)
-            n[0] += "<br><span class='mut'>at the first snapshot</span>"
+            n[0] += f"<br><span class='mut'>at the {analysis.PRICE_NAMES[hyp['native']]}</span>"
             active.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]),
                            *n, *h])
     early = []
@@ -2709,15 +2723,18 @@ def _hypotheses(native, recon):
         early.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]), *cell(r)])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
-        "<p class='note'>Three tests: H5, H2·F and H4, at the frozen first "
-        "snapshot. Each has separate games 1–9 (·E) and games 10+ rows; "
+        "<p class='note'>Three tests: H5, H2·F and H4. The <b>5 h lock</b> rows "
+        "(·L; amendment registered 2026-10-28 at 21:30:29 UTC) bet the first "
+        "snapshot within 5 hours of tip; the first-snapshot rows close with the "
+        f"last slate before the lock's activation{_lock_txt(native)}. "
+        "The two are never pooled. Each has separate games 1–9 (·E) and games 10+ rows; "
         "never pooled. Early segments registered 2026-10-23 at 19:46:58 UTC, "
         "before CHI @ MIL was final. Established segments and every threshold "
         "are unchanged. Native is the forward test, on DraftKings prices. "
         "At the <b>first snapshot</b>, probabilities stay frozen. Hindsight is information only. Early v9 uses injury-report inputs "
         "and inherits the injury-timing caveat; the first snapshot is later "
         "than the open. Recorded first probabilities and tags stay frozen.</p>"
-        + table(["", "Rule", "Native n · first snapshot", "ROI", "vs null (± 1 SE)",
+        + table(["", "Rule", "Native n · registered price", "ROI", "vs null (± 1 SE)",
                  f"Hindsight n ({esc(name)} open)", "ROI", "vs null (± 1 SE)"],
                 active, left=(0, 1), key=(3, 4))
         + "<h3>Early segments · ESPN BET · hindsight only</h3>"
