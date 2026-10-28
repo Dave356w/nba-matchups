@@ -81,12 +81,22 @@ MODEL_TAG_V10_AVAIL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_r
 MODEL_TAG_V10_NEUTRAL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v10'
 MODEL_TAG_V10_NEUTRAL_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
                                'margin_neutral_avail_v10')
+# v11 (CLAUDE.md amendment 2026-10-28): v10 plus Questionable weighting on the
+# report route (Doubtful / Questionable / Probable at their play rate by lead).
+MODEL_TAG_V11 = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11'
+MODEL_TAG_V11_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
+                       'qweight_margin_avail_v11')
+MODEL_TAG_V11_NEUTRAL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11'
+MODEL_TAG_V11_NEUTRAL_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
+                               'qweight_margin_neutral_avail_v11')
 NEUTRAL_TAGS = (MODEL_TAG_V9_NEUTRAL, MODEL_TAG_V9_NEUTRAL_AVAIL,
-                MODEL_TAG_V10_NEUTRAL, MODEL_TAG_V10_NEUTRAL_AVAIL)
+                MODEL_TAG_V10_NEUTRAL, MODEL_TAG_V10_NEUTRAL_AVAIL,
+                MODEL_TAG_V11_NEUTRAL, MODEL_TAG_V11_NEUTRAL_AVAIL)
 PRESEASON_TAG = 'fourfactors_hl25_b2b_carry25_preseason_g0'
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
               MODEL_TAG_V6_AVAIL, MODEL_TAG_V8_AVAIL, MODEL_TAG_V9_AVAIL,
-              MODEL_TAG_V9_NEUTRAL_AVAIL, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL_AVAIL)
+              MODEL_TAG_V9_NEUTRAL_AVAIL, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL_AVAIL,
+              MODEL_TAG_V11_AVAIL, MODEL_TAG_V11_NEUTRAL_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -155,12 +165,20 @@ def is_v9(model):
 
 def is_v10(model):
     """v10: v9 on ORB% weights, rookies by pick, report route refitted per
-    slate (model files carry "version": 10)."""
-    return is_v9(model) and model.get("version") == nc.V10
+    slate (model files carry "version": 10; v11 builds on it, version 11)."""
+    return is_v9(model) and model.get("version") in (nc.V10, nc.V11)
+
+
+def is_v11(model):
+    """v11: v10 plus Questionable weighting on the report route (version 11;
+    the report file carries its play-rate table, q_rates)."""
+    return is_v9(model) and model.get("version") == nc.V11
 
 
 def neutral_tag(model, avail):
-    """The neutral-input tag of a v9 / v10 route."""
+    """The neutral-input tag of a v9 / v10 / v11 route."""
+    if is_v11(model):
+        return MODEL_TAG_V11_NEUTRAL_AVAIL if avail else MODEL_TAG_V11_NEUTRAL
     if is_v10(model):
         return MODEL_TAG_V10_NEUTRAL_AVAIL if avail else MODEL_TAG_V10_NEUTRAL
     return MODEL_TAG_V9_NEUTRAL_AVAIL if avail else MODEL_TAG_V9_NEUTRAL
@@ -173,6 +191,8 @@ def is_early_talent(early):
 
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
+    if is_v11(model):
+        return MODEL_TAG_V11_AVAIL if avail else MODEL_TAG_V11
     if is_v10(model):
         return MODEL_TAG_V10_AVAIL if avail else MODEL_TAG_V10
     if is_v9(model):
@@ -192,6 +212,9 @@ def active_tags(model, avail_model, fallback=None, early=None):
     """Tags the current model files produce (page footer, ledger split),
     including the v4 fallback's when the base model is v5 and the v7 early
     tag when the early logit has talent."""
+    if is_v11(model):
+        return [MODEL_TAG_V11, MODEL_TAG_V11_AVAIL, MODEL_TAG_V11_NEUTRAL,
+                MODEL_TAG_V11_NEUTRAL_AVAIL]
     if is_v10(model):
         return [MODEL_TAG_V10, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL,
                 MODEL_TAG_V10_NEUTRAL_AVAIL]
@@ -364,7 +387,7 @@ def route(row, model):
         tag = row.get("model_tag")
         return ("neutral" if tag in NEUTRAL_TAGS else
                 "avail" if tag in AVAIL_TAGS else
-                "base" if tag in (MODEL_TAG_V8, MODEL_TAG_V9, MODEL_TAG_V10)
+                "base" if tag in (MODEL_TAG_V8, MODEL_TAG_V9, MODEL_TAG_V10, MODEL_TAG_V11)
                 else "carry" if tag == MODEL_TAG else "v4")
     if min(row.get("gp_home", 0), row.get("gp_away", 0)) < nc.MIN_GAMES:
         return "early"
@@ -412,6 +435,8 @@ def score_slate(today, weights, model, now=None):
             log(f"availability failed ({e!r}); primary model uses neutral optional inputs")
     if is_v10(avail_model):
         avail_model = refit_avail(avail_model, today, weights, live, prior)
+    # v11: the report route scores Questionable players at their play rate
+    q_rates = avail_model.get("q_rates") if is_v11(avail_model) else None
     opening = nc.season_opening(logs) or pd.Timestamp(today)
     talent = getattr(live, "talent", None)
     talent0 = getattr(live, "talent0", None)
@@ -423,7 +448,10 @@ def score_slate(today, weights, model, now=None):
         terms = None
         if live is not None:
             try:
-                terms = live.terms(g["game_id"], g["home"], g["away"], today)
+                # v11 only: earlier versions call exactly as before
+                terms = (live.terms(g["game_id"], g["home"], g["away"], today,
+                                    tip_utc=g["tip_utc"], q_rates=q_rates) if q_rates else
+                         live.terms(g["game_id"], g["home"], g["away"], today))
             except Exception as e:  # noqa: BLE001
                 log(f"availability {g['game_id']}: {e!r}")
         r.update(score_game(logs, g["home"], g["away"], today, weights, model,
@@ -2279,7 +2307,7 @@ def render_model(native, recon, built):
     native, recon = analysis.market_view(native), analysis.market_view(recon)
     _w, base = load_model()
     avail = load_avail()
-    ver = "v10" if is_v10(base) else "v9"
+    ver = "v11" if is_v11(base) else "v10" if is_v10(base) else "v9"
     body = ["<h1>Model</h1><p class='lead'>Goal: flat 1u ROI on the model's "
             "side, judged against the market-correct null and the market "
             "favourite on the same games; log loss and Brier against the close "
@@ -2297,7 +2325,11 @@ def render_model(native, recon, built):
         + (" v10: rebounding as ORB%, drafted rookies valued by pick, and the "
            "injury-report arm refitted before each slate on its training seasons "
            "plus this season's covered games (the coefficients below are the "
-           "season-start fit)." if ver == "v10" else "") + "</p>")
+           "season-start fit)." if ver in ("v10", "v11") else "")
+        + (" v11: on the injury-report arm, Doubtful, Questionable and Probable "
+           "players count at their status's play rate at the report's lead "
+           "before tip (q_rates; fitted on the report seasons)." if ver == "v11" else "")
+        + "</p>")
     coefs = [_coef_table(f"{ver} base margin (every game)", base),
              _coef_table(f"{ver} injury-report margin (games 1+)", avail)]
     body.append("<h2>Fitted coefficients</h2><p class='note'>P(home) = Φ(margin / residual sigma). The margin is intercept "

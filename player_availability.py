@@ -710,6 +710,26 @@ class ReportArchive:
             dt -= timedelta(minutes=SLOT_MINUTES)
         return None, None
 
+    def prefetch(self, cutoffs, workers=24):
+        """latest_before for many cutoffs at once, in threads (v11's fit reads
+        reports at several leads; one at a time took hours). Fills the cache
+        and the misses; returns how many cutoffs found a report."""
+        from concurrent.futures import ThreadPoolExecutor
+        sleep, self.sleep = self.sleep, 0.0
+
+        def one(c):
+            for i in range(4):
+                try:
+                    return self.latest_before(c)[0] is not None
+                except (OSError, urllib.error.URLError):     # transient: retry
+                    time.sleep(2 ** i)
+            return False
+        try:
+            with ThreadPoolExecutor(workers) as ex:
+                return sum(ex.map(one, sorted(set(cutoffs))))
+        finally:
+            self.sleep = sleep
+
     def save(self):
         json.dump(sorted(self.misses), open(self.miss_path, "w"))
 
@@ -1147,9 +1167,10 @@ def update_box(y, today, data_dir="data", sleep=0.15):
     return df
 
 
-def od_present(report_rows, box, gid, teams, slate):
+def od_present(report_rows, box, gid, teams, slate, rates=None):
     """{(gid, player_id): 0/1} from report rows for `teams` on `slate`: Out or
-    Doubtful -> 0, any other listed status -> 1 (the od rule)."""
+    Doubtful -> 0, any other listed status -> 1 (the od rule). With `rates`
+    (v11, {status: play rate}): the q rule instead (q_status_p)."""
     names = {}
     for r in box.drop_duplicates(["team", "player_id"]).itertuples(index=False):
         names.setdefault((r.team, norm_name(r.name)), r.player_id)
@@ -1161,8 +1182,54 @@ def od_present(report_rows, box, gid, teams, slate):
             continue
         pid = names.get((code, norm_name(report_name_to_first_last(r.player))))
         if pid is not None:
-            out[(gid, pid)] = 0.0 if r.status in ("Out", "Doubtful") else 1.0
+            out[(gid, pid)] = (q_status_p(r.status, rates) if rates is not None else
+                               0.0 if r.status in ("Out", "Doubtful") else 1.0)
     return out
+
+
+# --------------------------------------------- v11 Questionable weighting --
+# Leads (minutes before tip) at which the play rates are measured: the arms of
+# research/questionable_weight.py. A report published L minutes before tip
+# reads the rates of the nearest lead.
+Q_LEADS = (1080, 720, 480, 300, 120, 30)
+Q_STATUSES = ("Doubtful", "Questionable", "Probable")
+
+
+def q_status_p(status, rates):
+    """P(plays) under the q rule: Out 0, Available 1, Doubtful / Questionable /
+    Probable their play rate (1 if the table lacks it)."""
+    return {"Out": 0.0, "Available": 1.0}.get(status, float(rates.get(status, 1.0)))
+
+
+def q_rates(years, cache_dir=DEFAULT_CACHE, leads=Q_LEADS, archive=None):
+    """{"<lead>": {status: share of listed players with that status who
+    logged minutes}} over the report seasons `years`, from the last report at
+    least `lead` minutes before each tip (game_statuses; v11's fitted table)."""
+    archive = archive or ReportArchive(os.path.join(cache_dir, "injury_reports"))
+    out = {}
+    boxes = {t: fetch_box(t, cache_dir=cache_dir) for t in years}
+    tips = {t: fetch_tips(t, cache_dir) for t in years}
+    for lead in leads:
+        cut = []
+        for t in years:
+            for v in tips[t].values():
+                tip = ledger.parse_utc(v)
+                if tip is not None:
+                    cut.append(tip.astimezone(ET).replace(tzinfo=None) - timedelta(minutes=lead))
+        archive.prefetch(cut)
+        archive.save()
+        st = pd.concat([game_statuses(boxes[t], tips[t], archive, lead)[0] for t in years],
+                       ignore_index=True)
+        r = play_rates(st)
+        out[str(lead)] = {k: round(float(r[k]), 4) for k in Q_STATUSES if k in r}
+        print(f"q rates at {lead} min: {out[str(lead)]} ({len(st)} listings)", flush=True)
+    return out
+
+
+def lead_rates(table, minutes):
+    """The rate table (q_rates) of the lead nearest `minutes` before tip."""
+    lead = min(table, key=lambda k: abs(int(k) - minutes))
+    return table[lead]
 
 
 def upcoming_terms(box, team, gid, date, value, present):
@@ -1206,17 +1273,24 @@ class LiveAvailability:
         except Exception as e:  # noqa: BLE001 - talent still usable
             print(f"injury report unavailable ({e!r})", flush=True)
 
-    def terms(self, gid, home, away, date):
+    def terms(self, gid, home, away, date, tip_utc=None, q_rates=None):
         """{'av_min', 'av_bpm', 'report'} (home - away), or None -- the base
         model -- when the report does not cover this game (none, empty or
         unparsed, not on it, a team not yet submitted) or a team has no box
-        history."""
+        history. v11 (`q_rates`, the fitted table, and the game's tip): the
+        q rule at the report's lead before tip instead of od."""
         if self.report is None:
             return None
         slate = pd.Timestamp(date).strftime("%Y-%m-%d")
         if not covers(report_coverage(self.report, slate), home, away):
             return None
-        present = od_present(self.report, self.box, gid, {home, away}, slate)
+        rates = None
+        tip = ledger.parse_utc(tip_utc)
+        if q_rates and tip is not None and self.report_time is not None:
+            lead = (tip.astimezone(ET).replace(tzinfo=None) - self.report_time
+                    ).total_seconds() / 60
+            rates = lead_rates(q_rates, lead)
+        present = od_present(self.report, self.box, gid, {home, away}, slate, rates)
         th = upcoming_terms(self.box, home, gid, date, self.value, present)
         ta = upcoming_terms(self.box, away, gid, date, self.value, present)
         if th is None or ta is None:
@@ -1226,17 +1300,19 @@ class LiveAvailability:
 
 
 def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES,
-                 rookies=False):
+                 rookies=False, rates=None):
     """Pregame od availability terms (home - away) for every game of season t,
     from box scores before each game and the NBA report at least
     `lead_minutes` before tip. Independent of the composite weights.
     Only games the report covers get terms; the rest fall back to the base
-    model (the same routing as LiveAvailability.terms)."""
+    model (the same routing as LiveAvailability.terms). `rates` (v11,
+    {status: play rate}): the q rule instead of od."""
     box = fetch_box(t, cache_dir=cache_dir)
     value, _, _ = player_values(box, load_bpm(t - 1), rookies_for(t) if rookies else None)
     st, s = game_statuses(box, fetch_tips(t, cache_dir), archive, lead_minutes)
     archive.save()
-    av = game_availability(box, value, present=present_map(st, "od"))
+    av = game_availability(box, value, present=(present_map(st, "q", rates) if rates
+                                                else present_map(st, "od")))
     av = av[av["game_id"].isin(s["covered"])]
     return av[["slate_date", "home", "away", "av_min", "av_bpm"]], s
 
@@ -1269,7 +1345,7 @@ def fit_fixed(G, base, fixed=FIXED_V5, features=None):
 
 
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
-        v5=True, v6=True, v8=False, v9=False, v10=False):
+        v5=True, v6=True, v8=False, v9=False, v10=False, v11=False):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
     phase=True (v4) adds delta * season phase to the v3 features; v5=True
     also adds luck_def and talent_diff (needs the seasons' box scores);
@@ -1280,7 +1356,10 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     fitted by least squares on the final margin (nba_composite.fit_margin).
     v10=True: v9 on ORB% weights with drafted rookies valued by pick; the
     covered training games are also saved (TRAIN_FILE) so the build can
-    refit before each slate with this season's covered games added (refit)."""
+    refit before each slate with this season's covered games added (refit).
+    v11=True: v10 plus "q_rates", the play-rate table the build scores the
+    report route with (q_rates; the fit itself stays od)."""
+    v10 = v10 or v11
     v9 = v9 or v10
     v8 = v8 or v9
     v6 = (v6 and v5) or v8
@@ -1322,8 +1401,10 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
               "years": list(years), "lead_minutes": lead_minutes, "rule": "od",
               "replacement_bpm": REPLACEMENT_BPM, "bpm_shrink_mp": BPM_SHRINK_MP})
     if v10:
-        m.update({"version": nc.V10, "orb": nc.ORB_PCT, "refit": "slate",
+        m.update({"version": nc.V11 if v11 else nc.V10, "orb": nc.ORB_PCT, "refit": "slate",
                   "train_file": TRAIN_FILE, "rookies": rookie_meta(max(years) + 1)})
+    if v11:
+        m.update({"score_rule": "q", "q_rates": q_rates(years, cache_dir)})
         G["season"] = G["year"]
         save_train(G, feats)
     nc.save_json(m, MODEL_FILE)
@@ -1413,10 +1494,13 @@ def main(argv=None):
     ap.add_argument("--v10", action="store_true",
                     help="fit v10: v9 on ORB%% weights, rookies by pick; saves the "
                          "training games for the build's per-slate refit")
+    ap.add_argument("--v11", action="store_true",
+                    help="fit v11: v10 plus the Questionable play-rate table by lead "
+                         "(q_rates) the build scores the report route with")
     a = ap.parse_args(argv)
     fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
         v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase), v8=a.v8,
-        v9=a.v9, v10=a.v10)
+        v9=a.v9, v10=a.v10, v11=a.v11)
     return 0
 
 

@@ -87,7 +87,8 @@ from research.legacy_backfill import reconstruct_season  # closed-research compa
 def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
                           talent0=None, weight_years=WEIGHT_YEARS,
                           phase_years=PHASE_YEARS, report_years=REPORT_YEARS,
-                          game_years=GAME_YEARS, margin=False, v10=False):
+                          game_years=GAME_YEARS, margin=False, v10=False, v11=False,
+                          score_terms=None):
     """Reconstruct with the same v9 base/report arms as live scoring.
     Optional missing terms contribute zero and receive neutral-input tags;
     core missing inputs abstain. Fits exclude the test season (or use only
@@ -97,14 +98,21 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     (`talent` / `terms` must be built with rookies), and the report route
     refitted before each slate on its training seasons plus season y's
     covered games before that slate, as the build does (pav.refit).
+    v11=True (with v10): season y's report route is scored with
+    `score_terms[y]` (the q rule) while every fit, the per-slate refit
+    included, reads the od `terms`, as the build does.
     """
+    v10 = v10 or v11
     margin = margin or v10
     fit = ((lambda X, t, f: nc.fit_margin(X, t["margin"], f)) if margin else
            (lambda X, t, f: nc.fit_logit(X, t["win"], f)))
-    tag, tag_av = ((build_site.MODEL_TAG_V10, build_site.MODEL_TAG_V10_AVAIL) if v10 else
+    tag, tag_av = ((build_site.MODEL_TAG_V11, build_site.MODEL_TAG_V11_AVAIL) if v11 else
+                   (build_site.MODEL_TAG_V10, build_site.MODEL_TAG_V10_AVAIL) if v10 else
                    (build_site.MODEL_TAG_V9, build_site.MODEL_TAG_V9_AVAIL) if margin
                    else (build_site.MODEL_TAG_V8, build_site.MODEL_TAG_V8_AVAIL))
-    tag_n, tag_nav = ((build_site.MODEL_TAG_V10_NEUTRAL, build_site.MODEL_TAG_V10_NEUTRAL_AVAIL)
+    tag_n, tag_nav = ((build_site.MODEL_TAG_V11_NEUTRAL, build_site.MODEL_TAG_V11_NEUTRAL_AVAIL)
+                      if v11 else
+                      (build_site.MODEL_TAG_V10_NEUTRAL, build_site.MODEL_TAG_V10_NEUTRAL_AVAIL)
                       if v10 else (build_site.MODEL_TAG_V9_NEUTRAL,
                                    build_site.MODEL_TAG_V9_NEUTRAL_AVAIL))
     def use(years):
@@ -149,7 +157,7 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     test.loc[fin, "p_home"] = nc.predict(base, test.loc[fin, feats].values)
     test.loc[fin, "margin_home"] = nc.predict_margin(base, test.loc[fin, feats].values)
     test.loc[fin, "model_tag"], test.loc[fin, "route"] = tag, "base"
-    ver = "v10" if v10 else "v9" if margin else "v8"
+    ver = "v11" if v11 else "v10" if v10 else "v9" if margin else "v8"
     print(f"season {y}: {ver} base on {int(fin.sum())}/{len(test)} games (fit n="
           f"{int(ok.sum())})", flush=True)
     tkey = pd.to_datetime(test["date"]).dt.strftime("%Y-%m-%d") + test["home"] + test["away"]
@@ -161,8 +169,13 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
             tr = tr[np.minimum(tr["gp_home"], tr["gp_away"]) >= 1]
             ok = np.isfinite(tr[afeats].to_numpy(float)).all(axis=1)
             am = fit(tr.loc[ok, afeats].values, tr.loc[ok], afeats)
-            te = pav.with_terms(test, terms[y])
+            q = v11 and score_terms is not None and y in score_terms
+            te = pav.with_terms(test, score_terms[y] if q else terms[y])
             te = te[te["gmin"] >= 1].copy()
+            # the per-slate refit adds this season's od rows, as the build does
+            fit_rows = pav.with_terms(test, terms[y]) if q else te
+            fit_rows = fit_rows[fit_rows["gmin"] >= 1].set_index(
+                fit_rows["slate_date"] + fit_rows["home"] + fit_rows["away"])
             injury_missing = ~np.isfinite(te[["av_min", "av_bpm"]].to_numpy(float)).all(axis=1)
             te.loc[injury_missing, ["av_min", "av_bpm"]] = 0.0
             values, changed = nc.neutral_features(te, afeats)
@@ -171,7 +184,8 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
             te, values, changed = te[usable], values[usable], changed[usable]
             tk = te["slate_date"] + te["home"] + te["away"]
             if v10:
-                pv, mv = slate_refits(am, tr.loc[ok], te, values)
+                pv, mv = slate_refits(am, tr.loc[ok], te, values,
+                                      fit_rows.reindex(tk.to_numpy()) if q else None)
             else:
                 pv, mv = nc.predict(am, values.values), nc.predict_margin(am, values.values)
             pmap, mmap = dict(zip(tk, pv)), dict(zip(tk, mv))
@@ -202,19 +216,21 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     return test, weights, base
 
 
-def slate_refits(model, train, te, values):
+def slate_refits(model, train, te, values, fit_rows=None):
     """v10's per-slate report route on season rows `te` (with their model
     inputs `values`): each slate scored by `model` refitted on `train` plus
     te's complete covered games before that slate (pav.refit), as the
-    build does live. Returns (P, margin) arrays aligned with te."""
+    build does live. v11: `fit_rows` (aligned with te) are those games with
+    the od terms the refit reads. Returns (P, margin) arrays aligned with te."""
     feats = model["features"]
     train = train[feats + ["margin"]]
+    src = te if fit_rows is None else fit_rows
     dates = pd.to_datetime(te["date"]).to_numpy()
-    done = np.isfinite(te[feats + ["margin"]].to_numpy(float)).all(axis=1)
+    done = np.isfinite(src[feats + ["margin"]].to_numpy(float)).all(axis=1)
     p, m = np.full(len(te), np.nan), np.full(len(te), np.nan)
     for d in np.unique(dates):
         idx = dates == d
-        mod = pav.refit(model, te.loc[done & (dates < d), feats + ["margin"]], train)
+        mod = pav.refit(model, src.loc[done & (dates < d), feats + ["margin"]], train)
         p[idx] = nc.predict(mod, values.values[idx])
         m[idx] = nc.predict_margin(mod, values.values[idx])
     return p, m
@@ -329,8 +345,9 @@ def main(argv=None):
     older = a.v4 or a.v5 or a.v6 or a.v7 or a.v8 or a.v9
     try:
         v10 = not older and build_site.is_v10(nc.load_json("logit.json"))
+        v11 = not older and build_site.is_v11(nc.load_json("logit.json"))
     except (FileNotFoundError, ValueError):
-        v10 = False
+        v10 = v11 = False
     terms = None
     if not a.no_avail:
         archive = pav.ReportArchive(os.path.join(a.cache, "injury_reports"))
@@ -352,12 +369,30 @@ def main(argv=None):
                       flush=True)
         finally:
             archive.save()
+    score_terms = None
+    if v11 and terms:
+        # v11 scores each season's report route with the q rule at the
+        # 30-minute report these rows read, play rates from the other report
+        # seasons (a season in progress: all of them), as fits exclude it
+        score_terms = {}
+        try:
+            for y in a.seasons:
+                if y not in terms:
+                    continue
+                others = [t for t in REPORT_YEARS if t != y and t in terms]
+                table = pav.q_rates(others, a.cache, leads=(pav.LEAD_MINUTES,), archive=archive)
+                rates = pav.lead_rates(table, pav.LEAD_MINUTES)
+                score_terms[y], _ = pav.season_terms(y, archive, a.cache, rookies=True, rates=rates)
+                print(f"season {y}: v11 q rates {rates} (from {others})", flush=True)
+        finally:
+            archive.save()
     v8 = not (a.v4 or a.v5 or a.v6 or a.v7)        # v8 or v9: one faded rating
     margin = v8 and not a.v8
 
     def season(y):
         if v8:
-            return reconstruct_season_v8(y, terms=terms, margin=margin, v10=v10)
+            return reconstruct_season_v8(y, terms=terms, margin=margin, v10=v10, v11=v11,
+                                         score_terms=score_terms)
         return reconstruct_season(y, terms=terms, v5=not a.v4, v6=not (a.v4 or a.v5),
                                   v7=not (a.v4 or a.v5 or a.v6))
     if a.rescore:

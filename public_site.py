@@ -344,17 +344,23 @@ class PublicSite:
                 "Results and Performance as their own record, never combined with the lock’s.</p>")
 
     def model_note(self):
-        """How it works: the live v10 model in plain words, and the one dated
-        line that earlier picks used the previous version (CLAUDE.md v10
-        amendment). Nothing when the v9 files are live."""
-        if not any(str(t).endswith("_v10") for t in getattr(self.ui, "ACTIVE_TAGS", [])):
+        """How it works: the live v10 / v11 model in plain words, and the one
+        dated line that earlier picks used the previous version (CLAUDE.md v10
+        and v11 amendments). Nothing when the v9 files are live."""
+        tags = [str(t) for t in getattr(self.ui, "ACTIVE_TAGS", [])]
+        ver = "_v11" if any(t.endswith("_v11") for t in tags) else \
+            "_v10" if any(t.endswith("_v10") for t in tags) else None
+        if ver is None:
             return ""
         first = pd.Series(dtype=str)
         if len(self.native) and "first_model_tag" in self.native:
-            v10 = self.native["first_model_tag"].astype(str).str.endswith("_v10")
-            first = pd.to_datetime(self.native.loc[v10, "first_snapshot_utc"], utc=True, errors="coerce").dropna()
+            new = self.native["first_model_tag"].astype(str).str.endswith(ver)
+            first = pd.to_datetime(self.native.loc[new, "first_snapshot_utc"], utc=True, errors="coerce").dropna()
         when = first.min().tz_convert(self.ui.PT) if len(first) else pd.Timestamp(self.today)
-        return ("<p>Team strength reads shooting, turnovers, rebounding share and free throws. Drafted rookies are valued by draft position until they have an NBA record, and the injury-report part of the model is re-estimated before each slate with this season’s completed games.</p>"
+        questionable = (" Players listed as questionable, doubtful or probable count by how often players with that status have played when the report was that far from tip."
+                        if ver == "_v11" else "")
+        return ("<p>Team strength reads shooting, turnovers, rebounding share and free throws. Drafted rookies are valued by draft position until they have an NBA record, and the injury-report part of the model is re-estimated before each slate with this season’s completed games."
+                + questionable + "</p>"
                 f"<p class='note'>Model updated {when:%B} {when.day}, {when.year}. Earlier tracked picks keep the probabilities of the previous version, recorded before their games.</p>")
 
     def render(self):
