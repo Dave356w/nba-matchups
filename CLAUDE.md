@@ -142,6 +142,28 @@ information only, separate from DraftKings and native evidence.
     forecasts until a game locks and its tracked pick after. This changes
     the bet's timing only, not prediction maths.
 
+- **Model v11 amendment (owner's decision, registered 2026-10-28T21:30:46Z).**
+  Committed on its own before any v11 code or snapshot.
+  - v11 = v10 plus Questionable weighting on the injury-report route (arm
+    q of [Questionable weighting](diagnostics/questionable_weight/RESULTS.txt)):
+    Doubtful, Questionable and Probable players count as the share of
+    listed players with that status who logged minutes in the report
+    seasons, read at the report's lead before tip (the nearest of 18, 12,
+    8, 5 and 2 h and 30 min); Out counts 0; Available and unlisted
+    previous-box players count 1. The route's fit is unchanged (Out/Doubtful
+    on the last report ≥ 30 min before tip, refitted before each slate).
+    New tags end `_v11`; neutral-input variants keep their own tags.
+  - Adopted by the owner although arm q failed the G7 rule set before its
+    run: games 1+ −0.0012 ± 0.0010 at 18 h and −0.0006 ± 0.0012 at 5 h,
+    but DraftKings 2025-26 games 10+ +0.0007 at 5 h (± 95%).
+  - Native snapshots, probabilities and tags recorded before activation
+    are immutable and never rescored. The games 1–9 rows also accept tags
+    ending `_v11`; a by-tag split is kept internally.
+  - Reconstructed and rebuilt rows are rescored under v11 by the usual
+    post-change checks (rescore, rebuild, build, model review, DraftKings
+    and History backtests), reviewed before activation. Pages carry the
+    one dated model-version line; no hindsight figures are added.
+
 ## Sources of truth and engineering rules
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
