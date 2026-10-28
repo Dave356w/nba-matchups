@@ -1,0 +1,31 @@
+NFL-style median spread bands on v10's margin: a retrospective ATS test.
+
+== DraftKings 2025-26, games 10+ (map fitted on seasons 2017-2025; walk-forward v10 margin)
+  quartile cuts 2.12, 4.44, 7.48  band n [2421, 2421, 2421, 2422]  medians +2.0, +4.0, +6.0, +10.0
+  nfl      cuts 3.00, 7.00, 10.00  band n [3432, 3550, 1449, 1254]  medians +2.0, +5.0, +9.0, +12.0
+  at the open (964 games with main-line prices):
+    median band (quartile)       n= 964  506-458-0  units   +1.61  ROI   +0.2% ±  3.1  (null -4.5%, z +1.5)  cover 52.5%  | fav -4.9%
+    median band (nfl)            n= 964  514-450-0  units  +16.66  ROI   +1.7% ±  3.1  (null -4.5%, z +2.0)  cover 53.3%  | fav -4.9%
+    v10 margin, no map           n= 964  511-453-0  units  +10.54  ROI   +1.1% ±  3.1  (null -4.5%, z +1.8)  cover 53.0%  | fav -4.9%
+    H5 rule (13.5, >= 1 pt)      n= 689  373-316-0  units  +22.12  ROI   +3.2% ±  3.6  (null -4.5%, z +2.1)  cover 54.1%  | fav -8.7%
+  at the close (964 games with main-line prices):
+    median band (quartile)       n= 964  476-488-0  units  -56.08  ROI   -5.8% ±  3.1  (null -4.5%, z -0.4)  cover 49.4%  | fav -5.3%
+    median band (nfl)            n= 964  472-492-0  units  -63.92  ROI   -6.6% ±  3.1  (null -4.5%, z -0.7)  cover 49.0%  | fav -5.3%
+    v10 margin, no map           n= 964  479-485-0  units  -51.10  ROI   -5.3% ±  3.1  (null -4.5%, z -0.3)  cover 49.7%  | fav -5.3%
+    H5 rule (13.5, >= 1 pt)      n= 701  351-350-0  units  -32.72  ROI   -4.7% ±  3.6  (null -4.5%, z -0.0)  cover 50.1%  | fav -6.3%
+
+== ESPN BET 2024-25, games 10+ (map fitted on seasons 2017-2024; walk-forward v10 margin)
+  quartile cuts 2.06, 4.31, 7.23  band n [2115, 2115, 2115, 2115]  medians +2.0, +4.0, +6.0, +10.0
+  nfl      cuts 3.00, 7.00, 10.00  band n [3097, 3120, 1247, 996]  medians +2.0, +5.0, +9.0, +11.0
+  at the open (1028 games with main-line prices):
+    median band (quartile)       n=1028  545-483-0  units  +10.08  ROI   +1.0% ±  3.0  (null -4.5%, z +1.8)  cover 53.0%  | fav -0.3%
+    median band (nfl)            n=1028  539-489-0  units   -0.69  ROI   -0.1% ±  3.0  (null -4.5%, z +1.5)  cover 52.4%  | fav -0.3%
+    v10 margin, no map           n=1028  540-488-0  units   +0.69  ROI   +0.1% ±  3.0  (null -4.5%, z +1.5)  cover 52.5%  | fav -0.3%
+    H5 rule (13.5, >= 1 pt)      n= 723  387-336-0  units  +14.29  ROI   +2.0% ±  3.5  (null -4.5%, z +1.8)  cover 53.5%  | fav +0.5%
+  at the close (1071 games with main-line prices):
+    median band (quartile)       n=1071  531-540-0  units  -58.06  ROI   -5.4% ±  2.9  (null -4.5%, z -0.3)  cover 49.6%  | fav -3.5%
+    median band (nfl)            n=1071  541-530-0  units  -39.04  ROI   -3.6% ±  2.9  (null -4.5%, z +0.3)  cover 50.5%  | fav -3.5%
+    v10 margin, no map           n=1071  549-522-0  units  -24.57  ROI   -2.3% ±  2.9  (null -4.5%, z +0.8)  cover 51.3%  | fav -3.5%
+    H5 rule (13.5, >= 1 pt)      n= 742  365-377-0  units  -46.03  ROI   -6.2% ±  3.5  (null -4.5%, z -0.5)  cover 49.2%  | fav -2.5%
+
+Hindsight on reconstructed prices; every map fitted on earlier seasons only. +/- is 1 SE; z = (ROI - null) / SE. Not forward evidence; no rule is registered.
