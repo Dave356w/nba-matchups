@@ -163,3 +163,23 @@ def test_every_feature_builder_follows_the_weights_orb_flag(weights):
         fade = nc.fade_inputs(lh, 20, None, la, 20, None, 0.36, w)["delta"]
         assert np.isclose(fade, want)
     assert not np.allclose(nc.decayed_features(lh, 20), nc.decayed_features(lh, 20, orb_pct=True))
+
+
+def test_audit_table_reads_orb_pct_gaps_for_v10_weights(weights):
+    """diagnostics/v5_audit/common.with_weights (the history backtest's Part B)
+    multiplies the ORB% gaps by ORB% weights, per-100 gaps otherwise."""
+    import os, sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                    "diagnostics", "v5_audit"))
+    import common
+    row = {g: 1.0 for g in common.GAPS + common.LUCKS}
+    row.update({g: 5.0 for g in common.GAPS_PCT + common.LUCKS_PCT}, phase=0.5)
+    t = pd.DataFrame([row])
+    sd, w = np.asarray(weights["sd"]), np.asarray(weights["w"])
+    v9 = common.with_weights(t, weights)["delta"].iloc[0]
+    v10 = common.with_weights(t, {**weights, "orb": "pct"})["delta"].iloc[0]
+    assert np.isclose(v9, 100 * (np.ones(8) / sd) @ w)
+    g = np.ones(8); g[[2, 6]] = 5.0
+    assert np.isclose(v10, 100 * (g / sd) @ w)
+    with np.testing.assert_raises(ValueError):
+        common.with_weights(t.drop(columns=common.GAPS_PCT), {**weights, "orb": "pct"})
