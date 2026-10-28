@@ -90,6 +90,30 @@ information only, separate from DraftKings and native evidence.
     screenshots. This amendment supersedes conflicting active-rule
     descriptions below; the original registrations remain as history.
 
+- **Model v10 amendment (owner's decision, registered 2026-10-28T18:16:46Z).**
+  Committed on its own before any v10 code or snapshot.
+  - v10 = v9 plus three changes, from
+    [v10 candidate](diagnostics/v10_candidate/RESULTS.txt) (arm v10h25):
+    the composite's rebounding factors as ORB% (ORB / (ORB + opp DRB));
+    drafted rookies valued by pick (BPM = a + b log pick, fitted on
+    earlier seasons) in talent_diff and av_bpm; and the injury-report
+    route refitted before each slate on the report seasons plus this
+    season's covered games before the slate. Half-life stays 25. New tags
+    end `_v10`; neutral-input variants keep their own tags.
+  - Native first snapshots, probabilities and tags recorded before
+    activation are immutable and never rescored. Rows keep refreshing only
+    before tip; only rows first snapshotted after activation carry v10.
+  - The three tests continue in their existing rows (test × stage ×
+    season), with unchanged rules, thresholds and prices. Each bet reads its
+    own frozen first P and tag. The games 1–9 rows accept first tags ending
+    `_v9` or `_v10`; older tags still never enter them. A by-tag split is
+    kept internally.
+  - Reconstructed and rebuilt (hindsight) rows are rescored under v10 by
+    the usual post-change checks. Pages describe the current model with
+    one dated line that earlier picks used the previous version; no
+    hindsight figures are added to public pages. Activation waits on the
+    G7–G10 checks.
+
 ## Sources of truth and engineering rules
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
