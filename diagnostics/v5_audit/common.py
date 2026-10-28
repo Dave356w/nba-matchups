@@ -50,6 +50,11 @@ import player_availability as pav  # noqa: E402
 OUT = os.path.join(HERE, "output")
 GAPS = [f"g{k}" for k in range(8)]          # raw factor gaps, nc.FEATURES order
 LUCKS = [f"l{k}" for k in range(8)]         # opponent-3P% regression change, h - a
+# v10 weights (nc.is_orb_pct) read the rebounding factors as ORB%: the table
+# also keeps those two gaps (and their luck change), with_weights picks them.
+ORB_IDX = (2, 6)
+GAPS_PCT = [f"g{k}p" for k in ORB_IDX]
+LUCKS_PCT = [f"l{k}p" for k in ORB_IDX]
 ZS = [f"z{k}" for k in range(8)]            # gaps / fold sd (standardised)
 V5 = nc.V5_FEATURES
 AV5 = pav.FEATURES_V5
@@ -79,22 +84,26 @@ def season_table(y, talent=None):
         if (tm, i) not in feat:
             lg = logs[tm]
             t = _totals(lg, i, nc.COLS)
-            feat[(tm, i)] = nc.features_from_totals(np.array([t[c] for c in nc.COLS]))
+            x = np.array([t[c] for c in nc.COLS])
+            feat[(tm, i)] = np.concatenate([nc.features_from_totals(x), nc.features_from_totals(
+                x, orb_pct=True)[list(ORB_IDX)]])
             tot[(tm, i)] = t
         return feat[(tm, i)], tot[(tm, i)]
 
     def luck_vec(tm, i, pct):
         lg = logs[tm]
         if i <= 0 or not np.isfinite(pct) or not set(nc.X3) <= set(lg.columns):
-            return np.full(8, np.nan)
+            return np.full(8 + len(ORB_IDX), np.nan)
         A = lg[nc.COLS + nc.X3].to_numpy(float)[:i]
         if not np.isfinite(A).all():
-            return np.full(8, np.nan)
+            return np.full(8 + len(ORB_IDX), np.nan)
         t = _totals(lg, i, nc.COLS + nc.X3)
         r = nc.regress_3p(t, "O", pct)
-        f = nc.features_from_totals(np.array([t[c] for c in nc.COLS], float))
-        fr = nc.features_from_totals(np.array([r[c] for c in nc.COLS], float))
-        return fr - f
+        x = np.array([t[c] for c in nc.COLS], float)
+        xr = np.array([r[c] for c in nc.COLS], float)
+        d = nc.features_from_totals(xr) - nc.features_from_totals(x)
+        dp = nc.features_from_totals(xr, orb_pct=True) - nc.features_from_totals(x, orb_pct=True)
+        return np.concatenate([d, dp[list(ORB_IDX)]])
 
     rows = []
     for tm, c in logs.items():
@@ -125,8 +134,9 @@ def season_table(y, talent=None):
                          "b2b_net": li["b2b_net"], "phase": li["phase"],
                          "talent_diff": tal, "win": int(r["pts"] > r["opp_pts"]),
                          "ftp_gap": ftp, "ftmfga_gap": ftmfga,
-                         **dict(zip(GAPS, fh - fa)),
-                         **dict(zip(LUCKS, luck_vec(tm, i, pct) - luck_vec(opp, j, pct)))})
+                         **dict(zip(GAPS + GAPS_PCT, fh - fa)),
+                         **dict(zip(LUCKS + LUCKS_PCT,
+                                    luck_vec(tm, i, pct) - luck_vec(opp, j, pct)))})
     df = pd.DataFrame(rows)
     df["slate_date"] = df["date"].dt.strftime("%Y-%m-%d")
     return df
@@ -136,10 +146,16 @@ def with_weights(tab, weights):
     """delta, d_phase, luck_def and z-gaps for one fold's composite weights."""
     t = tab.copy()
     sd, w = np.asarray(weights["sd"]), np.asarray(weights["w"])
-    G = t[GAPS].to_numpy(float) / sd
+    gaps, lucks = list(GAPS), list(LUCKS)
+    if nc.is_orb_pct(weights):           # v10: the weights were fitted on ORB%
+        if not set(GAPS_PCT + LUCKS_PCT) <= set(t.columns):
+            raise ValueError("ORB% weights need a season_table built with ORB% gaps")
+        for k, g, lk in zip(ORB_IDX, GAPS_PCT, LUCKS_PCT):
+            gaps[k], lucks[k] = g, lk
+    G = t[gaps].to_numpy(float) / sd
     t["delta"] = 100 * G @ w
     t["d_phase"] = t["delta"] * t["phase"]
-    t["luck_def"] = 100 * (t[LUCKS].to_numpy(float) / sd) @ w
+    t["luck_def"] = 100 * (t[lucks].to_numpy(float) / sd) @ w
     for k, z in enumerate(ZS):
         t[z] = G[:, k]
     return t
