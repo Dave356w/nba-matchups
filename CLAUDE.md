@@ -114,6 +114,34 @@ information only, separate from DraftKings and native evidence.
     hindsight figures are added to public pages. Activation waits on the
     G7–G10 checks.
 
+- **Five-hour lock amendment (owner's decision, registered 2026-10-28T21:30:29Z).**
+  Committed on its own before any lock code or snapshot. Evidence:
+  [Questionable weighting and lock lead](diagnostics/questionable_weight/RESULTS.txt).
+  At the overnight first snapshot (~18 h before tip) the NBA report has
+  flagged 23–26% of eventual absences on back-to-backs and 71–72% on
+  other games; by 5 h, 76–84% of both.
+  - Each tracked bet is frozen at the **lock snapshot**: the first pregame
+    snapshot taken within 5 hours of tip (snapshot time ≥ tip − 5 h).
+    Its prices, model P, model tag, report time and route are write-once
+    `lock_*` columns. A game with no snapshot in that window has no
+    tracked bet; missed locks are counted internally. First snapshots keep
+    being recorded, write-once, as history and forecasts.
+  - The three tests keep their rules, thresholds and prices (H5 13.5 ×
+    Φ⁻¹(P), edge ≥ 1, both spread prices −135..+115; H2·F q > 0.5; H4
+    P − q ≥ 0.12), read at the lock price with the lock P and tag. Stage
+    membership is unchanged (games 10+; games 1–9 with v9-or-later tags;
+    game 0 never).
+  - **New rows from activation.** Each test × stage × season gets
+    separate 5 h-lock rows (H5·L, H5·E·L, H2·F·L, H2·F·E·L, H4·L, H4·E·L).
+    The first-snapshot rows close with the last slate before activation
+    (the first slate with a lock snapshot); from that slate on, games enter
+    only the lock rows. Closed rows stay visible and graded, never pooled
+    with the lock rows. CLV is the lock price against the close.
+  - Builds are attempted every 30 minutes through each slate's afternoon
+    and evening, since scheduled runs are dropped or delayed. Pages show
+    forecasts until a game locks and its tracked pick after. This changes
+    the bet's timing only, not prediction maths.
+
 ## Sources of truth and engineering rules
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
