@@ -183,3 +183,14 @@ def test_audit_table_reads_orb_pct_gaps_for_v10_weights(weights):
     assert np.isclose(v10, 100 * (g / sd) @ w)
     with np.testing.assert_raises(ValueError):
         common.with_weights(t.drop(columns=common.GAPS_PCT), {**weights, "orb": "pct"})
+
+
+def test_legacy_carryover_follows_the_weights_orb_flag(weights):
+    """research/legacy_cold_start (the history backtest's Part C out of era)
+    builds ORB% features for v10 weights, like cold_start."""
+    import cold_start
+    from research import legacy_cold_start as legacy
+    lh, la = teams(30)[0]["A"], teams(30)[0]["B"]
+    for w in (weights, {**weights, "orb": "pct"}):
+        assert np.isclose(legacy.carry_delta(lh, 20, None, la, 20, None, w),
+                          cold_start.carry_delta(lh, 20, None, la, 20, None, w))

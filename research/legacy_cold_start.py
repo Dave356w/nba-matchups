@@ -52,7 +52,7 @@ FROZEN_FILE = "../research/legacy_models/logit_early_v6.json"                # t
 
 
 def cold_features(cur, i, half_life=nc.HALF_LIFE, prior=None, rho=0.0,
-                  pre=None, kappa=0.0):
+                  pre=None, kappa=0.0, orb_pct=False):
     """Decayed four-factor features from [prior season][preseason][current].
 
     Rows are ordered oldest -> newest and the decay counts games ago across
@@ -76,14 +76,15 @@ def cold_features(cur, i, half_life=nc.HALF_LIFE, prior=None, rho=0.0,
     A = np.vstack(parts)
     m = np.concatenate(mult)
     w = 0.5 ** (np.arange(len(A))[::-1] / half_life) * m
-    return nc.features_from_totals((A * w[:, None]).sum(0))
+    return nc.features_from_totals((A * w[:, None]).sum(0), orb_pct=orb_pct)
 
 
 def carry_delta(cur_h, ih, prior_h, cur_a, ia, prior_a, weights,
                 rho=RHO, half_life=nc.HALF_LIFE):
     """Composite delta (home - away) from carryover features, or None."""
-    fh = cold_features(cur_h, ih, half_life, prior=prior_h, rho=rho)
-    fa = cold_features(cur_a, ia, half_life, prior=prior_a, rho=rho)
+    orb = nc.is_orb_pct(weights)          # features as the weights were fitted
+    fh = cold_features(cur_h, ih, half_life, prior=prior_h, rho=rho, orb_pct=orb)
+    fa = cold_features(cur_a, ia, half_life, prior=prior_a, rho=rho, orb_pct=orb)
     if fh is None or fa is None:
         return None
     return float(nc.composite(fh - fa, weights["sd"], weights["w"]))
