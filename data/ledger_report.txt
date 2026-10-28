@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-28T20:27:57Z; latest graded slate 2026-10-27 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-10-28T21:12:00Z; latest graded slate 2026-10-27 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v10 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_avail_v10 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v10 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_avail_v10
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
