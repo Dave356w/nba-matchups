@@ -144,3 +144,22 @@ def test_how_it_works_dates_the_update_only_when_v10_is_live(monkeypatch):
     note = site.model_note()
     assert "Model updated October 29, 2026" in note and "previous version" in note
     assert "hindsight" not in note.lower() and "backtest" not in note.lower()
+
+
+def test_every_feature_builder_follows_the_weights_orb_flag(weights):
+    """v10 weights are fitted on ORB%: the legacy builders the history backtest
+    reads (build_games' decayed_features, opp_luck, the carryover delta) must
+    build ORB% features from them, as fade_v8_games does; v9 weights unchanged."""
+    import cold_start
+    lh, la = teams(30)[0]["A"], teams(30)[0]["B"]
+    w10 = {**weights, "orb": "pct"}
+    for w, pct in ((weights, False), (w10, True)):
+        f = nc.decayed_features(lh, 20, orb_pct=pct)
+        c = cold_start.cold_features(lh, 20, orb_pct=pct)
+        assert np.allclose(f, c)
+        fh, fa = nc.decayed_features(lh, 20, orb_pct=pct), nc.decayed_features(la, 20, orb_pct=pct)
+        want = nc.composite(fh - fa, w["sd"], w["w"])
+        assert np.isclose(cold_start.carry_delta(lh, 20, None, la, 20, None, w), want)
+        fade = nc.fade_inputs(lh, 20, None, la, 20, None, 0.36, w)["delta"]
+        assert np.isclose(fade, want)
+    assert not np.allclose(nc.decayed_features(lh, 20), nc.decayed_features(lh, 20, orb_pct=True))
