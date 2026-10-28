@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-28T19:54:17Z; latest graded slate 2026-10-27 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-10-28T20:04:04Z; latest graded slate 2026-10-27 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v10 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_avail_v10 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v10 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_avail_v10
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -30,13 +30,13 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
   ACTIVE: three first-snapshot tests; games 1–9 (·E) and 10+ never pooled.
   H4      Games 10+ · value side · model P − no-vig q ≥ 0.12
     native @ first snapshot    no bets
-    hindsight @ open           n=112   47-65       +15.55u  ROI  +13.9% +/- 14.7  (null -4.4%, z +1.2)  win 42.0% vs q 33.8%  | fav -8.0%
+    hindsight @ open           n=97    44-53       +19.31u  ROI  +19.9% +/- 15.9  (null -4.4%, z +1.5)  win 45.4% vs q 35.7%  | fav -10.1%
   H2·F    Games 10+ · value side that is the favourite
     native @ first snapshot    no bets
-    hindsight @ open           n=324   224-100      +6.71u  ROI   +2.1% +/-  4.0  (null -4.1%, z +1.6)  win 69.1% vs q 65.5%  | fav +2.1%
+    hindsight @ open           n=342   240-102      +9.24u  ROI   +2.7% +/-  3.8  (null -4.1%, z +1.8)  win 70.2% vs q 66.0%  | fav +2.7%
   H5      Games 10+ · ATS: model margin vs the line ≥ 1 pt
     native @ first snapshot    no bets
-    hindsight @ open           n=696   374-322     +17.27u  ROI   +2.5% +/-  3.6  (null -4.5%, z +1.9)  win 53.7% vs q 50.1%  | fav -7.7%
+    hindsight @ open           n=689   373-316     +22.12u  ROI   +3.2% +/-  3.6  (null -4.5%, z +2.1)  win 54.1% vs q 50.1%  | fav -8.7%
   H4·E    Games 1–9 · value side · model P − no-vig q ≥ 0.12
     native @ first snapshot    n=5     3-2          +1.55u  ROI  +31.1% +/- 54.4  (null -4.1%, z +0.6)  win 60.0% vs q 37.7%  | fav -10.3%
     hindsight @ open           no bets
@@ -47,39 +47,39 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
     native @ first snapshot    n=22    8-14         -6.72u  ROI  -30.5% +/- 20.1  (null -4.5%, z -1.3)  win 36.4% vs q 50.3%  | fav +5.0%
     hindsight @ open           no bets
   EARLY HINDSIGHT ONLY: 276 ESPN BET early games, v9 primary P; injury-timing caveat; never native evidence.
-    H4·E    ESPN BET @ open            n=46    27-19       +32.81u  ROI  +71.3% +/- 28.2  (null -4.1%, z +2.7)  win 58.7% vs q 36.6%  | fav -19.1%
-    H2·F·E  ESPN BET @ open            n=83    57-26        +0.61u  ROI   +0.7% +/-  7.8  (null -4.0%, z +0.6)  win 68.7% vs q 65.1%  | fav +0.7%
-    H5·E    ESPN BET @ open            n=188   107-81      +15.81u  ROI   +8.4% +/-  6.9  (null -4.5%, z +1.9)  win 56.9% vs q 50.2%  | fav -7.0%
+    H4·E    ESPN BET @ open            n=47    28-19       +33.25u  ROI  +70.7% +/- 27.6  (null -4.1%, z +2.7)  win 59.6% vs q 37.5%  | fav -17.2%
+    H2·F·E  ESPN BET @ open            n=83    57-26        +0.28u  ROI   +0.3% +/-  7.8  (null -4.0%, z +0.6)  win 68.7% vs q 65.5%  | fav +0.3%
+    H5·E    ESPN BET @ open            n=189   110-79      +20.47u  ROI  +10.8% +/-  6.9  (null -4.5%, z +2.2)  win 58.2% vs q 50.2%  | fav -7.5%
   RETIRED: registered figures and native bets frozen at 2026-10-23T19:46:58Z.
     H1: +17.8% ± 25.0 (95%), n=115, close, null −4.0%; native bets 4, graded 0 (ungraded at retirement).
     H2: +1.6% ± 4.6 (95%), n=921, open, null −4.2%; native bets 0, graded 0 (ungraded at retirement).
     H3: +18.7% ± 16.0 (95%), n=339, open; native bets 0, graded 0 (ungraded at retirement).
     H6: +3.6%, n=201, open, null −4.5%; z +1.2 (1 SE); native bets 11, graded 0 (ungraded at retirement).
   DraftKings backtest (hindsight; the open bets re-priced at the close, and the market's move toward them):
-    H4         @ open             n=112   47-65       +15.55u  ROI  +13.9% +/- 14.7  (null -4.4%, z +1.2)  win 42.0% vs q 33.8%  | fav -8.0%
-    H4         @ close            n=119   38-81        -7.42u  ROI   -6.2% +/- 14.0  (null -4.1%, z -0.2)  win 31.9% vs q 31.6%  | fav -7.0%
-    H4         open bets @ close  n=112   47-65        +7.09u  ROI   +6.3% +/- 14.1  (null -4.1%, z +0.7)  win 42.0% vs q 37.6%  | fav --
-               line moved toward the open bets +3.78 pp +/- 0.95
-    H2·F       @ open             n=324   224-100      +6.71u  ROI   +2.1% +/-  4.0  (null -4.1%, z +1.6)  win 69.1% vs q 65.5%  | fav +2.1%
-    H2·F       @ close            n=290   184-106     -21.31u  ROI   -7.3% +/-  4.3  (null -4.1%, z -0.8)  win 63.4% vs q 65.7%  | fav -7.3%
-    H2·F       open bets @ close  n=324   224-100      -5.34u  ROI   -1.6% +/-  3.8  (null -4.1%, z +0.6)  win 69.1% vs q 67.6%  | fav --
-               line moved toward the open bets +2.11 pp +/- 0.24
-    H5         @ open             n=696   374-322     +17.27u  ROI   +2.5% +/-  3.6  (null -4.5%, z +1.9)  win 53.7% vs q 50.1%  | fav -7.7%
-    H5         @ close            n=702   355-347     -26.30u  ROI   -3.7% +/-  3.6  (null -4.5%, z +0.2)  win 50.6% vs q 50.2%  | fav -7.8%
-    H5         open bets @ close  n=696   363-333      -4.00u  ROI   -0.6% +/-  3.6  (null -4.5%, z +1.1)  win 52.2% vs q 50.1%  | fav --
-               line moved toward the open bets +0.71 pts +/- 0.09
+    H4         @ open             n=97    44-53       +19.31u  ROI  +19.9% +/- 15.9  (null -4.4%, z +1.5)  win 45.4% vs q 35.7%  | fav -10.1%
+    H4         @ close            n=108   37-71        -0.63u  ROI   -0.6% +/- 14.8  (null -4.1%, z +0.2)  win 34.3% vs q 32.5%  | fav -10.7%
+    H4         open bets @ close  n=97    44-53       +11.86u  ROI  +12.2% +/- 15.2  (null -4.1%, z +1.1)  win 45.4% vs q 39.7%  | fav --
+               line moved toward the open bets +3.95 pp +/- 1.04
+    H2·F       @ open             n=342   240-102      +9.24u  ROI   +2.7% +/-  3.8  (null -4.1%, z +1.8)  win 70.2% vs q 66.0%  | fav +2.7%
+    H2·F       @ close            n=325   208-117     -27.25u  ROI   -8.4% +/-  4.0  (null -4.1%, z -1.1)  win 64.0% vs q 66.7%  | fav -8.4%
+    H2·F       open bets @ close  n=342   240-102      -2.97u  ROI   -0.9% +/-  3.7  (null -4.1%, z +0.9)  win 70.2% vs q 68.1%  | fav --
+               line moved toward the open bets +2.04 pp +/- 0.23
+    H5         @ open             n=689   373-316     +22.12u  ROI   +3.2% +/-  3.6  (null -4.5%, z +2.1)  win 54.1% vs q 50.1%  | fav -8.7%
+    H5         @ close            n=701   351-350     -32.72u  ROI   -4.7% +/-  3.6  (null -4.5%, z -0.0)  win 50.1% vs q 50.2%  | fav -6.3%
+    H5         open bets @ close  n=689   363-326      +2.86u  ROI   +0.4% +/-  3.6  (null -4.5%, z +1.4)  win 52.7% vs q 50.1%  | fav --
+               line moved toward the open bets +0.68 pts +/- 0.09
   H5 games 1–9 / 10+ by the picked side's spread and spread price (descriptive, not filters; win = cover rate):
-    H5   hindsight @ open · Fav −10 or more             n=38    21-17        +2.04u  ROI   +5.4% +/- 15.6  (null -4.5%, z +0.6)  win 55.3% vs q 50.2%  | fav +5.4%
-    H5   hindsight @ open · Fav −6 to −9.5              n=58    33-25        +4.71u  ROI   +8.1% +/- 12.5  (null -4.6%, z +1.0)  win 56.9% vs q 50.1%  | fav +8.1%
-    H5   hindsight @ open · Fav −3 to −5.5              n=57    28-29        -3.50u  ROI   -6.1% +/- 12.8  (null -4.5%, z -0.1)  win 49.1% vs q 50.0%  | fav -6.1%
-    H5   hindsight @ open · Pick'em −2.5 to +2.5        n=154   86-68        +9.68u  ROI   +6.3% +/-  7.6  (null -4.5%, z +1.4)  win 55.8% vs q 50.2%  | fav -11.3%
-    H5   hindsight @ open · Dog +3 to +5.5              n=121   63-58        -0.75u  ROI   -0.6% +/-  8.7  (null -4.5%, z +0.4)  win 52.1% vs q 49.9%  | fav -8.8%
-    H5   hindsight @ open · Dog +6 to +9.5              n=119   67-52        +9.17u  ROI   +7.7% +/-  8.7  (null -4.5%, z +1.4)  win 56.3% vs q 50.0%  | fav -16.3%
-    H5   hindsight @ open · Dog +10 or more             n=149   76-73        -4.07u  ROI   -2.7% +/-  7.8  (null -4.5%, z +0.2)  win 51.0% vs q 50.0%  | fav -6.4%
-    H5   hindsight @ open · −116 or shorter             n=26    11-15        -5.76u  ROI  -22.2% +/- 18.2  (null -4.4%, z -1.0)  win 42.3% vs q 51.9%  | fav -16.2%
-    H5   hindsight @ open · −115 to −111                n=126   74-52       +12.46u  ROI   +9.9% +/-  8.2  (null -4.5%, z +1.7)  win 58.7% vs q 51.0%  | fav -14.7%
-    H5   hindsight @ open · −110                        n=421   223-198      +4.73u  ROI   +1.1% +/-  4.6  (null -4.5%, z +1.2)  win 53.0% vs q 50.0%  | fav -8.4%
-    H5   hindsight @ open · −109 or longer              n=123   66-57        +5.84u  ROI   +4.8% +/-  8.8  (null -4.5%, z +1.0)  win 53.7% vs q 48.9%  | fav +3.6%
+    H5   hindsight @ open · Fav −10 or more             n=49    29-20        +6.19u  ROI  +12.6% +/- 13.5  (null -4.5%, z +1.3)  win 59.2% vs q 50.2%  | fav +12.6%
+    H5   hindsight @ open · Fav −6 to −9.5              n=61    34-27        +3.54u  ROI   +5.8% +/- 12.2  (null -4.6%, z +0.9)  win 55.7% vs q 50.2%  | fav +5.8%
+    H5   hindsight @ open · Fav −3 to −5.5              n=57    27-30        -5.45u  ROI   -9.6% +/- 12.7  (null -4.5%, z -0.4)  win 47.4% vs q 50.0%  | fav -9.6%
+    H5   hindsight @ open · Pick'em −2.5 to +2.5        n=146   80-66        +6.29u  ROI   +4.3% +/-  7.9  (null -4.5%, z +1.1)  win 54.8% vs q 50.2%  | fav -12.9%
+    H5   hindsight @ open · Dog +3 to +5.5              n=120   63-57        +0.20u  ROI   +0.2% +/-  8.7  (null -4.5%, z +0.5)  win 52.5% vs q 49.9%  | fav -9.6%
+    H5   hindsight @ open · Dog +6 to +9.5              n=120   68-52       +10.06u  ROI   +8.4% +/-  8.7  (null -4.5%, z +1.5)  win 56.7% vs q 50.0%  | fav -17.0%
+    H5   hindsight @ open · Dog +10 or more             n=136   72-64        +1.29u  ROI   +1.0% +/-  8.2  (null -4.5%, z +0.7)  win 52.9% vs q 50.0%  | fav -10.1%
+    H5   hindsight @ open · −116 or shorter             n=28    13-15        -4.07u  ROI  -14.5% +/- 17.7  (null -4.4%, z -0.6)  win 46.4% vs q 51.9%  | fav -15.6%
+    H5   hindsight @ open · −115 to −111                n=127   77-50       +17.07u  ROI  +13.4% +/-  8.1  (null -4.5%, z +2.2)  win 60.6% vs q 51.0%  | fav -14.1%
+    H5   hindsight @ open · −110                        n=411   217-194      +3.27u  ROI   +0.8% +/-  4.7  (null -4.5%, z +1.1)  win 52.8% vs q 50.0%  | fav -9.9%
+    H5   hindsight @ open · −109 or longer              n=123   66-57        +5.84u  ROI   +4.7% +/-  8.8  (null -4.5%, z +1.0)  win 53.7% vs q 48.9%  | fav +2.1%
     H5·E native @ first snapshot · Fav −10 or more      n=1     0-1          -1.00u  ROI -100.0% +/-   --  (null -4.5%, z --)  win 0.0% vs q 51.1%  | fav -100.0%
     H5·E native @ first snapshot · Fav −6 to −9.5       n=2     1-1          -0.13u  ROI   -6.5% +/-   --  (null -4.5%, z --)  win 50.0% vs q 51.1%  | fav -6.5%
     H5·E native @ first snapshot · Fav −3 to −5.5       n=1     0-1          -1.00u  ROI -100.0% +/-   --  (null -4.5%, z --)  win 0.0% vs q 48.9%  | fav -100.0%
@@ -93,17 +93,17 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
     H5·E native @ first snapshot · −109 or longer       n=5     2-3          -1.10u  ROI  -21.9% +/-   --  (null -4.5%, z --)  win 40.0% vs q 48.9%  | fav -25.2%
   By season, never pooled (basis · the graded price's book · season; win = cover rate):
     H5   native @ first snapshot        no bets
-    H5   DraftKings 2025-26 @ open      n=696   374-322     +17.27u  ROI   +2.5% +/-  3.6  (null -4.5%, z +1.9)  win 53.7% vs q 50.1%  | fav -7.7%
+    H5   DraftKings 2025-26 @ open      n=689   373-316     +22.12u  ROI   +3.2% +/-  3.6  (null -4.5%, z +2.1)  win 54.1% vs q 50.1%  | fav -8.7%
     H5·E DraftKings 2026-27 @ first snapshot n=22    8-14         -6.72u  ROI  -30.5% +/- 20.1  (null -4.5%, z -1.3)  win 36.4% vs q 50.3%  | fav +5.0%
     H5·E reconstructed @ open           no bets
 
 == RECONSTRUCTED (leave-one-season-out, closing price: HINDSIGHT, never forward evidence)
   Season table (lean at the close):
     book · season                n        W-L    units     ROI   +/-    null  fav ROI   LL model-close
-    DraftKings 2025-26         964    669-295   -12.53   -1.3%   2.3   -4.1%    -4.7%   +0.0170 +/- 0.0055
+    DraftKings 2025-26         964    673-291    -6.42   -0.7%   2.3   -4.1%    -4.7%   +0.0153 +/- 0.0054
 -- DraftKings close, 2025-26: 964 games
   Lean — the model's favourite
-    All picks                n=964   669-295     -12.53u  ROI   -1.3% +/-  2.3  (null -4.1%, z +1.2)  win 69.4% vs q 67.8%  | fav -4.7%
-  Log loss  model 0.5872  close 0.5702  model - close +0.0170 +/- 0.0055 (1 SE; negative = model better; z +3.1)
-  Brier     model 0.2012  close 0.1945  model - close +0.0066 +/- 0.0024
-  Lean accuracy 69.4%  vs close favourite 69.3%  (accuracy is not calibration)
+    All picks                n=964   673-291      -6.42u  ROI   -0.7% +/-  2.3  (null -4.1%, z +1.5)  win 69.8% vs q 68.0%  | fav -4.7%
+  Log loss  model 0.5855  close 0.5702  model - close +0.0153 +/- 0.0054 (1 SE; negative = model better; z +2.8)
+  Brier     model 0.2006  close 0.1945  model - close +0.0060 +/- 0.0023
+  Lean accuracy 69.8%  vs close favourite 69.3%  (accuracy is not calibration)
