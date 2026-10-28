@@ -164,7 +164,7 @@ class PublicSite:
             tag = str(row.get("first_model_tag", ""))
             gp = np.fmin(number("gp_home"), number("gp_away"))
             why = ("Season openers are outside the tracked rules." if gp == 0 else
-                   "The early-game first snapshot used an earlier model." if gp < 10 and tag and tag != "nan" and not tag.endswith("_v9") else
+                   "The early-game first snapshot used an earlier model." if gp < 10 and tag and tag != "nan" and not tag.endswith(("_v9", "_v10")) else
                    "Waiting for a priced first snapshot." if pd.isna(row.get("first_p_home")) else
                    "No tracked rule qualified at the first snapshot.")
             tracking = f"<div class='forecast-only'><b>Forecast only</b><br>{why}</div>"
@@ -283,18 +283,32 @@ class PublicSite:
 <p>The prices beside the teams come from DraftKings. The small number below each moneyline is that team’s spread. All times are Pacific (PT).</p>
 <p><b>Tracked pick</b> means a registered rule qualified at the first priced snapshot. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
 <section><h2>One model, before the game</h2><p>The model combines prior-game team performance, roster talent, schedule and available NBA injury-report information. It predicts a points margin and converts it to a win probability. Market prices are a comparison, not a model input.</p>
-<p>Only information saved before tip is used for a live prediction. Each team’s first game has a forecast but sits outside the tracked rules. Early-season forecasts have less current-season information, and injury-report timing can affect them.</p></section>
+""" + self.model_note() + """<p>Only information saved before tip is used for a live prediction. Each team’s first game has a forecast but sits outside the tracked rules. Early-season forecasts have less current-season information, and injury-report timing can affect them.</p></section>
 <section><h2>Three fixed tracking rules</h2>
 <p>Rules use the probability and DraftKings prices saved at the first snapshot, which can be later than the market opening price. No rule is adjusted to fit later outcomes.</p>
 <h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the first win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 1 point, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>
 <h3 id='favourite'><span class='rule-number'>02</span>Value favourite</h3><p>The value side is the team whose model probability exceeds the market probability after removing the bookmaker’s margin. Track it when the market also makes that side the favourite: market probability above 50%.</p>
 <h3 id='gap'><span class='rule-number'>03</span>Large probability gap</h3><p>Track the value side when its model probability exceeds the market probability by at least 12 percentage points.</p>
-<p>All three rules have separate early (games 1–9) and established (games 10+) records. Stage follows the team with fewer games played. Early selections require a v9 first snapshot; older saved predictions stay historical. These registrations began at different dates; the early segments were registered on October 23, 2026.</p></section>
+<p>All three rules have separate early (games 1–9) and established (games 10+) records. Stage follows the team with fewer games played. Early selections require a first snapshot from the current model or the version before it; older saved predictions stay historical. These registrations began at different dates; the early segments were registered on October 23, 2026.</p></section>
 <section><h2>Read the results fairly</h2><p>Each result uses the selection and price recorded before play. Wins, losses and pushes stay visible. Pending picks have no return until graded. A push returns the stake and produces zero profit.</p>
 <p>One unit is staked on each selection. ROI is profit divided by total stakes. The market-price baseline is the expected ROI if the market probability is correct; it is usually negative because of the bookmaker’s margin. The market favourite benchmark uses the same games and prices.</p>
 <p>Uncertainty is shown as one standard error (1 SE). One SE is not a 95% confidence interval. Small samples do not establish a lasting advantage. Tests may overlap, so their returns and the early/established stages are never pooled.</p>
 <p>Public performance reports live, pregame-recorded selections. Rebuilt games, exploratory comparisons and historical model experiments are excluded from the public track record.</p></section></div>"""
         return self.page("How it works · NBA Composite", "how-it-works.html", body)
+
+    def model_note(self):
+        """How it works: the live v10 model in plain words, and the one dated
+        line that earlier picks used the previous version (CLAUDE.md v10
+        amendment). Nothing when the v9 files are live."""
+        if not any(str(t).endswith("_v10") for t in getattr(self.ui, "ACTIVE_TAGS", [])):
+            return ""
+        first = pd.Series(dtype=str)
+        if len(self.native) and "first_model_tag" in self.native:
+            v10 = self.native["first_model_tag"].astype(str).str.endswith("_v10")
+            first = pd.to_datetime(self.native.loc[v10, "first_snapshot_utc"], utc=True, errors="coerce").dropna()
+        when = first.min().tz_convert(self.ui.PT) if len(first) else pd.Timestamp(self.today)
+        return ("<p>Team strength reads shooting, turnovers, rebounding share and free throws. Drafted rookies are valued by draft position until they have an NBA record, and the injury-report part of the model is re-estimated before each slate with this season’s completed games.</p>"
+                f"<p class='note'>Model updated {when:%B} {when.day}, {when.year}. Earlier tracked picks keep the probabilities of the previous version, recorded before their games.</p>")
 
     def render(self):
         return {"index.html":self.today_page(),"results.html":self.results_page(),

@@ -47,6 +47,14 @@ n=0, not evidence of improvement. Controlled tests check the changed cases.
 Historical carryover columns remain readable and unchanged; new rows leave
 them blank. Frozen legacy fits and scoring stay research-only.
 
+**v10** (owner's decision 2026-10-28, CLAUDE.md amendment): ORB% in the
+composite, drafted rookies valued by pick, and the injury-report route
+refitted before each slate (MODEL.md "v10"). It goes live when "Fit model"
+runs with version v10; v9 snapshots keep their tags and P. The games 1–9
+rows accept `_v9` and `_v10` first tags. Walk-forward on production routing,
+v10 − v9 games 1+ log loss −0.0009 ± 0.0004; it still trails the close
+(DraftKings 2025-26 games 10+ +0.0153 ± 0.0106).
+
 ## Frozen forward tests (G4)
 
 Registration: 2026-10-23T19:46:58Z, commit `2e301d3`, before CHI @ MIL was

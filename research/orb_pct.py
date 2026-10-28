@@ -52,7 +52,7 @@ NAMES = ["off eFG", "off TOV", "off ORB", "off FTr",
 _features, _rates = nc.features_from_totals, nc.rates_from_per100
 
 
-def features_pct(t):
+def features_pct(t, orb_pct=True):
     """features_from_totals with ORB% in place of ORB per 100."""
     f = _features(t)
     T = dict(zip(nc.STATS, t[:8]))
@@ -62,7 +62,7 @@ def features_pct(t):
     return f
 
 
-def rates_pct(o, p):
+def rates_pct(o, p, orb_pct=True):
     """rates_from_per100 with ORB% (per-100 counts share a denominator)."""
     X = _rates(o, p)
     X[:, 2] = (o["ORB"] / (o["ORB"] + p["DRB"]) * 100).to_numpy()

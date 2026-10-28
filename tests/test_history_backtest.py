@@ -171,7 +171,7 @@ def test_rookie_curve_and_values(monkeypatch):
     bpms = {2015: {"a one": (1.0, 2000, 70), "b ten": (-2.0, 1500, 60),
                    "c thirty": (-4.0, 500, 30)},
             2016: {"d two": (0.0, 1800, 70), "e twenty": (-3.0, 900, 50)}}
-    monkeypatch.setattr(hb, "draft_picks", lambda y: picks[y])
+    monkeypatch.setattr(hb.pav, "draft_picks", lambda y: picks[y])
     monkeypatch.setattr(hb.pav, "load_bpm", lambda y: bpms[y])
     a, b, n = hb.rookie_curve([2015, 2016])
     assert n == 5 and b < 0                          # later picks, lower BPM
