@@ -104,37 +104,37 @@ History backtest -- the current model against outcomes only (no market prices), 
   frozen = the committed weights (2015-2026, no 2020) and v4 logit (2016-2026), never refitted; logit refit = committed weights, logit fitted on the era's earlier seasons; full refit = composite weights and logit both fitted on the era's earlier seasons; home = the earlier era seasons' home win rate.
   Log loss per game; differences ± 95% (positive = frozen worse).
     season        n  home won frozen pred   frozen   logit    full    home    frozen slope  frozen - full refit
-    2004-05    1069     60.6%       57.3%   0.6001     nan     nan     nan    1.03 ± 0.18   +nan ± nan
-    2005-06    1070     60.0%       57.2%   0.6177  0.6175  0.6205  0.6731    0.97 ± 0.19   -0.0027 ± 0.0072
-    2006-07    1071     58.8%       57.3%   0.6299  0.6300  0.6319  0.6780    0.90 ± 0.19   -0.0021 ± 0.0050
-    2007-08    1072     60.3%       57.2%   0.5884  0.5854  0.5855  0.6720    1.01 ± 0.16   +0.0029 ± 0.0048
-    2008-09    1074     61.5%       57.1%   0.5748  0.5695  0.5715  0.6668    1.09 ± 0.17   +0.0034 ± 0.0051
-    2009-10    1071     59.7%       56.8%   0.5909  0.5902  0.5902  0.6744    1.08 ± 0.18   +0.0006 ± 0.0053
-    2010-11    1075     61.2%       56.9%   0.5852  0.5788  0.5780  0.6680    1.16 ± 0.19   +0.0072 ± 0.0045
-    2011-12     832     57.6%       57.4%   0.6144  0.6190  0.6226  0.6832    1.00 ± 0.21   -0.0082 ± 0.0070
-    2012-13    1072     61.4%       57.2%   0.5954  0.5912  0.5909  0.6674    1.01 ± 0.17   +0.0045 ± 0.0047
-    2013-14    1074     57.1%       57.1%   0.6042  0.6066  0.6075  0.6851    1.05 ± 0.18   -0.0033 ± 0.0052
-    pooled: n=10480  frozen slope 1.03 ± 0.06  intercept +0.12 ± 0.04  home won 59.9% vs predicted 57.1%
+    2004-05    1069     60.6%       57.3%   0.5977     nan     nan     nan    1.05 ± 0.18   +nan ± nan
+    2005-06    1070     60.0%       57.2%   0.6176  0.6174  0.6205  0.6731    0.98 ± 0.19   -0.0029 ± 0.0072
+    2006-07    1071     58.8%       57.3%   0.6292  0.6294  0.6319  0.6780    0.91 ± 0.19   -0.0027 ± 0.0052
+    2007-08    1072     60.3%       57.2%   0.5881  0.5851  0.5855  0.6720    1.01 ± 0.16   +0.0027 ± 0.0050
+    2008-09    1074     61.5%       57.1%   0.5745  0.5691  0.5715  0.6668    1.09 ± 0.17   +0.0030 ± 0.0054
+    2009-10    1071     59.7%       56.8%   0.5903  0.5894  0.5902  0.6744    1.08 ± 0.18   +0.0000 ± 0.0055
+    2010-11    1075     61.2%       56.9%   0.5838  0.5773  0.5780  0.6680    1.15 ± 0.18   +0.0058 ± 0.0046
+    2011-12     832     57.6%       57.4%   0.6135  0.6184  0.6226  0.6832    1.00 ± 0.20   -0.0090 ± 0.0072
+    2012-13    1072     61.4%       57.2%   0.5949  0.5907  0.5909  0.6674    1.01 ± 0.17   +0.0039 ± 0.0049
+    2013-14    1074     57.1%       57.0%   0.6031  0.6055  0.6075  0.6851    1.05 ± 0.18   -0.0043 ± 0.0053
+    pooled: n=10480  frozen slope 1.04 ± 0.06  intercept +0.12 ± 0.04  home won 59.9% vs predicted 57.1%
       frozen - logit refit  +0.0016 ± 0.0015  (n=9411, seasons after the first)
-      frozen - full refit   +0.0005 ± 0.0018  (n=9411, seasons after the first)
-      frozen - home only    -0.0743 ± 0.0073  (n=9411, seasons after the first)
+      frozen - full refit   -0.0002 ± 0.0019  (n=9411, seasons after the first)
+      frozen - home only    -0.0749 ± 0.0073  (n=9411, seasons after the first)
       frozen + in-season home edge (tau 0.042, from the modern seasons) - frozen -0.0005 ± 0.0002 (helps in 7 of 10 seasons); intercept after +0.10 ± 0.04, home predicted 57.5%
       opening third  n=2718  frozen slope 1.17 ± 0.13
-      middle third   n=4072  frozen slope 1.01 ± 0.09
-      last third     n=3690  frozen slope 0.99 ± 0.09
+      middle third   n=4072  frozen slope 1.02 ± 0.09
+      last third     n=3690  frozen slope 0.99 ± 0.08
       away team on a back-to-back    n=2543  home won  64.1% (62.3-66.0)  frozen predicted  62.2%
-      home team on a back-to-back    n=728   home won  54.5% (50.9-58.1)  frozen predicted  49.7%
+      home team on a back-to-back    n=728   home won  54.5% (50.9-58.1)  frozen predicted  49.6%
 
-  B2. Composite weights, wins per +1 SD over 82 games: committed vs fitted on 2004-05 to 2013-14 (in-sample R2 0.921 vs 0.918)
-    off eFG%          +7.57   +7.04
-    -off TOV          +2.93   +3.14
-    off ORB           +3.09   +3.19
-    off FTA/FGA       +1.19   +1.86
-    -opp eFG%         +5.42   +6.84
-    opp TOV forced    +2.77   +2.44
-    -opp ORB          +1.55   +1.49
-    -opp FTA/FGA      +1.38   +1.88
-    correlation of the two weight vectors: +0.96
+  B2. Composite weights, wins per +1 SD over 82 games: committed vs fitted on 2004-05 to 2013-14 (in-sample R2 0.925 vs 0.918)
+    off eFG%          +6.83   +7.04
+    -off TOV          +3.23   +3.14
+    off ORB           +3.00   +3.19
+    off FTA/FGA       +1.00   +1.86
+    -opp eFG%         +4.88   +6.84
+    opp TOV forced    +3.08   +2.44
+    -opp ORB          +1.73   +1.49
+    -opp FTA/FGA      +1.17   +1.88
+    correlation of the two weight vectors: +0.93
 
 == C. Games 1-9, the carryover model (cold_start.py), against outcomes
   Walk-forward: each fold's composite weights; the early logit fitted on the earlier seasons of 2016-2026 (no 2020); home only = those seasons' early home rate. lean = predicted - actual home win %, ± 95%.
@@ -148,14 +148,14 @@ History backtest -- the current model against outcomes only (no market prices), 
     2024-25   n=138   home won  58.7%  predicted  56.4%  lean -2.2 ± 7.7 pts  slope 1.01 ± 0.49  log loss 0.6086  vs home only -0.0698 ± 0.0574  (intercept +0.302)
     2025-26   n=138   home won  58.7%  predicted  56.5%  lean -2.2 ± 7.4 pts  slope 1.52 ± 0.64  log loss 0.5810  vs home only -0.0973 ± 0.0485  (intercept +0.312)
     pooled    n=1258  home won  56.9%  predicted  57.1%  lean +0.2 ± 2.6 pts  slope 0.88 ± 0.18  log loss 0.6440  vs home only -0.0399 ± 0.0170
-  Out of era: the frozen early logit (2023-2026, intercept +0.392) with the committed weights
-    2005-06   n=142   home won  63.4%  predicted  59.7%  lean -3.6 ± 7.7 pts  slope 0.72 ± 0.49  log loss 0.6329
-    2006-07   n=142   home won  62.0%  predicted  60.8%  lean -1.2 ± 8.0 pts  slope 0.55 ± 0.61  log loss 0.6604
-    2007-08   n=139   home won  58.3%  predicted  57.7%  lean -0.6 ± 7.6 pts  slope 1.10 ± 0.52  log loss 0.6052
-    2008-09   n=139   home won  56.1%  predicted  56.3%  lean +0.2 ± 7.9 pts  slope 0.78 ± 0.41  log loss 0.6313
-    2009-10   n=141   home won  56.0%  predicted  59.3%  lean +3.3 ± 7.3 pts  slope 1.32 ± 0.52  log loss 0.5789
-    2010-11   n=138   home won  52.9%  predicted  60.8%  lean +7.9 ± 8.0 pts  slope 0.76 ± 0.44  log loss 0.6635
-    2011-12   n=140   home won  65.7%  predicted  59.0%  lean -6.7 ± 7.3 pts  slope 1.18 ± 0.54  log loss 0.5728
-    2012-13   n=137   home won  59.1%  predicted  61.0%  lean +1.9 ± 7.8 pts  slope 0.97 ± 0.54  log loss 0.6267
-    2013-14   n=139   home won  61.9%  predicted  59.8%  lean -2.1 ± 7.9 pts  slope 0.75 ± 0.55  log loss 0.6401
-    pooled    n=1257  home won  59.5%  predicted  59.4%  lean -0.1 ± 2.6 pts  slope 0.90 ± 0.17  log loss 0.6235
+  Out of era: the frozen carryover logit (2023-2026, intercept +0.392) with the committed weights
+    2005-06   n=142   home won  63.4%  predicted  59.7%  lean -3.6 ± 7.7 pts  slope 0.72 ± 0.49  log loss 0.6336
+    2006-07   n=142   home won  62.0%  predicted  60.8%  lean -1.1 ± 8.0 pts  slope 0.60 ± 0.61  log loss 0.6566
+    2007-08   n=139   home won  58.3%  predicted  57.7%  lean -0.6 ± 7.7 pts  slope 1.07 ± 0.51  log loss 0.6065
+    2008-09   n=139   home won  56.1%  predicted  56.3%  lean +0.2 ± 7.8 pts  slope 0.79 ± 0.41  log loss 0.6301
+    2009-10   n=141   home won  56.0%  predicted  59.3%  lean +3.2 ± 7.4 pts  slope 1.33 ± 0.52  log loss 0.5799
+    2010-11   n=138   home won  52.9%  predicted  60.8%  lean +7.9 ± 8.0 pts  slope 0.76 ± 0.44  log loss 0.6625
+    2011-12   n=140   home won  65.7%  predicted  58.9%  lean -6.8 ± 7.3 pts  slope 1.16 ± 0.53  log loss 0.5734
+    2012-13   n=137   home won  59.1%  predicted  61.1%  lean +2.0 ± 7.8 pts  slope 0.96 ± 0.53  log loss 0.6257
+    2013-14   n=139   home won  61.9%  predicted  59.7%  lean -2.2 ± 7.9 pts  slope 0.76 ± 0.54  log loss 0.6385
+    pooled    n=1257  home won  59.5%  predicted  59.4%  lean -0.1 ± 2.6 pts  slope 0.90 ± 0.16  log loss 0.6230
