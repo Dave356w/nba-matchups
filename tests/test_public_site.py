@@ -10,6 +10,11 @@ from public_site import PublicSite
 from test_analysis_and_pages import _ats_rows
 
 
+# The first-snapshot rows close where the 5 h lock starts: a pre-lock slate is
+# graded and shown from the next day on (public_site.first_cut).
+CLOSED = '2026-11-20'
+
+
 def rows():
     g = _ats_rows(6).assign(first_p_home=.8, p_home=.8,
         first_home_ml=-150, first_away_ml=130, first_q_home=.6,
@@ -42,12 +47,12 @@ def test_pending_signal_membership_matches_registered_grades_for_every_stage_and
 
 def test_pending_selections_never_fabricate_results_and_ignore_later_refreshes():
     g = rows().assign(home_won=np.nan,home_pts=np.nan,away_pts=np.nan)
-    site = PublicSite(ui,g,'2026-11-19','built')
+    site = PublicSite(ui,g,CLOSED,'built')
     assert len(site.records) == 12  # four eligible games, three tests
     assert all(r['grade'] is None for r in site.records)
     changed = g.assign(p_home=.01,pre_home_ml=999,pre_away_ml=-999,pre_q_home=.01,
                        model_tag=ui.MODEL_TAG_V9_NEUTRAL)
-    fresh = PublicSite(ui,changed,'2026-11-19','built')
+    fresh = PublicSite(ui,changed,CLOSED,'built')
     assert [site.selection(r) for r in site.records] == [fresh.selection(r) for r in fresh.records]
     html = fresh.results_page()
     assert html.count("class='result-badge'>Pending") == 12
@@ -57,7 +62,7 @@ def test_pending_selections_never_fabricate_results_and_ignore_later_refreshes()
 
 def test_public_forecasts_cannot_promote_a_legacy_lean_record_or_reconstructed_rows():
     g = rows().assign(first_model_tag=ui.MODEL_TAG_V8,gp_home=3)
-    site = PublicSite(ui,g,'2026-11-19','built')
+    site = PublicSite(ui,g,CLOSED,'built')
     assert not site.records
     assert 'The forward record starts here' in site.results_page()
     assert '100.0%' not in site.today_page()
@@ -67,7 +72,7 @@ def test_public_forecasts_cannot_promote_a_legacy_lean_record_or_reconstructed_r
     assert ' pp edge' not in card and 'EV ' not in card
     assert 'Composite Δ' not in card and 'INJURIES' not in card
     assert 'Game details' in card and 'Predicted margin' in card
-    assert not PublicSite(ui,g.assign(basis='reconstructed'),'2026-11-19','built').records
+    assert not PublicSite(ui,g.assign(basis='reconstructed'),CLOSED,'built').records
 
 
 def test_results_keep_losses_pushes_pending_overlap_and_seasons_separate():
@@ -75,7 +80,7 @@ def test_results_keep_losses_pushes_pending_overlap_and_seasons_separate():
     g['home_pts'],g['away_pts'],g['home_won'] = [90,106,np.nan],[100,100,np.nan],[0,1,np.nan]
     g.loc[g.index[1],'first_spread']=-6
     g.loc[g.index[1],'season']=2026
-    site=PublicSite(ui,g,'2026-11-19','built')
+    site=PublicSite(ui,g,CLOSED,'built')
     result=site.results_page()
     assert 'Loss' in result and 'Push' in result and 'Pending' in result
     assert result.count('data-result-row ')==9

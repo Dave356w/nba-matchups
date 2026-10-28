@@ -94,26 +94,39 @@ document.querySelector('[data-results-empty]').hidden=n>0;});});})();</script>""
 class PublicSite:
     def __init__(self, ui, native, today, built, model_ok=True):
         self.ui, self.today, self.built, self.model_ok = ui, today, built, model_ok
+        self.built_utc = pd.Timestamp(ledger.utc_now())
         self.native = native.copy() if native is not None else ledger.empty()
         if len(self.native):
             self.native = self.native[self.native["basis"].eq("native")]
         self.season = ui.season_for(today)
         self.hypotheses = {h["key"]: h for h in analysis.active_hypotheses()}
         self.records = []
-        src = analysis.on_book(self.native, "first", analysis.HYPOTHESIS_BOOK)
-        done = ledger.graded(src)
+        # Five-hour lock (CLAUDE.md amendment 2026-10-28): the lock rows (·L)
+        # from the first slate with a lock; the first-snapshot rows before it.
+        # A slate with no lock yet shows no first-snapshot pick from today on,
+        # so a pick never appears and then leaves when the slate's first lock
+        # is written (presentation only; analysis defines the records).
+        self.activation = analysis.lock_activation_slate(self.native)
+        self.first_cut = self.activation or str(today)
         by_id = self.native.set_index("game_id", drop=False)
         for key, name, slug in RULES:
             for suffix in ("·E", ""):
-                hyp = self.hypotheses[key + suffix]
-                signals = analysis.hypothesis_signals(src, hyp, hyp["native"])
-                grades = analysis.hypothesis_picks(done, hyp, hyp["native"])
-                grades = {str(r.game_id): r for _, r in grades.iterrows()} if len(grades) else {}
-                for _, s in signals.iterrows():
-                    row = by_id.loc[s.game_id]
-                    grade = grades.get(str(s.game_id))
-                    self.records.append(dict(hyp=hyp, name=name, slug=slug, signal=s,
-                        row=row, grade=grade, season=int(row.season), early=hyp["early"]))
+                for lock in (True, False):
+                    hyp = self.hypotheses[key + suffix + ("·L" if lock else "")]
+                    # the whole ledger: the graders drop ungraded games themselves
+                    src = analysis.on_book(self.native, hyp["native"], analysis.HYPOTHESIS_BOOK)
+                    signals = analysis.hypothesis_signals(src, hyp, hyp["native"])
+                    grades = analysis.hypothesis_picks(src, hyp, hyp["native"])
+                    grades = {str(r.game_id): r for _, r in grades.iterrows()} if len(grades) else {}
+                    for _, s in signals.iterrows():
+                        row = by_id.loc[s.game_id]
+                        if not lock and str(row.slate_date) >= self.first_cut:
+                            continue
+                        grade = grades.get(str(s.game_id))
+                        self.records.append(dict(hyp=hyp, name=name, slug=slug, signal=s,
+                            row=row, grade=grade, season=int(row.season), early=hyp["early"],
+                            lock=lock, price=hyp["native"],
+                            at=row.get(f"{hyp['native']}_snapshot_utc")))
 
     def page(self, title, active, body):
         return self.ui.page(title, active, body, self.built, extra_css=CSS)
@@ -157,16 +170,23 @@ class PublicSite:
                         f"<div><small>Predicted margin</small><strong>{abs(margin):.1f} <span>pts</span></strong><span>{u.esc(margin_team)} by {abs(margin):.1f}</span></div></div>")
         else:
             forecast = "<div class='forecast-only'><b>Forecast unavailable</b><br>A required model input was unavailable.</div>"
+        locked = str(row.slate_date) >= self.first_cut     # the 5 h lock applies
         if recs:
-            tracking = "<div class='tracked-box'><span class='tracked-label'>Tracked picks · first snapshot</span>" + "".join(
+            at = "5 h lock" if recs[0]["lock"] else "first snapshot"
+            tracking = f"<div class='tracked-box'><span class='tracked-label'>Tracked picks · {at}</span>" + "".join(
                 f"<div class='tracked-line'><span>{r['name']}</span><b>{self.selection(r)}</b></div>" for r in recs) + "</div>"
         else:
-            tag = str(row.get("first_model_tag", ""))
+            price = "lock" if locked else "first"
+            tag = str(row.get(f"{price}_model_tag", ""))
             gp = np.fmin(number("gp_home"), number("gp_away"))
+            tip = pd.to_datetime(row.get("tip_utc"), utc=True, errors="coerce")
+            started = final or (pd.notna(tip) and self.built_utc >= tip)
             why = ("Season openers are outside the tracked rules." if gp == 0 else
-                   "The early-game first snapshot used an earlier model." if gp < 10 and tag and tag != "nan" and not tag.endswith(("_v9", "_v10")) else
+                   f"The early-game {analysis.PRICE_NAMES[price]} used an earlier model." if gp < 10 and tag and tag != "nan" and not tag.endswith(analysis.EARLY_TAG_SUFFIXES) else
+                   ("No priced snapshot was saved in the 5 hours before tip." if started else
+                    "Tracked picks lock about 5 hours before tip.") if locked and pd.isna(row.get("lock_p_home")) else
                    "Waiting for a priced first snapshot." if pd.isna(row.get("first_p_home")) else
-                   "No tracked rule qualified at the first snapshot.")
+                   f"No tracked rule qualified at the {analysis.PRICE_NAMES[price]}.")
             tracking = f"<div class='forecast-only'><b>Forecast only</b><br>{why}</div>"
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
@@ -174,7 +194,7 @@ class PublicSite:
                   f"Market home win probability: {u.pct(q)} with the bookmaker margin removed. "
                   f"Forecast saved at {u.tip_pt(row.get('snapshot_utc'))}. Prices and forecasts freeze at tip.</p>")
         if recs:
-            detail += (f"<h3>Recorded before play</h3><p>Tracked at {u.tip_pt(row.get('first_snapshot_utc'))}. "
+            detail += (f"<h3>Recorded before play</h3><p>Tracked at {u.tip_pt(recs[0]['at'])}. "
                        "The selections and prices above stay fixed even if the forecast or market changes later. "
                        "A game can qualify for multiple tests; each keeps its own record.</p>")
         if str(row.get("model_tag", "")) in u.AVAIL_TAGS:
@@ -190,7 +210,7 @@ class PublicSite:
         u = self.ui
         day = self.native[self.native.slate_date.astype(str).eq(self.today)]
         title = pd.Timestamp(self.today).strftime("%A, %B %-d")
-        body = self.head(title, "Today’s model forecasts. Tracked picks are marked separately and locked at the first snapshot.", True)
+        body = self.head(title, "Today’s model forecasts. Tracked picks are marked separately and lock about 5 hours before tip.", True)
         body += "<div class='public-intro'><p>DraftKings prices · All times Pacific (PT)<span data-scores-asof hidden> · Scores as of <time></time></span></p><a href='how-it-works.html'>How to read →</a></div>"
         if not len(day):
             body += "<div class='public-empty'><h2>No games to show</h2><p>There are no saved regular-season forecasts for this slate. Check back for the next update.</p></div>"
@@ -205,16 +225,18 @@ class PublicSite:
     def results_page(self):
         u = self.ui
         body = self.head("Tracked results", "Every qualifying selection at its original price. Wins, losses and pending picks stay in the record.")
-        body += "<p class='public-note'>Three separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate.</p>"
+        body += ("<p class='public-note'>Three separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
+                 "Picks lock at the first priced snapshot within 5 hours of tip; picks recorded at the first snapshot before that change keep their own closed record.</p>")
         if not self.records:
             body += "<div class='public-empty'><h2>The forward record starts here</h2><p>No qualifying first-snapshot picks have been recorded yet. Today’s forecasts remain available while the tests build their records.</p></div><p><a href='index.html'>View today’s forecasts →</a></p>"
         else:
             seasons = sorted({r['season'] for r in self.records}, reverse=True)
             options = (("rule","Test",[("all","All tests")]+[(s,n) for _,n,s in RULES]),
                        ("stage","Stage",[("all","Both stages"),("early","Early · games 1–9"),("established","Established · games 10+")]),
+                       ("basis","Recorded at",[("all","Both records"),("lock","5 h lock"),("first","First snapshot · closed")]),
                        ("season","Season",[("all","All seasons")]+[(str(s),u.season_txt(s)) for s in seasons]))
             body += "<div class='public-filters'>" + "".join(f"<div><label for='filter-{key}'>{name}</label><select id='filter-{key}' data-result-filter='{key}'>"+"".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></div>" for key,name,opts in options) + "</div>"
-            labels = ["Game", "Test / stage", "Recorded pick", "First snapshot", "Outcome", "Return"]
+            labels = ["Game", "Test / stage", "Recorded pick", "Recorded at", "Outcome", "Return"]
             rows = []
             for rec in sorted(self.records, key=lambda r:(str(r['row'].tip_utc),r['slug']), reverse=True):
                 row, grade = rec['row'], rec['grade']
@@ -225,11 +247,13 @@ class PublicSite:
                     result = "Push" if win == .5 else "Win" if win == 1 else "Loss"
                     ret = f"{grade['units']:+.2f}u"
                 stage = "Early · games 1–9" if rec['early'] else "Established · games 10+"
+                basis = "5 h lock" if rec['lock'] else "First snapshot"
                 cells = [f"{u.esc(row.away)} @ {u.esc(row.home)}<small>{u.esc(row.slate_date)} · {u.tip_pt(row.tip_utc)}</small>",
                          f"{rec['name']}<small>{stage} · {u.season_txt(rec['season'])}</small>", self.selection(rec),
-                         f"{u.tip_pt(row.first_snapshot_utc)}<small>{u.esc(str(row.first_snapshot_utc)[:10])}</small>",
+                         f"{u.tip_pt(rec['at'])}<small>{basis} · {u.esc(str(rec['at'])[:10])}</small>",
                          f"<span class='result-badge'>{result}</span>", ret]
-                rows.append(f"<tr data-result-row data-rule='{rec['slug']}' data-stage='{'early' if rec['early'] else 'established'}' data-season='{rec['season']}'>"+"".join(f"<td data-label='{l}'>{v}</td>" for l,v in zip(labels,cells))+"</tr>")
+                rows.append(f"<tr data-result-row data-rule='{rec['slug']}' data-stage='{'early' if rec['early'] else 'established'}' "
+                            f"data-basis='{'lock' if rec['lock'] else 'first'}' data-season='{rec['season']}'>"+"".join(f"<td data-label='{l}'>{v}</td>" for l,v in zip(labels,cells))+"</tr>")
             body += "<table class='public-table'><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)+"</tr></thead><tbody>"+"".join(rows)+"</tbody></table>"
             body += "<div class='public-empty' data-results-empty hidden><p>No picks match these filters.</p></div>"+RESULT_FILTER_JS
         return self.page("Results · NBA Composite", "results.html", body)
@@ -247,7 +271,8 @@ class PublicSite:
         r = analysis.ats_row(hyp['key'], d) if hyp.get('market') == 'ats' else analysis.roi_row(hyp['key'],d)
         pushes = r.get('push',0)
         record = f"{r['w']}–{r['l']}" + (f"–{pushes}" if pushes else "")
-        models = sorted({m.group(0) for rec in records for m in [re.search(r'v\d+$',str(rec['row'].first_model_tag))] if m})
+        tags = (rec['row'].get(f"{rec['price']}_model_tag") for rec in records)
+        models = sorted({m.group(0) for t in tags for m in [re.search(r'v\d+$', str(t))] if m})
         z = analysis.z_vs_null(r)
         c = u.sig_cls(z)
         chart_records = sorted((rec for rec in records if rec['grade'] is not None),key=lambda rec:str(rec['row'].tip_utc))
@@ -258,21 +283,32 @@ class PublicSite:
                 f"<div class='stage-stats'><div>Return<b>{r['units']:+.2f}u</b></div><div>ROI<b class='{c}'>{100*r['roi']:+.1f}%</b></div></div>"
                 f"<p class='null'>{uncertainty} Market-price baseline {100*r['roi_null']:+.1f}%.</p>"
                 f"<details><summary>Benchmarks and return chart</summary><p>Flat 1 unit per pick. Same-game market favourite ROI {u.fav_txt(r)}. "
-                f"Model at first snapshot: {u.esc(' / '.join(models) or 'recorded model')}. "
+                f"Model at the {analysis.PRICE_NAMES[hyp['native']]}: {u.esc(' / '.join(models) or 'recorded model')}. "
                 "Colour marks a gap of at least two standard errors from the market-price baseline.</p>"+chart+"</details></section>")
+
+    def closed_txt(self):
+        """'October 29, 2026': the lock's first slate, where the first-snapshot rows close."""
+        d = pd.Timestamp(self.activation)
+        return f"{d:%B} {d.day}, {d.year}"
 
     def performance_page(self):
         u = self.ui
         body = self.head("The forward record", "Three registered tests, tracked from prices saved before play. Each test and season stage stands on its own.")
         body += "<p class='public-note'>Returns use a flat 1 unit per pick. ROI is return divided by stakes. The market-price baseline includes the bookmaker’s margin. A small sample can move sharply.</p>"
         seasons = sorted({self.season}|{r['season'] for r in self.records},reverse=True)
+        desc = {"H5":"Model margin versus the spread.","H2·F":"The value side when the market makes it favourite.","H4":"A model–market probability gap of at least 12 points."}
         for season in seasons:
-            body += f"<h2 class='sec'>{u.season_txt(season)} · DraftKings · first snapshot</h2><div class='rule-grid'>"
-            for key,name,slug in RULES:
-                desc = {"H5":"Model margin versus the spread.","H2·F":"The value side when the market makes it favourite.","H4":"A model–market probability gap of at least 12 points."}[key]
-                body += f"<article class='rule-panel'><h2>{name}</h2><p>{desc} <a href='how-it-works.html#{slug}'>Rule →</a></p>"
-                body += self.stage(self.hypotheses[key+'·E'],season)+self.stage(self.hypotheses[key],season)+"</article>"
-            body += "</div>"
+            bases = [(True, "5 h lock")] if season == self.season else []
+            if any(not r['lock'] and r['season'] == season for r in self.records):
+                bases.append((False, f"first snapshot · closed, slates before {self.closed_txt()}"
+                              if self.activation else "first snapshot · until the 5 h lock begins"))
+            for lock, at in bases:
+                body += f"<h2 class='sec'>{u.season_txt(season)} · DraftKings · {at}</h2><div class='rule-grid'>"
+                for key,name,slug in RULES:
+                    sfx = "·L" if lock else ""
+                    body += f"<article class='rule-panel'><h2>{name}</h2><p>{desc[key]} <a href='how-it-works.html#{slug}'>Rule →</a></p>"
+                    body += self.stage(self.hypotheses[key+'·E'+sfx],season)+self.stage(self.hypotheses[key+sfx],season)+"</article>"
+                body += "</div>"
         body += "<p class='public-note'>These tests can select the same game. There is no combined portfolio return. All qualifying results remain in <a href='results.html'>Results</a>, including losses. Forecast-only games do not enter these records.</p>"
         return self.page("Performance · NBA Composite", "performance.html", body)
 
@@ -281,20 +317,31 @@ class PublicSite:
         body += """<div class='guide'><section><h2>Read a game in seconds</h2>
 <p><b>Model win chance</b> is the model’s probability for its favoured team. <b>Predicted margin</b> is the expected points difference. Neither guarantees the outcome.</p>
 <p>The prices beside the teams come from DraftKings. The small number below each moneyline is that team’s spread. All times are Pacific (PT).</p>
-<p><b>Tracked pick</b> means a registered rule qualified at the first priced snapshot. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
+<p><b>Tracked pick</b> means a registered rule qualified at the game’s lock: the first priced snapshot within 5 hours of tip. Until then a game shows its forecast only. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
 <section><h2>One model, before the game</h2><p>The model combines prior-game team performance, roster talent, schedule and available NBA injury-report information. It predicts a points margin and converts it to a win probability. Market prices are a comparison, not a model input.</p>
 """ + self.model_note() + """<p>Only information saved before tip is used for a live prediction. Each team’s first game has a forecast but sits outside the tracked rules. Early-season forecasts have less current-season information, and injury-report timing can affect them.</p></section>
 <section><h2>Three fixed tracking rules</h2>
-<p>Rules use the probability and DraftKings prices saved at the first snapshot, which can be later than the market opening price. No rule is adjusted to fit later outcomes.</p>
-<h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the first win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 1 point, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>
+<p>Rules use the probability and DraftKings prices saved at the lock, the first priced snapshot within 5 hours of tip. By then most of each day’s NBA injury report is in, though the price may have moved from its opening. No rule is adjusted to fit later outcomes.</p>
+""" + self.lock_note() + """<h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the locked win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 1 point, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>
 <h3 id='favourite'><span class='rule-number'>02</span>Value favourite</h3><p>The value side is the team whose model probability exceeds the market probability after removing the bookmaker’s margin. Track it when the market also makes that side the favourite: market probability above 50%.</p>
 <h3 id='gap'><span class='rule-number'>03</span>Large probability gap</h3><p>Track the value side when its model probability exceeds the market probability by at least 12 percentage points.</p>
-<p>All three rules have separate early (games 1–9) and established (games 10+) records. Stage follows the team with fewer games played. Early selections require a first snapshot from the current model or the version before it; older saved predictions stay historical. These registrations began at different dates; the early segments were registered on October 23, 2026.</p></section>
+<p>All three rules have separate early (games 1–9) and established (games 10+) records. Stage follows the team with fewer games played. Early selections require a snapshot from the current model or a recent earlier version; older saved predictions stay historical. These registrations began at different dates; the early segments were registered on October 23, 2026, and the 5-hour lock on October 28, 2026.</p></section>
 <section><h2>Read the results fairly</h2><p>Each result uses the selection and price recorded before play. Wins, losses and pushes stay visible. Pending picks have no return until graded. A push returns the stake and produces zero profit.</p>
 <p>One unit is staked on each selection. ROI is profit divided by total stakes. The market-price baseline is the expected ROI if the market probability is correct; it is usually negative because of the bookmaker’s margin. The market favourite benchmark uses the same games and prices.</p>
 <p>Uncertainty is shown as one standard error (1 SE). One SE is not a 95% confidence interval. Small samples do not establish a lasting advantage. Tests may overlap, so their returns and the early/established stages are never pooled.</p>
 <p>Public performance reports live, pregame-recorded selections. Rebuilt games, exploratory comparisons and historical model experiments are excluded from the public track record.</p></section></div>"""
         return self.page("How it works · NBA Composite", "how-it-works.html", body)
+
+    def lock_note(self):
+        """How it works: where the first-snapshot record closed (or that it
+        closes when the first game locks), never pooled with the lock's."""
+        if self.activation:
+            when = f"on {self.closed_txt()}"
+        else:
+            when = "with the first slate that has a locked game"
+        return ("<p class='note'>Before the 5-hour lock, picks were recorded at the first priced snapshot, "
+                f"usually the night before. That record closed {when}; its picks and results stay in "
+                "Results and Performance as their own record, never combined with the lock’s.</p>")
 
     def model_note(self):
         """How it works: the live v10 model in plain words, and the one dated
