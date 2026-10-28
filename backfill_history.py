@@ -174,7 +174,8 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
             te = te[te["gmin"] >= 1].copy()
             # the per-slate refit adds this season's od rows, as the build does
             fit_rows = pav.with_terms(test, terms[y]) if q else te
-            fit_rows = fit_rows[fit_rows["gmin"] >= 1].set_index(
+            fit_rows = fit_rows[fit_rows["gmin"] >= 1]
+            fit_rows = fit_rows.set_index(
                 fit_rows["slate_date"] + fit_rows["home"] + fit_rows["away"])
             injury_missing = ~np.isfinite(te[["av_min", "av_bpm"]].to_numpy(float)).all(axis=1)
             te.loc[injury_missing, ["av_min", "av_bpm"]] = 0.0

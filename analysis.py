@@ -724,6 +724,8 @@ def on_book(g, price, book):
     """Rows of `g` whose `price` came from `book` (every row if book is None)."""
     if book is None or g is None or not len(g):
         return g
+    if PRICE_BOOK[price] not in g.columns:      # a frame without that price
+        return g.iloc[:0]
     return g[g[PRICE_BOOK[price]].astype(str) == book]
 
 
