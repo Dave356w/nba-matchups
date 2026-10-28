@@ -82,7 +82,7 @@ def test_cli_scorer_matches_site_scorer_on_the_checked_in_model():
     site = build_site.score_game(logs, "A", "B", date, weights, model)
     assert abs(cli["p_home"].iloc[0] - site["p_home"]) < 1e-5
     assert abs(cli["delta"].iloc[0] - site["delta"]) < 1e-3
-    assert site["model_tag"] == build_site.MODEL_TAG_V9_NEUTRAL
+    assert site["model_tag"] == build_site.neutral_tag(model, False)   # the checked-in version
     assert np.isfinite(cli["p_home"].iloc[1])
 
 

@@ -288,14 +288,15 @@ def rest_days(log, i, date=None):
     return int(min((t - prev).astype(int) - 1, 4))
 
 
-def decayed_features(log, i, half_life=HALF_LIFE):
-    """Features for a team using its first i games (i.e. games before this one)."""
+def decayed_features(log, i, half_life=HALF_LIFE, orb_pct=False):
+    """Features for a team using its first i games (i.e. games before this one);
+    orb_pct as in features_from_totals (v10 weights, is_orb_pct)."""
     A = log[COLS].values[:i]
     if half_life is None:                                   # season-to-date baseline
         w = np.ones(i)
     else:
         w = 0.5 ** (np.arange(i)[::-1] / half_life)         # most recent game = 1
-    return features_from_totals((A * w[:, None]).sum(0))
+    return features_from_totals((A * w[:, None]).sum(0), orb_pct=orb_pct)
 
 
 # ----------------------------------------------------------------------------
@@ -410,7 +411,8 @@ def opp_luck(log, i, lg_pct, weights, half_life=HALF_LIFE):
     t = dict(zip(COLS + X3, (A * wt[:, None]).sum(0)))
 
     def comp(tt):
-        return composite(features_from_totals(np.array([tt[c] for c in COLS], float)),
+        return composite(features_from_totals(np.array([tt[c] for c in COLS], float),
+                                              orb_pct=is_orb_pct(weights)),
                          weights["sd"], weights["w"])
     return comp(regress_3p(t, "O", lg_pct)) - comp(t)
 
@@ -556,7 +558,8 @@ def build_games(y, weights, half_life=HALF_LIFE, min_games=MIN_GAMES, refresh=Fa
 
     def feat(tm, i):
         if (tm, i) not in cache:
-            cache[(tm, i)] = decayed_features(logs[tm], i, half_life)
+            cache[(tm, i)] = decayed_features(logs[tm], i, half_life,
+                                              orb_pct=is_orb_pct(weights))
         return cache[(tm, i)]
 
     rows = []
