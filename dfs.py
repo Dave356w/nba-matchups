@@ -56,6 +56,15 @@ YAHOO2BBR = {**market.ESPN2BBR, "PHO": "PHO", "UTH": "UTA", "WAS": "WAS"}
 ET = ZoneInfo("America/New_York")
 # Sleeper statuses that project 0 (GTD / DTD keep their projection).
 OUT_STATUSES = ("out", "ir")
+# Tournament mode (diagnostics/dfs_correlation/RESULTS.txt, 2024-25 and
+# 2025-26 outcomes): a player's sd of Yahoo points is SD_BASE + SD_SLOPE x
+# his projection, and his simulated points share factors whose pair
+# correlations match the measured ones: any two teammates TEAM; two starters
+# TEAM + STARTER; opposing top-2 scorers GAME_STAR; a team's own two top
+# scorers TEAM + STARTER + GAME_STAR - STAR_SPLIT (about +0.03).
+SIM = {"sd_base": 7.48, "sd_slope": 0.102, "team": 0.012, "starter": 0.068,
+       "game_star": 0.038, "star_split": 0.09, "seed": 356}
+STARTERS, STARS = 5, 2   # per team: by Sleeper minutes, by projection
 
 
 def yahoo_points(row):
@@ -209,6 +218,13 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None):
                             proj=proj, fppg=_num(r.fppg),
                             min=None if minutes is None or not np.isfinite(minutes) else float(minutes),
                             inj=inj, start=r.start_utc, game=r.game_code))
+    # starters (most projected minutes) and stars (highest projections) per team
+    for team in {p["team"] for p in players}:
+        mine = [p for p in players if p["team"] == team and (p["proj"] or 0) > 0]
+        for p in sorted(mine, key=lambda p: -(p["min"] or 0))[:STARTERS]:
+            p["starter"] = True
+        for k, p in enumerate(sorted(mine, key=lambda p: -p["proj"])[:STARS]):
+            p["star"] = k + 1
     snaps = s["snapshot_utc"].astype(str)
     games_out = sorted({(r.game_code, r.away, r.home, r.start_utc) for r in y.itertuples()},
                        key=lambda t: (t[3], t[0]))
@@ -219,7 +235,7 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None):
                 max_per_team=MAX_PER_TEAM, salaries_utc=max(y["snapshot_utc"]),
                 sleeper_utc=max(snaps) if len(snaps) else None,
                 games=[dict(code=c, away=a, home=h, start=t) for c, a, h, t in games_out],
-                players=players, unmatched=unmatched, scoring=SCORING,
+                players=players, unmatched=unmatched, scoring=SCORING, sim=SIM,
                 built_utc=ledger.fmt_utc(now))
 
 
@@ -309,6 +325,9 @@ def body(data, ui):
             "to use them." if data["unmatched"] else "")
     controls = ("<div class='dfs-controls'>"
                 "<label>Slate<select id='dfs-slate' aria-label='Slate by start time'></select></label>"
+                "<label>Mode<select id='dfs-mode' aria-label='Contest type'><option value='cash'>Cash · best projection</option>"
+                "<option value='gpp'>Tournament · simulated</option></select></label>"
+                "<label id='dfs-sims-l' hidden>Sims<input type='number' id='dfs-sims' min='100' max='2000' step='100' value='500'></label>"
                 "<label>Lineups<input type='number' id='dfs-n' min='1' max='20' value='10'></label>"
                 "<label>Max exposure %<input type='number' id='dfs-exp' min='10' max='100' step='5' value='70'></label>"
                 f"<label>Min salary $<input type='number' id='dfs-min' min='0' max='{data['cap']:g}' value='0'></label>"
@@ -330,6 +349,14 @@ def body(data, ui):
             f"{MAX_PER_TEAM} from one. Pick the slate by start time: main (every game), early or "
             f"late, each with at least 2 games. Value = projection per $10 of salary. Players "
             f"whose game has started are out.{miss}</p>"
+            "<p class='public-note'><b>Cash</b> builds the lineups with the most projected points. "
+            "<b>Tournament</b> simulates the slate: each player’s points are drawn around his projection "
+            f"with the spread typical of that projection (sd ≈ {SIM['sd_base']:g} + {SIM['sd_slope']:g} × "
+            "projection) and the correlations measured on two seasons of results (teammates move together "
+            "a little, two starters more, opposing stars slightly; a team’s own two top scorers less). "
+            "Each simulated slate’s best lineup is found exactly; those winners and the best cash "
+            "lineups are scored in every simulated slate, and ranked by how often they finish in the top "
+            "5% of them. Each shows that share and its 90th-percentile score.</p>"
             "<noscript><p class='public-note'>The optimizer needs JavaScript.</p></noscript>"
             "<div class='dfs-grid'>" + pool + out + "</div>" + note
             + f"<script type='application/json' id='dfs-data'>{payload}</script>"
@@ -395,13 +422,51 @@ Heap.prototype.pop=function(){var a=this.a,top=a[0],last=a.pop();if(a.length){a[
 // its parent's lineup and forces those before it. accept(sol) keeps one.
 function kbest(P,cap,minSal,lock,N,accept,limit){var h=new Heap(),out=[],seen=0,root=solve(P,cap,minSal,lock,{});
  if(!root)return {lineups:out,seen:0};h.push({fin:lock,fout:{},sol:root});
- while(h.a.length&&out.length<N&&seen<limit){var nd=h.pop();seen++;if(accept(nd.sol))out.push(nd.sol);
+ while(h.a.length&&out.length<N&&seen<limit){var nd=h.pop();seen++;if(accept(nd.sol)){out.push(nd.sol);if(out.length>=N)break;}
   var fin=Object.assign({},nd.fin);nd.sol.ids.forEach(function(id){if(nd.fin[id])return;var fo=Object.assign({},nd.fout);fo[id]=1;
    var s=solve(P,cap,minSal,fin,fo);if(s)h.push({fin:Object.assign({},fin),fout:fo,sol:s});fin[id]=1;});}
  return {lineups:out,seen:seen};}
 function teamsOk(ids,team,minTeams,maxPer){var c={};ids.forEach(function(i){var t=team[i];c[t]=(c[t]||0)+1;});var ks=Object.keys(c);
  return ks.length>=minTeams&&ks.every(function(k){return c[k]<=maxPer;});}
-return {solve:solve,kbest:kbest,teamsOk:teamsOk};
+// Tournament mode. One simulated slate: each player's points are his
+// projection plus sd x z, floored at 0, where z = sqrt(team) T[team]
+// + sqrt(starter) U[team] (starters) + sqrt(game_star) G[game] (top-2
+// scorers) +/- sqrt(star_split) Q[team] (+ for the top scorer, - for the
+// second) + an independent remainder: a factor model, so every draw is a
+// valid correlated normal.
+function rng(seed){var a=seed>>>0;return function(){a=(a+0x6D2B79F5)>>>0;var t=a;t=Math.imul(t^(t>>>15),t|1);
+ t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};}
+function gauss(r){var u=0,v=0;while(u===0)u=r();while(v===0)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function draw(P,M,r){var f={},out=new Float64Array(P.length);function F(k){if(!(k in f))f[k]=gauss(r);return f[k];}
+ for(var i=0;i<P.length;i++){var p=P[i],w=M.team,z=Math.sqrt(M.team)*F('T'+p.team);
+  if(p.starter){z+=Math.sqrt(M.starter)*F('U'+p.team);w+=M.starter;}
+  if(p.star){z+=Math.sqrt(M.game_star)*F('G'+p.game)+(p.star===1?1:-1)*Math.sqrt(M.star_split)*F('Q'+p.team);w+=M.game_star+M.star_split;}
+  z+=Math.sqrt(Math.max(0,1-w))*gauss(r);out[i]=Math.max(0,p.v+(M.sd_base+M.sd_slope*p.v)*z);}
+ return out;}
+// S simulated slates, each solved exactly (ok(ids): the team rules). Returns
+// the distinct winning lineups and every draw, so any lineup can be scored
+// in each slate (rank).
+function simulate(P,cap,minSal,lock,M,S,seed,ok){var r=rng(seed),cnt={},ids={},vals=new Float64Array(S*P.length);
+ for(var s=0;s<S;s++){var x=draw(P,M,r),Q=P.map(function(p,i){return {id:p.id,pos:p.pos,sal:p.sal,v:x[i]};});vals.set(x,s*P.length);
+  var b=kbest(Q,cap,minSal,lock,1,function(sol){return ok(sol.ids);},200).lineups[0];if(!b)continue;
+  var key=b.ids.slice().sort().join();cnt[key]=(cnt[key]||0)+1;ids[key]=b.ids;}
+ var idx={};P.forEach(function(p,i){idx[p.id]=i;});
+ var mean=function(l){return l.reduce(function(t,id){return t+P[idx[id]].v;},0);};
+ var cands=Object.keys(cnt).map(function(k){return {ids:ids[k],n:cnt[k],v:mean(ids[k]),sal:ids[k].reduce(function(t,id){return t+P[idx[id]].sal;},0)};})
+  .sort(function(a,b){return b.n-a.n||b.v-a.v;});
+ function scores(l){var out=new Float64Array(S);for(var s=0;s<S;s++){var t=0;for(var j=0;j<l.length;j++)t+=vals[s*P.length+idx[l[j]]];out[s]=t;}return out;}
+ return {cands:cands,sims:S,scores:scores};}
+// Tournament ranking: in each simulated slate, the candidates (the winners
+// plus any added) scoring in the top `frac` of all candidates; a lineup's
+// share of slates in that group (c.top) and its 90th-percentile score
+// (c.p90). Smoother than "how often exactly best", which is mostly one-offs.
+function rank(cands,res,frac){var m=cands.length,k=Math.max(1,Math.ceil(frac*m)),S=res.sims,hits=new Int32Array(m),
+  sc=cands.map(function(c){return res.scores(c.ids);}),row=new Float64Array(m);
+ for(var s=0;s<S;s++){for(var c=0;c<m;c++)row[c]=sc[c][s];var thr=Array.from(row).sort(function(a,b){return b-a;})[k-1];
+  for(c=0;c<m;c++)if(row[c]>=thr)hits[c]++;}
+ cands.forEach(function(c,i){c.top=hits[i]/S;var srt=Array.from(sc[i]).sort(function(a,b){return a-b;});c.p90=srt[Math.floor(.9*(S-1))];});
+ return cands.sort(function(a,b){return b.top-a.top||b.v-a.v;});}
+return {solve:solve,kbest:kbest,teamsOk:teamsOk,rng:rng,draw:draw,simulate:simulate,rank:rank};
 })();
 """
 
@@ -428,7 +493,7 @@ function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&am
 function proj(p){return st.proj[p.id]!==undefined?st.proj[p.id]:p.proj;}
 function started(p){return Date.parse(p.start)<=Date.now();}
 function pool(){return D.players.filter(function(p){var v=proj(p);return inSlate(p)&&!st.out[p.id]&&!started(p)&&v!==null&&v!==undefined&&(v>0||st.lock[p.id]);})
- .map(function(p){return {id:p.id,pos:p.pos,sal:p.sal,v:proj(p)};});}
+ .map(function(p){return {id:p.id,pos:p.pos,sal:p.sal,v:proj(p),team:p.team,game:p.game,starter:!!p.starter,star:p.star||0};});}
 function slots(ids,byId){var ps=ids.map(function(i){return byId[i];}),used={},at={};
  function take(ok){for(var i=0;i<ps.length;i++){if(!used[i]&&ok(ps[i])){used[i]=1;return ps[i];}}return null;}
  [['PG',function(p){return p.pos==='PG';}],['SG',function(p){return p.pos==='SG';}],['SF',function(p){return p.pos==='SF';}],
@@ -437,21 +502,35 @@ function slots(ids,byId){var ps=ids.map(function(i){return byId[i];}),used={},at
  return D.slots.map(function(s){return [s,at[s]];});}
 function run(){var btn=$('dfs-go');btn.disabled=true;$('dfs-msg').textContent='Building lineups…';
  setTimeout(function(){try{build();}catch(e){$('dfs-msg').textContent='The optimizer failed: '+e.message;}btn.disabled=false;},20);}
-// N lineups, each the best legal one not yet built from the players still
-// under their exposure cap (locked players are exempt): a capped player
-// leaves the pool, so the search never wades through lineups built on him.
-function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){byId[p.id]=p;team[p.id]=p.team;});
- var N=Math.max(1,Math.min(20,+$('dfs-n').value||10)),exp=Math.max(10,Math.min(100,+$('dfs-exp').value||100)),
-  minSal=Math.max(0,+$('dfs-min').value||0),capN=Math.max(1,Math.floor(N*exp/100+1e-9)),cnt={},lock={},made={},L=[];
- Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id])&&inSlate(byId[id]))lock[id]=1;});
- var t0=performance.now();
+// Cash: N lineups, each the best legal one not yet built from the players
+// still under their exposure cap (locked players are exempt): a capped
+// player leaves the pool, so the search never wades through lineups on him.
+function cash(all,team,N,capN,minSal,lock){var cnt={},made={},L=[];
  while(L.length<N){var P=all.filter(function(p){return lock[p.id]||(cnt[p.id]||0)<capN;});
   var r=DFS.kbest(P,D.cap,minSal,lock,1,function(sol){return DFS.teamsOk(sol.ids,team,D.min_teams,D.max_per_team)&&!made[sol.ids.slice().sort().join()];},400);
   if(!r.lineups.length)break;var l=r.lineups[0];made[l.ids.slice().sort().join()]=1;L.push(l);l.ids.forEach(function(i){cnt[i]=(cnt[i]||0)+1;});}
- var el=$('dfs-out');
+ return {L:L,cnt:cnt};}
+// Tournament: candidates are the simulated slates' winners, the 20 best cash
+// lineups and the cash lineups under the exposure cap (strong lineups
+// without the capped players), ranked by their share of slates in the
+// candidates' top 5%, kept while every non-locked player stays under the cap.
+function gpp(all,team,N,capN,minSal,lock){var S=Math.max(100,Math.min(2000,+$('dfs-sims').value||500)),cnt={},L=[];
+ var ok=function(ids){return DFS.teamsOk(ids,team,D.min_teams,D.max_per_team);};
+ var res=DFS.simulate(all,D.cap,minSal,lock,D.sim,S,D.sim.seed,ok),seen={},cands=[];
+ res.cands.concat(DFS.kbest(all,D.cap,minSal,lock,20,function(sol){return ok(sol.ids);},400).lineups,
+  cash(all,team,N,capN,minSal,lock).L).forEach(function(c){
+  var k=c.ids.slice().sort().join();if(!seen[k]){seen[k]=1;cands.push({ids:c.ids,v:c.v,sal:c.sal});}});
+ DFS.rank(cands,res,.05).forEach(function(c){if(L.length>=N||!c.ids.every(function(i){return lock[i]||(cnt[i]||0)<capN;}))return;
+  L.push(c);c.ids.forEach(function(i){cnt[i]=(cnt[i]||0)+1;});});
+ return {L:L,cnt:cnt,note:S+' simulated slates · '+cands.length+' candidate lineups'};}
+function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){byId[p.id]=p;team[p.id]=p.team;});
+ var N=Math.max(1,Math.min(20,+$('dfs-n').value||10)),exp=Math.max(10,Math.min(100,+$('dfs-exp').value||100)),
+  minSal=Math.max(0,+$('dfs-min').value||0),capN=Math.max(1,Math.floor(N*exp/100+1e-9)),lock={},t0=performance.now();
+ Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id])&&inSlate(byId[id]))lock[id]=1;});
+ var R=($('dfs-mode').value==='gpp'?gpp:cash)(all,team,N,capN,minSal,lock),L=R.L,cnt=R.cnt,el=$('dfs-out');
  if(!L.length){el.innerHTML='';$('dfs-exposure').innerHTML='';$('dfs-msg').textContent='No legal lineup: check the locks, exclusions and minimum salary.';return;}
- $('dfs-msg').textContent=L.length+' lineup'+(L.length>1?'s':'')+' · best '+L[0].v.toFixed(2)+' pts'+(L.length<N?' · fewer than asked under these caps':'')+' · '+Math.round(performance.now()-t0)+' ms';
- el.innerHTML=L.map(function(l,i){return "<article class='dfs-lineup'><header><span>#"+(i+1)+"</span><span>$<b>"+l.sal+"</b> · <b>"+l.v.toFixed(2)+"</b> pts</span></header><ol>"+
+ $('dfs-msg').textContent=L.length+' lineup'+(L.length>1?'s':'')+(R.note?' · '+R.note:' · best '+L[0].v.toFixed(2)+' pts')+(L.length<N?' · fewer than asked under these caps':'')+' · '+Math.round(performance.now()-t0)+' ms';
+ el.innerHTML=L.map(function(l,i){return "<article class='dfs-lineup'><header><span>#"+(i+1)+(l.top!==undefined?" · top 5% in <b>"+(100*l.top).toFixed(0)+"%</b> · p90 <b>"+l.p90.toFixed(1)+"</b>":"")+"</span><span>$<b>"+l.sal+"</b> · <b>"+l.v.toFixed(2)+"</b> pts</span></header><ol>"+
   slots(l.ids,byId).map(function(x){var p=x[1];return "<li><span>"+x[0]+"</span><span>"+esc(p.name)+" <em>"+esc(p.team)+"</em></span><span class='n'>$"+p.sal+"</span><span class='n'>"+proj(p).toFixed(1)+"</span></li>";}).join('')+"</ol></article>";}).join('');
  var ex=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||byId[a].name.localeCompare(byId[b].name);});
  $('dfs-exposure').innerHTML=ex.map(function(id){return "<li><span>"+esc(byId[id].name)+"</span><b class='mono'>"+Math.round(100*cnt[id]/L.length)+"%</b></li>";}).join('');}
@@ -473,6 +552,7 @@ var SL=slates(),sel=$('dfs-slate');st.slate=SL[0]||null;
 sel.innerHTML=SL.map(function(o){return "<option value='"+o.key+"'>"+esc(o.label)+"</option>";}).join('')||"<option>No slate with 2+ games</option>";
 sel.disabled=SL.length<2;
 sel.addEventListener('change',function(){st.slate=SL.filter(function(o){return o.key===sel.value;})[0]||null;draw();run();});
+$('dfs-mode').addEventListener('change',function(){$('dfs-sims-l').hidden=this.value!=='gpp';run();});
 $('dfs-go').addEventListener('click',run);
 $('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};draw();run();});
 draw();run();

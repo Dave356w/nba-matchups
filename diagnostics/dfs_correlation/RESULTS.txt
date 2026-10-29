@@ -28,6 +28,7 @@ DFS correlation research: how players' Yahoo fantasy points move together,
    starters vs |margin| (blowout size)  -0.162 ± 0.023 (n=10946)
    bench    vs own team margin          +0.145 ± 0.032 (n=4755)
    bench    vs |margin| (blowout size)  -0.000 ± 0.031 (n=4755)
+-- 2024-25: sd of a player's Yahoo points = 7.54 + 0.100 x his mean (R2 0.33, 252 players; at 20 / 40 points: 9.5 / 11.5)
 
 == 2025-26: 1225 games, 258 rotation players, 16081 player-games (positions G 50%, F 35%, C 14%)
 -- 2025-26: r = mean product of standardized residuals (95% cluster bootstrap over games)
@@ -57,6 +58,7 @@ DFS correlation research: how players' Yahoo fantasy points move together,
    starters vs |margin| (blowout size)  -0.137 ± 0.021 (n=11003)
    bench    vs own team margin          +0.147 ± 0.032 (n=5078)
    bench    vs |margin| (blowout size)  +0.019 ± 0.034 (n=5078)
+-- 2025-26: sd of a player's Yahoo points = 7.42 + 0.105 x his mean (R2 0.31, 258 players; at 20 / 40 points: 9.5 / 11.6)
 
 == Both seasons pooled (labelled; the seasons above stand on their own)
 -- pooled: r = mean product of standardized residuals (95% cluster bootstrap over games)
@@ -86,6 +88,7 @@ DFS correlation research: how players' Yahoo fantasy points move together,
    starters vs |margin| (blowout size)  -0.149 ± 0.016 (n=21949)
    bench    vs own team margin          +0.146 ± 0.023 (n=9833)
    bench    vs |margin| (blowout size)  +0.010 ± 0.021 (n=9833)
+-- pooled: sd of a player's Yahoo points = 7.48 + 0.102 x his mean (R2 0.32, 510 players; at 20 / 40 points: 9.5 / 11.6)
 
 == Reading (2026-10-29 run; the tables above are the evidence)
 1. Teammates are slightly POSITIVELY correlated, not negatively: about +0.04
@@ -108,6 +111,10 @@ DFS correlation research: how players' Yahoo fantasy points move together,
    player's variance to an 8-player lineup's 8: about 2% more variance. For
    head-to-head and cash play maximize the mean; correlation is a tie-break
    for tournaments.
+
+6. Spread: a rotation player's sd of Yahoo points is about 7.5 + 0.10 x his
+   mean in both seasons (9.5 points at a 20-point mean, 11.6 at 40).
+   The DFS page's tournament mode uses it with a factor model matching 1-3.
 
 Heuristics this supports (tournaments): a mild preference for two or three
 starters from one team in a game expected to be close; opposing stars from

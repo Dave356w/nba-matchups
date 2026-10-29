@@ -9,7 +9,7 @@ Actions: <https://dave356w.github.io/nba-matchups/>.
 | Results | Every tracked win, loss, push and pending pick; filters for test, stage and season. |
 | Performance | Spread (H5·3), value favourite (H2·F·5), large probability gap (H4) and total (OU), each with separate games 1–9 and games 10+ records per season, uncertainty and same-game benchmarks. No combined portfolio return. |
 | How it works | Plain-language forecast, rule, timing and results definitions. |
-| DFS lineups | A Yahoo classic-contest lineup optimizer for the day's slate: Yahoo salaries with Sleeper's projections in Yahoo scoring; the best lineups are found in the browser for the main, early or late slate by start time (lock, exclude, re-project, exposure caps). A separate tool: no forecast, tracked pick or record. |
+| DFS lineups | A Yahoo classic-contest lineup optimizer for the day's slate: Yahoo salaries with Sleeper's projections in Yahoo scoring; the best lineups are found in the browser for the main, early or late slate by start time (lock, exclude, re-project, exposure caps). Cash mode maximizes projected points; tournament mode simulates the slate with each player's measured spread and correlations (`diagnostics/dfs_correlation/`), solves every simulated slate exactly and ranks lineups by how often they finish in the top 5%. A separate tool: no forecast, tracked pick or record. |
 
 The public records restarted with the v11 model family on the 2026-10-29
 slate and read only the v11-family rows at the 5 h lock (CLAUDE.md,

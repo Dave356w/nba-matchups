@@ -171,8 +171,14 @@ def main():
                         used = set(page.locator('.dfs-lineup li em').all_inner_texts())
                         assert used and used <= teams and len(used) >= 3, (key, used)
                         assert page.locator('.dfs-lineup').count() == 10, key
+                    page.select_option('#dfs-slate', 'main')
+                    page.select_option('#dfs-mode', 'gpp')
+                    assert page.locator('#dfs-sims').is_visible()
+                    page.wait_for_function("/simulated slates/.test(document.getElementById('dfs-msg').textContent)")
+                    assert page.locator('.dfs-lineup').count() == 10
+                    assert page.locator('.dfs-lineup header', has_text='top 5% in').count() == 10
                     page.screenshot(path=str(out/f'{device}-fixture-dfs.jpg'),full_page=True,type='jpeg',quality=85)
-                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games')
+                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups')
                 assert not errors,errors
                 # Live-score overlay may update status/score only, never a selection.
                 page.unroute_all()
