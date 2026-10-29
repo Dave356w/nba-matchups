@@ -13,6 +13,12 @@ tip (`lock_*` columns), in new ·L rows per test × stage × season; the
 first-snapshot rows close with the last slate before the first lock. This
 changes the bet's timing, not prediction maths (no tag).
 
+**Model-family reset** (owner's decision 2026-10-29; CLAUDE.md "Model-family
+reset amendment"): v11 starts a new model family. From the 2026-10-29 slate
+the tests' records are the ·L·v11 rows, which also require a lock tag ending
+`_v11`; the ·L rows close with the 2026-10-28 slate. The public pages show
+only the v11-family rows. Records only, not prediction maths (no tag).
+
 **v10** (owner's decision 2026-10-28; CLAUDE.md "Model v10 amendment";
 "v10" at the end): v9 below with three changes, from
 `research/v10_candidate.py` (arm v10h25). Half-life, terms, routes and
@@ -758,6 +764,11 @@ H5·L / H2·F·L / H4·L rows (and ·E·L), identical rules and stages. The
 first-snapshot rows keep only slates before `lock_activation_slate`. A game
 with no snapshot in its window has no tracked bet (`lock_status` counts the
 misses). The build is attempted every 30 minutes over the lock windows.
+From `analysis.FAMILY_SLATE` (2026-10-29) the ·L rows are closed and the
+v11-family rows (H5·L·v11 and the others, `family_hypotheses`) read the
+lock, with `FAMILY_TAGS` (`_v11`) required on both stages at the lock;
+`registered_scope` applies a row's slates and tags at its native price
+only, so hindsight is unchanged. `lock_status` also counts off-family locks.
 Evidence: by 5 h before tip the report has flagged 78–84% of eventual
 rotation-player absences, against 56–57% at the overnight first snapshot
 (23–26% on back-to-backs); the forecast at 5 h costs +0.0016 ± 0.0016 log

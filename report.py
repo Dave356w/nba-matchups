@@ -127,17 +127,23 @@ def hypotheses_block(native, recon):
              "offered); the registered pooled figures are in CLAUDE.md."]
     lines.append("  ACTIVE: three tests; games 1–9 (·E) and 10+ never pooled. First-snapshot "
                  "rows close at the 5 h lock's activation; the lock rows (·L) start there.")
+    lines.append(f"  MODEL-FAMILY RESET (registered {analysis.FAMILY_REGISTRATION_UTC}): the ·L rows "
+                 f"close with the slate before {analysis.FAMILY_SLATE}; the v11-family rows (·L·v11, "
+                 f"lock tag {'/'.join(analysis.FAMILY_TAGS)}) start there and alone are public.")
     st = analysis.lock_status(native) if native is not None and len(native) else None
     if st:
         lines.append(f"  5 h lock active from slate {st['activation']}: {st['locked']} games "
                      f"locked (median {st['lead_median_h']:.1f} h before tip), "
                      f"{st['missed']} missed (no snapshot in the window).")
+        lines.append(f"  v11 family from slate {analysis.FAMILY_SLATE}: {st['family_locked']} "
+                     f"locked with a family tag, {st['off_family']} locked off-family "
+                     "(no tracked bet).")
     else:
         lines.append("  5 h lock: no lock snapshot yet; the first-snapshot rows stay open.")
     for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
         if hyp.get("retired"):
             continue
-        lines.append(f"  {hyp['key']:<9} {hyp['rule']}")
+        lines.append(f"  {hyp['key']:<12} {hyp['rule']}")
         lines.append("    " + roi_line(f"native @ {analysis.PRICE_NAMES[hyp['native']]}", nat, 26))
         c = analysis.hypothesis_clv(native, hyp, book)
         if c:

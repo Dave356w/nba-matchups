@@ -39,8 +39,9 @@ def fixture():
             first_home_ml=-150, first_away_ml=130, first_q_home=.6,
             first_spread=-6, first_home_spread_odds=-110,
             first_away_spread_odds=-110, pre_spread=-6,
-            # the five-hour lock (4 h before tip): today's tracked picks
-            lock_snapshot_utc='2026-11-19T23:00:00Z', lock_model_tag=ui.MODEL_TAG_V9,
+            # the five-hour lock (4 h before tip): today's tracked picks, in
+            # the v11-family rows the pages show (model-family reset)
+            lock_snapshot_utc='2026-11-19T23:00:00Z', lock_model_tag=ui.MODEL_TAG_V11,
             lock_p_home=.8, lock_book='dk', lock_home_ml=-150, lock_away_ml=130,
             lock_q_home=.6, lock_spread=-6, lock_home_spread_odds=-110,
             lock_away_spread_odds=-110,

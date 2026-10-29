@@ -593,12 +593,55 @@ HYPOTHESES += tuple(dict(h, key=h["key"] + "·L", native="lock", lock=True,
                          rule=h["rule"] + " · 5 h lock",
                          registered_utc=LOCK_REGISTRATION_UTC, parent=h["key"])
                     for h in HYPOTHESES if not h.get("retired"))
+# Model-family reset amendment (CLAUDE.md, registered before any reset code
+# or v11 lock): v11 starts a new model family. From FAMILY_SLATE each lock
+# row has a v11-family row (·L·v11), same rule, thresholds, prices and
+# stages, that also requires a lock tag ending FAMILY_TAGS on both stages;
+# the ·L rows close with the slate before. The public pages read only the
+# family rows; the closed rows stay internal. Never pooled.
+FAMILY_REGISTRATION_UTC = "2026-10-29T13:58:40Z"
+FAMILY_SLATE = "2026-10-29"
+FAMILY_TAGS = ("_v11",)
+HYPOTHESES = tuple(dict(h, until_slate=FAMILY_SLATE) if h.get("lock") else h
+                   for h in HYPOTHESES)
+HYPOTHESES += tuple(dict(h, key=h["key"] + "·v11", family="v11", tags=FAMILY_TAGS,
+                         from_slate=FAMILY_SLATE, until_slate=None,
+                         rule=h["rule"] + " · v11 family",
+                         registered_utc=FAMILY_REGISTRATION_UTC, parent=h["key"])
+                    for h in HYPOTHESES if h.get("lock"))
 
 
 def active_hypotheses():
     """Three tests, with distinct early/established rows, at the first
-    snapshot (closed at the lock's activation) and the 5 h lock; never pooled."""
+    snapshot (closed at the lock's activation), the 5 h lock (closed at the
+    v11-family reset) and the v11 family's 5 h lock; never pooled."""
     return tuple(h for h in HYPOTHESES if not h.get("retired"))
+
+
+def family_hypotheses():
+    """The live v11-family rows: the only records the public pages show."""
+    return tuple(h for h in active_hypotheses() if h.get("family"))
+
+
+def registered_scope(g, hyp):
+    """Rows of native `g` a hypothesis registers at its native price: its
+    slates (from_slate inclusive, until_slate exclusive; a frame without
+    slate dates is not cut) and, for a model family, a tag at that price
+    ending one of its `tags`, on both stages. `g` when it has neither."""
+    lo, hi, tags = hyp.get("from_slate"), hyp.get("until_slate"), hyp.get("tags")
+    if g is None or not len(g) or not (lo or hi or tags):
+        return g
+    keep = pd.Series(True, index=g.index)
+    if "slate_date" in g:
+        s = g["slate_date"].astype(str)
+        if lo:
+            keep &= s >= lo
+        if hi:
+            keep &= s < hi
+    if tags:
+        tag = g.get(tag_col(hyp["native"]))
+        keep &= tag.astype(str).str.endswith(tags) if tag is not None else False
+    return g[keep]
 
 
 def lock_activation_slate(g):
@@ -613,9 +656,15 @@ def lock_activation_slate(g):
 
 def native_scope(g, hyp, price):
     """The rows a hypothesis may read at `price`: an active first-snapshot
-    row stops at the lock's activation slate; every other row is unchanged."""
-    if g is None or not len(g) or price != "first" or hyp.get("lock") \
-            or hyp.get("retired"):
+    row stops at the lock's activation slate; at its native price a row
+    reads only its registered scope (registered_scope: the ·L rows close at
+    the v11-family reset; the family rows start there with v11 lock tags).
+    Hindsight prices and retired rows are unchanged."""
+    if g is None or not len(g) or hyp.get("retired"):
+        return g
+    if price == hyp["native"]:
+        g = registered_scope(g, hyp)
+    if not len(g) or price != "first" or hyp.get("lock"):
         return g
     cut = lock_activation_slate(g)
     return g if cut is None else g[g["slate_date"].astype(str) < cut]
@@ -759,7 +808,8 @@ def hypothesis_rows(native, recon, book=None):
     return out
 
 
-def hypothesis_by_season(native, recon, keys=("H5", "H5·E", "H5·L", "H5·E·L"), book=None):
+def hypothesis_by_season(native, recon, keys=("H5", "H5·E", "H5·L", "H5·E·L", "H5·L·v11",
+                                              "H5·E·L·v11"), book=None):
     """[(hypothesis, [part])] for the hypotheses in `keys`: the same bets as
     hypothesis_rows (with the same `book`), split by basis x the graded
     price's book x season and never pooled (native first, newest season
@@ -876,8 +926,11 @@ def hypothesis_clv(native, hyp, book=HYPOTHESIS_BOOK):
 
 def lock_status(native, now=None):
     """The five-hour lock's coverage on the native ledger: dict(activation,
-    locked, missed, lead_median_h) or None before activation. `missed` counts
-    games from the activation slate on whose tip has passed without a lock."""
+    locked, missed, lead_median_h, family_locked, off_family) or None before
+    activation. `missed` counts games from the activation slate on whose tip
+    has passed without a lock; from FAMILY_SLATE on, `family_locked` counts
+    locks with a v11-family tag and `off_family` the locks without one (no
+    tracked bet, reset amendment)."""
     cut = lock_activation_slate(native)
     if cut is None:
         return None
@@ -887,9 +940,14 @@ def lock_status(native, now=None):
     now = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz="UTC")
     now = now.tz_localize("UTC") if now.tzinfo is None else now
     lead = ((tip - lock).dt.total_seconds() / 3600).dropna()
+    fam = (g["slate_date"].astype(str) >= FAMILY_SLATE) & lock.notna()
+    tag = g["lock_model_tag"] if "lock_model_tag" in g else pd.Series("", index=g.index)
+    in_family = tag.astype(str).str.endswith(FAMILY_TAGS)
     return dict(activation=cut, locked=int(lock.notna().sum()),
                 missed=int((lock.isna() & (tip <= now)).sum()),
-                lead_median_h=float(lead.median()) if len(lead) else float("nan"))
+                lead_median_h=float(lead.median()) if len(lead) else float("nan"),
+                family_locked=int((fam & in_family).sum()),
+                off_family=int((fam & ~in_family).sum()))
 
 
 HALF_SEASON = "-02-01"   # the backtest's split: before / from 1 Feb of the end year
@@ -1169,11 +1227,13 @@ def ats_card(row):
     line, model_line, ml, edge, model_p, q), bet = edge >= the rule's
     threshold. None when the row has no first snapshot with a main-line
     spread, or no ATS rule covers its games played. A locked row reads its
-    5 h-lock rule (H5·L / H5·E·L) first."""
+    v11-family rule (H5·L·v11 / H5·E·L·v11) from the reset slate, else its
+    5 h-lock rule (H5·L / H5·E·L), before the first-snapshot rules."""
     g = pd.DataFrame([row])
-    hyps = sorted(active_hypotheses(), key=lambda h: not h.get("lock"))
+    hyps = sorted(active_hypotheses(),
+                  key=lambda h: (not h.get("family"), not h.get("lock")))
     for hyp in hyps:
-        if hyp.get("market") != "ats":
+        if hyp.get("market") != "ats" or not len(registered_scope(g, hyp)):
             continue
         s = ats_sides(g, hyp["native"], hyp["sigma"])
         if not len(s) or not bool(on_stage(s, hyp).iloc[0]):
