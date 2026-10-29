@@ -240,6 +240,27 @@ information only, separate from DraftKings and native evidence.
     figures on public pages. v11's prediction maths, native snapshots and
     tags are unchanged.
 
+- **DFS lineup page (owner's decision, 2026-10-29T21:29Z).** Committed on
+  its own before any DFS code. A fifth public page, `dfs.html` ("DFS
+  lineups"), joins the four approved pages: a Yahoo daily-fantasy lineup
+  optimizer for the day's slate, a separate tool, never a tracked test.
+  - Inputs: Yahoo's salaries, positions and cap (its public NBA players
+    feed, snapshot to `data/nba_yahoo_dfs.csv`) and Sleeper's latest
+    pregame projections (`data/nba_sleeper.csv`), converted to Yahoo
+    scoring (PTS + 1.2 REB + 1.5 AST + 3 STL + 3 BLK − TO; it reproduces
+    Yahoo's season FPPG exactly for 55 of 74 players, the rest within a stat
+    correction). Sleeper stays out of the model, the tests and the records;
+    this page is its one public use. A player Sleeper lists at 0 minutes or
+    Out projects 0; an unmatched player has no projection.
+  - Version 1, classic multi-game contests: PG, SG, G, SF, PF, F, C, UTIL
+    under the feed's cap, players from at least 3 teams and at most 6 from
+    one (Yahoo's rules). The visitor's browser finds the best lineups exactly
+    (lock, exclude, edit projections, exposure caps); players whose game has
+    started are out.
+  - No model probability, tracked pick or record appears on it, and it
+    feeds nothing back. Yahoo or Sleeper failures never stop a build or
+    alter any forecast. The page says the projections are Sleeper's.
+
 ## Sources of truth and engineering rules
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
