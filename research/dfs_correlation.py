@@ -42,6 +42,34 @@ GROUP = {"PG": "G", "SG": "G", "G": "G", "SF": "F", "PF": "F", "F": "F", "C": "C
 ORDER = {"G": 0, "F": 1, "C": 2}
 MIN_GAMES, MIN_MPG, BOOT = 20, 20.0, 400
 
+READING = """== Reading (2026-10-29 run; the tables above are the evidence)
+1. Teammates are slightly POSITIVELY correlated, not negatively: about +0.04
+   for rotation pairs and +0.06 to +0.10 for two starters, in both seasons.
+   Shared game environment (opponent, pace, a close game keeping starters
+   on) outweighs usage competition. The baseline is the season mean, so part
+   of this is predictable before tip and a game-specific projection absorbs
+   some of it: the correlation of projection errors is likely smaller.
+2. The one negative teammate pair is two centres (rebound overlap), from few
+   pairs and inside its interval in 2025-26. A team's two top scorers do not
+   cancel each other below zero, though they sit below other teammate pairs.
+3. Opponents are uncorrelated on average (about 0.00): no general bring-back
+   effect. Opposing top-2 scorers lean positive in both seasons (shootouts,
+   close games keep stars on), a weak effect inside two intervals.
+4. Game script is the largest effect: starters' points fall with the final
+   margin's size (r about -0.15 in both seasons); the bench's do not on net.
+   The own-team margin correlation is partly mechanical (a player's points
+   are in his team's margin) and is not a heuristic.
+5. Magnitudes are small. Two starters at r = +0.08 add 2 x 0.08 = 0.16 of one
+   player's variance to an 8-player lineup's 8: about 2% more variance. For
+   head-to-head and cash play maximize the mean; correlation is a tie-break
+   for tournaments.
+
+Heuristics this supports (tournaments): a mild preference for two or three
+starters from one team in a game expected to be close; opposing stars from
+such a game; avoid two centres from one team; discount starters in games
+with a large expected margin (spread), unless the projection already does.
+"""
+
 
 def fetch(gid):
     path = CACHE / f"{gid}.json"
@@ -108,6 +136,11 @@ def season_frame(season, workers):
     mpg = df.groupby("player")["minutes"].transform("mean")
     df["z"] = (df["fp"] - loo) / sd
     df["rotation"] = (n >= MIN_GAMES) & (mpg >= MIN_MPG) & df["pos"].ne("")
+    # a team's two highest-scoring rotation players (season mean, per team)
+    m = df[df["rotation"]].groupby(["team", "player"])["fp"].mean().reset_index()
+    m["rank"] = m.groupby("team")["fp"].rank(ascending=False, method="first")
+    df = df.merge(m[["team", "player", "rank"]], on=["team", "player"], how="left")
+    df["star"] = df["rank"].le(2)
     return df
 
 
@@ -122,8 +155,9 @@ def pairs(df):
             for j in range(i + 1, len(x)):
                 a, b = (x[i], x[j]) if ORDER[x[i]["pos"]] <= ORDER[x[j]["pos"]] else (x[j], x[i])
                 out.append((gid, "teammate" if a["team"] == b["team"] else "opponent",
-                            f"{a['pos']}-{b['pos']}", a["starter"] and b["starter"], a["z"] * b["z"]))
-    return pd.DataFrame(out, columns=["game_id", "relation", "pair", "starters", "prod"])
+                            f"{a['pos']}-{b['pos']}", a["starter"] and b["starter"],
+                            int(a["star"]) + int(b["star"]), a["z"] * b["z"]))
+    return pd.DataFrame(out, columns=["game_id", "relation", "pair", "starters", "stars", "prod"])
 
 
 def boot_mean(df, col, rng, by="game_id"):
@@ -153,6 +187,12 @@ def table(p, rng, label):
         x = p[p["relation"] == rel]
         e, h, n = boot_mean(x, "prod", rng)
         lines_.append(f"   {rel:<9} {'all':<5} {e:+.3f} ± {h:.3f} (n={n:>6})")
+        for k, name in ((2, "both are their team's top-2 scorers"), (1, "one top-2 scorer"),
+                        (0, "neither")):
+            x = p[(p["relation"] == rel) & (p["stars"] == k)]
+            if len(x):
+                e, h, n = boot_mean(x, "prod", rng)
+                lines_.append(f"   {rel:<9} {name:<38} {e:+.3f} ± {h:.3f} (n={n:>6})")
     return lines_
 
 
@@ -190,6 +230,7 @@ def main(argv=None):
         p = pd.concat(allp, ignore_index=True)
         report += ["== Both seasons pooled (labelled; the seasons above stand on their own)"]
         report += table(p, rng, "pooled") + context(pd.concat(frames.values()), rng, "pooled")
+    report += ["", READING]
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "RESULTS.txt").write_text("\n".join(report) + "\n")
     print("\n".join(report))
