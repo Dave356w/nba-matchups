@@ -61,9 +61,11 @@ OUT_STATUSES = ("out", "ir")
 # his projection, and his simulated points share factors whose pair
 # correlations match the measured ones: any two teammates TEAM; two starters
 # TEAM + STARTER; opposing top-2 scorers GAME_STAR; a team's own two top
-# scorers TEAM + STARTER + GAME_STAR - STAR_SPLIT (about +0.03).
+# scorers TEAM + STARTER + GAME_STAR - STAR_SPLIT (about +0.03); a team's
+# two top projected centres CENTER_PAIR (the one negative pair measured,
+# -0.039 +/- 0.071 pooled: a split factor sized per team, big_split).
 SIM = {"sd_base": 7.48, "sd_slope": 0.102, "team": 0.012, "starter": 0.068,
-       "game_star": 0.038, "star_split": 0.09, "seed": 356}
+       "game_star": 0.038, "star_split": 0.09, "center_pair": -0.04, "seed": 356}
 STARTERS, STARS = 5, 2   # per team: by Sleeper minutes, by projection
 
 
@@ -225,6 +227,14 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None):
             p["starter"] = True
         for k, p in enumerate(sorted(mine, key=lambda p: -p["proj"])[:STARS]):
             p["star"] = k + 1
+        bigs = sorted((p for p in mine if p["pos"] == "C"), key=lambda p: -p["proj"])[:2]
+        if len(bigs) == 2:   # their pair without the split, then the split to CENTER_PAIR
+            a, b = bigs
+            pair = SIM["team"] + (SIM["starter"] if a.get("starter") and b.get("starter") else 0)
+            if a.get("star") and b.get("star"):
+                pair += SIM["game_star"] - SIM["star_split"]
+            for k, p in enumerate(bigs):
+                p["big"], p["big_split"] = k + 1, round(max(0.0, pair - SIM["center_pair"]), 4)
     snaps = s["snapshot_utc"].astype(str)
     games_out = sorted({(r.game_code, r.away, r.home, r.start_utc) for r in y.itertuples()},
                        key=lambda t: (t[3], t[0]))
@@ -353,7 +363,8 @@ def body(data, ui):
             "<b>Tournament</b> simulates the slate: each player’s points are drawn around his projection "
             f"with the spread typical of that projection (sd ≈ {SIM['sd_base']:g} + {SIM['sd_slope']:g} × "
             "projection) and the correlations measured on two seasons of results (teammates move together "
-            "a little, two starters more, opposing stars slightly; a team’s own two top scorers less). "
+            "a little, two starters more, opposing stars slightly; a team’s own two top scorers less, "
+            "and its two centres slightly against each other). "
             "Each simulated slate’s best lineup is found exactly; those winners and the best cash "
             "lineups are scored in every simulated slate, and ranked by how often they finish in the top "
             "5% of them. Each shows that share and its 90th-percentile score.</p>"
@@ -432,8 +443,9 @@ function teamsOk(ids,team,minTeams,maxPer){var c={};ids.forEach(function(i){var 
 // projection plus sd x z, floored at 0, where z = sqrt(team) T[team]
 // + sqrt(starter) U[team] (starters) + sqrt(game_star) G[game] (top-2
 // scorers) +/- sqrt(star_split) Q[team] (+ for the top scorer, - for the
-// second) + an independent remainder: a factor model, so every draw is a
-// valid correlated normal.
+// second) +/- sqrt(big_split) R[team] (a team's two top centres) + an
+// independent remainder: a factor model, so every draw is a valid
+// correlated normal.
 function rng(seed){var a=seed>>>0;return function(){a=(a+0x6D2B79F5)>>>0;var t=a;t=Math.imul(t^(t>>>15),t|1);
  t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};}
 function gauss(r){var u=0,v=0;while(u===0)u=r();while(v===0)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
@@ -441,6 +453,7 @@ function draw(P,M,r){var f={},out=new Float64Array(P.length);function F(k){if(!(
  for(var i=0;i<P.length;i++){var p=P[i],w=M.team,z=Math.sqrt(M.team)*F('T'+p.team);
   if(p.starter){z+=Math.sqrt(M.starter)*F('U'+p.team);w+=M.starter;}
   if(p.star){z+=Math.sqrt(M.game_star)*F('G'+p.game)+(p.star===1?1:-1)*Math.sqrt(M.star_split)*F('Q'+p.team);w+=M.game_star+M.star_split;}
+  if(p.big){z+=(p.big===1?1:-1)*Math.sqrt(p.big_split)*F('R'+p.team);w+=p.big_split;}
   z+=Math.sqrt(Math.max(0,1-w))*gauss(r);out[i]=Math.max(0,p.v+(M.sd_base+M.sd_slope*p.v)*z);}
  return out;}
 // S simulated slates, each solved exactly (ok(ids): the team rules). Returns
@@ -493,7 +506,7 @@ function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&am
 function proj(p){return st.proj[p.id]!==undefined?st.proj[p.id]:p.proj;}
 function started(p){return Date.parse(p.start)<=Date.now();}
 function pool(){return D.players.filter(function(p){var v=proj(p);return inSlate(p)&&!st.out[p.id]&&!started(p)&&v!==null&&v!==undefined&&(v>0||st.lock[p.id]);})
- .map(function(p){return {id:p.id,pos:p.pos,sal:p.sal,v:proj(p),team:p.team,game:p.game,starter:!!p.starter,star:p.star||0};});}
+ .map(function(p){return {id:p.id,pos:p.pos,sal:p.sal,v:proj(p),team:p.team,game:p.game,starter:!!p.starter,star:p.star||0,big:p.big||0,big_split:p.big_split||0};});}
 function slots(ids,byId){var ps=ids.map(function(i){return byId[i];}),used={},at={};
  function take(ok){for(var i=0;i<ps.length;i++){if(!used[i]&&ok(ps[i])){used[i]=1;return ps[i];}}return null;}
  [['PG',function(p){return p.pos==='PG';}],['SG',function(p){return p.pos==='SG';}],['SF',function(p){return p.pos==='SF';}],

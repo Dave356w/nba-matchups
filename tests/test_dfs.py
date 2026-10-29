@@ -222,7 +222,10 @@ def _sim_pool(seed=5):
             for k, pos in enumerate(["PG", "SG", "SF", "PF", "C", "PG", "SF", "C"]):
                 pool.append(dict(id=f"{t}{k}", pos=pos, sal=int(rng.integers(10, 40)),
                                  v=round(float(rng.uniform(15, 45)), 2), team=t, game=f"g{g}",
-                                 starter=k < 5, star=(k + 1) if k < 2 else 0))
+                                 starter=k < 5, star=(k + 1) if k < 2 else 0,
+                                 # the starting centre (k 4) and the bench one (k 7)
+                                 big={4: 1, 7: 2}.get(k, 0),
+                                 big_split=dfs.SIM["team"] - dfs.SIM["center_pair"] if k in (4, 7) else 0))
     return pool
 
 
@@ -258,6 +261,7 @@ process.stdout.write(JSON.stringify(Z));""", dict(pool=pool, sim=dfs.SIM))
              ("A5", "A6"): m["team"],                              # two bench players
              ("A0", "A1"): m["team"] + m["starter"] + m["game_star"] - m["star_split"],  # own stars
              ("A0", "B0"): m["game_star"], ("A0", "B1"): m["game_star"],             # opposing stars
+             ("A4", "A7"): m["center_pair"],                       # the team's two centres
              ("A2", "B2"): 0.0, ("A0", "C0"): 0.0}                 # opponents; other game
     for (a, b), want in pairs.items():
         assert c[ix[a], ix[b]] == pytest.approx(want, abs=0.02), (a, b)
@@ -267,15 +271,22 @@ process.stdout.write(JSON.stringify(Z));""", dict(pool=pool, sim=dfs.SIM))
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 def test_sim_model_and_flags_reach_the_page():
     yahoo = pd.DataFrame(dfs.parse_feed(_feed([_yp("p1", "Zion Williamson", "NO", "PF", 36),
-                                               _yp("p2", "Other Guy", "NO", "C", 20)]), now=NOW),
+                                               _yp("p2", "Other Guy", "NO", "C", 20),
+                                               _yp("p3", "Backup Big", "NO", "C", 10)]), now=NOW),
                          columns=dfs.YAHOO_COLUMNS).astype(str)
     line = dict(minutes="32", pts="20", reb="5", ast="3", stl="1", blk="1", to="2", tpm="1")
     sl = _sleeper([dict(kind="pre", team="NOP", sleeper_id="1", name="Zion Williamson", **line),
-                   dict(kind="pre", team="NOP", sleeper_id="2", name="Other Guy", **dict(line, pts="5"))])
+                   dict(kind="pre", team="NOP", sleeper_id="2", name="Other Guy", **dict(line, pts="5")),
+                   dict(kind="pre", team="NOP", sleeper_id="3", name="Backup Big", **dict(line, pts="2"))])
     d = dfs.slate("2026-10-29", yahoo=yahoo, sleeper=sl, native=_native(), now=NOW)
     by = {p["name"]: p for p in d["players"]}
     assert d["sim"] == dfs.SIM and by["Zion Williamson"]["star"] == 1 and by["Other Guy"]["star"] == 2
     assert by["Zion Williamson"]["starter"] and by["Other Guy"]["starter"]
+    # the two centres (both starters here): split to the measured pair
+    m = dfs.SIM
+    assert (by["Other Guy"]["big"], by["Backup Big"]["big"]) == (1, 2) and "big" not in by["Zion Williamson"]
+    assert by["Other Guy"]["big_split"] == by["Backup Big"]["big_split"] == pytest.approx(
+        m["team"] + m["starter"] - m["center_pair"], abs=1e-4)
 
 
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
