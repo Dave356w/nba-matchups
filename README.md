@@ -55,11 +55,10 @@ and P(over). No stage, season, test or model family is pooled.
 ## Operations
 
 Enable Settings → Pages → Source: GitHub Actions. Fit model maintains the
-v11 and totals fits; Backfill history rescores prior seasons; Rebuild season maintains
-current-season hindsight separately. Build grades at 04:17 UTC and is
-attempted every 30 minutes through each slate's afternoon and evening (all
-schedules are UTC). It preserves captured ledger rows even if rendering
-fails, subject to data validation.
+v9 fits; Backfill history rescores prior seasons; Rebuild season maintains
+current-season hindsight separately. Build grades at 04:17 ET and refreshes
+pregame forecasts hourly from 10:07–22:07 ET. It preserves captured ledger
+rows even if rendering fails, subject to data validation.
 
 ```bash
 pip install -r requirements.txt
