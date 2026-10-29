@@ -343,10 +343,6 @@ def book_odds(game_id):
     return parse_book_odds(get_json(ODDS.format(eid=game_id)))
 
 
-def dk_odds(game_id):
-    return book_odds(game_id).get("dk")
-
-
 # ------------------------------------------------------------ arithmetic ---
 def implied(ml):
     """Raw implied probability (break-even) of one American price; NaN if invalid."""

@@ -1,18 +1,22 @@
 # NBA Matchups
 
-NBA forecasts and three registered first-snapshot tracking tests, published
-by GitHub Actions: <https://dave356w.github.io/nba-matchups/>.
+NBA forecasts and four registered tracking tests, published by GitHub
+Actions: <https://dave356w.github.io/nba-matchups/>.
 
 | Public page | Purpose |
 |---|---|
-| Today | One probability and predicted margin per game, current DraftKings prices, and qualifying tracked selections at their frozen first-snapshot prices. |
+| Today | One probability, predicted margin and total per game, current DraftKings prices, and each tracked pick once its game locks (the first priced snapshot within 5 hours of tip). |
 | Results | Every tracked win, loss, push and pending pick; filters for test, stage and season. |
-| Performance | Spread, value favourite and large probability gap, each with separate games 1–9 and games 10+ records, uncertainty and same-game benchmarks. No combined portfolio return. |
+| Performance | Spread (H5·3), value favourite (H2·F·5), large probability gap (H4) and total (OU), each with separate games 1–9 and games 10+ records per season, uncertainty and same-game benchmarks. No combined portfolio return. |
 | How it works | Plain-language forecast, rule, timing and results definitions. |
 
-Forecast-only games and legacy lean records do not enter the public tracked
-performance. Rebuilt history, retired rules, coefficient tables, price-band
-comparisons and exploratory diagnostics remain research outputs.
+The public records restarted with the v11 model family on the 2026-10-29
+slate and read only the v11-family rows at the 5 h lock (CLAUDE.md,
+"Model-family reset" and "Edge floors and O/U test" amendments). Earlier
+first-snapshot and 5 h-lock rows stay graded in the internal workbench and
+`data/ledger_report.txt`, never pooled. Forecast-only games, rebuilt
+history, retired rules, coefficient tables, price-band comparisons and
+exploratory diagnostics remain research outputs.
 
 `public/` is exclusively generated publication output. It contains only the
 four approved HTML pages and `.nojekyll`; stale files and directories are
@@ -24,21 +28,26 @@ seven days and is not uploaded to Pages. The quotable `data/ledger_report.txt`
 continues to be maintained by the build bot. This separation does not make
 the public GitHub repository private.
 
-The model is v9 from game 0, with base and NBA injury-report arms. Optional
-missing inputs contribute neutral values with distinct tags; missing core
-ratings abstain. No legacy carryover or v4 model is loaded in production.
-The early tracking segments require a v9 first snapshot. Games 10+ keep
-their original registrations. No stage, season or test is pooled.
+The model is v11 from game 0 (`MODEL.md`), with base and NBA injury-report
+routes and the same faded rating; P(home) = Φ(predicted margin / σ).
+Optional missing inputs contribute neutral values with distinct tags;
+missing core ratings abstain. No legacy carryover or v4 model is loaded in
+production. A separate totals model (`totals.py`) gives each game's total
+and P(over). No stage, season, test or model family is pooled.
 
 | File | Role |
 |---|---|
 | `nba_composite.py` | Model fitting, prior-game features and predictions. |
+| `totals.py` | Totals (O/U) model: expected total and P(over). |
 | `build_site.py` | Grade, score, preserve snapshots, generate internal reports and publish the approved pages. |
 | `public_site.py` | Public native-only forecasts, tracking records and guide. |
 | `analysis.py` | Registered selections/grades and shared statistics. |
 | `ledger.py` | Schema, write-once snapshots, pregame locks and grading. |
 | `market.py` | Scoreboard, sportsbook prices and probability arithmetic. |
 | `player_availability.py` | NBA injury-report inputs. |
+| `cold_start.py` | Shared decayed-feature helpers (legacy carryover fits are under `research/legacy_*`). |
+| `sleeper.py` | Sleeper projection snapshots written by the build; research-only, never a model input. |
+| `kalshi.py` | Historical Kalshi helpers for research; the build no longer fetches Kalshi. |
 | `report.py` | Full plain-text ledger report, generated outside the public artifact. |
 | `research/` and `diagnostics/` | Research scripts, preserved historical models, evidence and results. |
 | `CLAUDE.md`, `MODEL.md`, `docs/model_guidelines.md` | Working agreement, model specification and change gates. |
@@ -46,10 +55,11 @@ their original registrations. No stage, season or test is pooled.
 ## Operations
 
 Enable Settings → Pages → Source: GitHub Actions. Fit model maintains the
-v9 fits; Backfill history rescores prior seasons; Rebuild season maintains
-current-season hindsight separately. Build grades at 04:17 ET and refreshes
-pregame forecasts hourly from 10:07–22:07 ET. It preserves captured ledger
-rows even if rendering fails, subject to data validation.
+v11 and totals fits; Backfill history rescores prior seasons; Rebuild season maintains
+current-season hindsight separately. Build grades at 04:17 UTC and is
+attempted every 30 minutes through each slate's afternoon and evening (all
+schedules are UTC). It preserves captured ledger rows even if rendering
+fails, subject to data validation.
 
 ```bash
 pip install -r requirements.txt
