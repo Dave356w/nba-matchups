@@ -81,12 +81,22 @@ MODEL_TAG_V10_AVAIL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_r
 MODEL_TAG_V10_NEUTRAL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v10'
 MODEL_TAG_V10_NEUTRAL_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
                                'margin_neutral_avail_v10')
+# v11 (CLAUDE.md amendment 2026-10-28): v10 plus Questionable weighting on the
+# report route (Doubtful / Questionable / Probable at their play rate by lead).
+MODEL_TAG_V11 = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11'
+MODEL_TAG_V11_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
+                       'qweight_margin_avail_v11')
+MODEL_TAG_V11_NEUTRAL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11'
+MODEL_TAG_V11_NEUTRAL_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
+                               'qweight_margin_neutral_avail_v11')
 NEUTRAL_TAGS = (MODEL_TAG_V9_NEUTRAL, MODEL_TAG_V9_NEUTRAL_AVAIL,
-                MODEL_TAG_V10_NEUTRAL, MODEL_TAG_V10_NEUTRAL_AVAIL)
+                MODEL_TAG_V10_NEUTRAL, MODEL_TAG_V10_NEUTRAL_AVAIL,
+                MODEL_TAG_V11_NEUTRAL, MODEL_TAG_V11_NEUTRAL_AVAIL)
 PRESEASON_TAG = 'fourfactors_hl25_b2b_carry25_preseason_g0'
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
               MODEL_TAG_V6_AVAIL, MODEL_TAG_V8_AVAIL, MODEL_TAG_V9_AVAIL,
-              MODEL_TAG_V9_NEUTRAL_AVAIL, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL_AVAIL)
+              MODEL_TAG_V9_NEUTRAL_AVAIL, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL_AVAIL,
+              MODEL_TAG_V11_AVAIL, MODEL_TAG_V11_NEUTRAL_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -155,12 +165,20 @@ def is_v9(model):
 
 def is_v10(model):
     """v10: v9 on ORB% weights, rookies by pick, report route refitted per
-    slate (model files carry "version": 10)."""
-    return is_v9(model) and model.get("version") == nc.V10
+    slate (model files carry "version": 10; v11 builds on it, version 11)."""
+    return is_v9(model) and model.get("version") in (nc.V10, nc.V11)
+
+
+def is_v11(model):
+    """v11: v10 plus Questionable weighting on the report route (version 11;
+    the report file carries its play-rate table, q_rates)."""
+    return is_v9(model) and model.get("version") == nc.V11
 
 
 def neutral_tag(model, avail):
-    """The neutral-input tag of a v9 / v10 route."""
+    """The neutral-input tag of a v9 / v10 / v11 route."""
+    if is_v11(model):
+        return MODEL_TAG_V11_NEUTRAL_AVAIL if avail else MODEL_TAG_V11_NEUTRAL
     if is_v10(model):
         return MODEL_TAG_V10_NEUTRAL_AVAIL if avail else MODEL_TAG_V10_NEUTRAL
     return MODEL_TAG_V9_NEUTRAL_AVAIL if avail else MODEL_TAG_V9_NEUTRAL
@@ -173,6 +191,8 @@ def is_early_talent(early):
 
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
+    if is_v11(model):
+        return MODEL_TAG_V11_AVAIL if avail else MODEL_TAG_V11
     if is_v10(model):
         return MODEL_TAG_V10_AVAIL if avail else MODEL_TAG_V10
     if is_v9(model):
@@ -192,6 +212,9 @@ def active_tags(model, avail_model, fallback=None, early=None):
     """Tags the current model files produce (page footer, ledger split),
     including the v4 fallback's when the base model is v5 and the v7 early
     tag when the early logit has talent."""
+    if is_v11(model):
+        return [MODEL_TAG_V11, MODEL_TAG_V11_AVAIL, MODEL_TAG_V11_NEUTRAL,
+                MODEL_TAG_V11_NEUTRAL_AVAIL]
     if is_v10(model):
         return [MODEL_TAG_V10, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL,
                 MODEL_TAG_V10_NEUTRAL_AVAIL]
@@ -364,7 +387,7 @@ def route(row, model):
         tag = row.get("model_tag")
         return ("neutral" if tag in NEUTRAL_TAGS else
                 "avail" if tag in AVAIL_TAGS else
-                "base" if tag in (MODEL_TAG_V8, MODEL_TAG_V9, MODEL_TAG_V10)
+                "base" if tag in (MODEL_TAG_V8, MODEL_TAG_V9, MODEL_TAG_V10, MODEL_TAG_V11)
                 else "carry" if tag == MODEL_TAG else "v4")
     if min(row.get("gp_home", 0), row.get("gp_away", 0)) < nc.MIN_GAMES:
         return "early"
@@ -412,6 +435,8 @@ def score_slate(today, weights, model, now=None):
             log(f"availability failed ({e!r}); primary model uses neutral optional inputs")
     if is_v10(avail_model):
         avail_model = refit_avail(avail_model, today, weights, live, prior)
+    # v11: the report route scores Questionable players at their play rate
+    q_rates = avail_model.get("q_rates") if is_v11(avail_model) else None
     opening = nc.season_opening(logs) or pd.Timestamp(today)
     talent = getattr(live, "talent", None)
     talent0 = getattr(live, "talent0", None)
@@ -423,7 +448,10 @@ def score_slate(today, weights, model, now=None):
         terms = None
         if live is not None:
             try:
-                terms = live.terms(g["game_id"], g["home"], g["away"], today)
+                # v11 only: earlier versions call exactly as before
+                terms = (live.terms(g["game_id"], g["home"], g["away"], today,
+                                    tip_utc=g["tip_utc"], q_rates=q_rates) if q_rates else
+                         live.terms(g["game_id"], g["home"], g["away"], today))
             except Exception as e:  # noqa: BLE001
                 log(f"availability {g['game_id']}: {e!r}")
         r.update(score_game(logs, g["home"], g["away"], today, weights, model,
@@ -990,12 +1018,14 @@ def ats_note(r, a):
     """The card's account of the ATS hypothesis that covers this game
     (analysis.ats_card): the pick at its registered price, or why not."""
     key, side = a["hyp"]["key"], esc(a["side"])
+    price = a["hyp"]["native"]
+    at = analysis.PRICE_NAMES[price]
     who = "model line"
     gap = (f"{who} {side} {line_txt(round(a['model_line'], 1))} vs market "
            f"{line_txt(a['line'])}: {a['edge']:.1f} pts")
     if not a["bet"]:
         return (f"<p class='note'><b>{key}</b> (pre-registered, against the "
-                f"spread): no bet. At the first snapshot the {gap}; the rule "
+                f"spread): no bet. At the {at} the {gap}; the rule "
                 f"needs {a['hyp']['min_edge']:g}.</p>")
     now = pd.to_numeric(r.get("pre_spread"), errors="coerce")
     if np.isfinite(now):
@@ -1004,8 +1034,8 @@ def ats_note(r, a):
              and now != a["line"] else "")
     return (f"<p class='note'><b>{key} pick</b> (pre-registered, against the "
             f"spread): <b>{side} {line_txt(a['line'])}</b> at {ml_txt(a['ml'])}"
-            f"{book_tag(r.get('first_book'))}, from the first snapshot "
-            f"({tip_pt(r.get('first_snapshot_utc'))}): {gap}; "
+            f"{book_tag(r.get(f'{price}_book'))}, from the {at} "
+            f"({tip_pt(r.get(f'{price}_snapshot_utc'))}): {gap}; "
             f"model cover "
             f"{pct(a['model_p'])} vs market {pct(a['q'])} (no-vig).{moved} "
             "Graded on the <a href='grades.html#hypotheses'>Ledger</a> at this "
@@ -1234,14 +1264,17 @@ def public_ats(native):
     if native is None or not len(native):
         return []
     season = pd.to_numeric(native["season"], errors="coerce").max()
-    g = ledger.graded(native[pd.to_numeric(native["season"], errors="coerce") == season])
+    # the whole season, not only graded rows: the graders drop ungraded games,
+    # and the first-snapshot rows' close reads every lock (lock_activation_slate)
+    g = native[pd.to_numeric(native["season"], errors="coerce") == season]
     out = []
     for hyp in analysis.active_hypotheses():
         if hyp.get("market") != "ats":
             continue
         d = analysis.hypothesis_picks(g, hyp, hyp["native"]) if len(g) else pd.DataFrame()
         out.append((hyp, d))
-    return sorted(out, key=lambda t: not t[0]["early"])    # H6 (games 1-9) first
+    # lock rows first, then games 1-9 before games 10+
+    return sorted(out, key=lambda t: (not t[0].get("lock"), not t[0]["early"]))
 
 
 def spread_tiles(native):
@@ -1252,8 +1285,8 @@ def spread_tiles(native):
         label = f"Spread · {hyp['key']} · {games}"
         r = analysis.ats_row(hyp["key"], d) if len(d) else None
         if not r:
-            tiles.append(_stat(label, "0–0", "No graded bets yet · first-snapshot "
-                               "spread, edge ≥ 1 pt"))
+            tiles.append(_stat(label, "0–0", f"No graded bets yet · "
+                               f"{analysis.PRICE_NAMES[hyp['native']]} spread, edge ≥ 1 pt"))
             continue
         c = sig_cls(analysis.z_vs_null(r))
         tiles.append(_stat(
@@ -2274,7 +2307,7 @@ def render_model(native, recon, built):
     native, recon = analysis.market_view(native), analysis.market_view(recon)
     _w, base = load_model()
     avail = load_avail()
-    ver = "v10" if is_v10(base) else "v9"
+    ver = "v11" if is_v11(base) else "v10" if is_v10(base) else "v9"
     body = ["<h1>Model</h1><p class='lead'>Goal: flat 1u ROI on the model's "
             "side, judged against the market-correct null and the market "
             "favourite on the same games; log loss and Brier against the close "
@@ -2292,7 +2325,11 @@ def render_model(native, recon, built):
         + (" v10: rebounding as ORB%, drafted rookies valued by pick, and the "
            "injury-report arm refitted before each slate on its training seasons "
            "plus this season's covered games (the coefficients below are the "
-           "season-start fit)." if ver == "v10" else "") + "</p>")
+           "season-start fit)." if ver in ("v10", "v11") else "")
+        + (" v11: on the injury-report arm, Doubtful, Questionable and Probable "
+           "players count at their status's play rate at the report's lead "
+           "before tip (q_rates; fitted on the report seasons)." if ver == "v11" else "")
+        + "</p>")
     coefs = [_coef_table(f"{ver} base margin (every game)", base),
              _coef_table(f"{ver} injury-report margin (games 1+)", avail)]
     body.append("<h2>Fitted coefficients</h2><p class='note'>P(home) = Φ(margin / residual sigma). The margin is intercept "
@@ -2674,6 +2711,15 @@ def _hypothesis_ats_bands(native, recon):
         + "".join(out))
 
 
+def _lock_txt(native):
+    """' (slate 2026-10-29; 41 locked, 0 missed)' or ' (not yet active)'."""
+    st = analysis.lock_status(native) if native is not None and len(native) else None
+    if not st:
+        return " (not yet active)"
+    return (f" (slate {st['activation']}; {st['locked']} locked, median "
+            f"{st['lead_median_h']:.1f} h before tip; {st['missed']} missed)")
+
+
 def _hypotheses(native, recon):
     book = analysis.HYPOTHESIS_BOOK
     name = market.BOOK_NAMES[book]
@@ -2701,7 +2747,7 @@ def _hypotheses(native, recon):
             h = cell(hind)
             h[0] += "<br><span class='mut'>at the open</span>"
             n = cell(nat)
-            n[0] += "<br><span class='mut'>at the first snapshot</span>"
+            n[0] += f"<br><span class='mut'>at the {analysis.PRICE_NAMES[hyp['native']]}</span>"
             active.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]),
                            *n, *h])
     early = []
@@ -2709,15 +2755,18 @@ def _hypotheses(native, recon):
         early.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]), *cell(r)])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
-        "<p class='note'>Three tests: H5, H2·F and H4, at the frozen first "
-        "snapshot. Each has separate games 1–9 (·E) and games 10+ rows; "
+        "<p class='note'>Three tests: H5, H2·F and H4. The <b>5 h lock</b> rows "
+        "(·L; amendment registered 2026-10-28 at 21:30:29 UTC) bet the first "
+        "snapshot within 5 hours of tip; the first-snapshot rows close with the "
+        f"last slate before the lock's activation{_lock_txt(native)}. "
+        "The two are never pooled. Each has separate games 1–9 (·E) and games 10+ rows; "
         "never pooled. Early segments registered 2026-10-23 at 19:46:58 UTC, "
         "before CHI @ MIL was final. Established segments and every threshold "
         "are unchanged. Native is the forward test, on DraftKings prices. "
         "At the <b>first snapshot</b>, probabilities stay frozen. Hindsight is information only. Early v9 uses injury-report inputs "
         "and inherits the injury-timing caveat; the first snapshot is later "
         "than the open. Recorded first probabilities and tags stay frozen.</p>"
-        + table(["", "Rule", "Native n · first snapshot", "ROI", "vs null (± 1 SE)",
+        + table(["", "Rule", "Native n · registered price", "ROI", "vs null (± 1 SE)",
                  f"Hindsight n ({esc(name)} open)", "ROI", "vs null (± 1 SE)"],
                 active, left=(0, 1), key=(3, 4))
         + "<h3>Early segments · ESPN BET · hindsight only</h3>"

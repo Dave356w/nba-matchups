@@ -55,6 +55,16 @@ rows accept `_v9` and `_v10` first tags. Walk-forward on production routing,
 v10 − v9 games 1+ log loss −0.0009 ± 0.0004; it still trails the close
 (DraftKings 2025-26 games 10+ +0.0153 ± 0.0106).
 
+**v11** (owner's decision 2026-10-28, CLAUDE.md amendment): v10 plus
+Questionable weighting on the report route (MODEL.md "v11"). It failed the
+G7 rule set before its test (DraftKings 2025-26 games 10+ +0.0007 at 5 h)
+and was adopted by the owner regardless; its post-change checks are reviewed
+before activation. The games 1–9 rows accept `_v11` tags too.
+
+**Five-hour lock** (owner's decision 2026-10-28, CLAUDE.md amendment): the
+tests bet the first priced snapshot within 5 h of tip, in new ·L rows; the
+first-snapshot rows close at the lock's first slate. Never pooled.
+
 ## Frozen forward tests (G4)
 
 Registration: 2026-10-23T19:46:58Z, commit `2e301d3`, before CHI @ MIL was

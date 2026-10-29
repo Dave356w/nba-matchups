@@ -129,7 +129,7 @@ def test_early_rows_accept_v9_and_v10_first_tags_only():
     # thresholds and rules are unchanged by the amendment
     active = {h["key"]: h for h in analysis.active_hypotheses()}
     assert active["H5"]["sigma"] == 13.5 and active["H4"]["min_edge"] == 0.12
-    assert analysis.EARLY_TAG_SUFFIXES == ("_v9", "_v10")
+    assert analysis.EARLY_TAG_SUFFIXES[:2] == ("_v9", "_v10")
 
 
 def test_how_it_works_dates_the_update_only_when_v10_is_live(monkeypatch):

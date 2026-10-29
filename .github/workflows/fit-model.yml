@@ -12,15 +12,19 @@ name: Fit model
 # valued by pick, and model/avail_train.csv, the report route's training
 # games, which the build refits on before each slate. Running it with v10
 # activates v10; run Backfill history (rescore, rebuild) right after.
+# version v11 (CLAUDE.md amendment 2026-10-28): v10 plus the Questionable
+# play-rate table by lead (q_rates in model/logit_avail.json), which reads the
+# NBA reports at six leads before tip (a parallel prefetch, cached). Running it
+# with v11 activates v11; the post-change checks follow, as for v10.
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Model version to fit (v10 activates the 2026-10-28 amendment)'
+        description: 'Model version to fit (v11 / v10 activate the 2026-10-28 amendments)'
         type: choice
-        options: [v10, v9]
-        default: v10
+        options: [v11, v10, v9]
+        default: v11
       weight_years:
         description: 'Team-season years for composite weights'
         default: '2015-2019 2021-2026'
@@ -83,7 +87,7 @@ jobs:
         run: |
           rm -f model/weights.json model/logit.json model/logit_early.json
           python nba_composite.py fit-weights --years ${{ inputs.weight_years }} \
-            ${{ inputs.version == 'v10' && '--v10' || '' }}
+            ${{ inputs.version != 'v9' && '--v10' || '' }}
           # v9: v8's terms (delta, b2b_net, delta * season phase, opponent
           # 3-point luck, roster talent, own FT% gap) on the faded rating, every
           # game from game 0, fitted by least squares on the final margin

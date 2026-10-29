@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -276,13 +276,25 @@ def test_report_and_route_written_once_with_the_first_snapshot():
     r = led.iloc[0]
     assert (r["first_report_utc"], r["first_route"]) == ("2026-11-19T17:30:00Z", "avail")
     assert r["seen_utc"] == r["first_snapshot_utc"] and r["seen_note"] == ""
-    once = led[ledger.WRITE_ONCE_COLUMNS].copy()
-    # a second run (newer report, new route) refreshes nothing write-once
+    assert led[ledger.LOCK_COLUMNS].isna().all(axis=None)      # 6.5 h before tip
+    first_once = [c for c in ledger.WRITE_ONCE_COLUMNS if c not in ledger.LOCK_COLUMNS]
+    once = led[first_once].copy()
+    # a second run (newer report, new route) refreshes nothing write-once; at
+    # 1.5 h before tip it is the first snapshot in the 5 h window: the lock
     led, acc, _ = ledger.upsert_pregame(
         led, [row(pre_book="dk", p_home=0.7, report_utc="2026-11-19T22:30:00Z",
                   route="base")], now=LATER_BEFORE)
     assert acc and led.iloc[0]["p_home"] == 0.7
-    pd.testing.assert_frame_equal(led[ledger.WRITE_ONCE_COLUMNS], once)
+    pd.testing.assert_frame_equal(led[first_once], once)
+    r = led.iloc[0]
+    assert (r["lock_p_home"], r["lock_route"], r["lock_report_utc"]) == \
+        (0.7, "base", "2026-11-19T22:30:00Z")
+    lock = led[ledger.LOCK_COLUMNS].copy()
+    led, acc, _ = ledger.upsert_pregame(
+        led, [row(pre_book="dk", p_home=0.4, route="avail")],
+        now=LATER_BEFORE + timedelta(minutes=30))
+    assert acc and led.iloc[0]["p_home"] == 0.4
+    pd.testing.assert_frame_equal(led[ledger.LOCK_COLUMNS], lock)
     # grading writes only result and open/close columns
     odds = dict(close_home_ml=-160, close_away_ml=135, open_home_ml=-140,
                 open_away_ml=120, book="dk")

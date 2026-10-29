@@ -114,6 +114,56 @@ information only, separate from DraftKings and native evidence.
     hindsight figures are added to public pages. Activation waits on the
     G7–G10 checks.
 
+- **Five-hour lock amendment (owner's decision, registered 2026-10-28T21:30:29Z).**
+  Committed on its own before any lock code or snapshot. Evidence:
+  [Questionable weighting and lock lead](diagnostics/questionable_weight/RESULTS.txt).
+  At the overnight first snapshot (~18 h before tip) the NBA report has
+  flagged 23–26% of eventual absences on back-to-backs and 71–72% on
+  other games; by 5 h, 76–84% of both.
+  - Each tracked bet is frozen at the **lock snapshot**: the first pregame
+    snapshot taken within 5 hours of tip (snapshot time ≥ tip − 5 h).
+    Its prices, model P, model tag, report time and route are write-once
+    `lock_*` columns. A game with no snapshot in that window has no
+    tracked bet; missed locks are counted internally. First snapshots keep
+    being recorded, write-once, as history and forecasts.
+  - The three tests keep their rules, thresholds and prices (H5 13.5 ×
+    Φ⁻¹(P), edge ≥ 1, both spread prices −135..+115; H2·F q > 0.5; H4
+    P − q ≥ 0.12), read at the lock price with the lock P and tag. Stage
+    membership is unchanged (games 10+; games 1–9 with v9-or-later tags;
+    game 0 never).
+  - **New rows from activation.** Each test × stage × season gets
+    separate 5 h-lock rows (H5·L, H5·E·L, H2·F·L, H2·F·E·L, H4·L, H4·E·L).
+    The first-snapshot rows close with the last slate before activation
+    (the first slate with a lock snapshot); from that slate on, games enter
+    only the lock rows. Closed rows stay visible and graded, never pooled
+    with the lock rows. CLV is the lock price against the close.
+  - Builds are attempted every 30 minutes through each slate's afternoon
+    and evening, since scheduled runs are dropped or delayed. Pages show
+    forecasts until a game locks and its tracked pick after. This changes
+    the bet's timing only, not prediction maths.
+
+- **Model v11 amendment (owner's decision, registered 2026-10-28T21:30:46Z).**
+  Committed on its own before any v11 code or snapshot.
+  - v11 = v10 plus Questionable weighting on the injury-report route (arm
+    q of [Questionable weighting](diagnostics/questionable_weight/RESULTS.txt)):
+    Doubtful, Questionable and Probable players count as the share of
+    listed players with that status who logged minutes in the report
+    seasons, read at the report's lead before tip (the nearest of 18, 12,
+    8, 5 and 2 h and 30 min); Out counts 0; Available and unlisted
+    previous-box players count 1. The route's fit is unchanged (Out/Doubtful
+    on the last report ≥ 30 min before tip, refitted before each slate).
+    New tags end `_v11`; neutral-input variants keep their own tags.
+  - Adopted by the owner although arm q failed the G7 rule set before its
+    run: games 1+ −0.0012 ± 0.0010 at 18 h and −0.0006 ± 0.0012 at 5 h,
+    but DraftKings 2025-26 games 10+ +0.0007 at 5 h (± 95%).
+  - Native snapshots, probabilities and tags recorded before activation
+    are immutable and never rescored. The games 1–9 rows also accept tags
+    ending `_v11`; a by-tag split is kept internally.
+  - Reconstructed and rebuilt rows are rescored under v11 by the usual
+    post-change checks (rescore, rebuild, build, model review, DraftKings
+    and History backtests), reviewed before activation. Pages carry the
+    one dated model-version line; no hindsight figures are added.
+
 ## Sources of truth and engineering rules
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model

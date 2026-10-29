@@ -1,4 +1,17 @@
-# Model v10 (implemented; live once "Fit model" runs with version v10)
+# Model v11 (implemented; live once "Fit model" runs with version v11)
+
+**v11** (owner's decision 2026-10-28; CLAUDE.md "Model v11 amendment"; "v11"
+at the end): v10 below plus Questionable weighting on the injury-report
+route. Doubtful, Questionable and Probable players count as the share of
+listed players with that status who logged minutes in the report seasons, at
+the report's lead before tip. Tags end `_v11`. Until the v11 files are
+fitted the build keeps scoring v10.
+
+**Five-hour lock** (owner's decision 2026-10-28; CLAUDE.md "Five-hour lock
+amendment"): tracked bets freeze at the first priced snapshot within 5 h of
+tip (`lock_*` columns), in new ·L rows per test × stage × season; the
+first-snapshot rows close with the last slate before the first lock. This
+changes the bet's timing, not prediction maths (no tag).
 
 **v10** (owner's decision 2026-10-28; CLAUDE.md "Model v10 amendment";
 "v10" at the end): v9 below with three changes, from
@@ -696,6 +709,54 @@ model and its training games); (2) "Backfill history" `--rescore` and
 History backtests. Native rows keep the tag and P they were first written
 under; the games 1–9 tests accept `_v9` and `_v10` first tags
 (`analysis.EARLY_TAG_SUFFIXES`).
+
+## v11 (owner's decision, 2026-10-28)
+
+- **Questionable weighting** (`player_availability.q_status_p`,
+  `q_rates`, `lead_rates`): on the report route, a listed player's chance of
+  playing is 0 if Out, 1 if Available (or unlisted on the previous box
+  score), and otherwise his status's play rate: the share of players listed
+  Doubtful, Questionable or Probable who logged minutes in the report
+  seasons, from the last report at least L minutes before each tip, L the
+  nearest of 18, 12, 8, 5 and 2 h and 30 min to the live report's lead
+  (`model/logit_avail.json` `"q_rates"`). Fitted on 2022-23 to 2025-26: at
+  18 h Doubtful 0.05, Questionable 0.49, Probable 0.87; at 5 h 0.02, 0.48,
+  0.91; at 30 min 0.00, 0.51, 0.92.
+- **Unchanged:** the route's coefficients are fitted, and refitted before
+  each slate, on the od rule at the last report ≥ 30 min before tip (arm q).
+  The base route is v10's; both files carry `"version": 11`.
+- **Backfill** (`reconstruct_season_v8(..., v11=True)`): each season's report
+  route is scored with the q rule at its 30-minute report, the rates from
+  the other report seasons; every fit, the per-slate refit included, reads
+  od terms.
+
+Test (`research/questionable_weight.py`,
+`diagnostics/questionable_weight/RESULTS.txt`): walk-forward 2023-24 to
+2025-26, arm q − od on identical games, ± 95%: games 1+ −0.0012 ± 0.0010 at
+18 h, −0.0006 ± 0.0012 at 5 h, −0.0001 at 30 min; DraftKings 2025-26 games
+10+ −0.0022 at 18 h but +0.0007 at 5 h, so q **failed** the G7 rule set
+before the run. Adopted by the owner regardless.
+
+Activation: (1) "Fit model" with version v11; (2) "Backfill history"
+`--rescore` and `rebuild`; (3) model review, DraftKings and History
+backtests, reviewed before activation. The History backtest reads the
+30-minute report, where q and od nearly coincide, so the evidence for v11's
+live effect is the walk-forward above. The games 1–9 tests accept `_v9`,
+`_v10` and `_v11` tags.
+
+## Five-hour lock (owner's decision, 2026-10-28)
+
+`ledger.LOCK_COLUMNS` are written once, like `first_*`, from the first
+snapshot with a model P and a price whose time is within
+`LOCK_LEAD_HOURS` (5) of tip; `analysis` adds a `lock` price and the
+H5·L / H2·F·L / H4·L rows (and ·E·L), identical rules and stages. The
+first-snapshot rows keep only slates before `lock_activation_slate`. A game
+with no snapshot in its window has no tracked bet (`lock_status` counts the
+misses). The build is attempted every 30 minutes over the lock windows.
+Evidence: by 5 h before tip the report has flagged 78–84% of eventual
+rotation-player absences, against 56–57% at the overnight first snapshot
+(23–26% on back-to-backs); the forecast at 5 h costs +0.0016 ± 0.0016 log
+loss against the 30-minute report, at 18 h +0.0036 ± 0.0023.
 
 ## Version rule
 

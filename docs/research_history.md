@@ -708,3 +708,18 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   `..._phase_v4` without a report, `..._phase_avail_v4` with one). The
   reconstructed rows are re-scored with v4 by `backfill_history.py
   --rescore` (workflow "Backfill history", prices and results kept).
+- Questionable weighting and lock lead (owner's request, 2026-10-28;
+  `research/questionable_weight.py`, [results](../diagnostics/questionable_weight/RESULTS.txt)).
+  NBA reports 2022-23 to 2025-26, rotation players: absences already
+  flagged Out/Doubtful at 18 h before tip 56–57% (back-to-backs 23–26%,
+  others 71–72%), flat to 8 h, then 76–79% at 6 h and 78–84% at 5 h (the
+  teams' ~1 pm local game-day reports), 85–89% at 2 h. Questionable
+  rotation players played 53–63% at every lead. Walk-forward on v10's
+  report route, 2023-24 to 2025-26, games 1+ (± 95%): od at 18 h minus od
+  at 30 min +0.0036 ± 0.0023 (back-to-back +0.0064, other +0.0024); at
+  5 h +0.0016 ± 0.0016. Questionable at its play rate (q) minus od:
+  −0.0012 ± 0.0010 at 18 h, −0.0006 ± 0.0012 at 5 h; at 5 h DraftKings
+  2025-26 +0.0007, so q **fails** the G7 rule set before the run (both
+  leads). Refits at the lock lead (odL, qL) fail too. No historical price
+  at the lock lead exists, so the price side rests on the thin native
+  path; any lock change needs a registered amendment.

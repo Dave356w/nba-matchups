@@ -8,14 +8,17 @@ on:
       date:
         description: 'ET slate date (YYYY-MM-DD); blank = today'
         required: false
-  # 04:17 ET grades last night; 10:07-22:07 ET hourly refreshes the pregame
-  # snapshot (NBA tips run noon to ~10:30 pm ET). A game's row is written or
-  # refreshed only before tip and frozen after, so any run is safe.
+  # Times are UTC (GitHub ignores a schedule timezone). 04:17 grades last
+  # night and takes the overnight first snapshot. The five-hour lock (CLAUDE.md
+  # amendment 2026-10-28) needs a snapshot inside each game's last 5 hours:
+  # tips run noon to ~10:30 pm ET, so windows open ~11:00-03:30 UTC. GitHub
+  # drops or delays many scheduled runs (about a third ran in October 2026), so the
+  # build is attempted every 30 minutes, off the top of the hour. A game's row
+  # is written or refreshed only before tip and frozen after, so any run is safe.
   schedule:
     - cron: '17 4 * * *'
-      timezone: America/New_York
-    - cron: '7 10-22 * * *'
-      timezone: America/New_York
+    - cron: '13,43 11-23 * * *'
+    - cron: '13,43 0-3 * * *'
 
 # One build at a time, queued not cancelled, so ledger commits never interleave.
 concurrency:

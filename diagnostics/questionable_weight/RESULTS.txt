@@ -1,0 +1,169 @@
+Questionable weighting and lock lead: v10's report route, walk-forward.
+
+== 1. What the report knows at each lead (rotation players, >= 20 min a game)
+   flagged = sat and listed Out/Doubtful at the lead, of those who sat and were listed at 30 min; Q = listed Questionable at the lead, share who played
+  2022-23  sat and listed at 30 min: 3514
+     18.0 h  covered games   890  flagged 56.1%  Q n  1054 played 53.9%  rates (all listed) Available 66%, Doubtful 8%, Out 2%, Probable 85%, Questionable 49%
+     12.0 h  covered games   890  flagged 56.9%  Q n  1056 played 54.4%  rates (all listed) Available 63%, Doubtful 8%, Out 2%, Probable 85%, Questionable 49%
+      8.0 h  covered games   910  flagged 59.4%  Q n  1069 played 53.8%  rates (all listed) Available 56%, Doubtful 6%, Out 1%, Probable 85%, Questionable 48%
+      5.0 h  covered games  1220  flagged 77.8%  Q n  1224 played 53.2%  rates (all listed) Available 63%, Doubtful 4%, Out 0%, Probable 89%, Questionable 48%
+      2.0 h  covered games  1228  flagged 85.4%  Q n   976 played 55.9%  rates (all listed) Available 72%, Doubtful 2%, Out 0%, Probable 90%, Questionable 49%
+      0.5 h  covered games  1230  flagged 99.0%  Q n    46 played 65.2%  rates (all listed) Available 83%, Doubtful 0%, Out 0%, Probable 97%, Questionable 57%
+  2023-24  sat and listed at 30 min: 3187
+     18.0 h  covered games   870  flagged 56.5%  Q n   976 played 61.0%  rates (all listed) Available 72%, Doubtful 3%, Out 1%, Probable 89%, Questionable 48%
+     12.0 h  covered games   871  flagged 57.3%  Q n   979 played 60.4%  rates (all listed) Available 71%, Doubtful 3%, Out 1%, Probable 89%, Questionable 48%
+      8.0 h  covered games   881  flagged 59.3%  Q n   999 played 61.0%  rates (all listed) Available 67%, Doubtful 1%, Out 0%, Probable 89%, Questionable 48%
+      5.0 h  covered games  1226  flagged 78.5%  Q n  1155 played 58.8%  rates (all listed) Available 73%, Doubtful 1%, Out 0%, Probable 92%, Questionable 47%
+      2.0 h  covered games  1230  flagged 86.6%  Q n   912 played 62.4%  rates (all listed) Available 77%, Doubtful 1%, Out 0%, Probable 92%, Questionable 49%
+      0.5 h  covered games  1230  flagged 98.9%  Q n    19 played 36.8%  rates (all listed) Available 84%, Doubtful 0%, Out 0%, Probable 86%, Questionable 32%
+  2024-25  sat and listed at 30 min: 4132
+     18.0 h  covered games   854  flagged 57.0%  Q n  1009 played 56.4%  rates (all listed) Available 88%, Doubtful 5%, Out 1%, Probable 87%, Questionable 50%
+     12.0 h  covered games   854  flagged 57.4%  Q n  1012 played 56.4%  rates (all listed) Available 86%, Doubtful 5%, Out 1%, Probable 88%, Questionable 50%
+      8.0 h  covered games   866  flagged 59.8%  Q n  1002 played 55.1%  rates (all listed) Available 81%, Doubtful 4%, Out 1%, Probable 89%, Questionable 48%
+      5.0 h  covered games  1226  flagged 81.1%  Q n  1197 played 53.9%  rates (all listed) Available 77%, Doubtful 2%, Out 0%, Probable 90%, Questionable 48%
+      2.0 h  covered games  1231  flagged 87.2%  Q n   937 played 53.8%  rates (all listed) Available 81%, Doubtful 3%, Out 0%, Probable 91%, Questionable 48%
+      0.5 h  covered games  1231  flagged 98.9%  Q n    20 played 50.0%  rates (all listed) Available 87%, Doubtful 0%, Out 0%, Probable 88%, Questionable 48%
+  2025-26  sat and listed at 30 min: 4165
+     18.0 h  covered games   863  flagged 56.9%  Q n   992 played 57.8%  rates (all listed) Available 83%, Doubtful 3%, Out 0%, Probable 87%, Questionable 51%
+     12.0 h  covered games   863  flagged 57.6%  Q n   993 played 57.5%  rates (all listed) Available 83%, Doubtful 3%, Out 0%, Probable 86%, Questionable 50%
+      8.0 h  covered games   866  flagged 59.4%  Q n   982 played 55.8%  rates (all listed) Available 76%, Doubtful 2%, Out 0%, Probable 87%, Questionable 49%
+      5.0 h  covered games  1223  flagged 84.0%  Q n   999 played 57.6%  rates (all listed) Available 78%, Doubtful 2%, Out 0%, Probable 92%, Questionable 51%
+      2.0 h  covered games  1231  flagged 88.6%  Q n   848 played 59.4%  rates (all listed) Available 78%, Doubtful 1%, Out 0%, Probable 92%, Questionable 53%
+      0.5 h  covered games  1231  flagged 99.2%  Q n    24 played 62.5%  rates (all listed) Available 86%, Doubtful 0%, Out 0%, Probable 94%, Questionable 53%
+
+== 2. Against outcomes, games 1+: each arm minus od at the same lead (± 95%)
+  lead 18.0 h  n 3633  report route 2530  od log loss 0.5932
+    q    -0.0012 ± 0.0010  Brier -0.0005 ± 0.0004  MSE -0.60 ± 0.47  better in 2 of 3
+    odL  +0.0009 ± 0.0013  Brier +0.0003 ± 0.0006  MSE +0.51 ± 0.65  better in 0 of 3
+    qL   -0.0002 ± 0.0014  Brier -0.0002 ± 0.0006  MSE +0.12 ± 0.67  better in 2 of 3
+      report route      n  2530  q -0.0017 ± 0.0014  odL +0.0012 ± 0.0018  qL -0.0003 ± 0.0019
+      back-to-back      n  1115  q -0.0000 ± 0.0001  odL +0.0003 ± 0.0007  qL +0.0001 ± 0.0007
+      not back-to-back  n  2518  q -0.0017 ± 0.0014  odL +0.0011 ± 0.0018  qL -0.0004 ± 0.0019
+  lead 12.0 h  n 3633  report route 2531  od log loss 0.5933
+    q    -0.0013 ± 0.0010  Brier -0.0005 ± 0.0004  MSE -0.60 ± 0.47  better in 2 of 3
+    odL  +0.0007 ± 0.0012  Brier +0.0002 ± 0.0005  MSE +0.45 ± 0.61  better in 0 of 3
+    qL   -0.0004 ± 0.0013  Brier -0.0002 ± 0.0006  MSE +0.06 ± 0.65  better in 2 of 3
+      report route      n  2531  q -0.0018 ± 0.0014  odL +0.0010 ± 0.0017  qL -0.0005 ± 0.0019
+      back-to-back      n  1115  q -0.0001 ± 0.0001  odL +0.0002 ± 0.0007  qL -0.0000 ± 0.0007
+      not back-to-back  n  2518  q -0.0018 ± 0.0014  odL +0.0010 ± 0.0017  qL -0.0006 ± 0.0019
+  lead  8.0 h  n 3633  report route 2556  od log loss 0.5932
+    q    -0.0009 ± 0.0010  Brier -0.0004 ± 0.0004  MSE -0.51 ± 0.49  better in 2 of 3
+    odL  +0.0005 ± 0.0011  Brier +0.0002 ± 0.0005  MSE +0.31 ± 0.55  better in 0 of 3
+    qL   -0.0003 ± 0.0013  Brier -0.0001 ± 0.0006  MSE -0.04 ± 0.65  better in 2 of 3
+      report route      n  2556  q -0.0013 ± 0.0014  odL +0.0007 ± 0.0016  qL -0.0005 ± 0.0019
+      back-to-back      n  1115  q +0.0001 ± 0.0003  odL -0.0007 ± 0.0011  qL -0.0006 ± 0.0011
+      not back-to-back  n  2518  q -0.0014 ± 0.0015  odL +0.0011 ± 0.0015  qL -0.0002 ± 0.0019
+  lead  5.0 h  n 3633  report route 3617  od log loss 0.5912
+    q    -0.0006 ± 0.0012  Brier -0.0002 ± 0.0005  MSE -0.34 ± 0.57  better in 2 of 3
+    odL  +0.0003 ± 0.0005  Brier +0.0001 ± 0.0002  MSE +0.08 ± 0.27  better in 1 of 3
+    qL   -0.0005 ± 0.0011  Brier -0.0001 ± 0.0005  MSE -0.24 ± 0.56  better in 2 of 3
+      report route      n  3617  q -0.0006 ± 0.0012  odL +0.0003 ± 0.0005  qL -0.0005 ± 0.0011
+      back-to-back      n  1115  q -0.0008 ± 0.0021  odL +0.0005 ± 0.0011  qL -0.0006 ± 0.0020
+      not back-to-back  n  2518  q -0.0005 ± 0.0014  odL +0.0002 ± 0.0006  qL -0.0005 ± 0.0014
+  lead  2.0 h  n 3633  report route 3633  od log loss 0.5907
+    q    -0.0002 ± 0.0011  Brier -0.0001 ± 0.0005  MSE -0.02 ± 0.53  better in 2 of 3
+    odL  +0.0003 ± 0.0003  Brier +0.0001 ± 0.0001  MSE +0.09 ± 0.13  better in 1 of 3
+    qL   -0.0002 ± 0.0010  Brier -0.0000 ± 0.0005  MSE +0.05 ± 0.52  better in 2 of 3
+      report route      n  3633  q -0.0002 ± 0.0011  odL +0.0003 ± 0.0003  qL -0.0002 ± 0.0010
+      back-to-back      n  1115  q -0.0003 ± 0.0020  odL +0.0005 ± 0.0005  qL -0.0002 ± 0.0019
+      not back-to-back  n  2518  q -0.0001 ± 0.0013  odL +0.0002 ± 0.0003  qL -0.0001 ± 0.0012
+  lead  0.5 h  n 3633  report route 3633  od log loss 0.5896
+    q    -0.0001 ± 0.0001  Brier -0.0000 ± 0.0001  MSE +0.03 ± 0.06  better in 3 of 3
+    odL  +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00  better in 0 of 3
+    qL   -0.0001 ± 0.0001  Brier -0.0000 ± 0.0001  MSE +0.03 ± 0.07  better in 3 of 3
+      report route      n  3633  q -0.0001 ± 0.0001  odL +0.0000 ± 0.0000  qL -0.0001 ± 0.0001
+      back-to-back      n  1115  q +0.0000 ± 0.0002  odL +0.0000 ± 0.0000  qL +0.0001 ± 0.0002
+      not back-to-back  n  2518  q -0.0001 ± 0.0002  odL +0.0000 ± 0.0000  qL -0.0001 ± 0.0002
+
+== 3. Earlier lock: od and q at each lead minus od at 30 min, identical games, games 1+
+  lead 18.0 h  od  - od@30m  +0.0036 ± 0.0023  Brier +0.0016 ± 0.0010  MSE +2.26 ± 1.18  (back-to-back +0.0064, other +0.0024)
+  lead 18.0 h  q   - od@30m  +0.0024 ± 0.0022  Brier +0.0010 ± 0.0009  MSE +1.66 ± 1.15  (back-to-back +0.0064, other +0.0006)
+  lead 12.0 h  od  - od@30m  +0.0036 ± 0.0023  Brier +0.0016 ± 0.0010  MSE +2.28 ± 1.18  (back-to-back +0.0064, other +0.0024)
+  lead 12.0 h  q   - od@30m  +0.0023 ± 0.0022  Brier +0.0010 ± 0.0009  MSE +1.68 ± 1.14  (back-to-back +0.0063, other +0.0006)
+  lead  8.0 h  od  - od@30m  +0.0035 ± 0.0022  Brier +0.0015 ± 0.0010  MSE +2.18 ± 1.15  (back-to-back +0.0070, other +0.0020)
+  lead  8.0 h  q   - od@30m  +0.0026 ± 0.0021  Brier +0.0011 ± 0.0009  MSE +1.68 ± 1.10  (back-to-back +0.0072, other +0.0005)
+  lead  5.0 h  od  - od@30m  +0.0016 ± 0.0016  Brier +0.0006 ± 0.0007  MSE +0.88 ± 0.78  (back-to-back +0.0031, other +0.0009)
+  lead  5.0 h  q   - od@30m  +0.0010 ± 0.0013  Brier +0.0005 ± 0.0006  MSE +0.54 ± 0.67  (back-to-back +0.0024, other +0.0004)
+  lead  2.0 h  od  - od@30m  +0.0011 ± 0.0013  Brier +0.0005 ± 0.0005  MSE +0.44 ± 0.64  (back-to-back +0.0025, other +0.0004)
+  lead  2.0 h  q   - od@30m  +0.0009 ± 0.0011  Brier +0.0004 ± 0.0005  MSE +0.42 ± 0.54  (back-to-back +0.0022, other +0.0003)
+  lead  0.5 h  od  - od@30m  +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00  (back-to-back +0.0000, other +0.0000)
+  lead  0.5 h  q   - od@30m  -0.0001 ± 0.0001  Brier -0.0000 ± 0.0001  MSE +0.03 ± 0.06  (back-to-back +0.0000, other -0.0001)
+
+== 4. Against the close: arm - close log loss (± 95%); [arm - od, Brier]
+  reconstructed dk      2026 games 10+ lead 18.0 h n  964  od +0.0224 ± 0.0113
+      q    +0.0202 ± 0.0112  [-0.0022 ± 0.0019, Brier -0.0010 ± 0.0008]
+      odL  +0.0226 ± 0.0115  [+0.0002 ± 0.0021, Brier -0.0001 ± 0.0010]
+      qL   +0.0208 ± 0.0114  [-0.0015 ± 0.0021, Brier -0.0008 ± 0.0009]
+  reconstructed dk      2026 games 10+ lead 12.0 h n  964  od +0.0224 ± 0.0113
+      q    +0.0200 ± 0.0112  [-0.0024 ± 0.0019, Brier -0.0010 ± 0.0008]
+      odL  +0.0225 ± 0.0114  [+0.0001 ± 0.0021, Brier -0.0001 ± 0.0009]
+      qL   +0.0206 ± 0.0114  [-0.0017 ± 0.0022, Brier -0.0009 ± 0.0009]
+  reconstructed dk      2026 games 10+ lead  8.0 h n  964  od +0.0219 ± 0.0113
+      q    +0.0199 ± 0.0112  [-0.0020 ± 0.0020, Brier -0.0008 ± 0.0008]
+      odL  +0.0225 ± 0.0114  [+0.0006 ± 0.0019, Brier +0.0001 ± 0.0008]
+      qL   +0.0206 ± 0.0114  [-0.0013 ± 0.0023, Brier -0.0007 ± 0.0010]
+  reconstructed dk      2026 games 10+ lead  5.0 h n  964  od +0.0156 ± 0.0104
+      q    +0.0163 ± 0.0105  [+0.0007 ± 0.0021, Brier +0.0003 ± 0.0009]
+      odL  +0.0168 ± 0.0104  [+0.0012 ± 0.0011, Brier +0.0004 ± 0.0005]
+      qL   +0.0159 ± 0.0106  [+0.0003 ± 0.0021, Brier +0.0002 ± 0.0009]
+  reconstructed dk      2026 games 10+ lead  2.0 h n  964  od +0.0161 ± 0.0105
+      q    +0.0170 ± 0.0107  [+0.0009 ± 0.0020, Brier +0.0004 ± 0.0009]
+      odL  +0.0166 ± 0.0105  [+0.0005 ± 0.0005, Brier +0.0002 ± 0.0002]
+      qL   +0.0167 ± 0.0107  [+0.0006 ± 0.0020, Brier +0.0003 ± 0.0008]
+  reconstructed dk      2026 games 10+ lead  0.5 h n  964  od +0.0153 ± 0.0106
+      q    +0.0154 ± 0.0106  [+0.0001 ± 0.0003, Brier +0.0000 ± 0.0001]
+      odL  +0.0153 ± 0.0106  [+0.0000 ± 0.0000, Brier +0.0000 ± 0.0000]
+      qL   +0.0154 ± 0.0106  [+0.0001 ± 0.0003, Brier +0.0000 ± 0.0001]
+  reconstructed espnbet 2025 games 10+ lead 18.0 h n 1071  od +0.0164 ± 0.0104
+      q    +0.0143 ± 0.0103  [-0.0020 ± 0.0019, Brier -0.0008 ± 0.0008]
+      odL  +0.0170 ± 0.0105  [+0.0006 ± 0.0021, Brier +0.0003 ± 0.0009]
+      qL   +0.0155 ± 0.0104  [-0.0008 ± 0.0024, Brier -0.0003 ± 0.0010]
+  reconstructed espnbet 2025 games 10+ lead 12.0 h n 1071  od +0.0165 ± 0.0104
+      q    +0.0144 ± 0.0103  [-0.0021 ± 0.0019, Brier -0.0008 ± 0.0008]
+      odL  +0.0169 ± 0.0104  [+0.0004 ± 0.0020, Brier +0.0002 ± 0.0008]
+      qL   +0.0155 ± 0.0104  [-0.0010 ± 0.0024, Brier -0.0004 ± 0.0010]
+  reconstructed espnbet 2025 games 10+ lead  8.0 h n 1071  od +0.0166 ± 0.0102
+      q    +0.0145 ± 0.0102  [-0.0020 ± 0.0020, Brier -0.0008 ± 0.0009]
+      odL  +0.0167 ± 0.0103  [+0.0001 ± 0.0019, Brier +0.0001 ± 0.0008]
+      qL   +0.0154 ± 0.0104  [-0.0012 ± 0.0025, Brier -0.0004 ± 0.0010]
+  reconstructed espnbet 2025 games 10+ lead  5.0 h n 1071  od +0.0169 ± 0.0099
+      q    +0.0149 ± 0.0097  [-0.0020 ± 0.0025, Brier -0.0007 ± 0.0010]
+      odL  +0.0163 ± 0.0099  [-0.0006 ± 0.0012, Brier -0.0002 ± 0.0005]
+      qL   +0.0150 ± 0.0098  [-0.0019 ± 0.0024, Brier -0.0006 ± 0.0010]
+  reconstructed espnbet 2025 games 10+ lead  2.0 h n 1071  od +0.0149 ± 0.0099
+      q    +0.0141 ± 0.0097  [-0.0008 ± 0.0022, Brier -0.0003 ± 0.0009]
+      odL  +0.0148 ± 0.0098  [-0.0001 ± 0.0006, Brier -0.0000 ± 0.0002]
+      qL   +0.0142 ± 0.0098  [-0.0007 ± 0.0021, Brier -0.0002 ± 0.0009]
+  reconstructed espnbet 2025 games 10+ lead  0.5 h n 1071  od +0.0133 ± 0.0093
+      q    +0.0131 ± 0.0093  [-0.0002 ± 0.0002, Brier -0.0001 ± 0.0001]
+      odL  +0.0133 ± 0.0093  [+0.0000 ± 0.0000, Brier +0.0000 ± 0.0000]
+      qL   +0.0132 ± 0.0093  [-0.0001 ± 0.0002, Brier -0.0001 ± 0.0001]
+  reconstructed espnbet 2026 games 10+ lead 18.0 h n  107  od -0.0048 ± 0.0329
+      q    -0.0067 ± 0.0327  [-0.0020 ± 0.0033, Brier -0.0010 ± 0.0015]
+      odL  -0.0044 ± 0.0337  [+0.0004 ± 0.0043, Brier +0.0004 ± 0.0019]
+      qL   -0.0062 ± 0.0337  [-0.0014 ± 0.0043, Brier -0.0005 ± 0.0019]
+  reconstructed espnbet 2026 games 10+ lead 12.0 h n  107  od -0.0048 ± 0.0329
+      q    -0.0069 ± 0.0327  [-0.0022 ± 0.0033, Brier -0.0010 ± 0.0015]
+      odL  -0.0045 ± 0.0338  [+0.0003 ± 0.0042, Brier +0.0003 ± 0.0018]
+      qL   -0.0065 ± 0.0338  [-0.0017 ± 0.0043, Brier -0.0006 ± 0.0019]
+  reconstructed espnbet 2026 games 10+ lead  8.0 h n  107  od -0.0045 ± 0.0332
+      q    -0.0064 ± 0.0328  [-0.0019 ± 0.0034, Brier -0.0009 ± 0.0016]
+      odL  -0.0046 ± 0.0338  [-0.0001 ± 0.0039, Brier +0.0001 ± 0.0017]
+      qL   -0.0063 ± 0.0335  [-0.0018 ± 0.0038, Brier -0.0007 ± 0.0017]
+  reconstructed espnbet 2026 games 10+ lead  5.0 h n  107  od -0.0107 ± 0.0326
+      q    -0.0122 ± 0.0331  [-0.0015 ± 0.0045, Brier -0.0006 ± 0.0021]
+      odL  -0.0105 ± 0.0323  [+0.0002 ± 0.0023, Brier -0.0001 ± 0.0010]
+      qL   -0.0121 ± 0.0326  [-0.0014 ± 0.0044, Brier -0.0006 ± 0.0020]
+  reconstructed espnbet 2026 games 10+ lead  2.0 h n  107  od -0.0100 ± 0.0330
+      q    -0.0102 ± 0.0330  [-0.0003 ± 0.0043, Brier +0.0000 ± 0.0020]
+      odL  -0.0096 ± 0.0330  [+0.0003 ± 0.0009, Brier +0.0001 ± 0.0003]
+      qL   -0.0101 ± 0.0330  [-0.0001 ± 0.0043, Brier +0.0001 ± 0.0020]
+  reconstructed espnbet 2026 games 10+ lead  0.5 h n  107  od -0.0095 ± 0.0319
+      q    -0.0096 ± 0.0319  [-0.0001 ± 0.0002, Brier -0.0000 ± 0.0001]
+      odL  -0.0095 ± 0.0319  [+0.0000 ± 0.0000, Brier +0.0000 ± 0.0000]
+      qL   -0.0096 ± 0.0319  [-0.0001 ± 0.0002, Brier -0.0000 ± 0.0001]
+
+== 5. Decision rule (G7, set before the run), at leads 18 h, 5 h
+  q    FAIL  18 h: dk 2026 -0.0022 (Brier -0.0010); espnbet 2025 -0.0020 (Brier -0.0008); games 1+ -0.0012 ± 0.0010 | 5 h: dk 2026 +0.0007 (Brier +0.0003); espnbet 2025 -0.0020 (Brier -0.0007); games 1+ -0.0006 ± 0.0012
+  odL  FAIL  18 h: dk 2026 +0.0002 (Brier -0.0001); espnbet 2025 +0.0006 (Brier +0.0003); games 1+ +0.0009 ± 0.0013 | 5 h: dk 2026 +0.0012 (Brier +0.0004); espnbet 2025 -0.0006 (Brier -0.0002); games 1+ +0.0003 ± 0.0005
+  qL   FAIL  18 h: dk 2026 -0.0015 (Brier -0.0008); espnbet 2025 -0.0008 (Brier -0.0003); games 1+ -0.0002 ± 0.0014 | 5 h: dk 2026 +0.0003 (Brier +0.0002); espnbet 2025 -0.0019 (Brier -0.0006); games 1+ -0.0005 ± 0.0011

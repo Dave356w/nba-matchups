@@ -118,6 +118,12 @@ MARGIN_LINK = "margin"
 # before each slate (player_availability.refit). Model files carry
 # "version": 10; v9 files score exactly as before.
 V10 = 10
+# Model v11 (CLAUDE.md amendment 2026-10-28): v10 plus Questionable weighting on
+# the injury-report route (player_availability.q_present): Doubtful,
+# Questionable and Probable players count as their status's play rate at the
+# report's lead before tip ("q_rates" in logit_avail.json). The base route is
+# v10's; both files carry "version": 11.
+V11 = 11
 ORB_PCT = "pct"
 SEASON_DAYS = 175.0
 SLEEP = 4.0           # seconds between network requests (site limit ~20/min)
@@ -761,10 +767,15 @@ def main():
                        help="fit-weights: rebounding as ORB%%; fit-logit: v10, v9's routing "
                             "with drafted rookies valued by pick in talent_diff (needs "
                             "weights fitted with --v10)")
+        s.add_argument("--v11", action="store_true",
+                       help="as --v10, with the model files marked version 11 (v10 plus "
+                            "Questionable weighting on the report route)")
         s.add_argument("--box-cache", default=None,
                        help="--v5: directory of box_<season>.csv (default research/output)")
     a = ap.parse_args()
     SLEEP = a.sleep
+    if getattr(a, "v11", False):
+        a.v10 = True
 
     if a.cmd == "download":
         for y in parse_years(a.years):
@@ -837,7 +848,7 @@ def main():
         if a.v8 or a.v9 or a.v10:
             m.update({"fade_rho": FADE_RHO, "fade_games": FADE_GAMES})
         if a.v10:
-            m.update({"version": V10, "orb": ORB_PCT,
+            m.update({"version": V11 if a.v11 else V10, "orb": ORB_PCT,
                       "rookies": pav.rookie_meta(max(parse_years(a.years)) + 1)})
         save_json(m, "logit.json")
         coefs = ", ".join(f"{f}={c:+.4f}" for f, c in zip(m["features"], m["coef"]))
