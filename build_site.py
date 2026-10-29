@@ -835,7 +835,7 @@ border-top:1px solid var(--line);color:var(--faint);font-size:12.5px;line-height
 .foot a{color:var(--muted)}.foot code{font-size:12px}.foot .r{text-align:right}
 @media (max-width:720px){
 .topbar{flex-wrap:wrap;gap:12px;padding:14px 0;margin-bottom:16px}
-.nav{order:3;width:100%;margin-left:0}.nav a{flex:1;text-align:center;padding:9px 4px;font-size:13px}
+.nav{order:3;width:100%;margin-left:0}.nav a{flex:1;min-width:0;text-align:center;padding:9px 4px;font-size:13px;white-space:normal}
 .theme{margin-left:auto}.brand-version{display:none}
 .gr-h1{font-size:28px}h1{font-size:26px}
 .gr-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}

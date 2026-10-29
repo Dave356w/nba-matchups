@@ -18,7 +18,7 @@ import market
 
 PAGES = (("index.html", "Today"), ("results.html", "Results"),
          ("performance.html", "Performance"), ("how-it-works.html", "How it works"),
-         ("dfs.html", "DFS lineups"))
+         ("dfs.html", "DFS"))
 RULES = (("H5·3", "Spread", "spread"), ("H2·F·5", "Value favourite", "favourite"),
          ("H4", "Large probability gap", "gap"), ("OU", "Total (over/under)", "total"))
 

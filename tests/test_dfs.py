@@ -183,7 +183,7 @@ def test_page_embeds_the_slate_and_says_whose_projections(tmp_path):
     assert "<h1>DFS lineups</h1>" in html and "Sleeper" in html and "not this site’s model" in html
     data = json.loads(html.split("id='dfs-data'>")[1].split("</script>")[0])
     assert data["players"][0]["name"] == "Zion Williamson" and data["cap"] == 200
-    assert "aria-current='page'>DFS lineups<" in html
+    assert "aria-current='page'>DFS<" in html
     empty = dfs.page(build_site, "2026-10-30", "built", native=_native(), yahoo=yahoo, sleeper=sl)
     assert "No Yahoo slate today" in empty and "dfs-data" not in empty
 

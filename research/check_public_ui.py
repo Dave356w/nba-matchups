@@ -20,6 +20,7 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import build_site as ui  # noqa: E402
+import dfs  # noqa: E402
 import ledger  # noqa: E402
 from public_site import PublicSite  # noqa: E402
 
@@ -58,6 +59,31 @@ def fixture():
     return pd.DataFrame(rows, columns=ledger.COLUMNS)
 
 
+def dfs_fixture():
+    """A synthetic Yahoo slate for 2026-11-19: three games at 4:00, 4:30 and
+    7:00 PM PT, so the slate toggle offers Main, Early (4:00-4:30) and Late
+    (4:30-7:00); a one-game slate is never offered."""
+    games = (('NYK', 'BOS', '2026-11-20T00:00:00Z', '401'), ('ORL', 'MIA', '2026-11-20T00:30:00Z', '402'),
+             ('GSW', 'LAL', '2026-11-20T03:00:00Z', '403'))
+    yahoo, sleeper, native = [], [], []
+    for gi, (away, home, start, gid) in enumerate(games):
+        native.append(dict(game_id=gid, slate_date='2026-11-19', home=home, away=away, tip_utc=start))
+        for ti, team in enumerate((away, home)):
+            for k, pos in enumerate(('PG', 'SG', 'SF', 'PF', 'C') * 2):
+                name, code = f'Fixture {team} {pos}{k // 5}', f'nba.p.{gi}{ti}{k}'
+                sal = 12 + (7 * k + 5 * ti + 3 * gi) % 30
+                yahoo.append(dict(slate_date='2026-11-19', snapshot_utc='2026-11-19T15:00:00Z', player_code=code,
+                                  game_code=f'nba.g.{gid}', name=name, team=team, position=pos, salary=sal,
+                                  fppg=sal, home=home, away=away, start_utc=start, cap=200))
+                sleeper.append({**{c: '' for c in ledger.SLEEPER_COLUMNS}, 'game_id': gid, 'tip_utc': start,
+                                'snapshot_utc': '2026-11-19T15:00:00Z', 'kind': 'pre', 'team': team,
+                                'sleeper_id': code, 'name': name, 'minutes': '30', 'pts': str(sal * .7),
+                                'reb': '5', 'ast': '3', 'stl': '1', 'blk': '.5', 'to': '2', 'tpm': '1'})
+    as_str = lambda rows, cols: pd.DataFrame(rows, columns=cols).astype(str)  # noqa: E731
+    return (as_str(yahoo, dfs.YAHOO_COLUMNS), as_str(sleeper, ledger.SLEEPER_COLUMNS),
+            pd.DataFrame(native))
+
+
 def main():
     _, model = ui.load_model()
     ui.ACTIVE_TAGS = ui.active_tags(model, ui.load_avail()) if model else [ui.MODEL_TAG_V9]
@@ -73,6 +99,10 @@ def main():
             pages = PublicSite(ui,native,day,'UI verification · Pacific time').render()
             for filename, html in pages.items():
                 if name == 'fixture':
+                    if filename == 'dfs.html':
+                        y, sl, nat = dfs_fixture()
+                        html = dfs.page(ui, day, 'UI verification · Pacific time', native=nat, yahoo=y,
+                                        sleeper=sl, css=__import__('public_site').CSS)
                     html = html.replace("<main id='main-content'>", "<main id='main-content'><div class='flag-note' role='note'>UI test fixture · synthetic data for verification</div>")
                 (target/filename).write_text(html,encoding='utf-8')
         handler = functools.partial(SimpleHTTPRequestHandler,directory=str(root))
@@ -130,6 +160,19 @@ def main():
                     page.get_by_text('Benchmarks and return chart',exact=True).first.click()
                     page.screenshot(path=str(out/f'{device}-fixture-performance.jpg'),full_page=True,type='jpeg',quality=85)
                     checks.append(f'{device}: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed')
+                    page.goto(f'{base}/fixture/dfs.html')
+                    page.locator('.dfs-lineup').first.wait_for()
+                    labels = page.locator('#dfs-slate option').all_inner_texts()
+                    assert [l.split(' · ')[0] for l in labels] == ['Main','Early','Late'], labels
+                    for key, teams in (('main',{'NYK','BOS','ORL','MIA','GSW','LAL'}),('early1',{'NYK','BOS','ORL','MIA'}),
+                                       ('late1',{'ORL','MIA','GSW','LAL'})):
+                        page.select_option('#dfs-slate', key)
+                        page.wait_for_function("!/Building/.test(document.getElementById('dfs-msg').textContent)")
+                        used = set(page.locator('.dfs-lineup li em').all_inner_texts())
+                        assert used and used <= teams and len(used) >= 3, (key, used)
+                        assert page.locator('.dfs-lineup').count() == 10, key
+                    page.screenshot(path=str(out/f'{device}-fixture-dfs.jpg'),full_page=True,type='jpeg',quality=85)
+                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games')
                 assert not errors,errors
                 # Live-score overlay may update status/score only, never a selection.
                 page.unroute_all()

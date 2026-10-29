@@ -237,6 +237,7 @@ CSS = """
 .dfs-panel h2{font-size:16px;margin:0 0 10px;letter-spacing:-.01em;text-transform:none}
 .dfs-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:12px}
 .dfs-controls label{font-size:11px;color:var(--muted);font-weight:650}
+.dfs-controls #dfs-slate{width:auto;max-width:100%}
 .dfs-controls input,.dfs-controls select{display:block;margin-top:4px;min-height:38px;width:96px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
 .dfs-btn{min-height:38px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:650 13px var(--sans);cursor:pointer}
 .dfs-btn.primary{background:rgb(var(--accent));border-color:rgb(var(--accent));color:var(--accent-on)}
@@ -307,6 +308,7 @@ def body(data, ui):
     miss = (f" {len(data['unmatched'])} Yahoo player(s) have no Sleeper projection; enter one "
             "to use them." if data["unmatched"] else "")
     controls = ("<div class='dfs-controls'>"
+                "<label>Slate<select id='dfs-slate' aria-label='Slate by start time'></select></label>"
                 "<label>Lineups<input type='number' id='dfs-n' min='1' max='20' value='10'></label>"
                 "<label>Max exposure %<input type='number' id='dfs-exp' min='10' max='100' step='5' value='70'></label>"
                 f"<label>Min salary $<input type='number' id='dfs-min' min='0' max='{data['cap']:g}' value='0'></label>"
@@ -325,8 +327,9 @@ def body(data, ui):
     payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
     return (head + status + f"<p class='public-note'>{games}. Yahoo classic: PG, SG, G, SF, PF, F, "
             f"C, UTIL under the cap, players from at least {MIN_TEAMS} teams and at most "
-            f"{MAX_PER_TEAM} from one. Value = projection per $10 of salary. Players whose game "
-            f"has started are out.{miss}</p>"
+            f"{MAX_PER_TEAM} from one. Pick the slate by start time: main (every game), early or "
+            f"late, each with at least 2 games. Value = projection per $10 of salary. Players "
+            f"whose game has started are out.{miss}</p>"
             "<noscript><p class='public-note'>The optimizer needs JavaScript.</p></noscript>"
             "<div class='dfs-grid'>" + pool + out + "</div>" + note
             + f"<script type='application/json' id='dfs-data'>{payload}</script>"
@@ -406,12 +409,25 @@ return {solve:solve,kbest:kbest,teamsOk:teamsOk};
 UI_JS = r"""
 (function(){
 var D=JSON.parse(document.getElementById('dfs-data').textContent);
-var st={lock:{},out:{},proj:{},pos:'ALL'};
+var st={lock:{},out:{},proj:{},pos:'ALL',slate:null};
 function $(id){return document.getElementById(id);}
+// Slates by start time: Yahoo's feed lists the day's games with one cap, not
+// its contests, so the choices are main (every game), early (games up to a
+// start time) and late (games from one), each with at least 2 games so the
+// 3-team rule can be met.
+var PT=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'});
+function hm(t){return PT.format(new Date(t));}
+function slates(){var ts=D.games.map(function(g){return Date.parse(g.start);}),u=ts.filter(function(t,i){return ts.indexOf(t)===i;}).sort(function(a,b){return a-b;}),out=[];
+ function n(lo,hi){return ts.filter(function(t){return t>=lo&&t<=hi;}).length;}
+ function add(key,name,lo,hi){var k=n(lo,hi);if(k>=2)out.push({key:key,lo:lo,hi:hi,label:name+' · '+(lo===hi?hm(lo):hm(lo)+'–'+hm(hi))+' PT · '+k+' games'});}
+ if(!u.length)return out;add('main','Main',u[0],u[u.length-1]);
+ for(var i=0;i<u.length-1;i++)add('early'+i,'Early',u[0],u[i]);
+ for(var j=1;j<u.length;j++)add('late'+j,'Late',u[j],u[u.length-1]);return out;}
+function inSlate(p){if(!st.slate)return true;var t=Date.parse(p.start);return t>=st.slate.lo&&t<=st.slate.hi;}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function proj(p){return st.proj[p.id]!==undefined?st.proj[p.id]:p.proj;}
 function started(p){return Date.parse(p.start)<=Date.now();}
-function pool(){return D.players.filter(function(p){var v=proj(p);return !st.out[p.id]&&!started(p)&&v!==null&&v!==undefined&&(v>0||st.lock[p.id]);})
+function pool(){return D.players.filter(function(p){var v=proj(p);return inSlate(p)&&!st.out[p.id]&&!started(p)&&v!==null&&v!==undefined&&(v>0||st.lock[p.id]);})
  .map(function(p){return {id:p.id,pos:p.pos,sal:p.sal,v:proj(p)};});}
 function slots(ids,byId){var ps=ids.map(function(i){return byId[i];}),used={},at={};
  function take(ok){for(var i=0;i<ps.length;i++){if(!used[i]&&ok(ps[i])){used[i]=1;return ps[i];}}return null;}
@@ -427,7 +443,7 @@ function run(){var btn=$('dfs-go');btn.disabled=true;$('dfs-msg').textContent='B
 function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){byId[p.id]=p;team[p.id]=p.team;});
  var N=Math.max(1,Math.min(20,+$('dfs-n').value||10)),exp=Math.max(10,Math.min(100,+$('dfs-exp').value||100)),
   minSal=Math.max(0,+$('dfs-min').value||0),capN=Math.max(1,Math.floor(N*exp/100+1e-9)),cnt={},lock={},made={},L=[];
- Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id]))lock[id]=1;});
+ Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id])&&inSlate(byId[id]))lock[id]=1;});
  var t0=performance.now();
  while(L.length<N){var P=all.filter(function(p){return lock[p.id]||(cnt[p.id]||0)<capN;});
   var r=DFS.kbest(P,D.cap,minSal,lock,1,function(sol){return DFS.teamsOk(sol.ids,team,D.min_teams,D.max_per_team)&&!made[sol.ids.slice().sort().join()];},400);
@@ -440,7 +456,7 @@ function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){by
  var ex=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||byId[a].name.localeCompare(byId[b].name);});
  $('dfs-exposure').innerHTML=ex.map(function(id){return "<li><span>"+esc(byId[id].name)+"</span><b class='mono'>"+Math.round(100*cnt[id]/L.length)+"%</b></li>";}).join('');}
 function draw(){var rows=D.players.slice().sort(function(a,b){return (proj(b)||0)-(proj(a)||0)||b.sal-a.sal;});
- $('dfs-pool').innerHTML=rows.filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
+ $('dfs-pool').innerHTML=rows.filter(function(p){return inSlate(p);}).filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
   var v=proj(p),gone=started(p),cls=st.lock[p.id]?'locked':(st.out[p.id]||gone?'out':'');
   return "<tr class='"+cls+"' data-id='"+esc(p.id)+"'><td><input type='checkbox' data-act='lock' aria-label='Lock "+esc(p.name)+"'"+(st.lock[p.id]?' checked':'')+(gone?' disabled':'')+"></td>"+
    "<td><input type='checkbox' data-act='out' aria-label='Exclude "+esc(p.name)+"'"+(st.out[p.id]||gone?' checked':'')+(gone?' disabled':'')+"></td>"+
@@ -453,6 +469,10 @@ $('dfs-pos').addEventListener('click',function(e){var b=e.target.closest('button
 $('dfs-pool').addEventListener('change',function(e){var t=e.target,tr=t.closest('tr');if(!tr)return;var id=tr.dataset.id,a=t.dataset.act;
  if(a==='lock'){st.lock[id]=t.checked;if(t.checked)st.out[id]=false;}else if(a==='out'){st.out[id]=t.checked;if(t.checked)st.lock[id]=false;}
  else if(a==='proj'){var v=parseFloat(t.value);if(isFinite(v)&&v>=0)st.proj[id]=v;else delete st.proj[id];}draw();});
+var SL=slates(),sel=$('dfs-slate');st.slate=SL[0]||null;
+sel.innerHTML=SL.map(function(o){return "<option value='"+o.key+"'>"+esc(o.label)+"</option>";}).join('')||"<option>No slate with 2+ games</option>";
+sel.disabled=SL.length<2;
+sel.addEventListener('change',function(){st.slate=SL.filter(function(o){return o.key===sel.value;})[0]||null;draw();run();});
 $('dfs-go').addEventListener('click',run);
 $('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};draw();run();});
 draw();run();
