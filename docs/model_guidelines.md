@@ -65,6 +65,13 @@ before activation. The games 1–9 rows accept `_v11` tags too.
 tests bet the first priced snapshot within 5 h of tip, in new ·L rows; the
 first-snapshot rows close at the lock's first slate. Never pooled.
 
+**Model-family reset** (owner's decision 2026-10-29, CLAUDE.md amendment):
+v11 starts a new model family and the public records restart with it. From
+the 2026-10-29 slate the tests run in v11-family rows (·L·v11) that need a
+`_v11` lock tag on both stages; the ·L rows close with the 2026-10-28 slate.
+Closed first-snapshot and ·L records stay graded internally, never pooled.
+Rules, thresholds and prices are unchanged.
+
 ## Frozen forward tests (G4)
 
 Registration: 2026-10-23T19:46:58Z, commit `2e301d3`, before CHI @ MIL was
@@ -92,7 +99,9 @@ v9 rows, explicitly information only, apart from native and DraftKings.
 
 Public presentation (owner approval 2026-10-23): Today shows current forecasts
 and explicitly frozen tracked picks. Results and Performance report only
-registered native selections, separately by test, stage and season. Keep
+registered native selections, separately by test, stage and season, and
+since the model-family reset only the v11-family rows, with one dated line
+that the record restarted on October 29, 2026. Keep
 all qualifying wins, losses, pushes and pending picks visible. Do not make
 a legacy all-game lean record the headline of the active tests. Retired
 rules, reconstructed evidence, adjusted edge/EV, price windows and model
