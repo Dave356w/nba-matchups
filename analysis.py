@@ -652,6 +652,29 @@ def family_hypotheses():
     return tuple(h for h in active_hypotheses() if h.get("family"))
 
 
+# The fields that decide a hypothesis's bets at its hindsight price. The lock
+# and family rows change only native-side fields (price, slates, tags;
+# native_scope applies them at the native price alone), so in hindsight
+# they make their parent's bets.
+HINDSIGHT_FIELDS = ("market", "sigma", "early", "favourite", "min_edge",
+                    "requires_v9", "hindsight")
+
+
+def hindsight_twin(hyp):
+    """The key of the earliest ancestor (along `parent`) whose hindsight
+    bets are hyp's own, or None: e.g. H4·L·v11 -> H4, H4·E·L -> H4·E,
+    H5·3·L·v11 -> None (its floor differs)."""
+    by_key = {h["key"]: h for h in HYPOTHESES}
+    sig = lambda h: tuple(h.get(f) for f in HINDSIGHT_FIELDS)  # noqa: E731
+    twin, h = None, hyp
+    while h.get("parent") in by_key:
+        p = by_key[h["parent"]]
+        if p.get("retired") or sig(p) != sig(hyp) or p["hindsight"] == p["native"]:
+            break
+        twin, h = p["key"], p
+    return twin if hyp["hindsight"] != hyp["native"] else None
+
+
 def public_hypotheses():
     """The tracked rows the public pages show: H5·3, H2·F·5 and H4, each by
     stage, v11 family at the 5 h lock (the O/U test is OU_TESTS)."""

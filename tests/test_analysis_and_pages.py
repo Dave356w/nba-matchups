@@ -620,3 +620,35 @@ def test_calibration_slope_and_lean_calibration():
     # leans: home 0.7 (won), away 0.6 (lost), home 0.55 (lost), away 0.8 (won)
     assert lc["n"] == 4 and np.isclose(lc["predicted"], (0.7 + 0.6 + 0.55 + 0.8) / 4)
     assert np.isclose(lc["actual"], 0.5) and np.isclose(lc["diff"], 0.5 - lc["predicted"])
+
+
+def test_lock_and_family_rows_point_to_their_parents_hindsight(tmp_path, monkeypatch):
+    twins = {h["key"]: analysis.hindsight_twin(h) for h in analysis.active_hypotheses()}
+    assert twins["H4"] is None and twins["H4·E"] is None
+    assert twins["H4·L"] == twins["H4·L·v11"] == "H4"
+    assert twins["H5·E·L·v11"] == "H5·E" and twins["H2·F·L·v11"] == "H2·F"
+    # a different floor is a different set of bets
+    assert twins["H5·3·L·v11"] is None and twins["H2·F·5·E·L·v11"] is None
+    rec = _ats_rows(12).assign(basis="reconstructed")
+    rec["p_home"] = np.linspace(0.62, 0.9, 12)
+    rec.loc[rec.index[::2], "home_pts"] = 101
+    cache = tmp_path / "open.csv"
+    rec[["game_id", "open_spread", "open_home_spread_odds",
+         "open_away_spread_odds"]].to_csv(cache, index=False)
+    rec = rec.drop(columns=["open_spread", "open_home_spread_odds",
+                            "open_away_spread_odds"])
+    monkeypatch.setattr(analysis, "OPEN_SPREADS", str(cache))
+    rows = {h["key"]: hind for h, hind, _ in analysis.hypothesis_rows(ledger.empty(), rec)}
+    assert rows["H5"] and all(rows[k] == rows[t] for k, t in twins.items() if t)
+    monkeypatch.setattr(build_site, "OUT_DIR", tmp_path)
+    txt = write_research(ledger.empty(), rec, "2026-11-19", model_ok=True)
+    rules = txt[txt.index("== PRE-REGISTERED"):txt.index("O/U TEST")]
+    parent = next(l for l in rules.splitlines() if l.startswith("    hindsight @ open")
+                  and "n=10" in l)
+    # the parent keeps its figures; its lock and family rows point to them
+    assert rules.count(parent) == 1
+    assert rules.count("hindsight @ open           same bets as H5 above") == 2
+    assert "H5·L hindsight @ open: same bets as H5 above" in txt
+    assert "H5·L·v11 reconstructed @ open: same bets as H5 above" in txt
+    # a twin with no bets still says so rather than pointing at nothing
+    assert "H5·E·L·v11 reconstructed @ open           no bets" in txt
