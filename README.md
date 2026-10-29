@@ -9,6 +9,7 @@ Actions: <https://dave356w.github.io/nba-matchups/>.
 | Results | Every tracked win, loss, push and pending pick; filters for test, stage and season. |
 | Performance | Spread (H5·3), value favourite (H2·F·5), large probability gap (H4) and total (OU), each with separate games 1–9 and games 10+ records per season, uncertainty and same-game benchmarks. No combined portfolio return. |
 | How it works | Plain-language forecast, rule, timing and results definitions. |
+| DFS lineups | A Yahoo classic-contest lineup optimizer for the day's slate: Yahoo salaries with Sleeper's projections in Yahoo scoring; the best lineups are found in the browser for the main, early or late slate by start time (lock, exclude, re-project, exposure caps). A separate tool: no forecast, tracked pick or record. |
 
 The public records restarted with the v11 model family on the 2026-10-29
 slate and read only the v11-family rows at the 5 h lock (CLAUDE.md,
@@ -19,7 +20,7 @@ history, retired rules, coefficient tables, price-band comparisons and
 exploratory diagnostics remain research outputs.
 
 `public/` is exclusively generated publication output. It contains only the
-four approved HTML pages and `.nojekyll`; stale files and directories are
+five approved HTML pages and `.nojekyll`; stale files and directories are
 removed, and an allowlist is checked again before the Pages upload.
 `diagnostics/site/` is the generated internal workbench, including the full
 Ledger, retired archive display, calibration/model pages and plain-text
@@ -46,7 +47,8 @@ and P(over). No stage, season, test or model family is pooled.
 | `market.py` | Scoreboard, sportsbook prices and probability arithmetic. |
 | `player_availability.py` | NBA injury-report inputs. |
 | `cold_start.py` | Shared decayed-feature helpers (legacy carryover fits are under `research/legacy_*`). |
-| `sleeper.py` | Sleeper projection snapshots written by the build; research-only, never a model input. |
+| `sleeper.py` | Sleeper projection snapshots written by the build; never a model input (the DFS page is their one public use). |
+| `dfs.py` | DFS lineups page: the Yahoo salary snapshot (`data/nba_yahoo_dfs.csv`), Sleeper projections in Yahoo scoring, and the in-browser optimizer. |
 | `kalshi.py` | Historical Kalshi helpers for research; the build no longer fetches Kalshi. |
 | `report.py` | Full plain-text ledger report, generated outside the public artifact. |
 | `research/` and `diagnostics/` | Research scripts, preserved historical models, evidence and results. |

@@ -42,6 +42,7 @@ import numpy as np
 import pandas as pd
 
 import analysis
+import dfs
 import ledger
 import market
 import nba_composite as nc
@@ -834,7 +835,7 @@ border-top:1px solid var(--line);color:var(--faint);font-size:12.5px;line-height
 .foot a{color:var(--muted)}.foot code{font-size:12px}.foot .r{text-align:right}
 @media (max-width:720px){
 .topbar{flex-wrap:wrap;gap:12px;padding:14px 0;margin-bottom:16px}
-.nav{order:3;width:100%;margin-left:0}.nav a{flex:1;text-align:center;padding:9px 4px;font-size:13px}
+.nav{order:3;width:100%;margin-left:0}.nav a{flex:1;min-width:0;text-align:center;padding:9px 4px;font-size:13px;white-space:normal}
 .theme{margin-left:auto}.brand-version{display:none}
 .gr-h1{font-size:28px}h1{font-size:26px}
 .gr-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
@@ -3423,7 +3424,7 @@ def validate_public_output():
     """Fail closed if anything outside the publication allowlist is staged."""
     actual = {p.name for p in OUT_DIR.iterdir()}
     if actual != PUBLIC_FILES or any(not p.is_file() or p.is_symlink() for p in OUT_DIR.iterdir()):
-        raise ValueError("Public output must contain only the four approved pages and .nojekyll")
+        raise ValueError("Public output must contain only the approved pages and .nojekyll")
 
 
 def main(argv=None):
@@ -3457,6 +3458,7 @@ def main(argv=None):
         else:
             log("no fitted model in model/ -- skipping slate scoring")
         ledger.save(native, ledger.NATIVE_PATH)
+        dfs.snapshot(log)   # Yahoo salaries for the DFS page; never raises
     text = write_pages(native, recon, today, model_ok)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(text, encoding="utf-8")

@@ -1,0 +1,116 @@
+DFS correlation research: how players' Yahoo fantasy points move together,
+
+== 2024-25: 1225 games, 252 rotation players, 15701 player-games (positions G 52%, F 35%, C 13%)
+-- 2024-25: r = mean product of standardized residuals (95% cluster bootstrap over games)
+   relation  pair            all rotation pairs                both starters
+   teammate  G-G   +0.030 ± 0.019 (n= 10939)   +0.078 ± 0.031 (n=  4150)
+   teammate  G-F   +0.045 ± 0.018 (n= 17477)   +0.083 ± 0.024 (n=  7330)
+   teammate  G-C   +0.058 ± 0.025 (n=  6775)   +0.074 ± 0.031 (n=  4037)
+   teammate  F-F   +0.011 ± 0.028 (n=  5179)   +0.034 ± 0.053 (n=  1718)
+   teammate  F-C   +0.025 ± 0.030 (n=  4349)   +0.078 ± 0.046 (n=  2335)
+   teammate  C-C   -0.110 ± 0.094 (n=   339)   -0.068 ± 0.142 (n=   154)
+   teammate  all   +0.036 ± 0.011 (n= 45058)
+   teammate  both are their team's top-2 scorers    -0.008 ± 0.057 (n=  1317)
+   teammate  one top-2 scorer                       +0.034 ± 0.018 (n= 16984)
+   teammate  neither                                +0.040 ± 0.013 (n= 26757)
+   opponent  G-G   +0.002 ± 0.018 (n= 13736)   +0.010 ± 0.027 (n=  6157)
+   opponent  G-F   +0.017 ± 0.015 (n= 18385)   +0.042 ± 0.024 (n=  8240)
+   opponent  G-C   -0.022 ± 0.023 (n=  6859)   -0.010 ± 0.036 (n=  4049)
+   opponent  F-F   +0.025 ± 0.027 (n=  6154)   +0.049 ± 0.044 (n=  2759)
+   opponent  F-C   -0.020 ± 0.025 (n=  4576)   -0.024 ± 0.034 (n=  2678)
+   opponent  C-C   -0.036 ± 0.064 (n=   844)   -0.057 ± 0.069 (n=   660)
+   opponent  all   +0.004 ± 0.010 (n= 50554)
+   opponent  both are their team's top-2 scorers    +0.024 ± 0.038 (n=  2497)
+   opponent  one top-2 scorer                       +0.006 ± 0.015 (n= 17554)
+   opponent  neither                                +0.002 ± 0.013 (n= 30503)
+-- 2024-25: residual vs game script (r, 95% cluster bootstrap over games)
+   starters vs own team margin          +0.163 ± 0.022 (n=10946)
+   starters vs |margin| (blowout size)  -0.162 ± 0.023 (n=10946)
+   bench    vs own team margin          +0.145 ± 0.032 (n=4755)
+   bench    vs |margin| (blowout size)  -0.000 ± 0.031 (n=4755)
+
+== 2025-26: 1225 games, 258 rotation players, 16081 player-games (positions G 50%, F 35%, C 14%)
+-- 2025-26: r = mean product of standardized residuals (95% cluster bootstrap over games)
+   relation  pair            all rotation pairs                both starters
+   teammate  G-G   +0.039 ± 0.019 (n= 11013)   +0.099 ± 0.040 (n=  3506)
+   teammate  G-F   +0.055 ± 0.015 (n= 18060)   +0.082 ± 0.025 (n=  7388)
+   teammate  G-C   +0.051 ± 0.022 (n=  7706)   +0.098 ± 0.033 (n=  3840)
+   teammate  F-F   +0.045 ± 0.027 (n=  5458)   +0.084 ± 0.043 (n=  2482)
+   teammate  F-C   +0.022 ± 0.029 (n=  4910)   +0.068 ± 0.039 (n=  2563)
+   teammate  C-C   +0.020 ± 0.107 (n=   405)   -0.050 ± 0.166 (n=   119)
+   teammate  all   +0.046 ± 0.011 (n= 47552)
+   teammate  both are their team's top-2 scorers    +0.057 ± 0.052 (n=  1452)
+   teammate  one top-2 scorer                       +0.016 ± 0.015 (n= 18590)
+   teammate  neither                                +0.065 ± 0.015 (n= 27510)
+   opponent  G-G   +0.009 ± 0.018 (n= 13332)   +0.027 ± 0.030 (n=  5249)
+   opponent  G-F   -0.007 ± 0.014 (n= 18760)   +0.014 ± 0.025 (n=  8583)
+   opponent  G-C   -0.002 ± 0.024 (n=  7764)   +0.014 ± 0.034 (n=  3701)
+   opponent  F-F   -0.009 ± 0.028 (n=  6521)   +0.003 ± 0.038 (n=  3542)
+   opponent  F-C   +0.013 ± 0.024 (n=  5429)   +0.026 ± 0.038 (n=  3031)
+   opponent  C-C   +0.054 ± 0.053 (n=  1113)   +0.036 ± 0.068 (n=   668)
+   opponent  all   +0.001 ± 0.010 (n= 52919)
+   opponent  both are their team's top-2 scorers    +0.051 ± 0.040 (n=  2778)
+   opponent  one top-2 scorer                       +0.013 ± 0.017 (n= 18566)
+   opponent  neither                                -0.011 ± 0.015 (n= 31575)
+-- 2025-26: residual vs game script (r, 95% cluster bootstrap over games)
+   starters vs own team margin          +0.166 ± 0.022 (n=11003)
+   starters vs |margin| (blowout size)  -0.137 ± 0.021 (n=11003)
+   bench    vs own team margin          +0.147 ± 0.032 (n=5078)
+   bench    vs |margin| (blowout size)  +0.019 ± 0.034 (n=5078)
+
+== Both seasons pooled (labelled; the seasons above stand on their own)
+-- pooled: r = mean product of standardized residuals (95% cluster bootstrap over games)
+   relation  pair            all rotation pairs                both starters
+   teammate  G-G   +0.035 ± 0.015 (n= 21952)   +0.088 ± 0.024 (n=  7656)
+   teammate  G-F   +0.050 ± 0.012 (n= 35537)   +0.083 ± 0.019 (n= 14718)
+   teammate  G-C   +0.054 ± 0.017 (n= 14481)   +0.086 ± 0.026 (n=  7877)
+   teammate  F-F   +0.029 ± 0.019 (n= 10637)   +0.064 ± 0.032 (n=  4200)
+   teammate  F-C   +0.023 ± 0.020 (n=  9259)   +0.073 ± 0.029 (n=  4898)
+   teammate  C-C   -0.039 ± 0.073 (n=   744)   -0.060 ± 0.123 (n=   273)
+   teammate  all   +0.041 ± 0.008 (n= 92610)
+   teammate  both are their team's top-2 scorers    +0.026 ± 0.035 (n=  2769)
+   teammate  one top-2 scorer                       +0.025 ± 0.012 (n= 35574)
+   teammate  neither                                +0.053 ± 0.010 (n= 54267)
+   opponent  G-G   +0.006 ± 0.011 (n= 27068)   +0.018 ± 0.021 (n= 11406)
+   opponent  G-F   +0.005 ± 0.011 (n= 37145)   +0.028 ± 0.017 (n= 16823)
+   opponent  G-C   -0.012 ± 0.017 (n= 14623)   +0.001 ± 0.026 (n=  7750)
+   opponent  F-F   +0.008 ± 0.018 (n= 12675)   +0.023 ± 0.027 (n=  6301)
+   opponent  F-C   -0.002 ± 0.019 (n= 10005)   +0.003 ± 0.026 (n=  5709)
+   opponent  C-C   +0.015 ± 0.038 (n=  1957)   -0.010 ± 0.049 (n=  1328)
+   opponent  all   +0.003 ± 0.007 (n=103473)
+   opponent  both are their team's top-2 scorers    +0.038 ± 0.027 (n=  5275)
+   opponent  one top-2 scorer                       +0.010 ± 0.012 (n= 36120)
+   opponent  neither                                -0.004 ± 0.011 (n= 62078)
+-- pooled: residual vs game script (r, 95% cluster bootstrap over games)
+   starters vs own team margin          +0.165 ± 0.016 (n=21949)
+   starters vs |margin| (blowout size)  -0.149 ± 0.016 (n=21949)
+   bench    vs own team margin          +0.146 ± 0.023 (n=9833)
+   bench    vs |margin| (blowout size)  +0.010 ± 0.021 (n=9833)
+
+== Reading (2026-10-29 run; the tables above are the evidence)
+1. Teammates are slightly POSITIVELY correlated, not negatively: about +0.04
+   for rotation pairs and +0.06 to +0.10 for two starters, in both seasons.
+   Shared game environment (opponent, pace, a close game keeping starters
+   on) outweighs usage competition. The baseline is the season mean, so part
+   of this is predictable before tip and a game-specific projection absorbs
+   some of it: the correlation of projection errors is likely smaller.
+2. The one negative teammate pair is two centres (rebound overlap), from few
+   pairs and inside its interval in 2025-26. A team's two top scorers do not
+   cancel each other below zero, though they sit below other teammate pairs.
+3. Opponents are uncorrelated on average (about 0.00): no general bring-back
+   effect. Opposing top-2 scorers lean positive in both seasons (shootouts,
+   close games keep stars on), a weak effect inside two intervals.
+4. Game script is the largest effect: starters' points fall with the final
+   margin's size (r about -0.15 in both seasons); the bench's do not on net.
+   The own-team margin correlation is partly mechanical (a player's points
+   are in his team's margin) and is not a heuristic.
+5. Magnitudes are small. Two starters at r = +0.08 add 2 x 0.08 = 0.16 of one
+   player's variance to an 8-player lineup's 8: about 2% more variance. For
+   head-to-head and cash play maximize the mean; correlation is a tie-break
+   for tournaments.
+
+Heuristics this supports (tournaments): a mild preference for two or three
+starters from one team in a game expected to be close; opposing stars from
+such a game; avoid two centres from one team; discount starters in games
+with a large expected margin (spread), unless the projection already does.
+

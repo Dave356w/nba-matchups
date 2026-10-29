@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import pandas as pd
 
+import dfs
 import ledger
 import market
 import player_availability as pav
@@ -242,6 +243,28 @@ def check_sleeper(path=ledger.SLEEPER_PATH):
     return errs
 
 
+def check_yahoo(path=dfs.YAHOO_PATH):
+    """The DFS page's Yahoo salary snapshot: its columns, one row per slate
+    and player, a known position and a positive whole salary and cap."""
+    if not os.path.exists(path):
+        return []
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    if list(df.columns) != dfs.YAHOO_COLUMNS:
+        return [f"{path}: columns differ from dfs.YAHOO_COLUMNS"]
+    errs = []
+    if df.duplicated(["slate_date", "player_code"]).any():
+        errs.append(f"{path}: a player twice on one slate")
+    if not df["position"].isin(dfs.POSITIONS).all():
+        errs.append(f"{path}: position other than {dfs.POSITIONS}")
+    for c in ("salary", "cap"):
+        v = pd.to_numeric(df[c], errors="coerce")
+        if v.isna().any() or (v <= 0).any() or (v % 1 != 0).any():
+            errs.append(f"{path}: {c} missing, non-positive or fractional")
+    if any(ledger.parse_utc(t) is None for t in df["start_utc"]):
+        errs.append(f"{path}: an unreadable start_utc")
+    return errs
+
+
 def check_box(path):
     """data/nba_box_<y>.csv: past seasons (Box-score history) and this
     season's (the daily build)."""
@@ -289,6 +312,7 @@ def check_pre_box(path):
 def main():
     errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
     errs += check_sleeper()
+    errs += check_yahoo()
     for path in sorted(glob.glob(os.path.join("data", "nba_box_[0-9][0-9][0-9][0-9].csv"))):
         errs += check_box(path)
     for path in sorted(glob.glob(os.path.join("data", "nba_box_pre_[0-9][0-9][0-9][0-9].csv"))):

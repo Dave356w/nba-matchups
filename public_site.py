@@ -12,11 +12,13 @@ import numpy as np
 import pandas as pd
 
 import analysis
+import dfs
 import ledger
 import market
 
 PAGES = (("index.html", "Today"), ("results.html", "Results"),
-         ("performance.html", "Performance"), ("how-it-works.html", "How it works"))
+         ("performance.html", "Performance"), ("how-it-works.html", "How it works"),
+         ("dfs.html", "DFS"))
 RULES = (("H5·3", "Spread", "spread"), ("H2·F·5", "Value favourite", "favourite"),
          ("H4", "Large probability gap", "gap"), ("OU", "Total (over/under)", "total"))
 
@@ -402,4 +404,6 @@ class PublicSite:
 
     def render(self):
         return {"index.html":self.today_page(),"results.html":self.results_page(),
-                "performance.html":self.performance_page(),"how-it-works.html":self.guide_page()}
+                "performance.html":self.performance_page(),"how-it-works.html":self.guide_page(),
+                # a separate tool (CLAUDE.md, DFS lineup page): no record or forecast
+                "dfs.html":dfs.page(self.ui, self.today, self.built, native=self.native, css=CSS)}
