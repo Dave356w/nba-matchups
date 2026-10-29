@@ -12,7 +12,9 @@ def test_three_tests_have_disjoint_early_segments_with_identical_thresholds():
     first = {"H5", "H2·F", "H4", "H5·E", "H2·F·E", "H4·E"}
     # the five-hour lock amendment adds a lock row per test x stage, and the
     # model-family reset a v11-family row per lock row
-    assert set(active) == first | {k + "·L" for k in first} | {k + "·L·v11" for k in first}
+    floored = {"H5·3·L·v11", "H5·3·E·L·v11", "H2·F·5·L·v11", "H2·F·5·E·L·v11"}
+    assert set(active) == (first | {k + "·L" for k in first} | {k + "·L·v11" for k in first}
+                           | floored)
     g = _ats_rows(5)
     g["gp_home"], g["gp_away"] = [0, 1, 9, 10, 30], 30
     g["first_p_home"], g["p_home"] = 0.8, 0.1

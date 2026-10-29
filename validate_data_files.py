@@ -13,6 +13,43 @@ import market
 import player_availability as pav
 
 
+def ou_errors(df, path):
+    """The O/U columns (CLAUDE.md amendment 2026-10-29): first_ou_* and
+    lock_ou_* carry a model total, a P(over) in [0, 1], a known book and a
+    main-line total; both are before tip, the lock within LOCK_LEAD_HOURS of
+    it and not before the first; a close total only on a graded row."""
+    errs = []
+    tip = pd.to_datetime(df["tip_utc"], utc=True, errors="coerce")
+    books = {b for _, b in market.BOOKS}
+    num = lambda c: pd.to_numeric(df[c], errors="coerce")  # noqa: E731
+    for kind in ("first", "lock"):
+        at = pd.to_datetime(df[f"{kind}_ou_snapshot_utc"], utc=True, errors="coerce")
+        has = df[f"{kind}_ou_snapshot_utc"].notna()
+        if (has & (at.isna() | ~(at < tip))).any():
+            errs.append(f"{path}: {kind}_ou snapshot missing a time or not before tip")
+        if not df.loc[has, f"{kind}_ou_book"].isin(books).all():
+            errs.append(f"{path}: {kind}_ou_book missing or unknown")
+        p = num(f"{kind}_ou_p_over")
+        if (has & (~p.between(0, 1) | num(f"{kind}_ou_total").isna()
+                   | num(f"{kind}_ou_line").isna())).any():
+            errs.append(f"{path}: {kind}_ou snapshot without a total, a line or P(over) in [0,1]")
+        main = pd.Series([market.main_line_pair(o, u) for o, u in
+                          zip(num(f"{kind}_ou_over"), num(f"{kind}_ou_under"))],
+                         index=df.index, dtype=bool)
+        if (has & ~main).any():
+            errs.append(f"{path}: {kind}_ou snapshot on a non-main line")
+        if kind == "lock":
+            window = pd.Timedelta(hours=ledger.LOCK_LEAD_HOURS, minutes=1)
+            if (has & (at < tip - window)).any():
+                errs.append(f"{path}: lock_ou snapshot outside its window")
+            first = pd.to_datetime(df["first_ou_snapshot_utc"], utc=True, errors="coerce")
+            if (has & (first.isna() | (at < first))).any():
+                errs.append(f"{path}: lock_ou snapshot without or before first_ou")
+    if (num("close_ou_line").notna() & num("home_won").isna()).any():
+        errs.append(f"{path}: close total on a pending row")
+    return errs
+
+
 def check(path):
     if not os.path.exists(path):
         return []
@@ -49,9 +86,12 @@ def check(path):
     elif list(df.columns) == ledger.PRE_LOCK_COLUMNS:
         print(f"note {path}: pre-lock schema; lock_* columns added (blank) on "
               "the next write")
+    elif list(df.columns) == ledger.PRE_OU_COLUMNS:
+        print(f"note {path}: pre-O/U schema; the O/U columns are added (blank) on "
+              "the next write")
     elif list(df.columns) != ledger.COLUMNS:
         errs.append(f"{path}: columns differ from ledger.COLUMNS")
-    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_LOCK_COLUMNS,
+    if list(df.columns) in (ledger.COLUMNS, ledger.PRE_OU_COLUMNS, ledger.PRE_LOCK_COLUMNS,
                             ledger.PRE_MARGIN_COLUMNS,
                             ledger.PRE_CARRY_COLUMNS,
                             ledger.PRE_PREGAME_SPREAD_COLUMNS,
@@ -118,6 +158,8 @@ def check(path):
         lp = pd.to_numeric(df["lock_p_home"], errors="coerce")
         if (hl & ~lp.between(0, 1)).any():
             errs.append(f"{path}: lock_p_home missing or outside [0,1]")
+    if "lock_ou_snapshot_utc" in df.columns:
+        errs += ou_errors(df, path)
     if df["game_id"].duplicated().any():
         errs.append(f"{path}: duplicate game_id")
     won = pd.to_numeric(df["home_won"], errors="coerce").dropna()

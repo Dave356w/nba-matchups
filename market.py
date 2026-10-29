@@ -221,6 +221,54 @@ def _home_spread(h, a):
     return h
 
 
+# A main line: both prices within this window (analysis.ATS_MAIN_LINE is the
+# same window for the spread; the O/U test and its ledger lock use it).
+MAIN_LINE = (-135, 115)
+
+
+def main_line_pair(a, b):
+    """Both prices finite and within MAIN_LINE."""
+    try:
+        a, b = float(a), float(b)
+    except (TypeError, ValueError):
+        return False
+    lo, hi = MAIN_LINE
+    return bool(np.isfinite(a) and np.isfinite(b) and lo <= a <= hi and lo <= b <= hi)
+
+
+def total_line(x):
+    """A game total ('231.5', {'american': '231.5'}, 231.5) -> float, else None."""
+    if isinstance(x, dict):
+        for k in ("american", "alternateDisplayValue", "value"):
+            v = total_line(x.get(k))
+            if v is not None:
+                return v
+        return None
+    try:
+        v = float(str(x).replace("o", "").replace("u", "")) if x is not None else None
+    except (TypeError, ValueError):
+        return None
+    return v if v is not None and np.isfinite(v) and 100 <= v <= 350 else None
+
+
+def _parse_totals(item):
+    """One provider's game total and over / under prices: current (the
+    item's own fields, else its 'current' block), open and close."""
+    def block(when):
+        d = item.get(when) or {}
+        return (total_line(d.get("total")), american(d.get("over")), american(d.get("under")))
+    cur = (total_line(item.get("overUnder")), american(item.get("overOdds")),
+           american(item.get("underOdds")))
+    if cur[0] is None:
+        cur = block("current")
+    out = {}
+    for when, (line, o, u) in (("cur", cur), ("open", block("open")), ("close", block("close"))):
+        ok = line is not None
+        out.update({f"{when}_total": line, f"{when}_over": o if ok else None,
+                    f"{when}_under": u if ok else None})
+    return out
+
+
 def _parse_provider(item):
     def side(which):
         td = item.get(which) or {}
@@ -247,7 +295,8 @@ def _parse_provider(item):
                 close_home_ml=h["close"], close_away_ml=a["close"],
                 close_spread=_home_spread(h["close_line"], a["close_line"]),
                 close_home_spread_odds=h["close_spread"],
-                close_away_spread_odds=a["close_spread"])
+                close_away_spread_odds=a["close_spread"],
+                **_parse_totals(item))
 
 
 def parse_book_odds(js):

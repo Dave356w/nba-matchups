@@ -16,6 +16,7 @@ name: Fit model
 # play-rate table by lead (q_rates in model/logit_avail.json), which reads the
 # NBA reports at six leads before tip (a parallel prefetch, cached). Running it
 # with v11 activates v11; the post-change checks follow, as for v10.
+# It also refits the totals (O/U) model, model/totals.json (totals.py).
 
 on:
   workflow_dispatch:
@@ -103,6 +104,11 @@ jobs:
           # throttles the runner, so it does not download every edition again.
           python player_availability.py fit --${{ inputs.version }} --years ${{ inputs.avail_years }} \
             ${{ inputs.version == 'v11' && '--q-rates diagnostics/questionable_weight/q_rates.json' || '' }}
+      - name: Fit totals (O/U) model
+        # CLAUDE.md edge floors and O/U amendment (2026-10-29): the totals
+        # fit on the completed game-log seasons (totals.py; 2019-20 left out
+        # as in its research), written to model/totals.json.
+        run: python totals.py fit --years "2017-2019 2021-2026"
       - name: Commit model
         run: |
           git config user.name  "github-actions[bot]"

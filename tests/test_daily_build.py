@@ -53,6 +53,8 @@ def test_two_day_cycle(tmp_path, monkeypatch, weights, model):
     monkeypatch.setattr(sleeper, "fetch_projections",
                         lambda season, week, timeout=60: slp if week == 1 else [])
     monkeypatch.setattr(build_site, "fresh_logs", lambda y, d: logs)
+    # last season's logs (the totals model's prior): never the network in a test
+    monkeypatch.setattr(build_site.nc, "load_logs", lambda y, refresh=False: logs)
     monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
 
     assert build_site.main(["--date", day1]) == 0
@@ -124,6 +126,8 @@ def test_build_tags_v3_with_availability_and_falls_back(tmp_path, monkeypatch, w
     monkeypatch.setattr(market, "book_odds", lambda gid: {})
     monkeypatch.setattr(market, "game_injuries", lambda gid, h, a: None)
     monkeypatch.setattr(build_site, "fresh_logs", lambda y, d: logs)
+    # last season's logs (the totals model's prior): never the network in a test
+    monkeypatch.setattr(build_site.nc, "load_logs", lambda y, refresh=False: logs)
     monkeypatch.setattr(build_site, "load_model", lambda: (weights, model))
     (tmp_path / "model").mkdir()
     (tmp_path / "model" / pav.MODEL_FILE).write_text(json.dumps(
