@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""A v11-style totals (O/U) fit, walk-forward, against the books' totals.
+
+  python research/totals_model.py [--out diagnostics/totals_model/RESULTS.txt]
+
+Owner's question (2026-10-29): can v11 build a separate O/U fit? v11 fits
+the final margin by least squares on pregame inputs and reads P(home win) =
+Phi(margin / residual sigma). The same recipe on the final TOTAL gives
+P(over) = 1 - Phi((line - T) / sigma_T). Inputs, all from games strictly
+before the slate (no lookahead):
+
+  T0  base: each team's decayed (half-life 25, as v11) pace and points per
+      100 possessions scored and allowed, each a blend (n current + K prior)
+      / (n + K) over the team's n games, the prior being last season's value
+      regressed 40% to the league (K chosen on the unpriced seasons
+      2017-18 .. 2022-23 by walk-forward RMSE); the league's level to date,
+      blended with last season early on. naive = expected possessions x both
+      sides' matchup efficiency. The fit is relative to the league's level,
+      as scoring drifts between seasons:
+        total - league = a + b (naive - league) + c b2b + d phase
+      (b2b counts both teams' back-to-backs; phase is the season's share).
+  T1  T0 plus each team's absent rotation minutes (players averaging
+      minutes in the team's last games who did not play), from the box
+      scores: who actually played, about what the 30-minute injury report
+      knows. Optimistic before tip and never fair at the open, so T1 is
+      read at the close only. The report archive v11 uses lives in the CI
+      cache; production would read the report, not the box score.
+
+Fits use earlier seasons only. Against the DraftKings / ESPN BET opening
+and closing totals (research/totals_fetch.py): RMSE, the outcome's weight
+on (model - line), P(over) log loss against the no-vig over price, and flat
+1u on the model's side (all games and |P - q| >= 0.05), with CLV at the
+open. Book x season x stage never pooled. ± 95%. Hindsight: the priced
+seasons are two; nothing here is a forward test, a rule or a model change.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from math import erf, sqrt
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "research"))
+import ledger  # noqa: E402
+import market  # noqa: E402
+import nba_composite as nc  # noqa: E402
+from model_review import logloss, mean_ci, weight  # noqa: E402
+from walk_forward import game_possessions  # noqa: E402
+
+SEASONS = (2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026)
+OUT = ROOT / "diagnostics" / "totals_model" / "RESULTS.txt"
+TOTALS = ROOT / "diagnostics" / "totals_signal" / "totals_odds.csv"
+SHRINK = (5, 10, 20)          # prior weight in games: (n cur + K prior) / (n + K)
+LG_PRIORS = (30.0, 300.0)     # last season's league level counts as this many games
+REGRESS = 0.6        # last season's distance from the league kept
+ROTATION = 15.0      # minutes a game over the team's recent games
+RECENT = 10          # team games behind the rotation average
+Z95 = 1.96
+F0 = ["naive_rel", "b2b", "phase"]
+F1 = F0 + ["absent"]
+
+
+def season_name(y):
+    return f"{int(y) - 1}-{str(int(y))[-2:]}"
+
+
+def pm(x, d=4):
+    m, h = x
+    return f"{m:+.{d}f} ± {h:.{d}f}" if np.isfinite(m) else "--"
+
+
+def phi(x):
+    return 0.5 * (1 + np.vectorize(erf)(np.asarray(x, float) / sqrt(2)))
+
+
+# ------------------------------------------------------------------ inputs --
+def team_rows(y):
+    """Per team-game, in date order: final points, possessions, and the
+    decayed pregame pace / offence / defence over earlier games this season
+    (NaN before a team's first game), back-to-back, and season-end values."""
+    logs = nc.load_logs(y)
+    rows, end = [], {}
+    for tm, lg in logs.items():
+        poss = game_possessions(lg)
+        pts, opp = lg["pts"].to_numpy(float), lg["opp_pts"].to_numpy(float)
+        dates = pd.to_datetime(lg["date"]).to_numpy()
+        for i in range(len(lg) + 1):
+            w = 0.5 ** (np.arange(i)[::-1] / nc.HALF_LIFE)
+            wp = (w * poss[:i]).sum()
+            vals = (wp / w.sum(), 100 * (w * pts[:i]).sum() / wp,
+                    100 * (w * opp[:i]).sum() / wp) if i else (np.nan,) * 3
+            if i == len(lg):
+                end[tm] = vals
+                break
+            b2b = i > 0 and (dates[i] - dates[i - 1]) == np.timedelta64(1, "D")
+            rows.append(dict(date=pd.Timestamp(dates[i]), team=tm, opp=lg["opp"].iloc[i],
+                             home=bool(lg["home"].iloc[i]), gp=i, poss=poss[i], pts=pts[i],
+                             pace=vals[0], ortg=vals[1], drtg=vals[2], b2b=int(b2b)))
+    return pd.DataFrame(rows), end
+
+
+def absences(y):
+    """(date, team) -> share of the team's rotation minutes absent: players
+    with minutes in any of the team's last 3 games, averaging >= ROTATION
+    over its last RECENT games, who did not play. Who played is known at
+    tip, about what the 30-minute report has; research only."""
+    path = ROOT / "data" / f"nba_box_{y}.csv"
+    if not path.exists():
+        return {}
+    b = pd.read_csv(path)
+    b["date"] = pd.to_datetime(b["date"])
+    out = {}
+    for tm, x in b.groupby("team"):
+        mins = x.pivot_table(index="date", columns="player_id", values="minutes",
+                             aggfunc="sum").sort_index().fillna(0.0)
+        for i, d in enumerate(mins.index):
+            if i == 0:
+                out[(d, tm)] = 0.0
+                continue
+            past = mins.iloc[max(0, i - RECENT):i]
+            avg = past.mean()
+            recent = (mins.iloc[max(0, i - 3):i] > 0).any()
+            rot = avg[(avg >= ROTATION) & recent]
+            out[(d, tm)] = float(rot[mins.iloc[i][rot.index] <= 0].sum() / 240.0)
+    return out
+
+
+def season_frame(y, prev_end=None, prev_lg=None, shrink=10, lg_prior=30.0):
+    """One row per game (home view) with the T0 / T1 inputs and the total."""
+    t, end = team_rows(y)
+    day = t.groupby("date").agg(poss=("poss", "sum"), pts=("pts", "sum"), n=("poss", "size"))
+    cum = day.cumsum().shift(1).fillna(0.0)
+    if prev_lg:
+        pp, pr = prev_lg
+        cum["lg_pace"] = (cum["poss"] + lg_prior * pp) / (cum["n"] + lg_prior)
+        cum["lg_rtg"] = 100 * (cum["pts"] + lg_prior * pp * pr / 100) / (cum["poss"] + lg_prior * pp)
+    else:
+        cum["lg_pace"] = cum["poss"] / cum["n"].replace(0, np.nan)
+        cum["lg_rtg"] = 100 * cum["pts"] / cum["poss"].replace(0, np.nan)
+    t = t.join(cum[["lg_pace", "lg_rtg"]], on="date")
+    # prior: last season, regressed to its league and re-centred on this one's
+    k = t["gp"] / (t["gp"] + shrink) if shrink else (t["gp"] > 0).astype(float)
+    for j, (c, ref) in enumerate((("pace", "lg_pace"), ("ortg", "lg_rtg"), ("drtg", "lg_rtg"))):
+        if prev_end and prev_lg:
+            base = prev_lg[0] if c == "pace" else prev_lg[1]
+            prev = t["team"].map(lambda tm: prev_end.get(tm, (np.nan,) * 3)[j])
+            prior = t[ref] * (1 + REGRESS * (prev / base - 1))
+            prior = prior.fillna(t[ref])
+        else:
+            prior = t[ref]
+        cur = t[c].fillna(prior)
+        t[c] = k * cur + (1 - k) * prior
+    ab = absences(y)
+    t["absent"] = [ab.get((d, tm), 0.0) for d, tm in zip(t["date"], t["team"])]
+    h = t[t["home"]].set_index(["date", "opp"])
+    a = t[~t["home"]].set_index(["date", "team"])[["gp", "pace", "ortg", "drtg", "pts", "b2b", "absent"]]
+    a.index.names = ["date", "opp"]
+    g = h.join(a, rsuffix="_a", how="inner").drop(columns="home").reset_index()
+    g = g.rename(columns={"team": "home", "opp": "away"})
+    opening = g["date"].min()
+    exp_poss = g["pace"] * g["pace_a"] / g["lg_pace"]
+    g["naive"] = exp_poss * (g["ortg"] * g["drtg_a"] + g["ortg_a"] * g["drtg"]) / g["lg_rtg"] / 100
+    g["lg_total"] = 2 * g["lg_pace"] * g["lg_rtg"] / 100
+    g["naive_rel"] = g["naive"] - g["lg_total"]
+    g["b2b"] = g["b2b"] + g["b2b_a"]
+    g["phase"] = np.minimum((g["date"] - opening).dt.days / 175.0, 1.0)
+    g["absent"] = g["absent"] + g["absent_a"]
+    g["total"] = g["pts"] + g["pts_a"]
+    g["season"] = y
+    g["slate_date"] = g["date"].dt.strftime("%Y-%m-%d")
+    g["stage_gp"] = np.fmin(g["gp"], g["gp_a"])
+    lg_end = (day["poss"].sum() / day["n"].sum(), 100 * day["pts"].sum() / day["poss"].sum())
+    return g.dropna(subset=["lg_pace", "naive"]), end, lg_end
+
+
+def all_frames(shrink=10, lg_prior=30.0):
+    out, prev_end, prev_lg, last = [], None, None, None
+    for y in SEASONS:
+        # a season after a gap (2020) has no usable last season
+        g, end, lg = season_frame(y, prev_end if last == y - 1 else None,
+                                  prev_lg if last == y - 1 else None, shrink, lg_prior)
+        out.append(g)
+        prev_end, prev_lg, last = end, lg, y
+    return pd.concat(out, ignore_index=True)
+
+
+# -------------------------------------------------------------------- fits --
+def walk_forward(g, feats):
+    """Each season predicted from an OLS fit on earlier seasons (games 1+):
+    model total T and its residual sigma (by stage, games 1-9 / 10+). The
+    fit is relative to the league's level to date (total - lg_total), as
+    scoring drifts between seasons: the level passes through with weight 1."""
+    out = []
+    for y in sorted(g["season"].unique()):
+        tr = g[(g["season"] < y) & (g["stage_gp"] >= 1)]
+        if len(tr) < 1000:
+            continue
+        X = np.column_stack([np.ones(len(tr)), tr[feats].to_numpy(float)])
+        target = (tr["total"] - tr["lg_total"]).to_numpy(float)
+        b = np.linalg.lstsq(X, target, rcond=None)[0]
+        res = target - X @ b
+        early = (tr["stage_gp"] < 10).to_numpy()
+        te = g[g["season"] == y].copy()
+        te["T"] = te["lg_total"] + np.column_stack([np.ones(len(te)), te[feats].to_numpy(float)]) @ b
+        s_late = res[~early].std()
+        s_early = res[early].std() if early.sum() > 1 else s_late
+        te["sigma"] = np.where(te["stage_gp"] < 10, s_early, s_late)
+        te["coef"] = [dict(zip(["a"] + feats, np.round(b, 3)))] * len(te)
+        out.append(te)
+    return pd.concat(out, ignore_index=True)
+
+
+def priced(pred):
+    """Model totals joined to the reconstructed rows' book and the cached
+    opening / closing totals of that book."""
+    recon = ledger.load(ledger.RECON_PATH)
+    recon["slate_date"] = recon["slate_date"].astype(str)
+    recon["game_id"] = recon["game_id"].astype(str)
+    t = pd.read_csv(TOTALS, dtype={"game_id": str})
+    t = t[t["basis"] == "reconstructed"].dropna(subset=["book"])
+    j = recon[["game_id", "season", "slate_date", "home", "away", "close_book"]].merge(
+        pred, on=["season", "slate_date", "home", "away"], how="inner")
+    j = j.merge(t, on="game_id", how="inner")
+    return j[j["book"] == j["close_book"]]
+
+
+def _q_over(o, u):
+    return np.array([market.devig(a, b) for a, b in zip(o, u)], float)
+
+
+def evaluate(x, when, label):
+    """One book-season-stage at one price: RMSE, weight, P(over) log loss vs
+    the no-vig over price, and the model's O/U side."""
+    line = x[f"{when}_total"].to_numpy(float)
+    o, u = x[f"{when}_over"].to_numpy(float), x[f"{when}_under"].to_numpy(float)
+    tot, T, s = x["total"].to_numpy(float), x["T"].to_numpy(float), x["sigma"].to_numpy(float)
+    ok = np.isfinite(line) & np.isfinite(o) & np.isfinite(u) & (tot != line)
+    line, o, u, tot, T, s = (v[ok] for v in (line, o, u, tot, T, s))
+    over = (tot > line).astype(float)
+    q = _q_over(o, u)
+    p = 1 - phi((line - T) / s)
+    rm = lambda e: float(np.sqrt(np.mean(np.square(e))))  # noqa: E731
+    X = np.column_stack([np.ones(len(T)), T - line])
+    b = np.linalg.lstsq(X, tot - line, rcond=None)[0]
+    r = (tot - line) - X @ b
+    se = np.sqrt((r @ r / (len(r) - 2)) * np.linalg.inv(X.T @ X)[1, 1])
+    lines = [f"    {label:<6} @{when:<5} n {ok.sum():>4}  RMSE line {rm(tot - line):.2f} model {rm(tot - T):.2f}  "
+             f"weight on (T − line) {b[1]:+.2f} ± {Z95 * se:.2f}  P(over) LL − market "
+             f"{pm(mean_ci(logloss(p, over) - logloss(q, over)))}  w {pm(weight(p, q, over), 2)}"]
+    side = p > q
+    ml = np.where(side, o, u)
+    won = np.where(side, over, 1 - over)
+    units = np.array([market.unit_profit(m, bool(w)) for m, w in zip(ml, won)])
+    qs = np.where(side, q, 1 - q)
+    null = qs * np.array([market.decimal_payout(m) for m in ml]) - 1
+    edge = np.abs(p - q)
+    for name, sel in (("model side, all", edge > 0), ("model side, |P − q| ≥ 0.05", edge >= 0.05)):
+        if sel.sum() < 10:
+            continue
+        roi, h = mean_ci(units[sel])
+        extra = ""
+        if when == "open":
+            cl = x["close_total"].to_numpy(float)[ok][sel]
+            mv = np.where(side[sel], cl - line[sel], line[sel] - cl)
+            extra = f"  line moved toward it {pm(mean_ci(mv[np.isfinite(mv)]), 2)} pts"
+        lines.append(f"      {name:<27} n {sel.sum():>4}  ROI {100 * roi:+6.1f}% ± {100 * h:4.1f}  "
+                     f"null {100 * null[sel].mean():+.1f}%{extra}")
+    return lines
+
+
+def choose_shrink():
+    """(K, league prior) by walk-forward RMSE (games 1+) on the seasons
+    before any priced one (2017-18 .. 2022-23); the priced seasons never
+    choose them."""
+    scores = {}
+    for k in SHRINK:
+        for lp in LG_PRIORS:
+            p = walk_forward(all_frames(k, lp), F0)
+            p = p[(p["season"] <= 2023) & (p["stage_gp"] >= 1)]
+            scores[(k, lp)] = float(np.sqrt(np.mean((p["T"] - p["total"]) ** 2)))
+    return min(scores, key=scores.get), scores
+
+
+def report(g, shrink=None, scores=None):
+    lines = ["Totals (O/U) model, v11-style, walk-forward (research/totals_model.py). ± 95%. Hindsight.",
+             f"Team prior weight K, league-level prior (games) = {shrink}, chosen on 2017-18..2022-23 "
+             "games 1+ walk-forward RMSE: " + ", ".join(f"{k}: {v:.3f}" for k, v in (scores or {}).items()) + ".",
+             "T0 = pregame pace/efficiency (decayed; prior = last season regressed), league level, b2b, phase.",
+             "T1 = T0 + absent rotation minutes from who played (about the 30-minute report; read at the close only).",
+             ""]
+    preds = {name: walk_forward(g, f) for name, f in (("T0", F0), ("T1", F1))}
+    lines.append("== 1. Against outcomes, every season (walk-forward)")
+    for name, p in preds.items():
+        late = p[p["stage_gp"] >= 10]
+        rm = float(np.sqrt(np.mean((late["T"] - late["total"]) ** 2)))
+        lines.append(f"  {name} games 10+ {season_name(late['season'].min())}..{season_name(late['season'].max())} "
+                     f"n {len(late)}  RMSE {rm:.2f}  last fit {late['coef'].iloc[-1]}")
+    d = preds["T1"]["T"].to_numpy() - preds["T0"]["T"].to_numpy()
+    tot = preds["T0"]["total"].to_numpy(float)
+    se1 = (preds["T1"]["T"].to_numpy() - tot) ** 2 - (preds["T0"]["T"].to_numpy() - tot) ** 2
+    lines.append(f"  T1 − T0 squared error {pm(mean_ci(se1), 2)} (sd of their difference {d.std():.2f} pts)")
+    lines.append("")
+    lines.append("== 2. Against the books' totals (book x season x stage; never pooled)")
+    for name, p in preds.items():
+        j = priced(p)
+        for bk, y, st in (("dk", 2026, "games 10+"), ("espnbet", 2025, "games 10+"),
+                          ("espnbet", 2025, "games 1–9"), ("espnbet", 2026, "games 1–9")):
+            sel = (j["book"] == bk) & (j["season"] == y) & (
+                (j["stage_gp"] >= 10) if st == "games 10+" else (j["stage_gp"] >= 1) & (j["stage_gp"] < 10))
+            x = j[sel]
+            if len(x) < 50:
+                continue
+            lines.append(f"  {market.BOOK_NAMES[bk]} {season_name(y)} {st}")
+            for when in (("open", "close") if name == "T0" else ("close",)):
+                lines += evaluate(x, when, name)
+    return lines
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=str(OUT))
+    a = ap.parse_args()
+    shrink, scores = choose_shrink()
+    text = "\n".join(report(all_frames(*shrink), shrink, scores))
+    out = Path(a.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text + "\n")
+    print(text)
+
+
+if __name__ == "__main__":
+    main()

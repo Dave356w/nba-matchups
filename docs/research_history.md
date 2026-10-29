@@ -757,3 +757,21 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   season) beat the open in 2024-25 (−0.035 ± 0.033) but not 2025-26. The
   5 h lock prices between the open and the close, unmeasured historically;
   native lock CLV per rule is the read. Rules unchanged.
+- Totals (O/U) fit, v11-style (owner's question, 2026-10-29;
+  `research/totals_model.py`, [results](../diagnostics/totals_model/RESULTS.txt)).
+  v11's recipe on the final total: least squares on pregame decayed pace
+  and points per 100 (prior = last season regressed, K = 10 games; league
+  level prior 30 games, both chosen on 2017-18 to 2022-23 only), fitted
+  relative to the league's level, P(over) = 1 − Φ((line − T) / σ).
+  Walk-forward RMSE 18.65 on games 10+ 2017-18 to 2025-26. Against the
+  close it is worse than the market on both large book-seasons (P(over)
+  log loss +0.0249 ± 0.0132 DraftKings 2025-26, +0.0253 ± 0.0117 ESPN BET
+  2024-25) and adds nothing (weight on T − line −0.02 ± 0.26, −0.09 ±
+  0.23). Against the open it is level with the market (+0.0049 ± 0.0109,
+  +0.0053 ± 0.0091), adds +0.19 ± 0.32 / +0.53 ± 0.27, and the total
+  moved toward its side by the close (+0.57 ± 0.22, +0.81 ± 0.25 pts); its
+  side at |P − q| ≥ 0.05 returned +4.2% ± 8.4 / −0.4% ± 8.1 (null −4.5%).
+  Absent rotation minutes from who played (about the 30-minute report)
+  add nothing (+0.26 ± 0.24 squared error). Like v11's moneyline signal,
+  any O/U value is at the open and gone by the close. Buildable; not
+  shown to be useful at the 5 h lock. Research only.

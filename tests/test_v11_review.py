@@ -43,3 +43,22 @@ def test_pace_fit_recovers_a_known_scaling():
                            y=(margin > 0).astype(float)))
     k, s = v._fit_pace(tr)
     assert abs(k - 2.0) < 0.5 and abs(s) < 1.0
+
+
+def test_totals_fit_carries_the_league_level_across_seasons():
+    import totals_model as tm
+    rng = np.random.default_rng(1)
+    rows = []
+    for y, level in zip(range(2010, 2016), (200, 205, 212, 218, 226, 230)):
+        n = 600
+        rel = rng.normal(0, 8, n)
+        rows.append(pd.DataFrame(dict(season=y, stage_gp=20, lg_total=level, naive_rel=rel,
+                                      b2b=0, phase=0.5,
+                                      total=level + 0.9 * rel + rng.normal(0, 15, n))))
+    g = pd.concat(rows, ignore_index=True)
+    p = tm.walk_forward(g, tm.F0)
+    # scoring rose 30 points over the seasons; the fit relative to the
+    # league's level carries it through rather than predicting the old mean
+    bias = (p["T"] - p["total"]).groupby(p["season"]).mean()
+    assert bias.abs().max() < 2.5
+    assert abs(p["coef"].iloc[-1]["naive_rel"] - 0.9) < 0.15
