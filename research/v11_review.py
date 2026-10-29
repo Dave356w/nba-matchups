@@ -342,7 +342,7 @@ def _fit_pace(tr):
     k = float((x * (tr["margin"] - tr["m"])).sum() / (x * x).sum())
     mk = tr["m"] * (1 + k * tr["lp"])
     best = (np.inf, 0.0)
-    for s in np.linspace(-2, 2, 81):
+    for s in np.linspace(-6, 6, 241):
         p = _phi(mk / (tr["sigma"] * np.exp(s * tr["lp"])))
         ll = logloss(p, tr["y"]).mean()
         best = min(best, (ll, s))
