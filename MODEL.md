@@ -13,6 +13,13 @@ tip (`lock_*` columns), in new ·L rows per test × stage × season; the
 first-snapshot rows close with the last slate before the first lock. This
 changes the bet's timing, not prediction maths (no tag).
 
+**Edge floors and O/U test** (owner's decision 2026-10-29; CLAUDE.md
+"Edge floors and O/U test amendment"): the public spread and value-favourite
+tests are H5·3 (edge ≥ 3 points) and H2·F·5 (P − q ≥ 0.05), beside H4; a
+separate totals model (`totals.py`, tag `totals_hl25_form5_ou1`) gives each
+game's total and P(over), and the O/U test tracks its side at the 5 h lock
+when |P(over) − q| ≥ 0.05. "Totals (O/U) model" at the end.
+
 **Model-family reset** (owner's decision 2026-10-29; CLAUDE.md "Model-family
 reset amendment"): v11 starts a new model family. From the 2026-10-29 slate
 the tests' records are the ·L·v11 rows, which also require a lock tag ending
@@ -773,6 +780,33 @@ Evidence: by 5 h before tip the report has flagged 78–84% of eventual
 rotation-player absences, against 56–57% at the overnight first snapshot
 (23–26% on back-to-backs); the forecast at 5 h costs +0.0016 ± 0.0016 log
 loss against the 30-minute report, at 18 h +0.0036 ± 0.0023.
+
+## Totals (O/U) model (owner's decision, 2026-10-29)
+
+`totals.py` applies v11's recipe to the final total. Per team, from its
+Basketball-Reference log, games strictly before the slate: decayed
+(half-life 25, and 5 for a form term) pace and points per 100 possessions
+scored and allowed, each blended (n current + 10 prior) / (n + 10) with a
+prior of last season's value regressed 40% to its league and re-centred on
+this season's; the league's level to date (last season counting as 30
+team-games). naive = expected possessions (pace_h × pace_a / league) ×
+both sides' matchup efficiency (offence × opposing defence / league). Fit
+by least squares on games 1+ of 2016-17 .. 2025-26 (2019-20 left out), on
+total − league:
+
+    total − league = a + b (naive25 − league) + c (naive5 − naive25) + d b2b + e phase
+
+P(over) = 1 − Φ((line − T) / σ), σ the residual sd of games 1–9 or 10+.
+Fit model refits `model/totals.json`. The build writes the total, σ,
+P(over) and tag beside the pregame book's total (`pre_ou_*`, `ou_*`);
+`first_ou_*` and `lock_ou_*` are write-once like `first_*` / `lock_*`, on
+their own condition (a model total and a main-line total, both prices
+−135..+115); grading writes the closing book's open / close total.
+`analysis.OU_TESTS` grade the side (a push returns the stake), CLV in
+points. Research: `research/totals_model.py`, `research/totals_improve.py`
+(arm "form", T*; `tests/test_ou_floors.py` pins the features to it). In
+hindsight the model is level with the opening total and worse than the
+closing one; no O/U rule beat its null at the close.
 
 ## Version rule
 

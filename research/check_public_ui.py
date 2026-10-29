@@ -45,6 +45,12 @@ def fixture():
             lock_p_home=.8, lock_book='dk', lock_home_ml=-150, lock_away_ml=130,
             lock_q_home=.6, lock_spread=-6, lock_home_spread_odds=-110,
             lock_away_spread_odds=-110,
+            # the O/U test (edge floors and O/U amendment): the model leans over
+            pre_ou_line=205.5, pre_ou_over=-110, pre_ou_under=-110, ou_total=212.0,
+            ou_sigma=18.5, ou_p_over=.62, ou_tag='totals_hl25_form5_ou1',
+            lock_ou_snapshot_utc='2026-11-19T23:00:00Z', lock_ou_tag='totals_hl25_form5_ou1',
+            lock_ou_total=212.0, lock_ou_p_over=.62, lock_ou_book='dk', lock_ou_line=205.5,
+            lock_ou_over=-110, lock_ou_under=-110,
             home_won=np.nan if won is None else won,
             home_pts=np.nan if margin is None else 100+margin,
             away_pts=np.nan if margin is None else 100)
@@ -106,7 +112,7 @@ def main():
                     assert page.locator('html').get_attribute('data-theme') in ('dark','light')
                     page.screenshot(path=str(out/f'{device}-fixture-tracked.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/results.html')
-                    assert page.locator('[data-result-row]').count()==12
+                    assert page.locator('[data-result-row]').count()==16
                     for result in ('Win','Loss','Push','Pending'):
                         assert page.locator('.result-badge',has_text=result).count()>0,result
                     page.get_by_label('Test',exact=True).select_option('spread')
@@ -131,8 +137,8 @@ def main():
                 live=page.locator('[data-gid="fixture-3"]')
                 live.locator('.st').filter(has_text='Q2 4:00').wait_for()
                 assert live.locator('.sc[data-side="home"]').inner_text()=='42'
-                assert live.locator('.tracked-line').count()==3
-                checks.append('Live-score overlay updated status and scores without changing three frozen selections')
+                assert live.locator('.tracked-line').count()==4
+                checks.append('Live-score overlay updated status and scores without changing four frozen selections')
                 browser.close()
         finally:
             server.shutdown()

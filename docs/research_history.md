@@ -798,3 +798,11 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   median earlier closing totals add nothing to the line (weight +0.05 ±
   0.16 … −0.07 ± 0.20, M2); NFL-style medians of the model's own total
   bands add nothing beyond it (M3). Research only.
+- Edge floors and the O/U test go live (owner's decision, CLAUDE.md
+  amendment registered 2026-10-29T16:13:38Z before any v11 lock). Public
+  tests: H5·3 (spread ≥ 3 points), H2·F·5 (value favourite, P − q ≥ 0.05),
+  H4, and OU (the totals model T*, `totals.py`, side when |P(over) − q| ≥
+  0.05), at the 5 h lock. Evidence for the floors: CLV toward the opening
+  bets rises with the gap in both priced seasons (value favourites +0.35 →
+  +2.12 / +0.85 → +3.57 pp from gaps < 0.02 to ≥ 0.08; spread ~0.1 pts below
+  3 points, +0.65 / +0.92 from 3); ROI by band is noise and chose nothing.
