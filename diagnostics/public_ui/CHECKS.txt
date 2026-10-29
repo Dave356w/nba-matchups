@@ -8,4 +8,4 @@ mobile: Results · navigation, overflow and screenshot passed
 mobile: Performance · navigation, overflow and screenshot passed
 mobile: How it works · navigation, overflow and screenshot passed
 mobile: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
-Live-score overlay updated status and scores without changing three frozen selections
+Live-score overlay updated status and scores without changing four frozen selections

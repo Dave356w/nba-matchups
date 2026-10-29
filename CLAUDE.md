@@ -195,6 +195,51 @@ information only, separate from DraftKings and native evidence.
     native first and lock snapshots and their tags are unchanged; this
     changes which rows the records read and what the pages show.
 
+- **Edge floors and O/U test amendment (owner's decision, registered 2026-10-29T16:13:38Z).**
+  Committed on its own before any floor or O/U code and before any v11
+  lock: the native ledger at `699e65e` has no lock on the 2026-10-29 slate
+  (first lock window opens 2026-10-29T19:00Z) and no lock tag ending `_v11`.
+  Evidence: [v11 review](diagnostics/v11_review/RESULTS.txt),
+  [totals fit](diagnostics/totals_model/RESULTS.txt),
+  [totals improvements](diagnostics/totals_improve/RESULTS.txt).
+  - **Floors.** The public tracked tests, from the 2026-10-29 slate at the
+    5 h lock, v11 family (lock tag ending `_v11`), test × stage × season:
+    **H5·3** spread, H5's rule (13.5 × Φ⁻¹(P), both spread prices
+    −135..+115) with edge **≥ 3 points**; **H2·F·5** value favourite, q > 0.5
+    with P − q **≥ 0.05**; **H4** unchanged (P − q ≥ 0.12); each with its
+    games 1–9 (·E) and 10+ rows (keys H5·3·L·v11, H5·3·E·L·v11,
+    H2·F·5·L·v11, H2·F·5·E·L·v11). The floors follow cost, not a
+    return scan: the model's disagreement is ~0.3–0.5 right at the open, so
+    a gap needs ~0.05 to clear half the hold; spread line moves appear only
+    from ~3 points. The v11-family rows at the old floors (H5·L·v11 edge ≥ 1,
+    H2·F·L·v11 any gap) continue internally as their supersets, never on
+    public pages, never pooled.
+  - **O/U test (OU).** Model: the totals fit T* of the research (pregame
+    decayed pace and points per 100 at half-life 25 plus a 5-game form
+    term; prior = last season regressed 40%, weight 10 games; league level
+    to date with last season as 30 games; back-to-backs; season phase;
+    fitted by least squares relative to the league's level on completed
+    seasons, refitted by Fit model). P(over) = 1 − Φ((line − T) / σ), σ the
+    fit's residual sd for games 1–9 or 10+. Inputs use games strictly
+    before the slate; a missing input abstains. Tag
+    `totals_hl25_form5_ou1`. Market: the pregame book's main-line total
+    (both prices −135..+115), no-vig P(over) q. Rule: at the 5 h lock (the
+    first pregame snapshot within 5 hours of tip with a model total and a
+    main-line total; write-once `lock_ou_*`), track the model's side when
+    |P(over) − q| ≥ 0.05; games 1–9 (OU·E·L) and 10+ (OU·L) separate,
+    game 0 never, per season; DraftKings prices; a push returns the stake;
+    CLV = lock total against the close, in points toward the bet. First
+    snapshots of the total are recorded write-once (`first_ou_*`) as history.
+  - The O/U test is its own record, never pooled with H5·3, H2·F·5 or H4.
+    No hindsight O/U rule beat its null at the close; the signal found was
+    at the open, and the owner chose the 5 h lock knowingly.
+  - Public Today shows each game's model total, the book's total and the
+    lean as a forecast, and the tracked O/U pick once it locks; Results and
+    Performance show the four tests (H5·3, H2·F·5, H4, OU) by stage and
+    season; How it works states the floors and the O/U rule. No hindsight
+    figures on public pages. v11's prediction maths, native snapshots and
+    tags are unchanged.
+
 ## Sources of truth and engineering rules
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
@@ -271,7 +316,8 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   [Sleeper](diagnostics/sleeper_signal/RESULTS.txt).
 - Pace, totals (O/U) and the picks' timing under v11:
   [v11 review](diagnostics/v11_review/RESULTS.txt),
-  [totals fit](diagnostics/totals_model/RESULTS.txt).
+  [totals fit](diagnostics/totals_model/RESULTS.txt),
+  [totals improvements and market-context medians](diagnostics/totals_improve/RESULTS.txt).
 
 Detailed dated entries, original registrations and decisions remain in
 [the research history](docs/research_history.md). Scripts and results stay;

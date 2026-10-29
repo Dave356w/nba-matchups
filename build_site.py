@@ -50,6 +50,7 @@ import player_availability as pav
 import report
 import sleeper
 import public_site
+import totals
 
 ET = ZoneInfo("America/New_York")
 # Pages show times in Pacific (PDT/PST, labelled PT); slate dates, the build
@@ -440,6 +441,7 @@ def score_slate(today, weights, model, now=None):
     opening = nc.season_opening(logs) or pd.Timestamp(today)
     talent = getattr(live, "talent", None)
     talent0 = getattr(live, "talent0", None)
+    ou_model, ou_season = totals_inputs(logs, today)
     rows = []
     for g in pre:
         r = dict(game_id=g["game_id"], slate_date=today,
@@ -464,8 +466,49 @@ def score_slate(today, weights, model, now=None):
         r["report_utc"] = report_utc(getattr(live, "report_time", None))
         r["route"] = route(r, model)
         add_pregame_price(r)
+        add_totals(r, ou_model, ou_season)
         rows.append(r)
     return rows
+
+
+def totals_inputs(logs, today):
+    """The totals (O/U) model and this slate's Season (totals.py; CLAUDE.md
+    amendment 2026-10-29): (model, season), or (None, None) before the first
+    fit or when an input fails. Last season's logs (cached) give the prior;
+    without them the prior is the league to date. Never blocks a build."""
+    model = totals.load()
+    if model is None:
+        return None, None
+    try:
+        try:
+            prev = nc.load_logs(season_for(today) - 1)
+        except Exception as e:  # noqa: BLE001
+            log(f"totals: last-season logs failed ({e!r}); prior = league to date")
+            prev = None
+        return model, totals.season_inputs(logs, prev)
+    except Exception as e:  # noqa: BLE001
+        log(f"totals: inputs failed ({e!r}); no O/U forecasts this run")
+        return None, None
+
+
+def add_totals(r, model, season):
+    """The totals model's forecast for one scored row, in place: ou_total,
+    ou_sigma, ou_tag and ou_p_over against the row's pregame total (when the
+    book has one). Blank when the model or an input is missing."""
+    if model is None or season is None:
+        return
+    try:
+        f = season.features(r["home"], r["away"], r["slate_date"])
+    except Exception as e:  # noqa: BLE001
+        log(f"totals {r['game_id']}: {e!r}")
+        return
+    if f is None:
+        return
+    T, sigma = totals.predict(model, f)
+    r["ou_total"], r["ou_sigma"], r["ou_tag"] = round(T, 2), round(sigma, 3), model["tag"]
+    line = pd.to_numeric(r.get("pre_ou_line"), errors="coerce")
+    if np.isfinite(line):
+        r["ou_p_over"] = round(totals.p_over(T, sigma, line), 5)
 
 
 def refit_avail(avail_model, today, weights, live, prior=None):
@@ -496,8 +539,9 @@ def refit_avail(avail_model, today, weights, live, prior=None):
 def add_pregame_price(r):
     """The current moneyline pair of the first book in market.BOOKS, in place
     (pre_book, pre_home_ml, pre_away_ml, pre_q_home; price_note when none),
-    and that book's current spread from the same response (pre_spread,
-    pre_home_spread_odds, pre_away_spread_odds; blank when it has none)."""
+    and that book's current spread and total from the same response
+    (pre_spread and its prices; pre_ou_line, pre_ou_over, pre_ou_under;
+    blank when it has none)."""
     try:
         odds = market.pick_pregame(market.book_odds(r["game_id"]))
         if not odds:
@@ -514,6 +558,10 @@ def add_pregame_price(r):
     r["pre_spread"] = odds.get("cur_spread")
     r["pre_home_spread_odds"] = odds.get("cur_home_spread_odds")
     r["pre_away_spread_odds"] = odds.get("cur_away_spread_odds")
+    # the same book's game total and prices (the O/U test; blank without one)
+    r["pre_ou_line"] = odds.get("cur_total")
+    r["pre_ou_over"] = odds.get("cur_over")
+    r["pre_ou_under"] = odds.get("cur_under")
 
 
 # ------------------------------------------------------------- rendering ---
@@ -2729,6 +2777,31 @@ def _family_txt(native):
     return f" ({st['family_locked']} locked, {st['off_family']} off-family)"
 
 
+def _ou_table(native):
+    """The O/U test (analysis.OU_TESTS; CLAUDE.md amendment 2026-10-29):
+    native bets at the 5 h lock, ROI beside its null, CLV; no hindsight."""
+    rows = []
+    for test in analysis.OU_TESTS:
+        d = analysis.ou_picks(native, test) if native is not None and len(native) else None
+        r = analysis.ou_row("", d) if d is not None and len(d) else None
+        c = analysis.ou_clv(native, test) if r else None
+        if r:
+            roi, null, vs = _roi_cells(r)
+            cells = [f"{r['n']} · {r['w']}–{r['l']}" + (f"–{r['push']}" if r["push"] else ""),
+                     f"{roi}<br><span class='mut'>null {null}</span>", vs]
+        else:
+            cells = ["0", "—", "—"]
+        rows.append([f"<b>{test['key']}</b>", esc(test["rule"]), *cells,
+                     f"{c['mean']:+.2f} pts ± {se_txt(c['se'])}" if c else "—"])
+    return ("<h3>O/U test · 5 h lock</h3><p class='note'>Totals model (totals.py, tag "
+            f"{esc(totals.TAG)}): the model's side when |P(over) − q| ≥ "
+            f"{analysis.OU_FLOOR:.2f}, DraftKings main-line totals. Its own record, never pooled "
+            "with the moneyline and spread tests; amendment registered "
+            f"{esc(analysis.FLOOR_REGISTRATION_UTC)}.</p>"
+            + table(["", "Rule", "Native n · W–L", "ROI", "vs null (± 1 SE)", "CLV (± 1 SE)"],
+                    rows, left=(0, 1)))
+
+
 def _hypotheses(native, recon):
     book = analysis.HYPOTHESIS_BOOK
     name = market.BOOK_NAMES[book]
@@ -2783,6 +2856,7 @@ def _hypotheses(native, recon):
         + table(["", "Rule", "Native n · registered price", "ROI", "vs null (± 1 SE)",
                  f"Hindsight n ({esc(name)} open)", "ROI", "vs null (± 1 SE)"],
                 active, left=(0, 1), key=(3, 4))
+        + _ou_table(native)
         + "<h3>Early segments · ESPN BET · hindsight only</h3>"
         "<p class='note'>276 reconstructed early games, v9 primary probabilities. "
         "Same registered rules at the open; no threshold selection. Separate "

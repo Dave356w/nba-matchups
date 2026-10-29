@@ -611,16 +611,51 @@ HYPOTHESES += tuple(dict(h, key=h["key"] + "·v11", family="v11", tags=FAMILY_TA
                     for h in HYPOTHESES if h.get("lock"))
 
 
+# Edge floors and O/U amendment (CLAUDE.md, registered before any floor or
+# O/U code and before any v11 lock): the public spread and value-favourite
+# tests are the v11-family rows with floors, H5·3 (edge >= 3 points) and
+# H2·F·5 (P - q >= 0.05); H4's family rows are public unchanged. The
+# old-floor family rows (H5·L·v11, H2·F·L·v11) continue internally as their
+# supersets. The O/U test is OU_TESTS below. Never pooled.
+FLOOR_REGISTRATION_UTC = "2026-10-29T16:13:38Z"
+FLOORS = {"H5": ("H5·3", 3.0, "≥ 3 pts"), "H2·F": ("H2·F·5", 0.05, "P − q ≥ 0.05")}
+
+
+def _floor_row(h):
+    """A family row's floored twin: the same rule, stage, price and tags."""
+    k = h["key"].replace("·L·v11", "")
+    early = k.endswith("·E")
+    root = k[:-2] if early else k
+    new, floor, txt = FLOORS[root]
+    rule = (h["rule"].replace("≥ 1 pt", txt) if h.get("market") == "ats"
+            else h["rule"].replace("the favourite", f"the favourite · {txt}"))
+    return dict(h, key=new + ("·E" if early else "") + "·L·v11", min_edge=floor, rule=rule,
+                registered_utc=FLOOR_REGISTRATION_UTC, parent=h["key"], public=True)
+
+
+HYPOTHESES = tuple(dict(h, public=True) if h.get("family") and h["key"].startswith("H4")
+                   else h for h in HYPOTHESES)
+HYPOTHESES += tuple(_floor_row(h) for h in HYPOTHESES
+                    if h.get("family") and h["key"].split("·L")[0].replace("·E", "") in FLOORS)
+
+
 def active_hypotheses():
     """Three tests, with distinct early/established rows, at the first
     snapshot (closed at the lock's activation), the 5 h lock (closed at the
-    v11-family reset) and the v11 family's 5 h lock; never pooled."""
+    v11-family reset), the v11 family's 5 h lock and its floored public
+    rows; never pooled. The O/U test is separate (OU_TESTS)."""
     return tuple(h for h in HYPOTHESES if not h.get("retired"))
 
 
 def family_hypotheses():
-    """The live v11-family rows: the only records the public pages show."""
+    """The live v11-family rows (old floors and floored)."""
     return tuple(h for h in active_hypotheses() if h.get("family"))
+
+
+def public_hypotheses():
+    """The tracked rows the public pages show: H5·3, H2·F·5 and H4, each by
+    stage, v11 family at the 5 h lock (the O/U test is OU_TESTS)."""
+    return tuple(h for h in active_hypotheses() if h.get("public"))
 
 
 def registered_scope(g, hyp):
@@ -922,6 +957,122 @@ def hypothesis_clv(native, hyp, book=HYPOTHESIS_BOOK):
     return dict(n=int(v.size), mean=float(v.mean()),
                 se=float(v.std(ddof=1) / np.sqrt(v.size)) if v.size > 1 else float("nan"),
                 toward=float((v > 0).mean()), unit="pts" if hyp.get("market") == "ats" else "pp")
+
+
+# The O/U test (CLAUDE.md edge floors and O/U amendment, 2026-10-29): at the
+# 5 h lock (ledger lock_ou_*), the totals model's side when |P(over) - q| >=
+# OU_FLOOR, q the no-vig P(over) of the book's main-line total; games 10+ and
+# 1-9 separate, game 0 never; DraftKings; the totals model's tags only.
+OU_FLOOR = 0.05
+OU_TAG_SUFFIX = "_ou1"
+OU_TESTS = tuple(dict(key=key, early=early, market="ou", native="lock", min_edge=OU_FLOOR,
+                      rule=f"Games {'1–9' if early else '10+'} · O/U: model side, "
+                           f"|P(over) − q| ≥ {OU_FLOOR:.2f} · 5 h lock",
+                      registered_utc=FLOOR_REGISTRATION_UTC, public=True)
+                 for key, early in (("OU·L", False), ("OU·E·L", True)))
+OU_PRICE_COLUMNS = {"lock": ("lock_ou_line", "lock_ou_over", "lock_ou_under", "lock_ou_p_over",
+                             "lock_ou_tag", "lock_ou_book", "lock_ou_total"),
+                    "first": ("first_ou_line", "first_ou_over", "first_ou_under",
+                              "first_ou_p_over", "first_ou_tag", "first_ou_book",
+                              "first_ou_total"),
+                    "pre": ("pre_ou_line", "pre_ou_over", "pre_ou_under", "ou_p_over",
+                            "ou_tag", "pre_book", "ou_total")}
+
+
+def ou_sides(g, price="lock"):
+    """The totals model's O/U side per game at one snapshot (no result
+    needed): line, side ('over' / 'under'), its price (ml), no-vig q and
+    model P for that side, edge |P(over) - q(over)|, the model total, tag,
+    book, opener / early flags. Main lines only (market.main_line_pair)."""
+    if g is None or not len(g) or OU_PRICE_COLUMNS[price][0] not in g.columns:
+        return pd.DataFrame()
+    lc, oc, uc, pc, tc, bc, Tc = OU_PRICE_COLUMNS[price]
+    num = lambda c: pd.to_numeric(g[c], errors="coerce")  # noqa: E731
+    line, o, u, p = num(lc), num(oc), num(uc), num(pc)
+    ok = (line.notna() & p.between(0, 1)
+          & pd.Series([market.main_line_pair(a, b) for a, b in zip(o, u)], index=g.index, dtype=bool))
+    if not ok.any():
+        return pd.DataFrame()
+    g, line, o, u, p = (x[ok] for x in (g, line, o, u, p))
+    q = pd.Series([market.devig(a, b) for a, b in zip(o, u)], index=g.index)
+    over = (p > q).to_numpy()
+    opener, early = stage(g)
+    return pd.DataFrame(dict(
+        game_id=g["game_id"].to_numpy(), opener=opener, early=early,
+        side=np.where(over, "over", "under"), line=line.to_numpy(),
+        ml=np.where(over, o, u), q=np.where(over, q, 1 - q),
+        model_p=np.where(over, p, 1 - p), edge=(p - q).abs().to_numpy(),
+        total=pd.to_numeric(g[Tc], errors="coerce").to_numpy(),
+        model_tag=g[tc].astype(str).to_numpy(), book=g[bc].astype(str).to_numpy(),
+        slate_date=g["slate_date"].astype(str).to_numpy()), index=g.index)
+
+
+def _ou_members(d, test):
+    if not len(d):
+        return d
+    keep = (d["early"] if test["early"] else ~d["early"] & ~d["opener"])
+    keep &= d["model_tag"].str.endswith(OU_TAG_SUFFIX) & (d["edge"] >= test["min_edge"])
+    keep &= (d["book"] == HYPOTHESIS_BOOK) & (d["slate_date"] >= FAMILY_SLATE)
+    return d[keep]
+
+
+def ou_signals(g, test, price="lock"):
+    """The O/U test's selections at `price`, graded or not."""
+    return _ou_members(ou_sides(g, price), test)
+
+
+def ou_picks(g, test, price="lock"):
+    """The O/U test's bets on finished games: result (1 win, 0 loss, 0.5
+    push), units (a push returns the stake), its no-vig null, break-even and
+    over_units, 1u on the over of the same game at the same price."""
+    d = ou_signals(g, test, price)
+    if not len(d):
+        return d
+    pts = (pd.to_numeric(g.loc[d.index, "home_pts"], errors="coerce")
+           + pd.to_numeric(g.loc[d.index, "away_pts"], errors="coerce")).to_numpy()
+    d = d[np.isfinite(pts)].copy()
+    pts = pts[np.isfinite(pts)]
+    if not len(d):
+        return d
+    over_hit = np.where(pts == d["line"], 0.5, (pts > d["line"]).astype(float))
+    d["final_total"] = pts
+    d["result"] = np.where(d["side"] == "over", over_hit, np.where(over_hit == 0.5, 0.5, 1 - over_hit))
+    d["units"] = [0.0 if r == 0.5 else market.unit_profit(m, r == 1)
+                  for m, r in zip(d["ml"], d["result"])]
+    d["breakeven"] = market.breakeven_prob(d["ml"])
+    d["units_null"] = d["q"] * [market.decimal_payout(m) for m in d["ml"]] - 1
+    oc = OU_PRICE_COLUMNS[test["native"]][1]
+    over_ml = pd.to_numeric(g.loc[d.index, oc], errors="coerce").to_numpy()
+    d["over_units"] = [0.0 if h == 0.5 else market.unit_profit(m, h == 1)
+                       for m, h in zip(over_ml, over_hit)]
+    return d
+
+
+def ou_row(label, d):
+    """Flat-stake O/U summary (ats_row's fields: w-l-push, ROI, its null)
+    plus over_roi, the over on the same games at the same price."""
+    r = ats_row(label, d)
+    if r:
+        r["over_roi"] = float(d["over_units"].mean())
+    return r
+
+
+def ou_clv(g, test):
+    """Closing-line value of the O/U test's graded bets: the closing total's
+    move from the lock line toward each bet, in points (same book).
+    dict(n, mean, se, toward, unit) or None."""
+    d = ou_picks(g, test)
+    if not len(d):
+        return None
+    close = pd.to_numeric(g.loc[d.index, "close_ou_line"], errors="coerce").to_numpy()
+    book = g.loc[d.index, "close_book"].astype(str).to_numpy()
+    mv = np.where(d["side"] == "over", close - d["line"], d["line"] - close)
+    v = mv[np.isfinite(mv) & (book == d["book"].to_numpy())]
+    if not v.size:
+        return None
+    return dict(n=int(v.size), mean=float(v.mean()),
+                se=float(v.std(ddof=1) / np.sqrt(v.size)) if v.size > 1 else float("nan"),
+                toward=float((v > 0).mean()), unit="pts")
 
 
 def lock_status(native, now=None):
@@ -1227,11 +1378,12 @@ def ats_card(row):
     line, model_line, ml, edge, model_p, q), bet = edge >= the rule's
     threshold. None when the row has no first snapshot with a main-line
     spread, or no ATS rule covers its games played. A locked row reads its
-    v11-family rule (H5·L·v11 / H5·E·L·v11) from the reset slate, else its
-    5 h-lock rule (H5·L / H5·E·L), before the first-snapshot rules."""
+    public floored rule (H5·3·L·v11 / H5·3·E·L·v11) from the reset slate,
+    else its 5 h-lock rule (H5·L / H5·E·L), before the first-snapshot
+    rules."""
     g = pd.DataFrame([row])
     hyps = sorted(active_hypotheses(),
-                  key=lambda h: (not h.get("family"), not h.get("lock")))
+                  key=lambda h: (not h.get("public"), not h.get("family"), not h.get("lock")))
     for hyp in hyps:
         if hyp.get("market") != "ats" or not len(registered_scope(g, hyp)):
             continue

@@ -1,0 +1,86 @@
+Improving the totals fit, and market-context medians (research/totals_improve.py). ± 95%. Hindsight; main lines only.
+
+== A1. Arms vs T0, walk-forward, games 1+, unpriced seasons 2017-18 .. 2022-23 (squared error difference, negative = better, ± 95%)
+  T0 RMSE 18.791  n 5998
+  form  RMSE 18.750  Δ squared error -1.54 ± 1.27  KEPT
+  hl8   RMSE 18.794  Δ squared error +0.12 ± 2.41  not kept
+  hl15  RMSE 18.767  Δ squared error -0.89 ± 0.95  not kept
+  hl40  RMSE 18.823  Δ squared error +1.23 ± 0.61  not kept
+  sos   RMSE 18.790  Δ squared error -0.03 ± 1.19  not kept
+  rest  RMSE 18.788  Δ squared error -0.09 ± 0.87  not kept
+  alt   RMSE 18.794  Δ squared error +0.11 ± 0.18  not kept
+  T* = ['rel25', 'b2b', 'phase', 'form']
+
+== A2. T0 and T* against the books (games 10+)
+  ESPN BET 2023-24 games 10+  T0  @open  n  863  RMSE line 18.32 model 18.72  weight +0.26 ± 0.26  P(over) LL − market +0.0135 ± 0.0147  w +0.32 ± 0.33
+      model side, |P − q| ≥ 0.05         n  515  394 over / 121 under  won 50.3%  ROI   -4.0% ±  8.3  null -4.6%  line moved toward it +1.01 ± 0.31
+  ESPN BET 2023-24 games 10+  T0  @close n 1069  RMSE line 17.91 model 18.75  weight +0.01 ± 0.21  P(over) LL − market +0.0244 ± 0.0145  w +0.13 ± 0.27
+      model side, |P − q| ≥ 0.05         n  696  489 over / 207 under  won 48.9%  ROI   -6.7% ±  7.1  null -4.5%
+  ESPN BET 2023-24 games 10+  T*  @open  n  863  RMSE line 18.32 model 18.40  weight +0.46 ± 0.29  P(over) LL − market +0.0040 ± 0.0123  w +0.46 ± 0.37
+      model side, |P − q| ≥ 0.05         n  485  337 over / 148 under  won 51.8%  ROI   -1.1% ±  8.5  null -4.6%  line moved toward it +1.60 ± 0.33
+  ESPN BET 2023-24 games 10+  T*  @close n 1069  RMSE line 17.91 model 18.42  weight +0.03 ± 0.25  P(over) LL − market +0.0139 ± 0.0116  w +0.17 ± 0.32
+      model side, |P − q| ≥ 0.05         n  621  418 over / 203 under  won 50.2%  ROI   -4.0% ±  7.5  null -4.5%
+  ESPN BET 2024-25 games 10+  T0  @open  n 1015  RMSE line 18.08 model 18.13  weight +0.43 ± 0.30  P(over) LL − market +0.0047 ± 0.0094  w +0.30 ± 0.39
+      model side, |P − q| ≥ 0.05         n  499  253 over / 246 under  won 52.5%  ROI   +0.3% ±  8.4  null -4.5%  line moved toward it +1.10 ± 0.37
+  ESPN BET 2024-25 games 10+  T0  @close n 1070  RMSE line 17.55 model 18.21  weight -0.09 ± 0.23  P(over) LL − market +0.0253 ± 0.0117  w -0.18 ± 0.31
+      model side, |P − q| ≥ 0.05         n  639  304 over / 335 under  won 47.1%  ROI  -10.0% ±  7.4  null -4.5%
+  ESPN BET 2024-25 games 10+  T*  @open  n 1015  RMSE line 18.08 model 18.17  weight +0.40 ± 0.29  P(over) LL − market +0.0066 ± 0.0098  w +0.26 ± 0.38
+      model side, |P − q| ≥ 0.05         n  537  245 over / 292 under  won 51.4%  ROI   -1.9% ±  8.1  null -4.5%  line moved toward it +1.32 ± 0.34
+  ESPN BET 2024-25 games 10+  T*  @close n 1070  RMSE line 17.55 model 18.24  weight -0.12 ± 0.24  P(over) LL − market +0.0275 ± 0.0117  w -0.22 ± 0.31
+      model side, |P − q| ≥ 0.05         n  656  299 over / 357 under  won 46.8%  ROI  -10.6% ±  7.3  null -4.5%
+  DraftKings 2025-26 games 10+  T0  @open  n  964  RMSE line 18.79 model 19.04  weight +0.19 ± 0.32  P(over) LL − market +0.0049 ± 0.0109  w +0.41 ± 0.40
+      model side, |P − q| ≥ 0.05         n  497  391 over / 106 under  won 54.5%  ROI   +4.2% ±  8.4  null -4.5%  line moved toward it +0.80 ± 0.33
+  DraftKings 2025-26 games 10+  T0  @close n  964  RMSE line 18.46 model 19.04  weight -0.02 ± 0.26  P(over) LL − market +0.0249 ± 0.0132  w -0.07 ± 0.33
+      model side, |P − q| ≥ 0.05         n  564  370 over / 194 under  won 49.5%  ROI   -5.6% ±  7.9  null -4.5%
+  DraftKings 2025-26 games 10+  T*  @open  n  964  RMSE line 18.79 model 19.01  weight +0.20 ± 0.31  P(over) LL − market +0.0017 ± 0.0103  w +0.46 ± 0.39
+      model side, |P − q| ≥ 0.05         n  489  319 over / 170 under  won 54.8%  ROI   +4.6% ±  8.4  null -4.5%  line moved toward it +1.03 ± 0.33
+  DraftKings 2025-26 games 10+  T*  @close n  964  RMSE line 18.46 model 19.01  weight -0.05 ± 0.27  P(over) LL − market +0.0223 ± 0.0123  w -0.10 ± 0.34
+      model side, |P − q| ≥ 0.05         n  565  314 over / 251 under  won 49.2%  ROI   -6.1% ±  7.9  null -4.5%
+
+== B1. M1 line band: bands of the posted total; median (final − line) on earlier priced seasons; bet its sign (games 10+, ± 95%)
+  ESPN BET 2024-25 @open: cuts [219.5, 225.5, 230.5, 237.5] medians (final − line) [2.5, -3.0, -1.5, -0.5, -2.5] from 863 earlier games
+      M1 median sign                     n 1015  168 over / 847 under  won 48.5%  ROI   -7.5% ±  5.9  null -4.5%  line moved toward it -0.02 ± 0.24
+      this season's medians (final − line) by band [1.5, 1.5, 2.0, 2.5, -0.5]
+  DraftKings 2025-26 @open: cuts [220.5, 225.5, 229.5, 235.5] medians (final − line) [2.5, -0.5, 1.5, 0.5, -0.5] from 1878 earlier games
+      M1 median sign                     n  964  551 over / 413 under  won 50.0%  ROI   -4.5% ±  6.0  null -4.5%  line moved toward it +0.22 ± 0.22
+      this season's medians (final − line) by band [-0.5, -1.5, -2.5, 0.5, 0.5]
+  ESPN BET 2024-25 @close: cuts [219.5, 225.5, 231.5, 237.5] medians (final − line) [2.5, -1.5, -2.5, -0.5, -1.5] from 1069 earlier games
+      M1 median sign                     n 1070  206 over / 864 under  won 46.6%  ROI  -10.9% ±  5.7  null -4.5%
+      this season's medians (final − line) by band [-0.5, 1.5, 2.5, 1.5, 0.5]
+  DraftKings 2025-26 @close: cuts [219.5, 225.5, 230.5, 236.5] medians (final − line) [1.5, 0.5, 0.5, 0.5, -0.5] from 2139 earlier games
+      M1 median sign                     n  964  740 over / 224 under  won 46.9%  ROI  -10.5% ±  6.0  null -4.5%
+      this season's medians (final − line) by band [-1.5, -1.5, -0.5, -2.5, 2.0]
+
+== B2. M2 team context: mean of both teams' median earlier closing totals this season (≥ 5 games each); bet toward it when |context − line| ≥ 3 (games 10+, ± 95%)
+  ESPN BET 2023-24 @open: n 862  sd(context − line) 7.56  weight on (context − line) +0.05 ± 0.16
+      toward context, |gap| ≥ 3          n  618  318 over / 300 under  won 51.3%  ROI   -2.5% ±  7.5  null -4.6%  line moved toward it +0.31 ± 0.29
+      against context, |gap| ≥ 3         n  618  300 over / 318 under  won 48.7%  ROI   -6.6% ±  7.6  null -4.6%  line moved toward it -0.31 ± 0.29
+  ESPN BET 2023-24 @close: n 1069  sd(context − line) 8.19  weight on (context − line) +0.03 ± 0.13
+      toward context, |gap| ≥ 3          n  823  402 over / 421 under  won 51.9%  ROI   -1.0% ±  6.5  null -4.5%
+      against context, |gap| ≥ 3         n  823  421 over / 402 under  won 48.1%  ROI   -8.1% ±  6.5  null -4.5%
+  ESPN BET 2024-25 @open: n 1014  sd(context − line) 5.50  weight on (context − line) +0.05 ± 0.20
+      toward context, |gap| ≥ 3          n  633  251 over / 382 under  won 51.2%  ROI   -2.4% ±  7.4  null -4.5%  line moved toward it +0.28 ± 0.31
+      against context, |gap| ≥ 3         n  633  382 over / 251 under  won 48.8%  ROI   -6.6% ±  7.5  null -4.5%  line moved toward it -0.28 ± 0.31
+  ESPN BET 2024-25 @close: n 1070  sd(context − line) 6.46  weight on (context − line) -0.07 ± 0.16
+      toward context, |gap| ≥ 3          n  742  312 over / 430 under  won 48.2%  ROI   -7.9% ±  6.9  null -4.5%
+      against context, |gap| ≥ 3         n  742  430 over / 312 under  won 51.8%  ROI   -1.2% ±  6.9  null -4.5%
+  DraftKings 2025-26 @open: n 885  sd(context − line) 5.27  weight on (context − line) -0.04 ± 0.23
+      toward context, |gap| ≥ 3          n  538  356 over / 182 under  won 48.1%  ROI   -8.1% ±  8.1  null -4.5%  line moved toward it +0.07 ± 0.31
+      against context, |gap| ≥ 3         n  538  182 over / 356 under  won 51.9%  ROI   -1.0% ±  8.1  null -4.5%  line moved toward it -0.07 ± 0.31
+  DraftKings 2025-26 @close: n 885  sd(context − line) 6.13  weight on (context − line) -0.07 ± 0.20
+      toward context, |gap| ≥ 3          n  585  354 over / 231 under  won 46.5%  ROI  -11.3% ±  7.7  null -4.5%
+      against context, |gap| ≥ 3         n  585  231 over / 354 under  won 53.5%  ROI   +2.2% ±  7.7  null -4.5%
+
+== B3. M3 model band (NFL-style): T0's total → its band's median final total on earlier seasons; bet that side of the line (games 10+, ± 95%)
+  ESPN BET 2023-24 @open: band medians (total − league) [-6.9, -1.7, 4.3, 10.0]
+      M3 mapped side                     n  863  520 over / 343 under  won 50.9%  ROI   -3.3% ±  6.4  null -4.6%  line moved toward it +0.71 ± 0.24
+  ESPN BET 2023-24 @close: band medians (total − league) [-6.9, -1.7, 4.3, 10.0]
+      M3 mapped side                     n 1069  622 over / 447 under  won 50.3%  ROI   -3.9% ±  5.7  null -4.5%
+  ESPN BET 2024-25 @open: band medians (total − league) [-8.0, -2.1, 4.0, 9.8]
+      M3 mapped side                     n 1015  482 over / 533 under  won 48.9%  ROI   -6.8% ±  5.9  null -4.5%  line moved toward it +0.47 ± 0.24
+  ESPN BET 2024-25 @close: band medians (total − league) [-8.0, -2.1, 4.0, 9.8]
+      M3 mapped side                     n 1070  514 over / 556 under  won 47.2%  ROI  -10.0% ±  5.7  null -4.5%
+  DraftKings 2025-26 @open: band medians (total − league) [-8.0, -2.2, 4.1, 10.0]
+      M3 mapped side                     n  964  562 over / 402 under  won 52.2%  ROI   -0.4% ±  6.0  null -4.5%  line moved toward it +0.55 ± 0.22
+  DraftKings 2025-26 @close: band medians (total − league) [-8.0, -2.2, 4.1, 10.0]
+      M3 mapped side                     n  964  527 over / 437 under  won 51.1%  ROI   -2.4% ±  6.0  null -4.5%

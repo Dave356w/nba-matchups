@@ -17,11 +17,17 @@ import market
 
 PAGES = (("index.html", "Today"), ("results.html", "Results"),
          ("performance.html", "Performance"), ("how-it-works.html", "How it works"))
-RULES = (("H5", "Spread", "spread"), ("H2·F", "Value favourite", "favourite"),
-         ("H4", "Large probability gap", "gap"))
-# The v11-family rows (CLAUDE.md model-family reset, 2026-10-29): the only
-# records these pages show, e.g. H5·L·v11 and H5·E·L·v11 at the 5 h lock.
-FAMILY = "·L·v11"
+RULES = (("H5·3", "Spread", "spread"), ("H2·F·5", "Value favourite", "favourite"),
+         ("H4", "Large probability gap", "gap"), ("OU", "Total (over/under)", "total"))
+
+
+def rule_key(root, early):
+    """The public row of a test and stage (CLAUDE.md amendments of
+    2026-10-29): the floored v11-family rows (H5·3, H2·F·5) and H4's at the
+    5 h lock, e.g. H5·3·E·L·v11, and the O/U test's OU·L / OU·E·L."""
+    if root == "OU":
+        return "OU" + ("·E" if early else "") + "·L"
+    return root + ("·E" if early else "") + "·L·v11"
 
 CSS = """
 .public-head{display:flex;justify-content:space-between;gap:24px;align-items:end;margin:30px 0 24px}
@@ -44,6 +50,8 @@ CSS = """
 .forecast-readout{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 0;margin-top:8px;border-top:1px solid var(--line-2)}
 .forecast-readout small,.tracked-label{display:block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .forecast-readout strong{display:block;font:750 24px/1.35 var(--sans);letter-spacing:-.03em}.forecast-readout span{font-size:12px;color:var(--muted)}
+.ou-readout{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:0 0 12px;font-size:12px;color:var(--muted)}
+.ou-readout b{color:var(--ink);font-family:var(--mono)}
 .tracked-box{border-radius:9px;background:rgba(var(--accent),.07);padding:12px;border:1px solid rgba(var(--accent),.18)}
 .tracked-box .tracked-label{color:rgb(var(--accent-tx));margin-bottom:7px}.tracked-line{font-size:12px;display:flex;justify-content:space-between;gap:8px;margin:5px 0}
 .tracked-line b{font-family:var(--mono);font-size:12px;white-space:nowrap}.forecast-only{padding:10px 0 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line-2)}
@@ -52,7 +60,7 @@ CSS = """
 .tool-card .g-detail{padding:0 16px 16px;border-top:1px solid var(--line-2);font-size:13px}.tool-card .g-detail p{color:var(--muted)}
 .tool-card .g-detail h3{font-size:12px;margin:16px 0 8px}.public-filters{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}
 .public-filters label{font-size:11px;color:var(--muted);font-weight:650}.public-filters select{display:block;min-height:42px;margin-top:4px;border:1px solid var(--line);border-radius:8px;padding:8px 30px 8px 10px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
-.seg{flex-wrap:wrap}.seg button{min-height:42px}.rule-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0}
+.seg{flex-wrap:wrap}.seg button{min-height:42px}.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0}
 .rule-panel{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:20px;min-width:0}
 .rule-panel h2{font-size:18px;margin:0 0 6px;letter-spacing:-.02em;text-transform:none}.rule-panel>p{font-size:12px;color:var(--muted);margin:0 0 18px;min-height:38px}
 .stage-panel{padding:16px 0;border-top:1px solid var(--line-2)}.stage-panel h3{font-size:12px;margin:0 0 10px;color:var(--muted);text-transform:none;letter-spacing:0}
@@ -102,27 +110,33 @@ class PublicSite:
         if len(self.native):
             self.native = self.native[self.native["basis"].eq("native")]
         self.season = ui.season_for(today)
-        self.hypotheses = {h["key"]: h for h in analysis.family_hypotheses()}
+        self.hypotheses = {h["key"]: h for h in analysis.public_hypotheses() + analysis.OU_TESTS}
         self.records = []
-        # Model-family reset (CLAUDE.md amendment 2026-10-29): only the
-        # v11-family rows, at the 5 h lock from the reset slate. The closed
-        # first-snapshot and earlier 5 h-lock records stay internal
-        # (presentation only; analysis defines every record).
+        # Model-family reset and edge floors (CLAUDE.md amendments 2026-10-29):
+        # the floored v11-family rows (H5·3, H2·F·5), H4's and the O/U test, at
+        # the 5 h lock. Every other record stays internal (presentation only;
+        # analysis defines every record).
         by_id = self.native.set_index("game_id", drop=False)
         for key, name, slug in RULES:
-            for suffix in ("·E", ""):
-                hyp = self.hypotheses[key + suffix + FAMILY]
+            for early in (True, False):
+                hyp = self.hypotheses[rule_key(key, early)]
                 # the whole ledger: the graders drop ungraded games themselves
-                src = analysis.on_book(self.native, hyp["native"], analysis.HYPOTHESIS_BOOK)
-                signals = analysis.hypothesis_signals(src, hyp, hyp["native"])
-                grades = analysis.hypothesis_picks(src, hyp, hyp["native"])
+                if hyp.get("market") == "ou":
+                    signals = analysis.ou_signals(self.native, hyp)
+                    grades = analysis.ou_picks(self.native, hyp)
+                    at = "lock_ou_snapshot_utc"
+                else:
+                    src = analysis.on_book(self.native, hyp["native"], analysis.HYPOTHESIS_BOOK)
+                    signals = analysis.hypothesis_signals(src, hyp, hyp["native"])
+                    grades = analysis.hypothesis_picks(src, hyp, hyp["native"])
+                    at = f"{hyp['native']}_snapshot_utc"
                 grades = {str(r.game_id): r for _, r in grades.iterrows()} if len(grades) else {}
                 for _, s in signals.iterrows():
                     row = by_id.loc[s.game_id]
                     grade = grades.get(str(s.game_id))
                     self.records.append(dict(hyp=hyp, name=name, slug=slug, signal=s,
                         row=row, grade=grade, season=int(row.season), early=hyp["early"],
-                        price=hyp["native"], at=row.get(f"{hyp['native']}_snapshot_utc")))
+                        price=hyp["native"], at=row.get(at)))
 
     def page(self, title, active, body):
         return self.ui.page(title, active, body, self.built, extra_css=CSS)
@@ -135,8 +149,30 @@ class PublicSite:
 
     def selection(self, rec):
         u, s = self.ui, rec["signal"]
+        if rec["hyp"].get("market") == "ou":
+            return f"{u.esc(s.side.title())} {s.line:g} <span class='mono'>{u.ml_txt(s.ml)}</span>"
         line = f" {u.line_txt(s.line)}" if rec["hyp"].get("market") == "ats" else ""
         return f"{u.esc(s.side)}{line} <span class='mono'>{u.ml_txt(s.ml)}</span>"
+
+    def ou_readout(self, row, dk):
+        """The game's total: the model's, the book's and the model's lean
+        (P(over) against the no-vig over price). Empty without a model total."""
+        u = self.ui
+        T = pd.to_numeric(row.get("ou_total"), errors="coerce")
+        if not np.isfinite(T):
+            return ""
+        line = pd.to_numeric(row.get("pre_ou_line"), errors="coerce") if dk else np.nan
+        p = pd.to_numeric(row.get("ou_p_over"), errors="coerce")
+        o, un = (pd.to_numeric(row.get(c), errors="coerce") for c in ("pre_ou_over", "pre_ou_under"))
+        q = market.devig(o, un) if dk else np.nan
+        if np.isfinite(line) and np.isfinite(p) and np.isfinite(q):
+            side, pp = ("Over", p) if p > q else ("Under", 1 - p)
+            lean = f"<span>Lean <b>{side} {line:g}</b> · {u.pct(pp, 0)}</span>"
+        else:
+            lean = "<span>No DraftKings total</span>"
+        book = f"DraftKings <b>{line:g}</b>" if np.isfinite(line) else ""
+        return (f"<div class='ou-readout'><span>Total · model <b>{T:.1f}</b>"
+                + (f" · {book}" if book else "") + f"</span>{lean}</div>")
 
     def card(self, row):
         u = self.ui
@@ -181,6 +217,7 @@ class PublicSite:
                    "The 5 h lock used an earlier model." if not tag.endswith(analysis.FAMILY_TAGS) else
                    "No tracked rule qualified at the 5 h lock.")
             tracking = f"<div class='forecast-only'><b>Forecast only</b><br>{why}</div>"
+        forecast += self.ou_readout(row, dk)
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
         detail = (f"<h3>Forecast and market</h3><p>{u.esc(row.away)} @ {u.esc(row.home)} · {u.esc(book)} prices. "
@@ -218,7 +255,7 @@ class PublicSite:
     def results_page(self):
         u = self.ui
         body = self.head("Tracked results", "Every qualifying selection at its original price. Wins, losses and pending picks stay in the record.")
-        body += ("<p class='public-note'>Three separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
+        body += ("<p class='public-note'>Four separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
                  "Picks lock at the first priced snapshot within 5 hours of tip.</p>" + self.restart_note())
         if not self.records:
             body += "<div class='public-empty'><h2>The forward record starts here</h2><p>No qualifying picks have been recorded since the record restarted. Today’s forecasts remain available while the tests build their records.</p></div><p><a href='index.html'>View today’s forecasts →</a></p>"
@@ -235,7 +272,7 @@ class PublicSite:
                 if grade is None:
                     result, ret = "Pending", "—"
                 else:
-                    win = grade['result'] if rec['hyp'].get('market') == 'ats' else grade['won']
+                    win = grade['result'] if rec['hyp'].get('market') in ('ats', 'ou') else grade['won']
                     result = "Push" if win == .5 else "Win" if win == 1 else "Loss"
                     ret = f"{grade['units']:+.2f}u"
                 stage = "Early · games 1–9" if rec['early'] else "Established · games 10+"
@@ -259,11 +296,16 @@ class PublicSite:
         if not grades:
             return start+f"<div class='empty-stage'>No graded picks yet</div><div class='empty-help'>{pending} pending · The record begins with the first qualifying result.</div></section>"
         d = pd.DataFrame(grades)
-        r = analysis.ats_row(hyp['key'], d) if hyp.get('market') == 'ats' else analysis.roi_row(hyp['key'],d)
+        ou = hyp.get('market') == 'ou'
+        r = (analysis.ou_row(hyp['key'], d) if ou else
+             analysis.ats_row(hyp['key'], d) if hyp.get('market') == 'ats' else analysis.roi_row(hyp['key'], d))
         pushes = r.get('push',0)
         record = f"{r['w']}–{r['l']}" + (f"–{pushes}" if pushes else "")
         tags = (rec['row'].get(f"{rec['price']}_model_tag") for rec in records)
-        models = sorted({m.group(0) for t in tags for m in [re.search(r'v\d+$', str(t))] if m})
+        models = (["totals model"] if ou else
+                  sorted({m.group(0) for t in tags for m in [re.search(r'v\d+$', str(t))] if m}))
+        bench = (f"Same-game over ROI {100 * r['over_roi']:+.1f}%." if ou else
+                 f"Same-game market favourite ROI {u.fav_txt(r)}.")
         z = analysis.z_vs_null(r)
         c = u.sig_cls(z)
         chart_records = sorted((rec for rec in records if rec['grade'] is not None),key=lambda rec:str(rec['row'].tip_utc))
@@ -273,7 +315,7 @@ class PublicSite:
         return (start+f"<span class='record'>{record}</span><span class='sample'>{r['n']} graded · {pending} pending</span>"
                 f"<div class='stage-stats'><div>Return<b>{r['units']:+.2f}u</b></div><div>ROI<b class='{c}'>{100*r['roi']:+.1f}%</b></div></div>"
                 f"<p class='null'>{uncertainty} Market-price baseline {100*r['roi_null']:+.1f}%.</p>"
-                f"<details><summary>Benchmarks and return chart</summary><p>Flat 1 unit per pick. Same-game market favourite ROI {u.fav_txt(r)}. "
+                f"<details><summary>Benchmarks and return chart</summary><p>Flat 1 unit per pick. {bench} "
                 f"Model at the {analysis.PRICE_NAMES[hyp['native']]}: {u.esc(' / '.join(models) or 'recorded model')}. "
                 "Colour marks a gap of at least two standard errors from the market-price baseline.</p>"+chart+"</details></section>")
 
@@ -291,16 +333,20 @@ class PublicSite:
 
     def performance_page(self):
         u = self.ui
-        body = self.head("The forward record", "Three registered tests, tracked from prices saved before play. Each test and season stage stands on its own.")
+        body = self.head("The forward record", "Four registered tests, tracked from prices saved before play. Each test and season stage stands on its own.")
         body += "<p class='public-note'>Returns use a flat 1 unit per pick. ROI is return divided by stakes. The market-price baseline includes the bookmaker’s margin. A small sample can move sharply.</p>"
         body += self.restart_note()
         seasons = sorted({self.season}|{r['season'] for r in self.records},reverse=True)
-        desc = {"H5":"Model margin versus the spread.","H2·F":"The value side when the market makes it favourite.","H4":"A model–market probability gap of at least 12 points."}
+        desc = {"H5·3": "Model margin at least 3 points from the spread.",
+                "H2·F·5": "The market favourite when the model rates it at least 5 points higher.",
+                "H4": "A model–market probability gap of at least 12 points.",
+                "OU": "The model’s total versus the market’s, at least 5 points of probability apart."}
         for season in seasons:
             body += f"<h2 class='sec'>{u.season_txt(season)} · DraftKings · 5 h lock</h2><div class='rule-grid'>"
             for key,name,slug in RULES:
                 body += f"<article class='rule-panel'><h2>{name}</h2><p>{desc[key]} <a href='how-it-works.html#{slug}'>Rule →</a></p>"
-                body += self.stage(self.hypotheses[key+'·E'+FAMILY],season)+self.stage(self.hypotheses[key+FAMILY],season)+"</article>"
+                body += self.stage(self.hypotheses[rule_key(key, True)], season) + \
+                    self.stage(self.hypotheses[rule_key(key, False)], season) + "</article>"
             body += "</div>"
         body += "<p class='public-note'>These tests can select the same game. There is no combined portfolio return. All qualifying results remain in <a href='results.html'>Results</a>, including losses. Forecast-only games do not enter these records.</p>"
         return self.page("Performance · NBA Composite", "performance.html", body)
@@ -310,17 +356,20 @@ class PublicSite:
         body += """<div class='guide'><section><h2>Read a game in seconds</h2>
 <p><b>Model win chance</b> is the model’s probability for its favoured team. <b>Predicted margin</b> is the expected points difference. Neither guarantees the outcome.</p>
 <p>The prices beside the teams come from DraftKings. The small number below each moneyline is that team’s spread. All times are Pacific (PT).</p>
+<p><b>Total</b> shows the model’s expected combined score beside the DraftKings total, and which side the model leans to: its chance of the over against the market’s after removing the bookmaker’s margin.</p>
 <p><b>Tracked pick</b> means a registered rule qualified at the game’s lock: the first priced snapshot within 5 hours of tip. Until then a game shows its forecast only. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
 <section><h2>One model, before the game</h2><p>The model combines prior-game team performance, roster talent, schedule and available NBA injury-report information. It predicts a points margin and converts it to a win probability. Market prices are a comparison, not a model input.</p>
 """ + self.model_note() + """<p>Only information saved before tip is used for a live prediction. Each team’s first game has a forecast but sits outside the tracked rules. Early-season forecasts have less current-season information, and injury-report timing can affect them.</p></section>
-<section><h2>Three fixed tracking rules</h2>
+<section><h2>Four fixed tracking rules</h2>
 <p>Rules use the probability and DraftKings prices saved at the lock, the first priced snapshot within 5 hours of tip. By then most of each day’s NBA injury report is in, though the price may have moved from its opening. No rule is adjusted to fit later outcomes.</p>
-<h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the locked win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 1 point, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>
-<h3 id='favourite'><span class='rule-number'>02</span>Value favourite</h3><p>The value side is the team whose model probability exceeds the market probability after removing the bookmaker’s margin. Track it when the market also makes that side the favourite: market probability above 50%.</p>
+<h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the locked win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 3 points, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>
+<h3 id='favourite'><span class='rule-number'>02</span>Value favourite</h3><p>The value side is the team whose model probability exceeds the market probability after removing the bookmaker’s margin. Track it when the market also makes that side the favourite (market probability above 50%) and the model rates it at least 5 percentage points higher than the market.</p>
 <h3 id='gap'><span class='rule-number'>03</span>Large probability gap</h3><p>Track the value side when its model probability exceeds the market probability by at least 12 percentage points.</p>
-<p>All three rules have separate early (games 1–9) and established (games 10+) records. Stage follows the team with fewer games played. Every selection requires a lock from the current model version; predictions saved by earlier versions stay historical. These registrations began at different dates; the early segments were registered on October 23, 2026, the 5-hour lock on October 28, 2026, and the current record began with the """ + self.restart_txt() + """ games.</p></section>
+<h3 id='total'><span class='rule-number'>04</span>Total (over/under)</h3><p>A separate totals model predicts the combined score from each team’s recent pace and scoring and allowing per 100 possessions (with a short recent-form term, last season as an early-season prior, back-to-backs and the point in the season) and converts the gap to the line into a chance of the over. Track the model’s side when that chance differs from the market’s by at least 5 percentage points, on a main-line DraftKings total. A push returns the stake.</p>
+<p>The minimum gaps cover the bookmaker’s margin: the model’s disagreement with the market is only partly right, so small gaps are not tracked.</p>
+<p>All four rules have separate early (games 1–9) and established (games 10+) records. Stage follows the team with fewer games played. Every selection requires a lock from the current model version; predictions saved by earlier versions stay historical. These registrations began at different dates; the early segments were registered on October 23, 2026, the 5-hour lock on October 28, 2026, and the current record, its minimum gaps and the total began with the """ + self.restart_txt() + """ games.</p></section>
 <section><h2>Read the results fairly</h2><p>Each result uses the selection and price recorded before play. Wins, losses and pushes stay visible. Pending picks have no return until graded. A push returns the stake and produces zero profit.</p>
-<p>One unit is staked on each selection. ROI is profit divided by total stakes. The market-price baseline is the expected ROI if the market probability is correct; it is usually negative because of the bookmaker’s margin. The market favourite benchmark uses the same games and prices.</p>
+<p>One unit is staked on each selection. ROI is profit divided by total stakes. The market-price baseline is the expected ROI if the market probability is correct; it is usually negative because of the bookmaker’s margin. The market favourite benchmark uses the same games and prices; for totals the benchmark is the over on the same games.</p>
 <p>Uncertainty is shown as one standard error (1 SE). One SE is not a 95% confidence interval. Small samples do not establish a lasting advantage. Tests may overlap, so their returns and the early/established stages are never pooled.</p>
 <p>Public performance reports live, pregame-recorded selections. Rebuilt games, exploratory comparisons and historical model experiments are excluded from the public track record.</p></section></div>"""
         return self.page("How it works · NBA Composite", "how-it-works.html", body)

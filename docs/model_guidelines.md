@@ -65,6 +65,15 @@ before activation. The games 1–9 rows accept `_v11` tags too.
 tests bet the first priced snapshot within 5 h of tip, in new ·L rows; the
 first-snapshot rows close at the lock's first slate. Never pooled.
 
+**Edge floors and O/U test** (owner's decision 2026-10-29, CLAUDE.md
+amendment): the public tests are H5·3 (spread edge ≥ 3 points), H2·F·5
+(value favourite with P − q ≥ 0.05), H4 and a new O/U test (the totals
+model's side when |P(over) − q| ≥ 0.05), all at the 5 h lock, v11 family,
+by stage and season. The floors follow cost (the opening disagreement is
+~0.3–0.5 right, so a gap needs ~0.05 to clear half the hold; spread line
+moves appear only from ~3 points), not a return scan. The old-floor v11 rows
+continue internally as supersets. Never pooled.
+
 **Model-family reset** (owner's decision 2026-10-29, CLAUDE.md amendment):
 v11 starts a new model family and the public records restart with it. From
 the 2026-10-29 slate the tests run in v11-family rows (·L·v11) that need a

@@ -130,6 +130,9 @@ def hypotheses_block(native, recon):
     lines.append(f"  MODEL-FAMILY RESET (registered {analysis.FAMILY_REGISTRATION_UTC}): the ·L rows "
                  f"close with the slate before {analysis.FAMILY_SLATE}; the v11-family rows (·L·v11, "
                  f"lock tag {'/'.join(analysis.FAMILY_TAGS)}) start there and alone are public.")
+    lines.append(f"  EDGE FLOORS (registered {analysis.FLOOR_REGISTRATION_UTC}): the public spread "
+                 "and value-favourite tests are H5·3 (edge ≥ 3 pts) and H2·F·5 (P − q ≥ 0.05), "
+                 "with H4; the old-floor v11 rows are their internal supersets.")
     st = analysis.lock_status(native) if native is not None and len(native) else None
     if st:
         lines.append(f"  5 h lock active from slate {st['activation']}: {st['locked']} games "
@@ -151,6 +154,7 @@ def hypotheses_block(native, recon):
                          f"{_f(c['se'], '.2f')} (1 SE), toward the bet {100 * c['toward']:.0f}% "
                          f"of {c['n']}")
         lines.append("    " + roi_line("hindsight @ open", hind, 26))
+    lines += ou_block(native, book)
     lines.append("  EARLY HINDSIGHT ONLY: 276 ESPN BET early games, v9 primary P; "
                  "injury-timing caveat; never native evidence.")
     for hyp, r in analysis.early_hindsight(recon):
@@ -199,6 +203,29 @@ def hypotheses_block(native, recon):
                 label = (f"{market.BOOK_NAMES.get(p['book'], p['book'])} "
                          f"{_season(p['season'])} @ {at}")
             lines.append(f"    {hyp['key']:<4} " + roi_line(label, p["row"], 30))
+    return lines
+
+
+def ou_block(native, book):
+    """The O/U test's native rows (analysis.OU_TESTS): record, ROI beside its
+    null and CLV, games 10+ and 1-9 apart."""
+    lines = [f"  O/U TEST (registered {analysis.FLOOR_REGISTRATION_UTC}): the totals model's side at "
+             f"the 5 h lock when |P(over) − q| ≥ {analysis.OU_FLOOR:.2f}; never pooled with the "
+             "moneyline and spread tests."]
+    for test in analysis.OU_TESTS:
+        d = analysis.ou_picks(native, test) if native is not None and len(native) else None
+        r = analysis.ou_row("", d) if d is not None and len(d) else None
+        if r:
+            r["z"] = analysis.z_vs_null(r)
+        pending = analysis.ou_signals(native, test) if native is not None and len(native) else []
+        lines.append(f"  {test['key']:<12} {test['rule']}")
+        lines.append("    " + roi_line("native @ 5 h lock", r, 26)
+                     + f"  ({len(pending) - (r['n'] if r else 0)} pending)")
+        c = analysis.ou_clv(native, test) if native is not None and len(native) else None
+        if c:
+            lines.append(f"    {'CLV vs close':<26} {c['mean']:+.2f} {c['unit']} +/- "
+                         f"{_f(c['se'], '.2f')} (1 SE), toward the bet {100 * c['toward']:.0f}% "
+                         f"of {c['n']}")
     return lines
 
 

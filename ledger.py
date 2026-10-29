@@ -35,8 +35,11 @@ Invariants (tests/test_ledger.py pins each one):
     filled then (no price yet, odds fetch failed, model abstained; blank when
     it was). Never refreshed or graded, so a first snapshot that came later
     than the row is visible, with its reason.
-  * Grading fills ONLY result and open/close market columns (moneyline and
-    closing spread). It never touches
+  * The O/U total (OU_*_COLUMNS; CLAUDE.md amendment of 2026-10-29): the
+    pregame book's total and the totals model's forecast refresh until tip;
+    first_ou_* and lock_ou_* are written once, like first_* and lock_*.
+  * Grading fills ONLY result and open/close market columns (moneyline,
+    closing spread and the closing book's totals). It never touches
     a model or pregame-market column.
   * A pending (unfinished) game never receives a closing line.
   * Injury snapshots (data/nba_injuries.csv) follow the same pregame lock:
@@ -158,6 +161,30 @@ LOCK_COLUMNS = ["lock_snapshot_utc", "lock_model_tag", "lock_p_home", "lock_book
                 "lock_route", "lock_spread", "lock_home_spread_odds",
                 "lock_away_spread_odds"]
 COLUMNS = COLUMNS + LOCK_COLUMNS
+# Schema before the O/U columns: `load` reads it with them blank and the next
+# save writes the current schema (2026-10-29).
+PRE_OU_COLUMNS = list(COLUMNS)
+# O/U (CLAUDE.md edge floors and O/U amendment, 2026-10-29). The pregame
+# book's total and both prices beside the totals model's (totals.py) total,
+# sigma, P(over) and tag: refreshed with the pregame snapshot until tip, frozen
+# after. first_ou_* is written once at the first snapshot with a model total
+# and a main-line total (both prices market.MAIN_LINE), lock_ou_* once at the
+# first such snapshot within LOCK_LEAD_HOURS of tip: the O/U test reads it.
+# Grading writes the closing book's open / close total beside its moneyline.
+OU_PRE_COLUMNS = ["pre_ou_line", "pre_ou_over", "pre_ou_under", "ou_total", "ou_sigma",
+                  "ou_p_over", "ou_tag"]
+OU_FIRST_COLUMNS = ["first_ou_snapshot_utc", "first_ou_tag", "first_ou_total",
+                    "first_ou_p_over", "first_ou_book", "first_ou_line", "first_ou_over",
+                    "first_ou_under"]
+OU_LOCK_COLUMNS = [c.replace("first_", "lock_", 1) for c in OU_FIRST_COLUMNS]
+OU_GRADE_COLUMNS = ["open_ou_line", "open_ou_over", "open_ou_under", "close_ou_line",
+                    "close_ou_over", "close_ou_under"]
+COLUMNS = COLUMNS + OU_PRE_COLUMNS + OU_FIRST_COLUMNS + OU_LOCK_COLUMNS + OU_GRADE_COLUMNS
+_OU_SOURCE = {"snapshot_utc": "snapshot_utc", "tag": "ou_tag", "total": "ou_total",
+              "p_over": "ou_p_over", "book": "pre_book", "line": "pre_ou_line",
+              "over": "pre_ou_over", "under": "pre_ou_under"}
+OU_FIRST_SOURCE = {f"first_ou_{k}": v for k, v in _OU_SOURCE.items()}
+OU_LOCK_SOURCE = {f"lock_ou_{k}": v for k, v in _OU_SOURCE.items()}
 SEEN_COLUMNS = ["seen_utc", "seen_note"]
 FIRST_COLUMNS = (COLUMNS[COLUMNS.index("first_snapshot_utc"):
                          COLUMNS.index("seen_utc")] + FIRST_SPREAD_COLUMNS)
@@ -180,12 +207,15 @@ LOCK_SOURCE = {"lock_snapshot_utc": "snapshot_utc", "lock_model_tag": "model_tag
                **dict(zip(LOCK_COLUMNS[-3:], PREGAME_SPREAD_COLUMNS))}
 # Columns written once and never refreshed or graded.
 WRITE_ONCE_COLUMNS = (FIRST_COLUMNS + SEEN_COLUMNS + FIRST_CARRY_COLUMNS
-                      + KALSHI_FIRST_COLUMNS + LOCK_COLUMNS)
+                      + KALSHI_FIRST_COLUMNS + LOCK_COLUMNS + OU_FIRST_COLUMNS
+                      + OU_LOCK_COLUMNS)
 # String-valued columns (kept as object dtype).
 TEXT_COLUMNS = ("pre_book", "close_book", "first_book", "first_model_tag",
                 "first_snapshot_utc", "first_report_utc", "first_route",
                 "seen_utc", "seen_note", "lock_snapshot_utc", "lock_model_tag",
-                "lock_book", "lock_report_utc", "lock_route")
+                "lock_book", "lock_report_utc", "lock_route", "ou_tag",
+                "first_ou_snapshot_utc", "first_ou_tag", "first_ou_book",
+                "lock_ou_snapshot_utc", "lock_ou_tag", "lock_ou_book")
 SPREAD_COLUMNS = ["close_spread", "close_home_spread_odds",
                   "close_away_spread_odds"]
 # Schema before the Kalshi columns: `load` reads it with them blank and the
@@ -209,7 +239,7 @@ LEGACY_COLUMNS = [c for c in PRE_SPREAD_COLUMNS
                   if c not in ("pre_book", "close_book")]
 PREGAME_COLUMNS = ([c for c in COLUMNS[:COLUMNS.index("pre_q_home") + 1]]
                    + PREGAME_SPREAD_COLUMNS
-                   + MARGIN_COLUMNS)
+                   + MARGIN_COLUMNS + OU_PRE_COLUMNS)
 GRADE_COLUMNS = [c for c in COLUMNS
                  if c not in PREGAME_COLUMNS and c not in WRITE_ONCE_COLUMNS and c not in CARRY_COLUMNS and c not in KALSHI_COLUMNS]
 
@@ -273,6 +303,15 @@ def save(df, path):
     os.replace(tmp, path)
 
 
+def ou_ready(rec):
+    """A row's O/U total is usable: a model total and P(over) beside a
+    main-line total (both prices within market.MAIN_LINE)."""
+    num = lambda k: pd.to_numeric(rec.get(k), errors="coerce")  # noqa: E731
+    return bool(np.isfinite(num("ou_total")) and np.isfinite(num("ou_p_over"))
+                and np.isfinite(num("pre_ou_line"))
+                and market.main_line_pair(num("pre_ou_over"), num("pre_ou_under")))
+
+
 def upsert_pregame(led, rows, now=None, basis="native"):
     """Add or refresh pregame rows. Returns (ledger, accepted, rejected).
 
@@ -281,7 +320,8 @@ def upsert_pregame(led, rows, now=None, basis="native"):
     game starts its pregame record is frozen for good. The first snapshot
     with a model P and a price fills `first_*` once; later ones never do.
     The first such snapshot within LOCK_LEAD_HOURS of tip fills `lock_*` once.
-    A new row also gets `seen_*` once. Optional keys of a row: `report_utc`
+    The O/U total fills `first_ou_*` / `lock_ou_*` the same way, on its own
+    condition (ou_ready). A new row also gets `seen_*` once. Optional keys of a row: `report_utc`
     and `route` (copied to first_*), `price_note` (why it has no price).
     `basis` labels the rows ("native"; "preseason" for PRESEASON_PATH).
     """
@@ -308,6 +348,7 @@ def upsert_pregame(led, rows, now=None, basis="native"):
         has_p = pd.notna(pd.to_numeric(rec["p_home"], errors="coerce"))
         has_q = pd.notna(pd.to_numeric(rec["pre_q_home"], errors="coerce"))
         usable = has_p and has_q
+        ou_usable = ou_ready(rec)
         in_lock = now >= tip - timedelta(hours=LOCK_LEAD_HOURS)
         hit = led.index[led["game_id"].astype(str) == gid]
         if len(hit):
@@ -329,6 +370,13 @@ def upsert_pregame(led, rows, now=None, basis="native"):
                     if led[c].dtype != object:
                         led[c] = led[c].astype(object)
                     led.at[hit[0], c] = src[LOCK_SOURCE[c]]
+            for ok, cols, source in ((ou_usable, OU_FIRST_COLUMNS, OU_FIRST_SOURCE),
+                                     (ou_usable and in_lock, OU_LOCK_COLUMNS, OU_LOCK_SOURCE)):
+                if ok and pd.isna(old[cols[0]]):
+                    for c in cols:
+                        if led[c].dtype != object:
+                            led[c] = led[c].astype(object)
+                        led.at[hit[0], c] = src[source[c]]
         else:
             if usable:
                 for c in FIRST_COLUMNS:
@@ -336,6 +384,12 @@ def upsert_pregame(led, rows, now=None, basis="native"):
             if usable and in_lock:
                 for c in LOCK_COLUMNS:
                     rec[c] = src[LOCK_SOURCE[c]]
+            if ou_usable:
+                for c in OU_FIRST_COLUMNS:
+                    rec[c] = src[OU_FIRST_SOURCE[c]]
+            if ou_usable and in_lock:
+                for c in OU_LOCK_COLUMNS:
+                    rec[c] = src[OU_LOCK_SOURCE[c]]
             rec["seen_utc"] = rec["snapshot_utc"]
             rec["seen_note"] = "" if usable else "; ".join(
                 n for n in ((None if has_p else "no model P"),
@@ -505,6 +559,11 @@ def apply_result(led, game_id, game, odds):
             for c in SPREAD_COLUMNS:
                 if odds.get(c) is not None:
                     led.at[i, c] = odds[c]
+            for when in ("open", "close"):
+                if odds.get(f"{when}_total") is not None:
+                    for k, src in (("line", "total"), ("over", "over"), ("under", "under")):
+                        if odds.get(f"{when}_{src}") is not None:
+                            led.at[i, f"{when}_ou_{k}"] = odds[f"{when}_{src}"]
     return True
 
 

@@ -27,7 +27,8 @@ def _across_reset(tags=(V10, V11, V11)):
 def test_registration_and_rules_are_unchanged():
     assert analysis.FAMILY_REGISTRATION_UTC == "2026-10-29T13:58:40Z"
     assert analysis.FAMILY_SLATE == "2026-10-29" and analysis.FAMILY_TAGS == ("_v11",)
-    fam = {h["key"]: h for h in analysis.family_hypotheses()}
+    fam = {h["key"]: h for h in analysis.family_hypotheses() if h["registered_utc"] ==
+           analysis.FAMILY_REGISTRATION_UTC}
     assert set(fam) == {k + "·L·v11" for k in ("H5", "H5·E", "H2·F", "H2·F·E", "H4", "H4·E")}
     for key, h in fam.items():
         parent = _hyp(h["parent"])
@@ -64,7 +65,8 @@ def test_both_stages_need_a_v11_lock_tag():
         assert set(analysis.hypothesis_picks(g, _hyp(key), "lock").game_id) == {"new0", "new2"}
     # the closed early lock row keeps only its own slate
     assert set(analysis.hypothesis_picks(g, _hyp("H5·E·L"), "lock").game_id) == set(g.game_id[:3])
-    assert analysis.ats_card(g.iloc[3])["hyp"]["key"] == "H5·E·L·v11"
+    # the public floored rule first (edge floors amendment, 2026-10-29)
+    assert analysis.ats_card(g.iloc[3])["hyp"]["key"] == "H5·3·E·L·v11"
     assert analysis.ats_card(g.iloc[0])["hyp"]["key"] == "H5·E·L"
 
 
@@ -84,7 +86,7 @@ def test_public_pages_show_only_the_family_record():
     card = PublicSite(build_site, g, "2026-10-29", "built").card(g.iloc[3])
     assert "Forecast only" in card and "earlier model" in card
     guide = site.guide_page()
-    assert "the current record began with the October 29, 2026 games" in guide
+    assert "the current record, its minimum gaps and the total began with the October 29, 2026 games" in guide
     assert "closed on" not in guide
 
 
