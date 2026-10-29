@@ -64,6 +64,10 @@ READING = """== Reading (2026-10-29 run; the tables above are the evidence)
    head-to-head and cash play maximize the mean; correlation is a tie-break
    for tournaments.
 
+6. Spread: a rotation player's sd of Yahoo points is about 7.5 + 0.10 x his
+   mean in both seasons (9.5 points at a 20-point mean, 11.6 at 40).
+   The DFS page's tournament mode uses it with a factor model matching 1-3.
+
 Heuristics this supports (tournaments): a mild preference for two or three
 starters from one team in a game expected to be close; opposing stars from
 such a game; avoid two centres from one team; discount starters in games
@@ -208,6 +212,18 @@ def context(df, rng, label):
     return out
 
 
+def spread(df, label):
+    """A rotation player's game-to-game sd of Yahoo points against his season
+    mean, least squares across players: the tournament mode's sd model."""
+    g = df[df["rotation"]].groupby("player")["fp"].agg(["mean", "std"])
+    A = np.vstack([np.ones(len(g)), g["mean"]]).T
+    (a, b), *_ = np.linalg.lstsq(A, g["std"].to_numpy(), rcond=None)
+    pred = A @ np.array([a, b])
+    r2 = 1 - ((g["std"] - pred) ** 2).sum() / ((g["std"] - g["std"].mean()) ** 2).sum()
+    return [f"-- {label}: sd of a player's Yahoo points = {a:.2f} + {b:.3f} x his mean "
+            f"(R2 {r2:.2f}, {len(g)} players; at 20 / 40 points: {a + 20 * b:.1f} / {a + 40 * b:.1f})"]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--seasons", type=int, nargs="+", default=[2025, 2026])
@@ -225,11 +241,14 @@ def main(argv=None):
                       f"C {rot.pos.eq('C').mean():.0%})")
         p = pairs(df)
         allp.append(p.assign(season=s))
-        report += table(p, rng, f"{s - 1}-{s % 100:02d}") + context(df, rng, f"{s - 1}-{s % 100:02d}") + [""]
+        report += (table(p, rng, f"{s - 1}-{s % 100:02d}") + context(df, rng, f"{s - 1}-{s % 100:02d}")
+                   + spread(df, f"{s - 1}-{s % 100:02d}") + [""])
     if len(allp) > 1:
         p = pd.concat(allp, ignore_index=True)
         report += ["== Both seasons pooled (labelled; the seasons above stand on their own)"]
-        report += table(p, rng, "pooled") + context(pd.concat(frames.values()), rng, "pooled")
+        both = pd.concat(frames.values())
+        report += (table(p, rng, "pooled") + context(both, rng, "pooled")
+                   + spread(both.assign(player=both["player"] + "|" + both["season"].astype(str)), "pooled"))
     report += ["", READING]
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "RESULTS.txt").write_text("\n".join(report) + "\n")

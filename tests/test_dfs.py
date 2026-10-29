@@ -204,3 +204,104 @@ def test_validation_checks_the_yahoo_snapshot(tmp_path):
     bad.to_csv(path, index=False)
     assert any("salary" in e for e in v.check_yahoo(str(path)))
     assert v.check_yahoo(str(tmp_path / "missing.csv")) == []
+
+
+# ------------------------------------------------------- tournament mode ---
+def _node_js(body, payload):
+    script = dfs.SOLVER_JS + "\nvar I=JSON.parse(require('fs').readFileSync(0,'utf8'));\n" + body
+    res = subprocess.run([NODE, "-e", script], input=json.dumps(payload), capture_output=True,
+                         text=True, timeout=180, check=True)
+    return json.loads(res.stdout)
+
+
+def _sim_pool(seed=5):
+    rng = np.random.default_rng(seed)
+    pool = []
+    for g, teams in enumerate((("A", "B"), ("C", "D"))):
+        for t in teams:
+            for k, pos in enumerate(["PG", "SG", "SF", "PF", "C", "PG", "SF", "C"]):
+                pool.append(dict(id=f"{t}{k}", pos=pos, sal=int(rng.integers(10, 40)),
+                                 v=round(float(rng.uniform(15, 45)), 2), team=t, game=f"g{g}",
+                                 starter=k < 5, star=(k + 1) if k < 2 else 0,
+                                 # the starting centre (k 4) and the bench one (k 7)
+                                 big={4: 1, 7: 2}.get(k, 0),
+                                 big_split=dfs.SIM["team"] - dfs.SIM["center_pair"] if k in (4, 7) else 0))
+    return pool
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_tournament_without_variance_is_the_cash_best_and_is_seeded():
+    pool = _sim_pool()
+    flat = dict(dfs.SIM, sd_base=0.0, sd_slope=0.0)
+    out = _node_js("""
+var team={};I.pool.forEach(function(p){team[p.id]=p.team;});var ok=function(ids){return DFS.teamsOk(ids,team,3,6);};
+var best=DFS.kbest(I.pool,200,0,{},1,function(s){return ok(s.ids);},200).lineups[0];
+var flat=DFS.simulate(I.pool,200,0,{},I.flat,50,7,ok),a=DFS.simulate(I.pool,200,0,{},I.sim,200,7,ok),b=DFS.simulate(I.pool,200,0,{},I.sim,200,7,ok);
+process.stdout.write(JSON.stringify({best:best.ids.slice().sort(),flat:flat.cands.map(function(c){return [c.ids.slice().sort(),c.n];}),
+ a:a.cands.map(function(c){return c.n;}),b:b.cands.map(function(c){return c.n;}),na:a.cands.length,
+ legal:a.cands.every(function(c){return ok(c.ids)&&c.sal<=200&&new Set(c.ids).size===8;})}));""",
+        dict(pool=pool, flat=flat, sim=dfs.SIM))
+    assert out["flat"] == [[out["best"], 50]]            # every simulated slate: the cash best
+    assert out["a"] == out["b"] and out["na"] > 5         # seeded, and it diversifies
+    assert sum(out["a"]) == 200 and out["legal"]
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_simulated_points_carry_the_measured_correlations():
+    pool = [dict(p, v=200.0) for p in _sim_pool()]       # far from the floor at 0
+    zs = _node_js("""
+var r=DFS.rng(11),Z=[];for(var s=0;s<20000;s++){var x=DFS.draw(I.pool,I.sim,r);
+ Z.push(Array.from(x).map(function(v,i){var p=I.pool[i];return (v-p.v)/(I.sim.sd_base+I.sim.sd_slope*p.v);}));}
+process.stdout.write(JSON.stringify(Z));""", dict(pool=pool, sim=dfs.SIM))
+    z = np.array(zs)
+    c = np.corrcoef(z.T)
+    ix = {p["id"]: i for i, p in enumerate(pool)}
+    m = dfs.SIM
+    pairs = {("A2", "A3"): m["team"] + m["starter"],               # two starters
+             ("A5", "A6"): m["team"],                              # two bench players
+             ("A0", "A1"): m["team"] + m["starter"] + m["game_star"] - m["star_split"],  # own stars
+             ("A0", "B0"): m["game_star"], ("A0", "B1"): m["game_star"],             # opposing stars
+             ("A4", "A7"): m["center_pair"],                       # the team's two centres
+             ("A2", "B2"): 0.0, ("A0", "C0"): 0.0}                 # opponents; other game
+    for (a, b), want in pairs.items():
+        assert c[ix[a], ix[b]] == pytest.approx(want, abs=0.02), (a, b)
+    assert np.allclose(z.std(0), 1, atol=0.03)
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_sim_model_and_flags_reach_the_page():
+    yahoo = pd.DataFrame(dfs.parse_feed(_feed([_yp("p1", "Zion Williamson", "NO", "PF", 36),
+                                               _yp("p2", "Other Guy", "NO", "C", 20),
+                                               _yp("p3", "Backup Big", "NO", "C", 10)]), now=NOW),
+                         columns=dfs.YAHOO_COLUMNS).astype(str)
+    line = dict(minutes="32", pts="20", reb="5", ast="3", stl="1", blk="1", to="2", tpm="1")
+    sl = _sleeper([dict(kind="pre", team="NOP", sleeper_id="1", name="Zion Williamson", **line),
+                   dict(kind="pre", team="NOP", sleeper_id="2", name="Other Guy", **dict(line, pts="5")),
+                   dict(kind="pre", team="NOP", sleeper_id="3", name="Backup Big", **dict(line, pts="2"))])
+    d = dfs.slate("2026-10-29", yahoo=yahoo, sleeper=sl, native=_native(), now=NOW)
+    by = {p["name"]: p for p in d["players"]}
+    assert d["sim"] == dfs.SIM and by["Zion Williamson"]["star"] == 1 and by["Other Guy"]["star"] == 2
+    assert by["Zion Williamson"]["starter"] and by["Other Guy"]["starter"]
+    # the two centres (both starters here): split to the measured pair
+    m = dfs.SIM
+    assert (by["Other Guy"]["big"], by["Backup Big"]["big"]) == (1, 2) and "big" not in by["Zion Williamson"]
+    assert by["Other Guy"]["big_split"] == by["Backup Big"]["big_split"] == pytest.approx(
+        m["team"] + m["starter"] - m["center_pair"], abs=1e-4)
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_tournament_rank_puts_the_lineups_that_often_score_highest_first():
+    pool = _sim_pool()
+    flat = dict(dfs.SIM, sd_base=0.0, sd_slope=0.0)
+    out = _node_js("""
+var team={};I.pool.forEach(function(p){team[p.id]=p.team;});var ok=function(ids){return DFS.teamsOk(ids,team,3,6);};
+var top=DFS.kbest(I.pool,200,0,{},20,function(s){return ok(s.ids);},400).lineups;
+var flat=DFS.rank(top.map(function(c){return {ids:c.ids,v:c.v,sal:c.sal};}),DFS.simulate(I.pool,200,0,{},I.flat,40,3,ok),.05);
+var sim=DFS.rank(top.map(function(c){return {ids:c.ids,v:c.v,sal:c.sal};}),DFS.simulate(I.pool,200,0,{},I.sim,300,3,ok),.25);
+process.stdout.write(JSON.stringify({best:top[0].ids.slice().sort(),flat:flat.map(function(c){return [c.ids.slice().sort(),c.top];}),
+ sim:sim.map(function(c){return [c.top,c.p90,c.v];})}));""", dict(pool=pool, flat=flat, sim=dfs.SIM))
+    assert out["flat"][0] == [out["best"], 1.0]          # no variance: the best always tops
+    assert all(t == 0.0 for _, t in out["flat"][1:])
+    tops = [t for t, _, _ in out["sim"]]
+    assert tops == sorted(tops, reverse=True) and 0 < tops[0] <= 1
+    assert all(p90 >= v for _, p90, v in out["sim"])      # the 90th percentile is above the mean
