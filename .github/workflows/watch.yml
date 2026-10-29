@@ -1,0 +1,59 @@
+name: Lock watch (long poll)
+
+# One delivered run buys a whole slate of lock coverage instead of a single
+# snapshot. watch_slate.py's docstring carries the measured cron delivery and
+# the missed locks it cost. A shift sleeps until each game's five-hour lock
+# window opens, dispatches build.yml there, retries any game still unlocked,
+# and hands over to a fresh shift before GitHub's 6-hour cap while games
+# remain. build.yml also starts a shift after any build when none is running.
+#
+# THIS ADDS A PATH, IT DOES NOT REPLACE ONE. build.yml keeps its own schedule:
+# a shift is started by crons GitHub can drop as well, so the paths are
+# independent and the slate is covered if either is delivered.
+on:
+  # UTC. Three kickoffs spread over the slate day (lock windows open ~11:00Z
+  # to ~22:30Z); after one is delivered the shift relays itself.
+  schedule:
+    - cron: '47 10 * * *'
+    - cron: '7 16 * * *'
+    - cron: '27 21 * * *'
+  workflow_dispatch:
+
+# NOT `site-build`: that group serializes ledger commits and a sleeping
+# watcher would park every build behind itself. The watcher writes nothing;
+# it only must not stack against itself, and a relayed shift waits here
+# until the shift that dispatched it ends.
+concurrency:
+  group: site-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  # Dispatching build.yml and the next shift. GITHUB_TOKEN may trigger
+  # workflow_dispatch (one of its two documented exceptions); no PAT.
+  actions: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    # Backstop only: the loop ends itself on its own clock.
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Stdlib only: no install. Bounded by `timeout` as well as the step's
+      # timeout-minutes, which would kill the shell but leave the python
+      # child dispatching after its job had ended. SIGINT first, SIGKILL 60 s
+      # later; 19500 s outlasts SHIFT_SECONDS (19200), so the loop's own
+      # deadline (and its relay) normally wins. tests/test_watch_slate.py
+      # pins the relationship.
+      - name: Wake at each lock window and dispatch builds
+        timeout-minutes: 330
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: timeout --signal=INT --kill-after=60 19500 python watch_slate.py

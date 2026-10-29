@@ -47,9 +47,13 @@ their original registrations. No stage, season or test is pooled.
 
 Enable Settings → Pages → Source: GitHub Actions. Fit model maintains the
 v9 fits; Backfill history rescores prior seasons; Rebuild season maintains
-current-season hindsight separately. Build grades at 04:17 ET and refreshes
-pregame forecasts hourly from 10:07–22:07 ET. It preserves captured ledger
-rows even if rendering fails, subject to data validation.
+current-season hindsight separately. Build grades at 04:17 UTC and is
+attempted every 30 minutes through each slate's afternoon and evening.
+GitHub drops most scheduled runs, so Lock watch (`watch_slate.py`) also
+long-polls each slate: one delivered run sleeps until each game's five-hour
+lock window opens and dispatches a build there, retrying a game until it
+locks. Build preserves captured ledger rows even if rendering fails, subject
+to data validation.
 
 ```bash
 pip install -r requirements.txt
@@ -70,6 +74,6 @@ python -m playwright install chromium
 python research/check_public_ui.py
 ```
 
-Exactly eight workflows remain: build, tests, fit-model, backfill, rebuild,
-box-history, history-backtest and margin-model. Closed research scripts and
+Exactly nine workflows remain: build, watch, tests, fit-model, backfill,
+rebuild, box-history, history-backtest and margin-model. Closed research scripts and
 results remain available; their workflows can be recovered from git history.
