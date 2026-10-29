@@ -46,7 +46,7 @@ their original registrations. No stage, season or test is pooled.
 ## Operations
 
 Enable Settings → Pages → Source: GitHub Actions. Fit model maintains the
-v9 fits; Backfill history rescores prior seasons; Rebuild season maintains
+v11 and totals fits; Backfill history rescores prior seasons; Rebuild season maintains
 current-season hindsight separately. Build grades at 04:17 UTC and is
 attempted every 30 minutes through each slate's afternoon and evening.
 GitHub drops most scheduled runs, so Lock watch (`watch_slate.py`) also
