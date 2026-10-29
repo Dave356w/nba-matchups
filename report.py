@@ -153,7 +153,9 @@ def hypotheses_block(native, recon):
             lines.append(f"    {'CLV vs close':<26} {c['mean']:+.2f} {c['unit']} +/- "
                          f"{_f(c['se'], '.2f')} (1 SE), toward the bet {100 * c['toward']:.0f}% "
                          f"of {c['n']}")
-        lines.append("    " + roi_line("hindsight @ open", hind, 26))
+        twin = analysis.hindsight_twin(hyp)
+        lines.append(f"    {'hindsight @ open':<26} same bets as {twin} above" if twin and hind
+                     else "    " + roi_line("hindsight @ open", hind, 26))
     lines += ou_block(native, book)
     lines.append("  EARLY HINDSIGHT ONLY: 276 ESPN BET early games, v9 primary P; "
                  "injury-timing caveat; never native evidence.")
@@ -183,8 +185,14 @@ def hypotheses_block(native, recon):
         lines.append("  H5 games 1–9 / 10+ by the picked side's spread and spread price "
                      "(descriptive, not filters; win = cover rate):")
     for hyp, parts in bands:
+        twin = analysis.hindsight_twin(hyp)
         for basis, price in (("native", hyp["native"]),
                              ("hindsight", hyp["hindsight"])):
+            if basis == "hindsight" and twin:
+                if any(parts[basis][k] for k in ("line", "price")):
+                    lines.append(f"    {hyp['key']:<4} hindsight @ "
+                                 f"{analysis.PRICE_NAMES[price]}: same bets as {twin} above")
+                continue
             for key in ("line", "price"):
                 for r in parts[basis][key]:
                     lines.append(f"    {hyp['key']:<4} " + roi_line(
@@ -195,8 +203,14 @@ def hypotheses_block(native, recon):
         lines.append("  By season, never pooled (basis · the graded price's book · "
                      "season; win = cover rate):")
     for hyp, parts in by:
+        twin = analysis.hindsight_twin(hyp)
         for p in parts:
             at = analysis.PRICE_NAMES[p["price"]]
+            if p["basis"] == "reconstructed" and twin and p["row"] is not None:
+                if p is next(q for q in parts if q["basis"] == "reconstructed"):
+                    lines.append(f"    {hyp['key']:<4} reconstructed @ {at}: "
+                                 f"same bets as {twin} above")
+                continue
             if p["row"] is None:
                 label = f"{p['basis']} @ {at}"
             else:
