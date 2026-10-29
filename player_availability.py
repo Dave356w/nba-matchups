@@ -1252,6 +1252,33 @@ def q_rates(years, cache_dir=DEFAULT_CACHE, leads=Q_LEADS, archive=None):
     return out
 
 
+# The play-rate table as a research output (q-rates command): the same
+# computation over a complete local archive, so a refit need not download every
+# report edition again (GitHub's runners are throttled by the NBA's CDN).
+Q_RATES_FILE = os.path.join("diagnostics", "questionable_weight", "q_rates.json")
+
+
+def save_q_rates(table, years, path=Q_RATES_FILE):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    json.dump({"years": [int(y) for y in years], "leads": [int(x) for x in Q_LEADS],
+               "rule": "share of listed players with each status who logged minutes, "
+                       "last report at least <lead> minutes before tip (q_rates)",
+               "rates": table}, open(path, "w"), indent=1)
+    print(f"wrote {path}", flush=True)
+
+
+def load_q_rates(path, years):
+    """The table save_q_rates wrote, checked against the fit's seasons and
+    leads (a table for other seasons or leads is refused)."""
+    d = json.load(open(path))
+    if [int(y) for y in d["years"]] != [int(y) for y in years] or \
+            [int(x) for x in d["leads"]] != list(Q_LEADS) or \
+            set(d["rates"]) != {str(x) for x in Q_LEADS}:
+        raise SystemExit(f"{path}: q rates for seasons {d['years']} and leads {d['leads']}, "
+                         f"not {list(years)} and {list(Q_LEADS)}; rerun the q-rates command")
+    return d["rates"]
+
+
 def lead_rates(table, minutes):
     """The rate table (q_rates) of the lead nearest `minutes` before tip."""
     lead = min(table, key=lambda k: abs(int(k) - minutes))
@@ -1371,7 +1398,7 @@ def fit_fixed(G, base, fixed=FIXED_V5, features=None):
 
 
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
-        v5=True, v6=True, v8=False, v9=False, v10=False, v11=False):
+        v5=True, v6=True, v8=False, v9=False, v10=False, v11=False, q_rates_file=None):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
     phase=True (v4) adds delta * season phase to the v3 features; v5=True
     also adds luck_def and talent_diff (needs the seasons' box scores);
@@ -1384,7 +1411,9 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     covered training games are also saved (TRAIN_FILE) so the build can
     refit before each slate with this season's covered games added (refit).
     v11=True: v10 plus "q_rates", the play-rate table the build scores the
-    report route with (q_rates; the fit itself stays od)."""
+    report route with (q_rates; the fit itself stays od). `q_rates_file`
+    reads that table from a file the q-rates command wrote over the same
+    seasons, instead of downloading every report edition again."""
     v10 = v10 or v11
     v9 = v9 or v10
     v8 = v8 or v9
@@ -1430,7 +1459,10 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
         m.update({"version": nc.V11 if v11 else nc.V10, "orb": nc.ORB_PCT, "refit": "slate",
                   "train_file": TRAIN_FILE, "rookies": rookie_meta(max(years) + 1)})
     if v11:
-        m.update({"score_rule": "q", "q_rates": q_rates(years, cache_dir)})
+        table = (load_q_rates(q_rates_file, years) if q_rates_file else
+                 q_rates(years, cache_dir))
+        m.update({"score_rule": "q", "q_rates": table,
+                  "q_rates_source": q_rates_file or "fit"})
         G["season"] = G["year"]
         save_train(G, feats)
     nc.save_json(m, MODEL_FILE)
@@ -1503,7 +1535,7 @@ def season_rows(season, before, weights, box, value, talent, talent0, tips, arch
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["fit"])
+    ap.add_argument("cmd", choices=["fit", "q-rates"])
     ap.add_argument("--years", nargs="+", default=["2023-2026"])
     ap.add_argument("--cache", default=DEFAULT_CACHE)
     ap.add_argument("--lead-minutes", type=int, default=LEAD_MINUTES)
@@ -1523,10 +1555,18 @@ def main(argv=None):
     ap.add_argument("--v11", action="store_true",
                     help="fit v11: v10 plus the Questionable play-rate table by lead "
                          "(q_rates) the build scores the report route with")
+    ap.add_argument("--q-rates", default=None,
+                    help="fit --v11: read the play-rate table from this file (written by "
+                         "the q-rates command) instead of downloading every report edition; "
+                         "q-rates: the file to write")
     a = ap.parse_args(argv)
+    if a.cmd == "q-rates":
+        years = nc.parse_years(a.years)
+        save_q_rates(q_rates(years, a.cache), years, a.q_rates or Q_RATES_FILE)
+        return 0
     fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
         v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase), v8=a.v8,
-        v9=a.v9, v10=a.v10, v11=a.v11)
+        v9=a.v9, v10=a.v10, v11=a.v11, q_rates_file=a.q_rates)
     return 0
 
 

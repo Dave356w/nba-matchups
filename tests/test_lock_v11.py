@@ -327,3 +327,23 @@ def test_q_rates_refuse_an_incomplete_archive(monkeypatch):
         raise AssertionError("no refusal")
     except SystemExit as e:
         assert "only 90 of 100" in str(e)
+
+
+def test_q_rate_file_round_trips_and_refuses_other_seasons(tmp_path):
+    table = {str(x): {"Doubtful": 0.03, "Questionable": 0.49, "Probable": 0.9}
+             for x in pav.Q_LEADS}
+    path = str(tmp_path / "q_rates.json")
+    pav.save_q_rates(table, [2023, 2024, 2025, 2026], path)
+    assert pav.load_q_rates(path, [2023, 2024, 2025, 2026]) == table
+    try:
+        pav.load_q_rates(path, [2024, 2025, 2026])
+        raise AssertionError("no refusal")
+    except SystemExit as e:
+        assert "rerun the q-rates command" in str(e)
+
+
+def test_committed_q_rate_table_covers_the_fit_seasons_and_leads():
+    rates = pav.load_q_rates(pav.Q_RATES_FILE, [2023, 2024, 2025, 2026])
+    for lead in pav.Q_LEADS:
+        r = rates[str(lead)]
+        assert 0.4 < r["Questionable"] < 0.6 and r["Doubtful"] < 0.1 < 0.8 < r["Probable"]

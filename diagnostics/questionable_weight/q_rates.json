@@ -1,0 +1,49 @@
+{
+ "years": [
+  2023,
+  2024,
+  2025,
+  2026
+ ],
+ "leads": [
+  1080,
+  720,
+  480,
+  300,
+  120,
+  30
+ ],
+ "rule": "share of listed players with each status who logged minutes, last report at least <lead> minutes before tip (q_rates)",
+ "rates": {
+  "1080": {
+   "Doubtful": 0.0457,
+   "Questionable": 0.4926,
+   "Probable": 0.8684
+  },
+  "720": {
+   "Doubtful": 0.0443,
+   "Questionable": 0.4921,
+   "Probable": 0.868
+  },
+  "480": {
+   "Doubtful": 0.0301,
+   "Questionable": 0.4837,
+   "Probable": 0.8733
+  },
+  "300": {
+   "Doubtful": 0.0211,
+   "Questionable": 0.481,
+   "Probable": 0.9078
+  },
+  "120": {
+   "Doubtful": 0.0159,
+   "Questionable": 0.4968,
+   "Probable": 0.911
+  },
+  "30": {
+   "Doubtful": 0.0,
+   "Questionable": 0.5067,
+   "Probable": 0.9241
+  }
+ }
+}
