@@ -27,7 +27,8 @@ before the slate (no lookahead):
       cache; production would read the report, not the box score.
 
 Fits use earlier seasons only. Against the DraftKings / ESPN BET opening
-and closing totals (research/totals_fetch.py): RMSE, the outcome's weight
+and closing totals (research/totals_fetch.py), main lines only (both prices
+within -135..+115): RMSE, the outcome's weight
 on (model - line), P(over) log loss against the no-vig over price, and flat
 1u on the model's side (all games and |P - q| >= 0.05), with CLV at the
 open. Book x season x stage never pooled. ± 95%. Hindsight: the priced
@@ -46,6 +47,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "research"))
+import analysis  # noqa: E402
 import ledger  # noqa: E402
 import market  # noqa: E402
 import nba_composite as nc  # noqa: E402
@@ -229,6 +231,16 @@ def priced(pred):
     return j[j["book"] == j["close_book"]]
 
 
+def main_line(line, o, u):
+    """A main O/U line: a total with both prices inside the spread rule's
+    main-line window (analysis.ATS_MAIN_LINE, -135..+115). The ESPN feed's
+    ESPN BET 2024-25 'open' is an alternate line on 123 games (prices like
+    -425 / +290, October to December); those are no main line."""
+    lo, hi = analysis.ATS_MAIN_LINE
+    o, u = np.asarray(o, float), np.asarray(u, float)
+    return np.isfinite(line) & (o >= lo) & (o <= hi) & (u >= lo) & (u <= hi)
+
+
 def _q_over(o, u):
     return np.array([market.devig(a, b) for a, b in zip(o, u)], float)
 
@@ -239,7 +251,7 @@ def evaluate(x, when, label):
     line = x[f"{when}_total"].to_numpy(float)
     o, u = x[f"{when}_over"].to_numpy(float), x[f"{when}_under"].to_numpy(float)
     tot, T, s = x["total"].to_numpy(float), x["T"].to_numpy(float), x["sigma"].to_numpy(float)
-    ok = np.isfinite(line) & np.isfinite(o) & np.isfinite(u) & (tot != line)
+    ok = main_line(line, o, u) & (tot != line)
     line, o, u, tot, T, s = (v[ok] for v in (line, o, u, tot, T, s))
     over = (tot > line).astype(float)
     q = _q_over(o, u)
@@ -318,6 +330,88 @@ def report(g, shrink=None, scores=None):
             lines.append(f"  {market.BOOK_NAMES[bk]} {season_name(y)} {st}")
             for when in (("open", "close") if name == "T0" else ("close",)):
                 lines += evaluate(x, when, name)
+    j = priced(preds["T0"])
+    return lines + [""] + bands_block(j) + [""] + examples_block(j)
+
+
+TOTAL_BANDS = ((0, 220, "under 220"), (220, 230, "220-229.5"), (230, 240, "230-239.5"),
+               (240, 999, "240 and up"))
+
+
+def _sides(x, when):
+    """T0's O/U side at one price, per game: line, prices, no-vig q(over),
+    P(over), side, result and units; pushes dropped."""
+    line = x[f"{when}_total"].to_numpy(float)
+    o, u = x[f"{when}_over"].to_numpy(float), x[f"{when}_under"].to_numpy(float)
+    tot = x["total"].to_numpy(float)
+    ok = main_line(line, o, u) & (tot != line)
+    d = x[ok].copy()
+    d["line"], d["o"], d["u"] = line[ok], o[ok], u[ok]
+    d["q"] = _q_over(d["o"], d["u"])
+    d["p"] = 1 - phi((d["line"] - d["T"]) / d["sigma"])
+    d["over_won"] = (d["total"] > d["line"]).astype(float)
+    d["side_over"] = d["p"] > d["q"]
+    ml = np.where(d["side_over"], d["o"], d["u"])
+    won = np.where(d["side_over"], d["over_won"], 1 - d["over_won"])
+    d["won"] = won
+    d["units"] = [market.unit_profit(m, bool(w)) for m, w in zip(ml, won)]
+    qs = np.where(d["side_over"], d["q"], 1 - d["q"])
+    d["null"] = qs * np.array([market.decimal_payout(m) for m in ml]) - 1
+    d["move"] = np.where(d["side_over"], d["close_total"] - d["line"], d["line"] - d["close_total"])
+    return d
+
+
+def _band_line(name, d, when):
+    if len(d) < 2:
+        return f"      {name:<12} n {len(d):>4}"
+    roi, h = mean_ci(d["units"].to_numpy(float))
+    mv = d["move"].to_numpy(float)
+    mv = mv[np.isfinite(mv)]
+    move = f"  line moved toward it {pm(mean_ci(mv), 2)}" if when == "open" and len(mv) > 1 else ""
+    return (f"      {name:<12} n {len(d):>4}  overs hit {100 * d['over_won'].mean():4.1f}% (market "
+            f"{100 * d['q'].mean():4.1f}%)  model − line {(d['T'] - d['line']).mean():+5.1f}  model picks "
+            f"{int(d['side_over'].sum())} over / {int((~d['side_over']).sum())} under  won "
+            f"{100 * d['won'].mean():4.1f}%  ROI {100 * roi:+6.1f}% ± {100 * h:4.1f}  null "
+            f"{100 * d['null'].mean():+.1f}%{move}")
+
+
+def bands_block(j):
+    """T0's side by the posted total's size and by over / under, games 10+.
+    Descriptive (the guidelines: price bands are never filters)."""
+    lines = ["== 3. T0 by the posted total (games 10+; descriptive, not filters; ± 95%)"]
+    for bk, y in (("dk", 2026), ("espnbet", 2025)):
+        x = j[(j["book"] == bk) & (j["season"] == y) & (j["stage_gp"] >= 10)]
+        if not len(x):
+            continue
+        lines.append(f"  {market.BOOK_NAMES[bk]} {season_name(y)}")
+        for when in ("open", "close"):
+            d = _sides(x, when)
+            lines.append(f"    @{when}")
+            lines.append(_band_line("all", d, when))
+            for lo, hi, name in TOTAL_BANDS:
+                lines.append(_band_line(name, d[(d["line"] >= lo) & (d["line"] < hi)], when))
+            lines.append(_band_line("model over", d[d["side_over"]], when))
+            lines.append(_band_line("model under", d[~d["side_over"]], when))
+    return lines
+
+
+def examples_block(j, n=6):
+    """The largest opening disagreements per book-season, game by game."""
+    lines = [f"== 4. Examples: the {n} largest |model − opening total| per book-season, games 10+ "
+             "(the model side at the opening price)"]
+    for bk, y in (("dk", 2026), ("espnbet", 2025)):
+        x = j[(j["book"] == bk) & (j["season"] == y) & (j["stage_gp"] >= 10)]
+        if not len(x):
+            continue
+        d = _sides(x, "open")
+        d = d.reindex((d["T"] - d["line"]).abs().sort_values(ascending=False).index[:n])
+        lines.append(f"  {market.BOOK_NAMES[bk]} {season_name(y)}")
+        for _, r in d.iterrows():
+            side = "over" if r["side_over"] else "under"
+            price = r["o"] if r["side_over"] else r["u"]
+            lines.append(f"    {r['slate_date']}  {r['away']} @ {r['home']:<4} open {r['line']:5.1f} -> close "
+                         f"{r['close_total']:5.1f}  model {r['T']:5.1f}  {side:<5} {price:+4.0f}  final "
+                         f"{int(r['total']):>3}  {'won' if r['won'] else 'lost'} {r['units']:+.2f}u")
     return lines
 
 

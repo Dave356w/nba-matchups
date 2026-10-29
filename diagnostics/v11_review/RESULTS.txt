@@ -67,19 +67,19 @@ v11 review: pace, totals and the picks (research/v11_review.py). ± 95% unless l
       model side, |model − line| ≥ 3: n  484  ROI   -5.1% ±  8.5  null -4.5%
       model side, |model − line| ≥ 6: n  170  ROI  -15.8% ± 14.3  null -4.5%
   ESPN BET 2024-25 games 10+  n 1071
-    open  n 1071  RMSE line 18.24  model 18.20  model − line sd 4.20  weight on (model − line) +0.53 ± 0.26
-      model side, |model − line| ≥ 0: n 1071  ROI   -4.0% ±  5.7  null -4.6%  line moved toward it +1.01 ± 0.25 pts
-      model side, |model − line| ≥ 3: n  452  ROI   +0.8% ±  8.6  null -4.6%  line moved toward it +2.06 ± 0.43 pts
-      model side, |model − line| ≥ 6: n  141  ROI   +7.0% ± 14.7  null -4.8%  line moved toward it +4.57 ± 0.88 pts
-    close n 1071  RMSE line 17.54  model 18.20  model − line sd 4.58  weight on (model − line) -0.06 ± 0.23
-      model side, |model − line| ≥ 0: n 1071  ROI   -8.4% ±  5.7  null -4.5%
+    open  n 1015  RMSE line 18.08  model 18.11  model − line sd 3.74  weight on (model − line) +0.45 ± 0.30
+      model side, |model − line| ≥ 0: n 1015  ROI   -3.7% ±  5.9  null -4.5%  line moved toward it +0.69 ± 0.24 pts
+      model side, |model − line| ≥ 3: n  405  ROI   +2.6% ±  9.3  null -4.5%  line moved toward it +1.42 ± 0.41 pts
+      model side, |model − line| ≥ 6: n  110  ROI  +13.2% ± 17.4  null -4.5%  line moved toward it +3.21 ± 0.87 pts
+    close n 1070  RMSE line 17.55  model 18.20  model − line sd 4.58  weight on (model − line) -0.06 ± 0.23
+      model side, |model − line| ≥ 0: n 1070  ROI   -8.5% ±  5.7  null -4.5%
       model side, |model − line| ≥ 3: n  527  ROI   -9.6% ±  8.1  null -4.5%
       model side, |model − line| ≥ 6: n  202  ROI  -14.2% ± 13.1  null -4.5%
   ESPN BET 2024-25 games 1–9  n 138
-    open  n  138  RMSE line 19.42  model 19.27  model − line sd 7.85  weight on (model − line) +0.54 ± 0.41
-      model side, |model − line| ≥ 0: n  138  ROI   -2.4% ± 14.7  null -5.0%  line moved toward it +3.89 ± 0.93 pts
-      model side, |model − line| ≥ 3: n   95  ROI   -5.3% ± 17.1  null -5.1%  line moved toward it +5.66 ± 1.06 pts
-      model side, |model − line| ≥ 6: n   58  ROI   +5.4% ± 19.8  null -5.2%  line moved toward it +6.79 ± 1.44 pts
+    open  n   71  RMSE line 20.38  model 21.12  model − line sd 5.30  weight on (model − line) -0.09 ± 0.90
+      model side, |model − line| ≥ 0: n   71  ROI  -11.4% ± 22.3  null -4.6%  line moved toward it +0.82 ± 0.83 pts
+      model side, |model − line| ≥ 3: n   38  ROI  -15.1% ± 30.4  null -4.6%  line moved toward it +2.24 ± 1.10 pts
+      model side, |model − line| ≥ 6: n   23  ROI   -1.0% ± 39.6  null -4.6%  line moved toward it +2.78 ± 1.42 pts
     close n  138  RMSE line 18.38  model 19.27  model − line sd 4.74  weight on (model − line) -0.26 ± 0.65
       model side, |model − line| ≥ 0: n  138  ROI  -13.0% ± 15.9  null -4.5%
       model side, |model − line| ≥ 3: n   80  ROI  -18.9% ± 20.8  null -4.5%

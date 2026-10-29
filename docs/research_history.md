@@ -738,9 +738,9 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   probability. A walk-forward total from the same box-score inputs
   (decayed pace and points per 100 possessions) is worse than the closing
   total on every book-season (RMSE 19.09 vs 18.46 DraftKings 2025-26;
-  18.20 vs 17.54 ESPN BET 2024-25) and adds nothing to it (weight −0.09 ±
+  18.20 vs 17.55 ESPN BET 2024-25) and adds nothing to it (weight −0.09 ±
   0.26, −0.06 ± 0.23). At the open it adds to ESPN BET 2024-25 (weight
-  +0.53 ± 0.26; the line moved toward it +1.01 ± 0.25 pts) but not to
+  +0.45 ± 0.30; the line moved toward it +0.69 ± 0.24 pts) but not to
   DraftKings 2025-26 (+0.06 ± 0.33). Not a usable O/U signal as built.
   **Picks.** The reconstructed rows read the 30-minute report, news the
   open lacked. With the walk-forward v11 P at 18 h (about the open's
@@ -768,9 +768,14 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   log loss +0.0249 ± 0.0132 DraftKings 2025-26, +0.0253 ± 0.0117 ESPN BET
   2024-25) and adds nothing (weight on T − line −0.02 ± 0.26, −0.09 ±
   0.23). Against the open it is level with the market (+0.0049 ± 0.0109,
-  +0.0053 ± 0.0091), adds +0.19 ± 0.32 / +0.53 ± 0.27, and the total
-  moved toward its side by the close (+0.57 ± 0.22, +0.81 ± 0.25 pts); its
-  side at |P − q| ≥ 0.05 returned +4.2% ± 8.4 / −0.4% ± 8.1 (null −4.5%).
+  +0.0047 ± 0.0094), adds +0.19 ± 0.32 / +0.43 ± 0.30, and the total
+  moved toward its side by the close (+0.57 ± 0.22, +0.76 ± 0.24 pts); its
+  side at |P − q| ≥ 0.05 returned +4.2% ± 8.4 / +0.3% ± 8.4 (null −4.5%).
+  Main lines only (both prices −135..+115): the feed's ESPN BET 2024-25
+  "open" is an alternate line on 123 games (Oct–Dec, prices like −425).
+  By the posted total (descriptive): the model leans over on low totals
+  and under on high ones, more than the market; no band beats its null at
+  the close, and the market's extreme totals were right on average.
   Absent rotation minutes from who played (about the 30-minute report)
   add nothing (+0.26 ± 0.24 squared error). Like v11's moneyline signal,
   any O/U value is at the open and gone by the close. Buildable; not

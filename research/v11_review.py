@@ -23,7 +23,8 @@
    O/U probability. The same pregame box-score inputs can give one: a
    walk-forward total from both teams' decayed points per possession
    (offence and defence) and expected possessions. Against the books'
-   opening and closing totals (research/totals_fetch.py, ESPN feed):
+   opening and closing totals (research/totals_fetch.py, ESPN feed; main
+   lines only, both prices within -135..+115):
    the outcome's weight on (model total - line), and flat 1u O/U on the
    model's side at the open and the close, beside the no-vig null.
    Hindsight on two book-seasons; information only.
@@ -469,8 +470,9 @@ def totals_block(games):
         lines.append(f"  {market.BOOK_NAMES[bk]} {season_name(y)} {st}  n {len(x)}")
         for when in ("open", "close"):
             line = x[f"{when}_total"].to_numpy(float)
-            ok = np.isfinite(line) & np.isfinite(x[f"{when}_over"].to_numpy(float)) \
-                & np.isfinite(x[f"{when}_under"].to_numpy(float))
+            lo, hi = analysis.ATS_MAIN_LINE     # main lines only (see totals_model.main_line)
+            o, u = x[f"{when}_over"].to_numpy(float), x[f"{when}_under"].to_numpy(float)
+            ok = np.isfinite(line) & (o >= lo) & (o <= hi) & (u >= lo) & (u <= hi)
             xx, line = x[ok], line[ok]
             tot, mt = xx["total"].to_numpy(float), xx["model_total"].to_numpy(float)
             diff = mt - line
