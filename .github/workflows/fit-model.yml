@@ -98,7 +98,11 @@ jobs:
           # Covered games 1+ of the box-score seasons with an NBA injury report;
           # the first box season needs the BPM table of the season before it.
           rm -f model/logit_avail.json model/avail_train.csv
-          python player_availability.py fit --${{ inputs.version }} --years ${{ inputs.avail_years }}
+          # v11 reads its Questionable play-rate table from the research output
+          # (player_availability.py q-rates over a complete archive): the NBA's CDN
+          # throttles the runner, so it does not download every edition again.
+          python player_availability.py fit --${{ inputs.version }} --years ${{ inputs.avail_years }} \
+            ${{ inputs.version == 'v11' && '--q-rates diagnostics/questionable_weight/q_rates.json' || '' }}
       - name: Commit model
         run: |
           git config user.name  "github-actions[bot]"

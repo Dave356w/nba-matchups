@@ -722,6 +722,11 @@ under; the games 1–9 tests accept `_v9` and `_v10` first tags
   (`model/logit_avail.json` `"q_rates"`). Fitted on 2022-23 to 2025-26: at
   18 h Doubtful 0.05, Questionable 0.49, Probable 0.87; at 5 h 0.02, 0.48,
   0.91; at 30 min 0.00, 0.51, 0.92.
+- **Table file:** `player_availability.py q-rates` writes the table to
+  `diagnostics/questionable_weight/q_rates.json` from a complete report
+  archive; "Fit model" v11 reads it (`--q-rates`; the model file records
+  `"q_rates_source"`) because the NBA's CDN throttles GitHub's runners. The
+  file is refused unless its seasons and leads match the fit's.
 - **Unchanged:** the route's coefficients are fitted, and refitted before
   each slate, on the od rule at the last report ≥ 30 min before tip (arm q).
   The base route is v10's; both files carry `"version": 11`.
