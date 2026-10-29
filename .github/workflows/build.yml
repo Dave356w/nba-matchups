@@ -15,6 +15,9 @@ on:
   # drops or delays many scheduled runs (about a third ran in October 2026), so the
   # build is attempted every 30 minutes, off the top of the hour. A game's row
   # is written or refreshed only before tip and frozen after, so any run is safe.
+  # The 30-minute schedule alone still missed most locks (GitHub created 4 of
+  # 33 requested runs on 2026-10-28/29), so watch.yml also dispatches a build
+  # at each game's lock window; this schedule stays as an independent path.
   schedule:
     - cron: '17 4 * * *'
     - cron: '13,43 11-23 * * *'
@@ -29,6 +32,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  actions: write   # start a lock watch shift (watch.yml)
 
 jobs:
   build:
@@ -73,6 +77,25 @@ jobs:
             sleep $((2**i))
           done
           echo "::error::ledger push failed"; exit 1
+
+      # Start a lock watch shift (watch.yml) when today's slate still has a
+      # game to lock and no shift is running or queued, so any delivered
+      # build covers the rest of the slate's lock windows. Never fails the
+      # build.
+      - name: Start the lock watcher
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python watch_slate.py --check || exit 0
+          busy=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow watch.yml --limit 20 \
+                   --json status --jq '[.[] | select(.status != "completed")] | length')
+          if [ "$busy" = "0" ]; then
+            gh workflow run watch.yml --repo "$GITHUB_REPOSITORY" --ref main
+          else
+            echo "a lock watch shift is already running or queued"
+          fi
 
       - name: Validate publication boundary
         run: python -c "import build_site; build_site.validate_public_output()"

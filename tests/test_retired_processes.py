@@ -63,8 +63,8 @@ def test_exhibition_build_does_not_read_or_write_retired_files(tmp_path, monkeyp
     assert "== PRESEASON" not in bs.REPORT_PATH.read_text()
 
 
-def test_exactly_the_eight_registered_workflows_remain():
+def test_exactly_the_nine_registered_workflows_remain():
     root = Path(bs.__file__).parent
     assert {p.stem for p in (root / ".github/workflows").glob("*.yml")} == {
-        "build", "tests", "fit-model", "backfill", "rebuild", "box-history",
+        "build", "watch", "tests", "fit-model", "backfill", "rebuild", "box-history",
         "history-backtest", "margin-model"}

@@ -325,6 +325,9 @@ closed workflows can be recovered from git history.
 
 ## Workflows
 
-Exactly eight remain: `build`, `tests`, `fit-model`, `backfill`, `rebuild`,
-`box-history`, `history-backtest`, `margin-model`. Fifteen closed research
-workflows are retired. Fit model already fits availability.
+Exactly nine remain: `build`, `watch`, `tests`, `fit-model`, `backfill`,
+`rebuild`, `box-history`, `history-backtest`, `margin-model`. `watch` writes
+no data: it long-polls each slate and dispatches `build` at every game's
+five-hour lock window (`watch_slate.py`), since GitHub drops most scheduled
+builds. Fifteen closed research workflows are retired. Fit model already
+fits availability.

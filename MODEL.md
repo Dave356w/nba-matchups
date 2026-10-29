@@ -770,7 +770,10 @@ snapshot with a model P and a price whose time is within
 H5·L / H2·F·L / H4·L rows (and ·E·L), identical rules and stages. The
 first-snapshot rows keep only slates before `lock_activation_slate`. A game
 with no snapshot in its window has no tracked bet (`lock_status` counts the
-misses). The build is attempted every 30 minutes over the lock windows.
+misses). The build is attempted every 30 minutes over the lock windows,
+and Lock watch (`watch_slate.py`, `watch.yml`) dispatches one as each
+game's window opens, retrying until the game locks, because GitHub drops
+most scheduled runs.
 From `analysis.FAMILY_SLATE` (2026-10-29) the ·L rows are closed and the
 v11-family rows (H5·L·v11 and the others, `family_hypotheses`) read the
 lock, with `FAMILY_TAGS` (`_v11`) required on both stages at the lock;
