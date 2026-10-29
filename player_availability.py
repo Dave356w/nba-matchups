@@ -653,6 +653,10 @@ def floor_slot(dt):
                       microsecond=0)
 
 
+class TransientFetch(RuntimeError):
+    """A report fetch that failed for a reason other than "not published"."""
+
+
 class ReportArchive:
     """Finds and caches injury-report PDFs; remembers misses across runs."""
 
@@ -671,14 +675,28 @@ class ReportArchive:
         self.sleep = sleep
         self.requests = 0
 
-    def _http(self, url):
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                body = r.read()
-        except urllib.error.HTTPError:
-            return None
-        return body if body[:4] == b"%PDF" else None
+    def _http(self, url, tries=5):
+        """The PDF at url, or None when it was never published: a 404, or the
+        CDN's 403 with an XML AccessDenied body (a missing object). Any other
+        failure (throttling, a 5xx, a dropped connection) is retried with
+        backoff and then raises TransientFetch, so it is never remembered as a
+        miss (a throttled fit once recorded real editions as missing)."""
+        err = None
+        for i in range(tries):
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    body = r.read()
+                return body if body[:4] == b"%PDF" else None
+            except urllib.error.HTTPError as e:
+                ctype = (e.headers.get("Content-Type") or "") if e.headers else ""
+                if e.code == 404 or (e.code == 403 and "xml" in ctype):
+                    return None
+                err = e
+            except (urllib.error.URLError, OSError) as e:
+                err = e
+            time.sleep(min(30, 2 ** i))
+        raise TransientFetch(f"{url}: {err!r}")
 
     def get(self, dt):
         """Local path of the report published at ET datetime dt, or None."""
@@ -710,7 +728,7 @@ class ReportArchive:
             dt -= timedelta(minutes=SLOT_MINUTES)
         return None, None
 
-    def prefetch(self, cutoffs, workers=24):
+    def prefetch(self, cutoffs, workers=6):
         """latest_before for many cutoffs at once, in threads (v11's fit reads
         reports at several leads; one at a time took hours). Fills the cache
         and the misses; returns how many cutoffs found a report."""
@@ -721,7 +739,7 @@ class ReportArchive:
             for i in range(4):
                 try:
                     return self.latest_before(c)[0] is not None
-                except (OSError, urllib.error.URLError):     # transient: retry
+                except (OSError, TransientFetch):       # transient: retry later
                     time.sleep(2 ** i)
             return False
         try:
@@ -1193,6 +1211,7 @@ def od_present(report_rows, box, gid, teams, slate, rates=None):
 # reads the rates of the nearest lead.
 Q_LEADS = (1080, 720, 480, 300, 120, 30)
 Q_STATUSES = ("Doubtful", "Questionable", "Probable")
+Q_MIN_COVERAGE = 0.98     # every season and lead reads a report for ~100% of games
 
 
 def q_status_p(status, rates):
@@ -1218,8 +1237,15 @@ def q_rates(years, cache_dir=DEFAULT_CACHE, leads=Q_LEADS, archive=None):
                     cut.append(tip.astimezone(ET).replace(tzinfo=None) - timedelta(minutes=lead))
         archive.prefetch(cut)
         archive.save()
-        st = pd.concat([game_statuses(boxes[t], tips[t], archive, lead)[0] for t in years],
-                       ignore_index=True)
+        parts = []
+        for t in years:
+            st_t, s = game_statuses(boxes[t], tips[t], archive, lead)
+            if s["with_report"] < Q_MIN_COVERAGE * s["games"]:
+                raise SystemExit(f"q rates: a report found for only {s['with_report']} of "
+                                 f"{s['games']} games of {t} at {lead} min; refusing to fit "
+                                 "on an incomplete archive")
+            parts.append(st_t)
+        st = pd.concat(parts, ignore_index=True)
         r = play_rates(st)
         out[str(lead)] = {k: round(float(r[k]), 4) for k in Q_STATUSES if k in r}
         print(f"q rates at {lead} min: {out[str(lead)]} ({len(st)} listings)", flush=True)

@@ -275,3 +275,55 @@ def test_how_it_works_describes_v11_with_its_dated_line(monkeypatch):
     assert "questionable, doubtful or probable" in note and "October 30, 2026" in note
     monkeypatch.setattr(build_site, "ACTIVE_TAGS", [build_site.MODEL_TAG_V10])
     assert "questionable" not in site.model_note()
+
+
+def test_only_a_missing_object_is_remembered_as_a_miss(tmp_path, monkeypatch):
+    import io
+    import urllib.error
+
+    def http_error(code, ctype):
+        return urllib.error.HTTPError("u", code, "x", {"Content-Type": ctype}, io.BytesIO(b""))
+    calls = []
+
+    def fake(answers):
+        def urlopen(req, timeout=30):
+            calls.append(req.full_url)
+            a = answers.pop(0) if len(answers) > 1 else answers[0]
+            raise a
+        return urlopen
+    monkeypatch.setattr(pav.time, "sleep", lambda s: None)
+    arch = pav.ReportArchive(str(tmp_path))
+    # a 404 or the CDN's XML AccessDenied: never published
+    for err in (http_error(404, "text/html"), http_error(403, "application/xml")):
+        monkeypatch.setattr(pav.urllib.request, "urlopen", fake([err]))
+        assert arch._http("https://x/u.pdf") is None
+    # throttling (an HTML 403) or a dropped connection: retried, then raised
+    monkeypatch.setattr(pav.urllib.request, "urlopen", fake([http_error(403, "text/html")]))
+    calls.clear()
+    try:
+        arch._http("https://x/u.pdf", tries=3)
+        raise AssertionError("no TransientFetch")
+    except pav.TransientFetch:
+        assert len(calls) == 3
+    dt = datetime(2024, 1, 5, 17, 0)
+    try:
+        arch.get(dt)
+    except pav.TransientFetch:
+        pass
+    assert not arch.misses                       # nothing remembered as missing
+
+
+def test_q_rates_refuse_an_incomplete_archive(monkeypatch):
+    monkeypatch.setattr(pav, "fetch_box", lambda t, cache_dir=None: pd.DataFrame())
+    monkeypatch.setattr(pav, "fetch_tips", lambda t, cache_dir=None: {})
+    monkeypatch.setattr(pav, "game_statuses", lambda box, tips, arch, lead: (
+        pd.DataFrame(columns=["status", "played"]), dict(games=100, with_report=90)))
+
+    class Arch:
+        def prefetch(self, cut): return 0
+        def save(self): pass
+    try:
+        pav.q_rates([2024], leads=(300,), archive=Arch())
+        raise AssertionError("no refusal")
+    except SystemExit as e:
+        assert "only 90 of 100" in str(e)
