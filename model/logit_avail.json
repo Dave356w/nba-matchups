@@ -37,7 +37,7 @@
   "rule": "od",
   "replacement_bpm": -2.0,
   "bpm_shrink_mp": 500.0,
-  "version": 10,
+  "version": 11,
   "orb": "pct",
   "refit": "slate",
   "train_file": "avail_train.csv",
@@ -110,5 +110,39 @@
       "trey kaufman renn": 59,
       "malique lewis": 60
     }
-  }
+  },
+  "score_rule": "q",
+  "q_rates": {
+    "1080": {
+      "Doubtful": 0.0457,
+      "Questionable": 0.4926,
+      "Probable": 0.8684
+    },
+    "720": {
+      "Doubtful": 0.0443,
+      "Questionable": 0.4921,
+      "Probable": 0.868
+    },
+    "480": {
+      "Doubtful": 0.0301,
+      "Questionable": 0.4837,
+      "Probable": 0.8733
+    },
+    "300": {
+      "Doubtful": 0.0211,
+      "Questionable": 0.481,
+      "Probable": 0.9078
+    },
+    "120": {
+      "Doubtful": 0.0159,
+      "Questionable": 0.4968,
+      "Probable": 0.911
+    },
+    "30": {
+      "Doubtful": 0.0,
+      "Questionable": 0.5067,
+      "Probable": 0.9241
+    }
+  },
+  "q_rates_source": "diagnostics/questionable_weight/q_rates.json"
 }
