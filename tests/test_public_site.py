@@ -10,8 +10,8 @@ from public_site import PublicSite
 from test_analysis_and_pages import _ats_rows
 
 
-# The first-snapshot rows close where the 5 h lock starts: a pre-lock slate is
-# graded and shown from the next day on (public_site.first_cut).
+# The pages show only the v11-family rows at the 5 h lock (model-family reset,
+# 2026-10-29); the fixture's slate follows the reset and is shown the next day.
 CLOSED = '2026-11-20'
 
 
@@ -21,9 +21,13 @@ def rows():
         first_book='dk', first_snapshot_utc='2026-11-19T15:07:00Z',
         slate_date='2026-11-19', tip_utc='2026-11-20T00:30:00Z',
         pre_home_ml=-150, pre_away_ml=130, pre_q_home=.6,
-        pre_book='dk', margin_home=9.5)
+        pre_book='dk', margin_home=9.5,
+        lock_p_home=.8, lock_home_ml=-150, lock_away_ml=130, lock_q_home=.6,
+        lock_book='dk', lock_snapshot_utc='2026-11-19T21:07:00Z',
+        lock_model_tag=ui.MODEL_TAG_V11, lock_spread=-5.5,
+        lock_home_spread_odds=-110, lock_away_spread_odds=-110)
     g['gp_home'], g['gp_away'] = [0,1,9,10,30,3], 30
-    g.loc[5,'first_model_tag'] = ui.MODEL_TAG_V8
+    g.loc[5,'lock_model_tag'] = ui.MODEL_TAG_V10   # an earlier model: no family row
     return g
 
 
@@ -61,7 +65,7 @@ def test_pending_selections_never_fabricate_results_and_ignore_later_refreshes()
 
 
 def test_public_forecasts_cannot_promote_a_legacy_lean_record_or_reconstructed_rows():
-    g = rows().assign(first_model_tag=ui.MODEL_TAG_V8,gp_home=3)
+    g = rows().assign(lock_model_tag=ui.MODEL_TAG_V10,gp_home=3)
     site = PublicSite(ui,g,CLOSED,'built')
     assert not site.records
     assert 'The forward record starts here' in site.results_page()
@@ -78,7 +82,7 @@ def test_public_forecasts_cannot_promote_a_legacy_lean_record_or_reconstructed_r
 def test_results_keep_losses_pushes_pending_overlap_and_seasons_separate():
     g = rows().iloc[1:4].copy()
     g['home_pts'],g['away_pts'],g['home_won'] = [90,106,np.nan],[100,100,np.nan],[0,1,np.nan]
-    g.loc[g.index[1],'first_spread']=-6
+    g.loc[g.index[1],'lock_spread']=-6
     g.loc[g.index[1],'season']=2026
     site=PublicSite(ui,g,CLOSED,'built')
     result=site.results_page()
@@ -122,9 +126,9 @@ def test_publication_allowlist_removes_stale_research_and_preserves_backend(tmp_
 
 
 def test_unavailable_probability_and_market_render_without_a_false_tracked_pick():
-    g=rows().iloc[:1].assign(p_home=np.nan,first_p_home=np.nan,pre_home_ml=np.nan,
-                            pre_away_ml=np.nan,pre_book=np.nan)
+    g=rows().iloc[:1].assign(p_home=np.nan,first_p_home=np.nan,lock_p_home=np.nan,
+                            pre_home_ml=np.nan,pre_away_ml=np.nan,pre_book=np.nan)
     site=PublicSite(ui,g,'2026-11-19','built',False)
     assert 'Forecast unavailable' in site.today_page()
-    assert 'Tracked picks · first snapshot' not in site.today_page()
+    assert 'Tracked picks ·' not in site.today_page()
     assert not site.records

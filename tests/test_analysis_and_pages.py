@@ -490,7 +490,7 @@ def test_h5_h6_by_season_partition_the_pooled_scoreboard(tmp_path, monkeypatch):
     pooled = {h["key"]: hind for h, hind, _ in analysis.hypothesis_rows(nat, rec)}
     by = {h["key"]: parts for h, parts in analysis.hypothesis_by_season(nat, rec)}
     # the 5 h lock rows (·L) follow the first-snapshot rows, never pooled
-    assert list(by) == ["H5", "H5·E", "H5·L", "H5·E·L"]
+    assert list(by) == ["H5", "H5·E", "H5·L", "H5·E·L", "H5·L·v11", "H5·E·L·v11"]
     for key, parts in by.items():
         assert parts[0]["basis"] == "native" and parts[0]["row"] is None
         rp = [p for p in parts if p["basis"] == "reconstructed"]

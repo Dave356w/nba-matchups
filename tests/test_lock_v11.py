@@ -82,19 +82,22 @@ def test_validator_flags_a_lock_outside_its_window(tmp_path):
 
 
 # -------------------------------------------------------------- analysis --
-def _two_slates():
+def _two_slates(early="2026-10-27", late_slate="2026-10-28", tag=build_site.MODEL_TAG_V10):
     """Graded games 10+: three on a first-snapshot slate, three on the lock's
-    first slate (lock P on the other side of the first P)."""
+    first slate (lock P on the other side of the first P). By default both
+    slates precede the v11-family reset, where the ·L rows are open."""
     g = _ats_rows(6)
-    g["slate_date"] = ["2026-11-18"] * 3 + ["2026-11-19"] * 3
+    g["slate_date"] = [early] * 3 + [late_slate] * 3
+    tip = pd.Timestamp(late_slate) + pd.Timedelta(hours=24.5)
+    g["tip_utc"] = f"{tip:%Y-%m-%dT%H:%M}Z"
     g["first_book"] = g["pre_book"] = "dk"
     g["first_p_home"], g["p_home"] = 0.8, 0.8
     g["first_home_ml"], g["first_away_ml"], g["first_q_home"] = -150, 130, 0.58
     late = g.index[3:]
     for c in ledger.TEXT_COLUMNS:
         g[c] = g[c].astype(object)
-    g.loc[late, "lock_snapshot_utc"] = "2026-11-19T21:00:00Z"
-    g.loc[late, "lock_model_tag"] = build_site.MODEL_TAG_V10
+    g.loc[late, "lock_snapshot_utc"] = f"{late_slate}T21:00:00Z"
+    g.loc[late, "lock_model_tag"] = tag
     g.loc[late, "lock_p_home"] = 0.2
     g.loc[late, "lock_book"] = "dk"
     g.loc[late, ["lock_home_ml", "lock_away_ml", "lock_q_home"]] = [-150, 130, 0.58]
@@ -105,7 +108,7 @@ def _two_slates():
 
 def test_first_rows_close_at_the_locks_first_slate_and_lock_rows_read_the_lock():
     g = _two_slates()
-    assert analysis.lock_activation_slate(g) == "2026-11-19"
+    assert analysis.lock_activation_slate(g) == "2026-10-28"
     assert analysis.lock_activation_slate(g.drop(columns="lock_snapshot_utc")) is None
     h5, h5l = (next(h for h in analysis.HYPOTHESES if h["key"] == k) for k in ("H5", "H5·L"))
     assert (h5l["native"], h5l["sigma"], h5l["min_edge"], h5l["hindsight"]) == \
@@ -142,7 +145,7 @@ def test_lock_rows_clv_and_status():
     assert first["n"] == lock["n"] == 3 and first["unit"] == "pts"
     assert first["mean"] == 2.0 and lock["mean"] == -2.0  # home bets gained, away bets lost
     st = analysis.lock_status(g, now="2026-11-21T00:00Z")
-    assert (st["activation"], st["locked"], st["missed"]) == ("2026-11-19", 3, 0)
+    assert (st["activation"], st["locked"], st["missed"]) == ("2026-10-28", 3, 0)
     assert abs(st["lead_median_h"] - 3.5) < 1e-9
 
 
@@ -152,7 +155,7 @@ def _page(g, today):
 
 
 def test_today_marks_locked_picks_and_says_when_the_rest_lock():
-    g = _two_slates()
+    g = _two_slates("2026-11-18", "2026-11-19", build_site.MODEL_TAG_V11)
     g["home_won"] = np.nan
     g.loc[g.index[3:], ["home_pts", "away_pts"]] = np.nan
     g.loc[g.index[5], ledger.LOCK_COLUMNS] = np.nan        # not yet in its window
@@ -162,25 +165,21 @@ def test_today_marks_locked_picks_and_says_when_the_rest_lock():
     assert "Tracked picks · 5 h lock" in locked
     waiting = site.card(g.iloc[5])
     assert "Forecast only" in waiting and "lock about 5 hours before tip" in waiting
-    # a closed first-snapshot slate keeps its picks, labelled as such
-    assert "Tracked picks · first snapshot" in site.card(g.iloc[0])
-    assert all(r["lock"] for r in site.records if r["row"].slate_date == "2026-11-19")
+    # a first-snapshot slate is no public record after the model-family reset
+    assert "Tracked picks ·" not in site.card(g.iloc[0])
+    assert {r["row"].slate_date for r in site.records} == {"2026-11-19"}
 
 
-def test_results_and_performance_keep_the_two_records_apart():
-    g = _two_slates()
+def test_results_and_performance_show_only_the_lock_record():
+    g = _two_slates("2026-11-18", "2026-11-19", build_site.MODEL_TAG_V11)
     site = _page(g, "2026-11-20")
     res = site.results_page()
-    assert "data-basis='lock'" in res and "data-basis='first'" in res
-    assert "First snapshot · closed" in res
+    assert "data-basis" not in res and "First snapshot" not in res
+    assert res.count("data-result-row ") == 6     # H5 and H4 on the three locked games
     perf = site.performance_page()
-    assert "DraftKings · 5 h lock" in perf
-    assert "first snapshot · closed, slates before November 19, 2026" in perf
+    assert "DraftKings · 5 h lock" in perf and "first snapshot" not in perf
     guide = site.guide_page()
-    assert "within 5 hours of tip" in guide and "closed on November 19, 2026" in guide
-    # before any lock: the first-snapshot record is still open
-    pre = _page(g.assign(**{c: np.nan for c in ledger.LOCK_COLUMNS}), "2026-11-20")
-    assert "until the 5 h lock begins" in pre.performance_page()
+    assert "within 5 hours of tip" in guide and "closed on" not in guide
 
 
 # ------------------------------------------------------------------ v11 --
@@ -272,7 +271,9 @@ def test_how_it_works_describes_v11_with_its_dated_line(monkeypatch):
     site.ui, site.native, site.today = build_site, native, "2026-10-31"
     monkeypatch.setattr(build_site, "ACTIVE_TAGS", [build_site.MODEL_TAG_V11])
     note = site.model_note()
-    assert "questionable, doubtful or probable" in note and "October 30, 2026" in note
+    # v11's one dated line is the model-family reset's restart line
+    assert "questionable, doubtful or probable" in note and "October 29, 2026 games" in note
+    assert "kept separately" in note and "October 30, 2026" not in note
     monkeypatch.setattr(build_site, "ACTIVE_TAGS", [build_site.MODEL_TAG_V10])
     assert "questionable" not in site.model_note()
 

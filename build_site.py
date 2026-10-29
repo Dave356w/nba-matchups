@@ -1273,8 +1273,9 @@ def public_ats(native):
             continue
         d = analysis.hypothesis_picks(g, hyp, hyp["native"]) if len(g) else pd.DataFrame()
         out.append((hyp, d))
-    # lock rows first, then games 1-9 before games 10+
-    return sorted(out, key=lambda t: (not t[0].get("lock"), not t[0]["early"]))
+    # v11-family rows, then lock rows, then games 1-9 before games 10+
+    return sorted(out, key=lambda t: (not t[0].get("family"), not t[0].get("lock"),
+                                      not t[0]["early"]))
 
 
 def spread_tiles(native):
@@ -2720,6 +2721,14 @@ def _lock_txt(native):
             f"{st['lead_median_h']:.1f} h before tip; {st['missed']} missed)")
 
 
+def _family_txt(native):
+    """' (3 locked, 0 off-family)' from the reset slate, or ''."""
+    st = analysis.lock_status(native) if native is not None and len(native) else None
+    if not st:
+        return ""
+    return f" ({st['family_locked']} locked, {st['off_family']} off-family)"
+
+
 def _hypotheses(native, recon):
     book = analysis.HYPOTHESIS_BOOK
     name = market.BOOK_NAMES[book]
@@ -2759,7 +2768,12 @@ def _hypotheses(native, recon):
         "(·L; amendment registered 2026-10-28 at 21:30:29 UTC) bet the first "
         "snapshot within 5 hours of tip; the first-snapshot rows close with the "
         f"last slate before the lock's activation{_lock_txt(native)}. "
-        "The two are never pooled. Each has separate games 1–9 (·E) and games 10+ rows; "
+        "The two are never pooled. <b>Model-family reset</b> (amendment registered "
+        f"{analysis.FAMILY_REGISTRATION_UTC.replace('T', ' at ').replace('Z', ' UTC')}): the "
+        f"·L rows close with the slate before {analysis.FAMILY_SLATE}; the v11-family rows "
+        f"(·L·v11, lock tag {'/'.join(analysis.FAMILY_TAGS)}) start there{_family_txt(native)} "
+        "and are the only records on the public pages. Closed rows stay here, never pooled. "
+        "Each has separate games 1–9 (·E) and games 10+ rows; "
         "never pooled. Early segments registered 2026-10-23 at 19:46:58 UTC, "
         "before CHI @ MIL was final. Established segments and every threshold "
         "are unchanged. Native is the forward test, on DraftKings prices. "
