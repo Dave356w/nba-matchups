@@ -1,11 +1,11 @@
-# Model v11 (implemented; live once "Fit model" runs with version v11)
+# Model v11 (live since the 2026-10-29 refit)
 
 **v11** (owner's decision 2026-10-28; CLAUDE.md "Model v11 amendment"; "v11"
 at the end): v10 below plus Questionable weighting on the injury-report
 route. Doubtful, Questionable and Probable players count as the share of
 listed players with that status who logged minutes in the report seasons, at
-the report's lead before tip. Tags end `_v11`. Until the v11 files are
-fitted the build keeps scoring v10.
+the report's lead before tip. Tags end `_v11`. The model files carry
+`"version": 11` from the 2026-10-29 refit, and the build scores v11.
 
 **Five-hour lock** (owner's decision 2026-10-28; CLAUDE.md "Five-hour lock
 amendment"): tracked bets freeze at the first priced snapshot within 5 h of
@@ -31,8 +31,7 @@ only the v11-family rows. Records only, not prediction maths (no tag).
 `research/v10_candidate.py` (arm v10h25). Half-life, terms, routes and
 training seasons are v9's. Tags end `_v10`
 (`fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v10`,
-`..._margin_avail_v10`, and their `neutral` variants). Until the v10 files
-are fitted the build keeps scoring v9, with v9's tags.
+`..._margin_avail_v10`, and their `neutral` variants). Superseded by v11.
 
 
 **v9** (owner's decision 2026-10-23; "v9" at the end): v8 below, unchanged
@@ -78,7 +77,8 @@ one term, the own free-throw percentage gap (§2). Full technical report of the 
 | Module | Role |
 |---|---|
 | `nba_composite.py` | Four-factor composite, decayed game features, `logit_inputs` (every logit feature), base logit fit |
-| `cold_start.py` | The carryover rating and logit (H1 / H6's P, v8's fallback before game 10, preseason) |
+| `cold_start.py` | Shared decayed-feature helpers; the carryover fits (H1 / H6's P, v8's fallbacks, preseason) are research-only in `research/legacy_cold_start.py` and `research/legacy_models/` |
+| `totals.py` | Totals (O/U) model: expected total, σ and P(over) ("Totals (O/U) model" at the end) |
 | `player_availability.py` | Injury-report parsing, report coverage, availability terms and their logit |
 | `build_site.py` | `score_game`: routes each game to one formula and records it; changes no math |
 | `backfill_history.py` | `reconstruct_season`: the same routing on completed seasons (leave-one-season-out, or `walk_forward=True`) |
@@ -89,8 +89,14 @@ thing everywhere.
 
 ## 1. Routing
 
-v8 (active): for a game on date D, with g = min(games played before D by
-either team):
+Current (v9 to v11): the routes are v8's two below, each a margin model
+("v9" at the end), scored from game 0 with the same faded rating. A missing optional
+term contributes zero under a `neutral` tag; missing core ratings abstain.
+The carryover and v4 fallback rows below are history: production loads
+neither (`research/legacy_models/`), and new rows write no `carry_p_home`.
+
+v8 (active from 2026-10-22 until v9): for a game on date D, with g = min(games
+played before D by either team):
 
 | Condition | Formula | Model file | Tag |
 |---|---|---|---|
@@ -112,16 +118,17 @@ Before v8 (v7, until 2026-10-22):
 | g ≥ 10, otherwise | base logit (§2) | `model/logit.json` | `..._luck_talent_ft_v6` |
 | g ≥ 10, a v6 term missing (no box score, no 3PA) | frozen v4 base logit | `model/logit_v4.json` | `..._phase_v4` |
 
-Preseason (exhibition) games are not regular-season rows: they are scored
-separately to `data/nba_preseason.csv` (tag `..._carry25_preseason_g0`) by
-the §3 logit on last season's games alone, with b2b_net from the previous
-day's scoreboard, priced from Kalshi (YES asks with the taker fee; close
-= the last 1-minute candle at or before tip; `kalshi.py`), and shown only
-on the Preseason page. No new fit; the
-logit was trained on regular-season games, so those rows measure how far
-the offseason view travels, not regular-season skill.
+Preseason (exhibition) games were never regular-season rows: until their
+retirement they were scored separately to `data/nba_preseason.csv` (tag
+`..._carry25_preseason_g0`) by the §3 logit on last season's games alone,
+with b2b_net from the previous day's scoreboard, priced from Kalshi (YES
+asks with the taker fee; close = the last 1-minute candle at or before tip;
+`kalshi.py`), and shown only on a Preseason page. Both are retired: the file
+is kept and validated as history, and no exhibition is scored or published.
+Preseason box scores remain the game-0 roster inputs.
 
-The CLI `score` has no box scores, so it always uses `model/logit_v4.json`.
+The CLI `score` (`nba_composite.py score`) reads `model/weights.json` and
+`model/logit.json` (the base route).
 
 **Report coverage** (`player_availability.covers`): the latest NBA injury
 report lists the game's matchup (or both teams) for date D, and neither

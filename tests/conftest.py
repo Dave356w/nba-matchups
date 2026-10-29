@@ -16,9 +16,9 @@ import sleeper  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def no_kalshi_network(monkeypatch):
-    """Kalshi answers nothing unless a test supplies its own `get`: the daily
-    build asks Kalshi for regular-season prices too, and tests never touch
-    the network."""
+    """Kalshi answers nothing unless a test supplies its own `get`: the build
+    no longer fetches Kalshi, but research helpers still can, and tests never
+    touch the network."""
     monkeypatch.setattr(kalshi, "get", lambda path, **params: {})
 
 
