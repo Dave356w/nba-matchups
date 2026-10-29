@@ -62,3 +62,17 @@ def test_totals_fit_carries_the_league_level_across_seasons():
     bias = (p["T"] - p["total"]).groupby(p["season"]).mean()
     assert bias.abs().max() < 2.5
     assert abs(p["coef"].iloc[-1]["naive_rel"] - 0.9) < 0.15
+
+
+def test_team_context_reads_only_earlier_slates():
+    import totals_improve as ti
+    days = ["2025-01-01", "2025-01-02", "2025-01-02", "2025-01-03"]
+    s = pd.DataFrame(dict(game_id=["g1", "g2", "g3", "g4"], slate_date=days,
+                          home=["A", "A", "B", "A"], away=["B", "C", "C", "B"],
+                          close_total=[200.0, 220.0, 240.0, 999.0]))
+    c = ti.team_context(s, min_games=1)
+    assert np.isnan(c.iloc[0])                        # no earlier games
+    assert np.isnan(c.iloc[1]) and np.isnan(c.iloc[2])  # C has none before its first
+    # g4 reads A's and B's earlier closes only, never its own (999)
+    assert c.iloc[3] == np.mean([np.median([200, 220]), np.median([200, 240])])
+    assert ti.team_context(s, min_games=3).isna().all()

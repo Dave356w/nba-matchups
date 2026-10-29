@@ -780,3 +780,21 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   add nothing (+0.26 ± 0.24 squared error). Like v11's moneyline signal,
   any O/U value is at the open and gone by the close. Buildable; not
   shown to be useful at the 5 h lock. Research only.
+- Totals fit, improvements and market-context medians (owner's questions,
+  2026-10-29; `research/totals_improve.py`,
+  [results](../diagnostics/totals_improve/RESULTS.txt); ESPN BET 2023-24
+  totals added by `research/totals_fetch.py --season 2024`). ± 95%,
+  hindsight, main lines only. Arms vs the totals fit, chosen on the
+  unpriced seasons 2017-18 to 2022-23 before any price was read: a 5-game
+  form term is kept (squared error −1.54 ± 1.27); half-lives 8 / 15 / 40,
+  schedule-adjusted efficiency, rest days and altitude are not. With form
+  (T*), P(over) log loss − market at the open +0.0040 ± 0.0123 / +0.0066 ±
+  0.0098 / +0.0017 ± 0.0103 (ESPN BET 2023-24, 2024-25, DraftKings
+  2025-26), the total then moving toward its side +1.60 / +1.32 / +1.03
+  pts (± 0.33–0.34); at the close still worse than the market (+0.0139 ±
+  0.0116, +0.0275 ± 0.0117, +0.0223 ± 0.0123), weight ≈ 0. Market-context
+  medians show no signal: the posted-total band medians of (final − line)
+  flip sign from season to season (M1 at or below its null); the teams'
+  median earlier closing totals add nothing to the line (weight +0.05 ±
+  0.16 … −0.07 ± 0.20, M2); NFL-style medians of the model's own total
+  bands add nothing beyond it (M3). Research only.

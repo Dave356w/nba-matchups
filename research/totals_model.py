@@ -415,10 +415,74 @@ def examples_block(j, n=6):
     return lines
 
 
+def slate_leans(date, shrink=(10, 30.0)):
+    """Research leans for one upcoming slate (never tracked or published):
+    each team's state over its games before `date`, the T0 fit on every
+    completed earlier season, against DraftKings' current totals."""
+    y = int(date[:4]) + (1 if int(date[5:7]) >= 8 else 0)
+    k, lp = shrink
+    g = all_frames(k, lp)
+    tr = g[g["stage_gp"] >= 1]
+    X = np.column_stack([np.ones(len(tr)), tr[F0].to_numpy(float)])
+    target = (tr["total"] - tr["lg_total"]).to_numpy(float)
+    b = np.linalg.lstsq(X, target, rcond=None)[0]
+    res = target - X @ b
+    sig = {True: res[(tr["stage_gp"] < 10).to_numpy()].std(), False: res[(tr["stage_gp"] >= 10).to_numpy()].std()}
+    prev_t, prev_end = team_rows(y - 1)
+    pday = prev_t.groupby("date").agg(poss=("poss", "sum"), pts=("pts", "sum"), n=("poss", "size"))
+    prev_lg = (pday["poss"].sum() / pday["n"].sum(), 100 * pday["pts"].sum() / pday["poss"].sum())
+    t, end = team_rows(y)
+    t = t[t["date"] < pd.Timestamp(date)]
+    n = len(t) / 2
+    lg_pace = (t["poss"].sum() / 2 + lp * prev_lg[0]) / (n + lp)
+    lg_rtg = 100 * (t["pts"].sum() + lp * prev_lg[0] * prev_lg[1] / 100) / (t["poss"].sum() + lp * prev_lg[0])
+    opening = t["date"].min()
+
+    def state(tm):
+        x = t[t["team"] == tm]
+        gp = len(x)
+        out = []
+        for j, c in enumerate(("pace", "ortg", "drtg")):
+            base = prev_lg[0] if c == "pace" else prev_lg[1]
+            ref = lg_pace if c == "pace" else lg_rtg
+            prior = ref * (1 + REGRESS * (prev_end.get(tm, (base,) * 3)[j] / base - 1))
+            cur = end[tm][j] if gp else prior
+            out.append((gp * cur + k * prior) / (gp + k))
+        b2b = int(gp and (pd.Timestamp(date) - x["date"].max()).days == 1)
+        return gp, out, b2b
+    lines = [f"O/U research leans for {date} (T0 fit on {len(tr)} games; never tracked or published)"]
+    led = ledger.load(ledger.NATIVE_PATH)
+    for _, r in led[led["slate_date"].astype(str) == date].iterrows():
+        gh, (ph, oh, dh), bh = state(r["home"])
+        ga, (pa, oa, da), ba = state(r["away"])
+        exp_poss = ph * pa / lg_pace
+        naive = exp_poss * (oh * da + oa * dh) / lg_rtg / 100
+        lg_total = 2 * lg_pace * lg_rtg / 100
+        phase = min((pd.Timestamp(date) - opening).days / 175.0, 1.0)
+        T = lg_total + b @ np.array([1.0, naive - lg_total, bh + ba, phase])
+        s = sig[min(gh, ga) < 10]
+        js = market.get_json(market.ODDS.format(eid=r["game_id"]))
+        dk = [it for it in js.get("items", []) if str(it.get("provider", {}).get("id")) == market.DK_PROVIDER_ID]
+        if not dk:
+            lines.append(f"  {r['away']} @ {r['home']}: model total {T:.1f}; no DraftKings total")
+            continue
+        line, o, u = dk[0].get("overUnder"), dk[0].get("overOdds"), dk[0].get("underOdds")
+        q = market.devig(o, u)
+        p = float(1 - phi((line - T) / s))
+        side = "over" if p > q else "under"
+        lines.append(f"  {r['away']} @ {r['home']}  DK {line} (o {o:+.0f} / u {u:+.0f}, no-vig over {q:.3f})  "
+                     f"model {T:.1f} (sigma {s:.1f})  P(over) {p:.3f}  lean {side} {abs(p - q):.3f}")
+    return lines
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--slate", help="print research leans for this ET slate date and exit")
     a = ap.parse_args()
+    if a.slate:
+        print("\n".join(slate_leans(a.slate)))
+        return
     shrink, scores = choose_shrink()
     text = "\n".join(report(all_frames(*shrink), shrink, scores))
     out = Path(a.out)

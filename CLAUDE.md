@@ -271,7 +271,8 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   [Sleeper](diagnostics/sleeper_signal/RESULTS.txt).
 - Pace, totals (O/U) and the picks' timing under v11:
   [v11 review](diagnostics/v11_review/RESULTS.txt),
-  [totals fit](diagnostics/totals_model/RESULTS.txt).
+  [totals fit](diagnostics/totals_model/RESULTS.txt),
+  [totals improvements and market-context medians](diagnostics/totals_improve/RESULTS.txt).
 
 Detailed dated entries, original registrations and decisions remain in
 [the research history](docs/research_history.md). Scripts and results stay;
