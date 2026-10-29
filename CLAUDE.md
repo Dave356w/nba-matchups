@@ -164,6 +164,37 @@ information only, separate from DraftKings and native evidence.
     and History backtests), reviewed before activation. Pages carry the
     one dated model-version line; no hindsight figures are added.
 
+- **Model-family reset amendment (owner's decision, registered 2026-10-29T13:58:40Z).**
+  Committed on its own before any reset code and before any v11 lock: the
+  native ledger at `f1d3ed8` has no lock snapshot on the 2026-10-29 slate
+  (first tip 2026-10-30T00:00Z) and no first or lock tag ending `_v11`.
+  - v11, live from the 2026-10-29 refit, starts a new model family, and
+    the public records restart with it. From the **2026-10-29 slate**, each
+    test × stage × season gets new v11-family rows (H5·L·v11, H5·E·L·v11,
+    H2·F·L·v11, H2·F·E·L·v11, H4·L·v11, H4·E·L·v11), read at the 5 h lock
+    with the lock price, P and tag. Rules, thresholds, prices, lock timing
+    and stages are unchanged (H5 13.5 × Φ⁻¹(P), edge ≥ 1, both spread
+    prices −135..+115; H2·F q > 0.5; H4 P − q ≥ 0.12; games 1–9 and 10+
+    separate; game 0 never), except that both stages require a lock tag
+    ending `_v11` (neutral-input variants included).
+  - The 5 h-lock rows (·L) close with the 2026-10-28 slate; the
+    first-snapshot rows stay closed. Closed rows keep their bets, grades
+    and CLV in the internal workbench and `data/ledger_report.txt`, never
+    pooled with the v11-family rows. At registration they stand: first
+    snapshot H5·E 8–14 (−6.72u), H2·F·E 5–4 (−1.64u), H4·E 3–2 (+1.55u);
+    5 h lock, v10, 2026-10-28 slate H5·E·L 1–0 (+0.91u), H2·F·E·L 0–2
+    (−2.00u), H4·E·L 0–1 (−1.00u); no games-10+ bets. A game from the reset
+    slate on whose lock tag does not end `_v11` has no tracked bet and is
+    counted internally.
+  - Public Today, Results and Performance show only the v11-family rows,
+    with one dated line that the record restarted on October 29, 2026 with
+    the current model and that earlier picks are kept separately. No
+    earlier record appears on the public pages.
+  - A later model version enters these rows only through its own amendment
+    saying whether it continues this family. Prediction maths, thresholds,
+    native first and lock snapshots and their tags are unchanged; this
+    changes which rows the records read and what the pages show.
+
 ## Sources of truth and engineering rules
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
