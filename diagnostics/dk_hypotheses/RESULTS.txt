@@ -1,20 +1,20 @@
 Pre-registered hypotheses on the prior DraftKings rows -- HINDSIGHT
 Rules: analysis.HYPOTHESES, frozen (H1-H3 2026-09-30, H4/A1 2026-10-01, H5/H6 2026-10-20); read unchanged through analysis.hypothesis_picks.
 Rows: data/nba_reconstructed.csv with a DraftKings close: 964 games, 2025-11-25 to 2026-04-12 (2025-26); games 1-9: 0. ESPN lists DraftKings from 2025-11-25 only, so H1 and H6 (games 1-9) have no DK games and 2024-25 has no DK prices.
-P: reconstructed (leave-one-season-out; for 2025-26 every fit uses earlier seasons only), model fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_avail_v10.
+P: reconstructed (leave-one-season-out; for 2025-26 every fit uses earlier seasons only), model fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_avail_v11.
 Not an independent test: these games were in the scans that chose the rules. Native rows are the test.
 ± is 95%. null = the ROI if the no-vig price is right (about minus the hold), not zero; z = (ROI - null) / SE. fav = 1u on the favourite of the same games at the same price. H4 / H2·F are H3 / H2 at the first snapshot, which reconstructed rows lack, so in hindsight each pair is the same bets.
 
 == 1. Each rule on DraftKings 2025-26, at the open and the close (* = the registered hindsight price)
   H4         Games 10+ · value side · model P − no-vig q ≥ 0.12
-    *@open   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.7%  | fav -10.1%
-     @close  n=108      37-71     -0.63u  ROI   -0.6% ± 29.1  null -4.1%  vs null   +3.5 ± 29.1  z +0.2  win 34.3% vs q 32.5%  model 49.1%  | fav -10.7%
+    *@open   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.8%  | fav -10.1%
+     @close  n=109      37-72     -1.63u  ROI   -1.5% ± 28.8  null -4.1%  vs null   +2.6 ± 28.8  z +0.2  win 33.9% vs q 32.6%  model 49.2%  | fav -9.9%
   H2·F       Games 10+ · value side that is the favourite
     *@open   n=342    240-102     +9.24u  ROI   +2.7% ±  7.4  null -4.1%  vs null   +6.8 ±  7.4  z +1.8  win 70.2% vs q 66.0%  model 70.5%  | fav +2.7%
      @close  n=325    208-117    -27.25u  ROI   -8.4% ±  7.8  null -4.1%  vs null   -4.3 ±  7.8  z -1.1  win 64.0% vs q 66.7%  model 70.6%  | fav -8.4%
   H5         Games 10+ · ATS: model margin vs the line ≥ 1 pt
-    *@open   n=689    373-316    +22.12u  ROI   +3.2% ±  7.1  null -4.5%  vs null   +7.7 ±  7.1  z +2.1  win 54.1% vs q 50.1%  model 58.6%  | fav -8.7%
-     @close  n=701    351-350    -32.72u  ROI   -4.7% ±  7.1  null -4.5%  vs null   -0.2 ±  7.1  z -0.0  win 50.1% vs q 50.2%  model 58.8%  | fav -6.3%
+    *@open   n=689    374-315    +23.98u  ROI   +3.5% ±  7.1  null -4.5%  vs null   +8.0 ±  7.1  z +2.2  win 54.3% vs q 50.1%  model 58.7%  | fav -8.7%
+     @close  n=699    350-349    -32.62u  ROI   -4.7% ±  7.1  null -4.5%  vs null   -0.2 ±  7.1  z -0.0  win 50.1% vs q 50.2%  model 58.8%  | fav -6.3%
   H4·E       Games 1–9 · value side · model P − no-vig q ≥ 0.12
     *@open   no bets
      @close  no bets
@@ -26,23 +26,23 @@ Not an independent test: these games were in the scans that chose the rules. Nat
      @close  no bets
 
 == 2. The open bets at the close price (same side; what is left by tip)
-  H4         @open   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.7%  | fav -10.1%
-             @close  n=97       44-53    +11.86u  ROI  +12.2% ± 29.8  null -4.1%  vs null  +16.3 ± 29.8  z +1.1  win 45.4% vs q 39.7%  model 52.7%
+  H4         @open   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.8%  | fav -10.1%
+             @close  n=97       44-53    +11.86u  ROI  +12.2% ± 29.8  null -4.1%  vs null  +16.3 ± 29.8  z +1.1  win 45.4% vs q 39.7%  model 52.8%
              line moved toward the bets +3.95 ± 2.03 pp of no-vig q (toward 66%, against 34%)
   H2·F       @open   n=342    240-102     +9.24u  ROI   +2.7% ±  7.4  null -4.1%  vs null   +6.8 ±  7.4  z +1.8  win 70.2% vs q 66.0%  model 70.5%  | fav +2.7%
              @close  n=342    240-102     -2.97u  ROI   -0.9% ±  7.2  null -4.1%  vs null   +3.2 ±  7.2  z +0.9  win 70.2% vs q 68.1%  model 70.5%
              line moved toward the bets +2.04 ± 0.46 pp of no-vig q (toward 67%, against 33%)
-  H5         @open   n=689    373-316    +22.12u  ROI   +3.2% ±  7.1  null -4.5%  vs null   +7.7 ±  7.1  z +2.1  win 54.1% vs q 50.1%  model 58.6%  | fav -8.7%
-             @close  n=689    363-326     +2.86u  ROI   +0.4% ±  7.1  null -4.5%  vs null   +4.9 ±  7.1  z +1.4  win 52.7% vs q 50.1%  model 58.6%
-             line moved toward the bets +0.68 ± 0.17 pts (toward 48%, against 28%)
+  H5         @open   n=689    374-315    +23.98u  ROI   +3.5% ±  7.1  null -4.5%  vs null   +8.0 ±  7.1  z +2.2  win 54.3% vs q 50.1%  model 58.7%  | fav -8.7%
+             @close  n=689    364-325     +4.77u  ROI   +0.7% ±  7.1  null -4.5%  vs null   +5.2 ±  7.1  z +1.4  win 52.8% vs q 50.1%  model 58.7%
+             line moved toward the bets +0.69 ± 0.17 pts (toward 48%, against 27%)
 
 == 3. By half-season, at the registered hindsight price (descriptive)
-  H4         to 31 Jan   @open   n=37       22-15    +23.78u  ROI  +64.3% ± 54.9  null -4.9%  vs null  +69.2 ± 54.9  z +2.5  win 59.5% vs q 37.0%  model 52.5%  | fav -21.8%
+  H4         to 31 Jan   @open   n=37       22-15    +23.78u  ROI  +64.3% ± 54.9  null -4.9%  vs null  +69.2 ± 54.9  z +2.5  win 59.5% vs q 37.0%  model 52.6%  | fav -21.8%
   H4         from 1 Feb  @open   n=60       22-38     -4.47u  ROI   -7.4% ± 35.9  null -4.1%  vs null   -3.4 ± 35.9  z -0.2  win 36.7% vs q 34.9%  model 52.8%  | fav -2.8%
   H2·F       to 31 Jan   @open   n=179     118-61     -4.24u  ROI   -2.4% ± 10.7  null -4.1%  vs null   +1.8 ± 10.7  z +0.3  win 65.9% vs q 65.2%  model 69.5%  | fav -2.4%
   H2·F       from 1 Feb  @open   n=163     122-41    +13.48u  ROI   +8.3% ± 10.2  null -4.1%  vs null  +12.4 ± 10.2  z +2.4  win 74.8% vs q 66.9%  model 71.6%  | fav +8.3%
-  H5         to 31 Jan   @open   n=314    180-134    +29.29u  ROI   +9.3% ± 10.5  null -4.5%  vs null  +13.9 ± 10.5  z +2.6  win 57.3% vs q 50.1%  model 58.2%  | fav -14.7%
-  H5         from 1 Feb  @open   n=375    193-182     -7.17u  ROI   -1.9% ±  9.7  null -4.5%  vs null   +2.6 ±  9.7  z +0.5  win 51.5% vs q 50.1%  model 59.0%  | fav -3.7%
+  H5         to 31 Jan   @open   n=316    182-134    +31.11u  ROI   +9.8% ± 10.4  null -4.5%  vs null  +14.4 ± 10.4  z +2.7  win 57.6% vs q 50.1%  model 58.2%  | fav -15.2%
+  H5         from 1 Feb  @open   n=373    192-181     -7.12u  ROI   -1.9% ±  9.7  null -4.5%  vs null   +2.6 ±  9.7  z +0.5  win 51.5% vs q 50.1%  model 59.1%  | fav -3.2%
   H4·E       to 31 Jan   @open   no bets
   H4·E       from 1 Feb  @open   no bets
   H2·F·E     to 31 Jan   @open   no bets
@@ -53,65 +53,65 @@ Not an independent test: these games were in the scans that chose the rules. Nat
 == 4. Edge ladder on DraftKings (descriptive; * = the frozen threshold, never re-chosen)
   H4 @open
         edge ≥ 0.00   n=964    444-520     -2.22u  ROI   -0.2% ±  8.5  null -4.1%  vs null   +3.9 ±  8.5  z +0.9  win 46.1% vs q 42.9%  model 48.7%  | fav -4.8%
-        edge ≥ 0.04   n=527    236-291    +16.54u  ROI   +3.1% ± 11.9  null -4.2%  vs null   +7.3 ± 11.9  z +1.2  win 44.8% vs q 40.6%  model 49.5%  | fav -8.2%
-        edge ≥ 0.08   n=239    101-138     +7.58u  ROI   +3.2% ± 17.7  null -4.2%  vs null   +7.4 ± 17.7  z +0.8  win 42.3% vs q 36.8%  model 49.5%  | fav -5.7%
-      * edge ≥ 0.12   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.7%  | fav -10.1%
-        edge ≥ 0.16   n=36       15-21    +13.39u  ROI  +37.2% ± 58.2  null -4.9%  vs null  +42.1 ± 58.2  z +1.4  win 41.7% vs q 31.1%  model 53.6%  | fav -27.2%
+        edge ≥ 0.04   n=525    234-291    +14.40u  ROI   +2.7% ± 11.9  null -4.2%  vs null   +6.9 ± 11.9  z +1.1  win 44.6% vs q 40.6%  model 49.5%  | fav -8.2%
+        edge ≥ 0.08   n=240    101-139     +6.58u  ROI   +2.7% ± 17.7  null -4.2%  vs null   +7.0 ± 17.7  z +0.8  win 42.1% vs q 36.7%  model 49.4%  | fav -5.6%
+      * edge ≥ 0.12   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.8%  | fav -10.1%
+        edge ≥ 0.16   n=37       15-22    +12.39u  ROI  +33.5% ± 57.1  null -4.9%  vs null  +38.4 ± 57.1  z +1.3  win 40.5% vs q 30.9%  model 53.3%  | fav -25.8%
   H4 @close
         edge ≥ 0.00   n=964    387-577   -110.12u  ROI  -11.4% ±  8.4  null -4.1%  vs null   -7.3 ±  8.4  z -1.7  win 40.1% vs q 41.9%  model 47.8%  | fav -4.7%
-        edge ≥ 0.04   n=537    212-325    -13.53u  ROI   -2.5% ± 12.2  null -4.1%  vs null   +1.6 ± 12.2  z +0.3  win 39.5% vs q 37.6%  model 46.6%  | fav -4.8%
-        edge ≥ 0.08   n=253     88-165     +0.51u  ROI   +0.2% ± 19.4  null -4.1%  vs null   +4.3 ± 19.4  z +0.4  win 34.8% vs q 33.4%  model 46.0%  | fav -8.0%
-      * edge ≥ 0.12   n=108      37-71     -0.63u  ROI   -0.6% ± 29.1  null -4.1%  vs null   +3.5 ± 29.1  z +0.2  win 34.3% vs q 32.5%  model 49.1%  | fav -10.7%
-        edge ≥ 0.16   n=41       10-31     -5.64u  ROI  -13.8% ± 51.6  null -4.1%  vs null   -9.7 ± 51.6  z -0.4  win 24.4% vs q 30.3%  model 51.5%  | fav +0.5%
+        edge ≥ 0.04   n=540    212-328    -16.53u  ROI   -3.1% ± 12.2  null -4.1%  vs null   +1.0 ± 12.2  z +0.2  win 39.3% vs q 37.5%  model 46.5%  | fav -4.5%
+        edge ≥ 0.08   n=252     87-165     -1.13u  ROI   -0.4% ± 19.4  null -4.1%  vs null   +3.6 ± 19.4  z +0.4  win 34.5% vs q 33.4%  model 46.1%  | fav -7.6%
+      * edge ≥ 0.12   n=109      37-72     -1.63u  ROI   -1.5% ± 28.8  null -4.1%  vs null   +2.6 ± 28.8  z +0.2  win 33.9% vs q 32.6%  model 49.2%  | fav -9.9%
+        edge ≥ 0.16   n=43       11-32     -5.40u  ROI  -12.6% ± 49.7  null -4.1%  vs null   -8.5 ± 49.7  z -0.3  win 25.6% vs q 30.4%  model 51.4%  | fav -1.2%
   H2·F @open
       * edge ≥ 0.00   n=342    240-102     +9.24u  ROI   +2.7% ±  7.4  null -4.1%  vs null   +6.8 ±  7.4  z +1.8  win 70.2% vs q 66.0%  model 70.5%  | fav +2.7%
-        edge ≥ 0.02   n=246     168-78     +4.08u  ROI   +1.7% ±  9.0  null -4.1%  vs null   +5.8 ±  9.0  z +1.3  win 68.3% vs q 64.9%  model 70.7%  | fav +1.7%
-        edge ≥ 0.04   n=163     108-55     +0.15u  ROI   +0.1% ± 11.3  null -4.1%  vs null   +4.2 ± 11.3  z +0.7  win 66.3% vs q 63.7%  model 71.0%  | fav +0.1%
+        edge ≥ 0.02   n=245     167-78     +3.66u  ROI   +1.5% ±  9.0  null -4.1%  vs null   +5.6 ±  9.0  z +1.2  win 68.2% vs q 64.8%  model 70.7%  | fav +1.5%
+        edge ≥ 0.04   n=162     107-55     -0.59u  ROI   -0.4% ± 11.4  null -4.1%  vs null   +3.8 ± 11.4  z +0.6  win 66.0% vs q 63.8%  model 71.1%  | fav -0.4%
         edge ≥ 0.06   n=95       64-31     +3.43u  ROI   +3.6% ± 14.9  null -4.1%  vs null   +7.7 ± 14.9  z +1.0  win 67.4% vs q 62.4%  model 71.4%  | fav +3.6%
   H2·F @close
       * edge ≥ 0.00   n=325    208-117    -27.25u  ROI   -8.4% ±  7.8  null -4.1%  vs null   -4.3 ±  7.8  z -1.1  win 64.0% vs q 66.7%  model 70.6%  | fav -8.4%
-        edge ≥ 0.02   n=229     145-84    -15.59u  ROI   -6.8% ±  9.5  null -4.1%  vs null   -2.7 ±  9.5  z -0.6  win 63.3% vs q 65.2%  model 70.5%  | fav -6.8%
+        edge ≥ 0.02   n=226     143-83    -15.69u  ROI   -6.9% ±  9.6  null -4.1%  vs null   -2.8 ±  9.6  z -0.6  win 63.3% vs q 65.3%  model 70.6%  | fav -6.9%
         edge ≥ 0.04   n=129      86-43     +1.02u  ROI   +0.8% ± 12.8  null -4.1%  vs null   +4.9 ± 12.8  z +0.8  win 66.7% vs q 63.2%  model 70.2%  | fav +0.8%
         edge ≥ 0.06   n=66       39-27     -5.92u  ROI   -9.0% ± 18.8  null -4.1%  vs null   -4.8 ± 18.8  z -0.5  win 59.1% vs q 61.6%  model 70.6%  | fav -9.0%
   H5 @open
-        edge ≥ 0 pt   n=964    507-457     +3.03u  ROI   +0.3% ±  6.0  null -4.5%  vs null   +4.8 ±  6.0  z +1.6  win 52.6% vs q 50.1%  model 56.6%  | fav -4.9%
-      * edge ≥ 1 pt   n=689    373-316    +22.12u  ROI   +3.2% ±  7.1  null -4.5%  vs null   +7.7 ±  7.1  z +2.1  win 54.1% vs q 50.1%  model 58.6%  | fav -8.7%
-        edge ≥ 2 pt   n=456    252-204    +24.16u  ROI   +5.3% ±  8.7  null -4.5%  vs null   +9.8 ±  8.7  z +2.2  win 55.3% vs q 50.1%  model 60.8%  | fav -8.1%
-        edge ≥ 3 pt   n=277    154-123    +16.15u  ROI   +5.8% ± 11.2  null -4.5%  vs null  +10.4 ± 11.2  z +1.8  win 55.6% vs q 50.1%  model 63.2%  | fav -6.8%
-        edge ≥ 4 pt   n=147      82-65     +9.14u  ROI   +6.2% ± 15.3  null -4.5%  vs null  +10.7 ± 15.3  z +1.4  win 55.8% vs q 50.1%  model 66.0%  | fav -3.7%
-        edge ≥ 5 pt   n=82       47-35     +7.51u  ROI   +9.2% ± 20.5  null -4.5%  vs null  +13.7 ± 20.5  z +1.3  win 57.3% vs q 50.1%  model 68.5%  | fav -8.9%
+        edge ≥ 0 pt   n=964    505-459     -0.75u  ROI   -0.1% ±  6.0  null -4.5%  vs null   +4.4 ±  6.0  z +1.4  win 52.4% vs q 50.1%  model 56.6%  | fav -4.9%
+      * edge ≥ 1 pt   n=689    374-315    +23.98u  ROI   +3.5% ±  7.1  null -4.5%  vs null   +8.0 ±  7.1  z +2.2  win 54.3% vs q 50.1%  model 58.7%  | fav -8.7%
+        edge ≥ 2 pt   n=458    254-204    +25.98u  ROI   +5.7% ±  8.7  null -4.5%  vs null  +10.2 ±  8.7  z +2.3  win 55.5% vs q 50.1%  model 60.9%  | fav -8.5%
+        edge ≥ 3 pt   n=278    155-123    +17.06u  ROI   +6.1% ± 11.1  null -4.5%  vs null  +10.7 ± 11.1  z +1.9  win 55.8% vs q 50.1%  model 63.3%  | fav -7.2%
+        edge ≥ 4 pt   n=146      82-64    +10.14u  ROI   +6.9% ± 15.4  null -4.5%  vs null  +11.5 ± 15.4  z +1.5  win 56.2% vs q 50.1%  model 66.1%  | fav -4.4%
+        edge ≥ 5 pt   n=82       47-35     +7.51u  ROI   +9.2% ± 20.5  null -4.5%  vs null  +13.7 ± 20.5  z +1.3  win 57.3% vs q 50.1%  model 68.6%  | fav -8.9%
   H5 @close
-        edge ≥ 0 pt   n=964    478-486    -52.97u  ROI   -5.5% ±  6.0  null -4.5%  vs null   -1.0 ±  6.0  z -0.3  win 49.6% vs q 50.1%  model 56.8%  | fav -5.3%
-      * edge ≥ 1 pt   n=701    351-350    -32.72u  ROI   -4.7% ±  7.1  null -4.5%  vs null   -0.2 ±  7.1  z -0.0  win 50.1% vs q 50.2%  model 58.8%  | fav -6.3%
-        edge ≥ 2 pt   n=462    231-231    -22.63u  ROI   -4.9% ±  8.7  null -4.5%  vs null   -0.4 ±  8.7  z -0.1  win 50.0% vs q 50.2%  model 61.1%  | fav -4.6%
-        edge ≥ 3 pt   n=307    149-158    -23.77u  ROI   -7.7% ± 10.6  null -4.5%  vs null   -3.2 ± 10.6  z -0.6  win 48.5% vs q 50.3%  model 63.1%  | fav -1.9%
-        edge ≥ 4 pt   n=161      72-89    -23.82u  ROI  -14.8% ± 14.7  null -4.5%  vs null  -10.3 ± 14.7  z -1.4  win 44.7% vs q 50.3%  model 65.9%  | fav +7.5%
-        edge ≥ 5 pt   n=93       45-48     -7.44u  ROI   -8.0% ± 19.4  null -4.5%  vs null   -3.5 ± 19.4  z -0.4  win 48.4% vs q 50.3%  model 68.3%  | fav +7.3%
+        edge ≥ 0 pt   n=964    478-486    -53.03u  ROI   -5.5% ±  6.0  null -4.5%  vs null   -1.0 ±  6.0  z -0.3  win 49.6% vs q 50.1%  model 56.8%  | fav -5.3%
+      * edge ≥ 1 pt   n=699    350-349    -32.62u  ROI   -4.7% ±  7.1  null -4.5%  vs null   -0.2 ±  7.1  z -0.0  win 50.1% vs q 50.2%  model 58.8%  | fav -6.3%
+        edge ≥ 2 pt   n=464    234-230    -18.90u  ROI   -4.1% ±  8.7  null -4.5%  vs null   +0.4 ±  8.7  z +0.1  win 50.4% vs q 50.2%  model 61.1%  | fav -5.1%
+        edge ≥ 3 pt   n=306    148-158    -24.66u  ROI   -8.1% ± 10.7  null -4.5%  vs null   -3.6 ± 10.7  z -0.7  win 48.4% vs q 50.3%  model 63.2%  | fav -1.6%
+        edge ≥ 4 pt   n=161      72-89    -23.82u  ROI  -14.8% ± 14.7  null -4.5%  vs null  -10.3 ± 14.7  z -1.4  win 44.7% vs q 50.3%  model 66.0%  | fav +7.5%
+        edge ≥ 5 pt   n=92       45-47     -6.44u  ROI   -7.0% ± 19.5  null -4.5%  vs null   -2.5 ± 19.5  z -0.3  win 48.9% vs q 50.3%  model 68.4%  | fav +6.4%
 
 == 6. The same rules on every book-season at the registered hindsight price (never pooled; the scoreboard pools them as registered)
-  H4         DraftKings 2025-26  @open   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.7%  | fav -10.1%
+  H4         DraftKings 2025-26  @open   n=97       44-53    +19.31u  ROI  +19.9% ± 31.1  null -4.4%  vs null  +24.3 ± 31.1  z +1.5  win 45.4% vs q 35.7%  model 52.8%  | fav -10.1%
   H4         ESPN BET 2025-26  @open   n=16        11-5     +9.33u  ROI  +58.3% ± 59.7  null -3.9%  vs null  +62.2 ± 59.7  z +2.0  win 68.8% vs q 44.9%  model 61.3%  | fav -54.5%
   H4         ESPN BET 2024-25  @open   n=116      52-64    +19.04u  ROI  +16.4% ± 28.6  null -4.1%  vs null  +20.5 ± 28.6  z +1.4  win 44.8% vs q 37.1%  model 53.3%  | fav -3.0%
   H2·F       DraftKings 2025-26  @open   n=342    240-102     +9.24u  ROI   +2.7% ±  7.4  null -4.1%  vs null   +6.8 ±  7.4  z +1.8  win 70.2% vs q 66.0%  model 70.5%  | fav +2.7%
   H2·F       ESPN BET 2025-26  @open   n=48       36-12     +2.76u  ROI   +5.7% ± 18.2  null -4.1%  vs null   +9.8 ± 18.2  z +1.1  win 75.0% vs q 67.7%  model 73.5%  | fav +5.7%
-  H2·F       ESPN BET 2024-25  @open   n=435    304-131     +3.86u  ROI   +0.9% ±  6.5  null -4.0%  vs null   +4.9 ±  6.5  z +1.5  win 69.9% vs q 66.5%  model 71.6%  | fav +0.9%
-  H5         DraftKings 2025-26  @open   n=689    373-316    +22.12u  ROI   +3.2% ±  7.1  null -4.5%  vs null   +7.7 ±  7.1  z +2.1  win 54.1% vs q 50.1%  model 58.6%  | fav -8.7%
+  H2·F       ESPN BET 2024-25  @open   n=434    304-130     +4.86u  ROI   +1.1% ±  6.5  null -4.0%  vs null   +5.2 ±  6.5  z +1.6  win 70.0% vs q 66.5%  model 71.6%  | fav +1.1%
+  H5         DraftKings 2025-26  @open   n=689    374-315    +23.98u  ROI   +3.5% ±  7.1  null -4.5%  vs null   +8.0 ±  7.1  z +2.2  win 54.3% vs q 50.1%  model 58.7%  | fav -8.7%
   H5         ESPN BET 2025-26  @open   n=79       45-34     +6.57u  ROI   +8.3% ± 20.9  null -4.5%  vs null  +12.8 ± 20.9  z +1.2  win 57.0% vs q 50.2%  model 59.3%  | fav -17.5%
-  H5         ESPN BET 2024-25  @open   n=736    395-341    +16.47u  ROI   +2.2% ±  6.9  null -4.5%  vs null   +6.7 ±  6.9  z +1.9  win 53.7% vs q 50.2%  model 58.5%  | fav -1.5%
-  H4·E       ESPN BET 2025-26  @open   n=23       11-12     +7.55u  ROI  +32.8% ± 79.0  null -4.0%  vs null  +36.8 ± 79.0  z +0.9  win 47.8% vs q 39.0%  model 55.0%  | fav -7.7%
-  H4·E       ESPN BET 2024-25  @open   n=24        17-7    +25.70u  ROI +107.1% ± 72.6  null -4.3%  vs null +111.3 ± 72.6  z +3.0  win 70.8% vs q 36.0%  model 53.3%  | fav -26.2%
+  H5         ESPN BET 2024-25  @open   n=735    394-341    +15.57u  ROI   +2.1% ±  6.9  null -4.5%  vs null   +6.6 ±  6.9  z +1.9  win 53.6% vs q 50.2%  model 58.5%  | fav -1.6%
+  H4·E       ESPN BET 2025-26  @open   n=24       12-12     +8.75u  ROI  +36.4% ± 76.0  null -3.9%  vs null  +40.4 ± 76.0  z +1.0  win 50.0% vs q 39.2%  model 55.2%  | fav -11.5%
+  H4·E       ESPN BET 2024-25  @open   n=25        17-8    +24.70u  ROI  +98.8% ± 71.5  null -4.2%  vs null +103.0 ± 71.5  z +2.8  win 68.0% vs q 35.7%  model 52.9%  | fav -23.8%
   H2·F·E     ESPN BET 2025-26  @open   n=38        30-8     +5.00u  ROI  +13.2% ± 20.0  null -4.1%  vs null  +17.3 ± 20.0  z +1.7  win 78.9% vs q 67.3%  model 71.5%  | fav +13.2%
   H2·F·E     ESPN BET 2024-25  @open   n=45       27-18     -4.72u  ROI  -10.5% ± 22.2  null -4.0%  vs null   -6.5 ± 22.2  z -0.6  win 60.0% vs q 63.9%  model 69.0%  | fav -10.5%
   H5·E       ESPN BET 2025-26  @open   n=109      59-50     +3.34u  ROI   +3.1% ± 17.9  null -4.5%  vs null   +7.6 ± 17.9  z +0.8  win 54.1% vs q 50.2%  model 59.4%  | fav -3.2%
-  H5·E       ESPN BET 2024-25  @open   n=80       51-29    +17.12u  ROI  +21.4% ± 20.2  null -4.5%  vs null  +25.9 ± 20.2  z +2.5  win 63.7% vs q 50.3%  model 58.9%  | fav -13.4%
+  H5·E       ESPN BET 2024-25  @open   n=80       51-29    +17.12u  ROI  +21.4% ± 20.2  null -4.5%  vs null  +25.9 ± 20.2  z +2.5  win 63.7% vs q 50.3%  model 59.0%  | fav -13.4%
 
 == 7. The retired blanket value bet, re-checked at the close (retired 2026-10-06; analysis.SHOWN_RULES)
   Every game, the side with model P > no-vig q (exact ties P == q: 0, so P >= q bets the same games), and its ATS twin. claimed EV = mean(model P x payout - 1).
   moneyline value side:
-    ESPN BET 2024-25  claimed EV +13.2%  n=1225   526-699    -76.50u  ROI   -6.2% ±  7.5  null -4.2%  vs null   -2.0 ±  7.5  z -0.5  win 42.9% vs q 43.0%  model 48.5%  | fav -4.1%
+    ESPN BET 2024-25  claimed EV +13.2%  n=1225   527-698    -75.10u  ROI   -6.1% ±  7.5  null -4.2%  vs null   -1.9 ±  7.5  z -0.5  win 43.0% vs q 43.0%  model 48.6%  | fav -4.1%
     DraftKings 2025-26  claimed EV +16.5%  n=964    387-577   -110.12u  ROI  -11.4% ±  8.4  null -4.1%  vs null   -7.3 ±  8.4  z -1.7  win 40.1% vs q 41.9%  model 47.8%  | fav -4.7%
-    ESPN BET 2025-26  claimed EV +12.2%  n=260    115-145    -24.43u  ROI   -9.4% ± 14.5  null -4.1%  vs null   -5.2 ± 14.5  z -0.7  win 44.2% vs q 44.5%  model 50.3%  | fav -1.9%
+    ESPN BET 2025-26  claimed EV +12.3%  n=260    115-145    -24.43u  ROI   -9.4% ± 14.5  null -4.1%  vs null   -5.2 ± 14.5  z -0.7  win 44.2% vs q 44.5%  model 50.4%  | fav -1.9%
   ATS twin:
-    ESPN BET 2024-25  claimed EV  +7.1%  n=1224   619-605    -44.04u  ROI   -3.6% ±  5.3  null -4.5%  vs null   +0.9 ±  5.3  z +0.3  win 50.6% vs q 50.1%  model 56.1%  | fav -4.6%
-    DraftKings 2025-26  claimed EV  +8.3%  n=964    478-486    -52.97u  ROI   -5.5% ±  6.0  null -4.5%  vs null   -1.0 ±  6.0  z -0.3  win 49.6% vs q 50.1%  model 56.8%  | fav -5.3%
+    ESPN BET 2024-25  claimed EV  +7.1%  n=1224   618-606    -45.95u  ROI   -3.8% ±  5.3  null -4.5%  vs null   +0.7 ±  5.3  z +0.3  win 50.5% vs q 50.1%  model 56.1%  | fav -4.6%
+    DraftKings 2025-26  claimed EV  +8.3%  n=964    478-486    -53.03u  ROI   -5.5% ±  6.0  null -4.5%  vs null   -1.0 ±  6.0  z -0.3  win 49.6% vs q 50.1%  model 56.8%  | fav -5.3%
     ESPN BET 2025-26  claimed EV  +8.2%  n=259    130-129    -11.47u  ROI   -4.4% ± 11.6  null -4.5%  vs null   +0.1 ± 11.6  z +0.0  win 50.2% vs q 50.1%  model 56.8%  | fav -8.5%
