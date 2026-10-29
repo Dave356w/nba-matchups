@@ -2,10 +2,14 @@ desktop: Today · navigation, overflow and screenshot passed
 desktop: Results · navigation, overflow and screenshot passed
 desktop: Performance · navigation, overflow and screenshot passed
 desktop: How it works · navigation, overflow and screenshot passed
+desktop: DFS lineups · the browser optimizer built lineups
+desktop: DFS lineups · navigation, overflow and screenshot passed
 desktop: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
 mobile: Today · navigation, overflow and screenshot passed
 mobile: Results · navigation, overflow and screenshot passed
 mobile: Performance · navigation, overflow and screenshot passed
 mobile: How it works · navigation, overflow and screenshot passed
+mobile: DFS lineups · the browser optimizer built lineups
+mobile: DFS lineups · navigation, overflow and screenshot passed
 mobile: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
 Live-score overlay updated status and scores without changing four frozen selections

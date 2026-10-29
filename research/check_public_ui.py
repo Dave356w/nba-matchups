@@ -100,6 +100,9 @@ def main():
                         if filename=='index.html' and page.locator('.gcard').count():
                             top=page.locator('.gcard').first.bounding_box()['y']
                             assert top < height-100,(device,'first game is below the fold',top)
+                        if filename=='dfs.html' and page.locator('#dfs-data').count():
+                            page.locator('.dfs-lineup').first.wait_for()
+                            checks.append(f'{device}: DFS lineups · the browser optimizer built lineups')
                         page.screenshot(path=str(out/f'{device}-{filename[:-5]}.jpg'),full_page=True,type='jpeg',quality=85)
                         checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
                     page.goto(f'{base}/fixture/index.html')
