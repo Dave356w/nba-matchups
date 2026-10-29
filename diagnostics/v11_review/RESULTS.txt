@@ -1,0 +1,231 @@
+v11 review: pace, totals and the picks (research/v11_review.py). ± 95% unless labelled.
+
+== 1. Pace: v11's walk-forward margin scaled by the matchup's expected pace (lp = log matchup / league possessions, pregame). Arm − v11, ± 95%; fits on earlier seasons only
+  Matchup pace spread, games 10+: sd(lp) 0.013 (a 1-sd matchup is 1.3% more possessions than the league)
+  v11 at 5 h
+    2023-24  fitted on 7134 games: k -0.19, s +1.45
+      games 1+  n 1215  pace scales margin (k)     LL -0.0000 ± 0.0000  Brier -0.0000 ± 0.0000  MSE +0.00 ± 0.02
+      games 1+  n 1215  margin and spread (k, s)   LL -0.0000 ± 0.0004  Brier -0.0000 ± 0.0001  MSE +0.00 ± 0.02
+      games 1+  n 1215  physics (k = 1, s = 0.5)   LL +0.0000 ± 0.0001  Brier +0.0000 ± 0.0000  MSE -0.01 ± 0.13
+      games 10+ n 1074  pace scales margin (k)     LL -0.0000 ± 0.0001  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.03
+      games 10+ n 1074  margin and spread (k, s)   LL +0.0000 ± 0.0005  Brier +0.0000 ± 0.0002  MSE +0.00 ± 0.03
+      games 10+ n 1074  physics (k = 1, s = 0.5)   LL -0.0000 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.01 ± 0.15
+    2024-25  fitted on 8349 games: k -0.00, s +1.60
+      games 1+  n 1209  pace scales margin (k)     LL +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00
+      games 1+  n 1209  margin and spread (k, s)   LL +0.0001 ± 0.0004  Brier +0.0000 ± 0.0001  MSE +0.00 ± 0.00
+      games 1+  n 1209  physics (k = 1, s = 0.5)   LL -0.0000 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.12 ± 0.14
+      games 10+ n 1071  pace scales margin (k)     LL +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00
+      games 10+ n 1071  margin and spread (k, s)   LL +0.0002 ± 0.0004  Brier +0.0001 ± 0.0002  MSE +0.00 ± 0.00
+      games 10+ n 1071  physics (k = 1, s = 0.5)   LL -0.0001 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.14 ± 0.16
+      priced ESPN BET games 10+ n 1071  pace scales margin (k)     LL +0.0000 ± 0.0000
+      priced ESPN BET games 10+ n 1071  margin and spread (k, s)   LL +0.0002 ± 0.0004
+    2025-26  fitted on 9558 games: k +1.18, s +2.10
+      games 1+  n 1209  pace scales margin (k)     LL +0.0002 ± 0.0003  Brier +0.0001 ± 0.0001  MSE +0.16 ± 0.20
+      games 1+  n 1209  margin and spread (k, s)   LL -0.0001 ± 0.0002  Brier -0.0000 ± 0.0001  MSE +0.16 ± 0.20
+      games 1+  n 1209  physics (k = 1, s = 0.5)   LL +0.0001 ± 0.0001  Brier +0.0000 ± 0.0000  MSE +0.13 ± 0.16
+      games 10+ n 1071  pace scales margin (k)     LL +0.0002 ± 0.0003  Brier +0.0001 ± 0.0001  MSE +0.18 ± 0.22
+      games 10+ n 1071  margin and spread (k, s)   LL -0.0002 ± 0.0003  Brier -0.0000 ± 0.0001  MSE +0.18 ± 0.22
+      games 10+ n 1071  physics (k = 1, s = 0.5)   LL +0.0001 ± 0.0001  Brier +0.0000 ± 0.0001  MSE +0.15 ± 0.18
+      priced DraftKings games 10+ n 964  pace scales margin (k)     LL +0.0003 ± 0.0004
+      priced DraftKings games 10+ n 964  margin and spread (k, s)   LL -0.0002 ± 0.0003
+  v11 at 18 h
+    2023-24  fitted on 7134 games: k -0.19, s +1.45
+      games 1+  n 1215  pace scales margin (k)     LL -0.0000 ± 0.0000  Brier -0.0000 ± 0.0000  MSE +0.00 ± 0.02
+      games 1+  n 1215  margin and spread (k, s)   LL -0.0000 ± 0.0004  Brier -0.0000 ± 0.0001  MSE +0.00 ± 0.02
+      games 1+  n 1215  physics (k = 1, s = 0.5)   LL +0.0000 ± 0.0001  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.13
+      games 10+ n 1074  pace scales margin (k)     LL -0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.03
+      games 10+ n 1074  margin and spread (k, s)   LL +0.0000 ± 0.0004  Brier +0.0000 ± 0.0002  MSE +0.00 ± 0.03
+      games 10+ n 1074  physics (k = 1, s = 0.5)   LL +0.0000 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.01 ± 0.14
+    2024-25  fitted on 8349 games: k -0.09, s +1.60
+      games 1+  n 1209  pace scales margin (k)     LL +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.01 ± 0.01
+      games 1+  n 1209  margin and spread (k, s)   LL +0.0002 ± 0.0004  Brier +0.0001 ± 0.0001  MSE +0.01 ± 0.01
+      games 1+  n 1209  physics (k = 1, s = 0.5)   LL -0.0000 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.13 ± 0.14
+      games 10+ n 1071  pace scales margin (k)     LL +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.01 ± 0.01
+      games 10+ n 1071  margin and spread (k, s)   LL +0.0002 ± 0.0005  Brier +0.0001 ± 0.0002  MSE +0.01 ± 0.01
+      games 10+ n 1071  physics (k = 1, s = 0.5)   LL -0.0001 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.15 ± 0.16
+      priced ESPN BET games 10+ n 1071  pace scales margin (k)     LL +0.0000 ± 0.0000
+      priced ESPN BET games 10+ n 1071  margin and spread (k, s)   LL +0.0002 ± 0.0005
+    2025-26  fitted on 9558 games: k +1.22, s +2.20
+      games 1+  n 1209  pace scales margin (k)     LL +0.0002 ± 0.0003  Brier +0.0001 ± 0.0001  MSE +0.17 ± 0.20
+      games 1+  n 1209  margin and spread (k, s)   LL -0.0001 ± 0.0003  Brier -0.0000 ± 0.0001  MSE +0.17 ± 0.20
+      games 1+  n 1209  physics (k = 1, s = 0.5)   LL +0.0001 ± 0.0001  Brier +0.0000 ± 0.0000  MSE +0.14 ± 0.17
+      games 10+ n 1071  pace scales margin (k)     LL +0.0002 ± 0.0004  Brier +0.0001 ± 0.0001  MSE +0.20 ± 0.22
+      games 10+ n 1071  margin and spread (k, s)   LL -0.0002 ± 0.0003  Brier -0.0001 ± 0.0001  MSE +0.20 ± 0.22
+      games 10+ n 1071  physics (k = 1, s = 0.5)   LL +0.0001 ± 0.0001  Brier +0.0000 ± 0.0001  MSE +0.16 ± 0.18
+      priced DraftKings games 10+ n 964  pace scales margin (k)     LL +0.0003 ± 0.0004
+      priced DraftKings games 10+ n 964  margin and spread (k, s)   LL -0.0002 ± 0.0003
+
+== 2. Totals (O/U). v11 has no total; a walk-forward total from the same box-score inputs against the books' totals (± 95%)
+  All games 10+ (2017-18 .. 2025-26, walk-forward): RMSE model 18.67 pts vs league-to-date mean 20.06
+  DraftKings 2025-26 games 10+  n 964
+    open  n  964  RMSE line 18.79  model 19.09  model − line sd 3.65  weight on (model − line) +0.06 ± 0.33
+      model side, |model − line| ≥ 0: n  964  ROI   +2.4% ±  6.0  null -4.5%  line moved toward it +0.32 ± 0.22 pts
+      model side, |model − line| ≥ 3: n  338  ROI   -4.0% ± 10.2  null -4.5%  line moved toward it +0.88 ± 0.41 pts
+      model side, |model − line| ≥ 6: n   87  ROI   -3.6% ± 20.2  null -4.5%  line moved toward it +2.08 ± 1.05 pts
+    close n  964  RMSE line 18.46  model 19.09  model − line sd 4.49  weight on (model − line) -0.09 ± 0.26
+      model side, |model − line| ≥ 0: n  964  ROI   -5.3% ±  6.0  null -4.5%
+      model side, |model − line| ≥ 3: n  484  ROI   -5.1% ±  8.5  null -4.5%
+      model side, |model − line| ≥ 6: n  170  ROI  -15.8% ± 14.3  null -4.5%
+  ESPN BET 2024-25 games 10+  n 1071
+    open  n 1015  RMSE line 18.08  model 18.11  model − line sd 3.74  weight on (model − line) +0.45 ± 0.30
+      model side, |model − line| ≥ 0: n 1015  ROI   -3.7% ±  5.9  null -4.5%  line moved toward it +0.69 ± 0.24 pts
+      model side, |model − line| ≥ 3: n  405  ROI   +2.6% ±  9.3  null -4.5%  line moved toward it +1.42 ± 0.41 pts
+      model side, |model − line| ≥ 6: n  110  ROI  +13.2% ± 17.4  null -4.5%  line moved toward it +3.21 ± 0.87 pts
+    close n 1070  RMSE line 17.55  model 18.20  model − line sd 4.58  weight on (model − line) -0.06 ± 0.23
+      model side, |model − line| ≥ 0: n 1070  ROI   -8.5% ±  5.7  null -4.5%
+      model side, |model − line| ≥ 3: n  527  ROI   -9.6% ±  8.1  null -4.5%
+      model side, |model − line| ≥ 6: n  202  ROI  -14.2% ± 13.1  null -4.5%
+  ESPN BET 2024-25 games 1–9  n 138
+    open  n   71  RMSE line 20.38  model 21.12  model − line sd 5.30  weight on (model − line) -0.09 ± 0.90
+      model side, |model − line| ≥ 0: n   71  ROI  -11.4% ± 22.3  null -4.6%  line moved toward it +0.82 ± 0.83 pts
+      model side, |model − line| ≥ 3: n   38  ROI  -15.1% ± 30.4  null -4.6%  line moved toward it +2.24 ± 1.10 pts
+      model side, |model − line| ≥ 6: n   23  ROI   -1.0% ± 39.6  null -4.6%  line moved toward it +2.78 ± 1.42 pts
+    close n  138  RMSE line 18.38  model 19.27  model − line sd 4.74  weight on (model − line) -0.26 ± 0.65
+      model side, |model − line| ≥ 0: n  138  ROI  -13.0% ± 15.9  null -4.5%
+      model side, |model − line| ≥ 3: n   80  ROI  -18.9% ± 20.8  null -4.5%
+      model side, |model − line| ≥ 6: n   30  ROI  -17.4% ± 34.4  null -4.5%
+  ESPN BET 2025-26 games 1–9  n 138
+    open  n  138  RMSE line 16.75  model 18.14  model − line sd 5.09  weight on (model − line) -0.24 ± 0.55
+      model side, |model − line| ≥ 0: n  138  ROI  -11.5% ± 15.9  null -4.5%  line moved toward it +0.30 ± 0.50 pts
+      model side, |model − line| ≥ 3: n   82  ROI   -9.2% ± 20.8  null -4.5%  line moved toward it +0.91 ± 0.61 pts
+      model side, |model − line| ≥ 6: n   43  ROI   -6.7% ± 28.9  null -4.5%  line moved toward it +1.53 ± 0.82 pts
+    close n  138  RMSE line 16.93  model 18.14  model − line sd 5.22  weight on (model − line) -0.08 ± 0.54
+      model side, |model − line| ≥ 0: n  138  ROI   -5.8% ± 16.0  null -4.5%
+      model side, |model − line| ≥ 3: n   81  ROI   -1.2% ± 20.9  null -4.5%
+      model side, |model − line| ≥ 6: n   51  ROI   -2.7% ± 26.5  null -4.5%
+
+== 3a. v11 by lead against the open and the close (log loss model − price, ± 95%; w = outcome weight on logit P − logit q)
+  P at 18 h
+    DraftKings 2025-26 games 10+       open n  964  LL +0.0091 ± 0.0103  w +0.28 ± 0.44 | close n  964  LL +0.0202 ± 0.0112  w -0.05 ± 0.42
+    ESPN BET 2024-25 games 10+         open n 1071  LL +0.0021 ± 0.0095  w +0.54 ± 0.41 | close n 1071  LL +0.0143 ± 0.0103  w +0.16 ± 0.39
+    ESPN BET 2025-26 games 10+         open n  107  LL -0.0178 ± 0.0318  w +1.30 ± 1.22 | close n  107  LL -0.0067 ± 0.0327  w +0.99 ± 1.22
+    ESPN BET 2024-25 games 1–9         open n  138  LL -0.0349 ± 0.0335  w +1.72 ± 1.11 | close n  138  LL -0.0173 ± 0.0264  w +1.50 ± 1.39
+    ESPN BET 2025-26 games 1–9         open n  138  LL -0.0043 ± 0.0299  w +1.42 ± 1.25 | close n  138  LL -0.0020 ± 0.0293  w +1.40 ± 1.34
+  P at 5 h
+    DraftKings 2025-26 games 10+       open n  964  LL +0.0052 ± 0.0102  w +0.44 ± 0.43 | close n  964  LL +0.0163 ± 0.0105  w +0.02 ± 0.44
+    ESPN BET 2024-25 games 10+         open n 1071  LL +0.0027 ± 0.0094  w +0.51 ± 0.40 | close n 1071  LL +0.0149 ± 0.0097  w +0.07 ± 0.40
+    ESPN BET 2025-26 games 10+         open n  107  LL -0.0233 ± 0.0329  w +1.44 ± 1.20 | close n  107  LL -0.0122 ± 0.0331  w +1.19 ± 1.26
+    ESPN BET 2024-25 games 1–9         open n  138  LL -0.0353 ± 0.0333  w +1.66 ± 1.08 | close n  138  LL -0.0178 ± 0.0266  w +1.49 ± 1.38
+    ESPN BET 2025-26 games 1–9         open n  138  LL +0.0008 ± 0.0311  w +1.08 ± 1.15 | close n  138  LL +0.0031 ± 0.0288  w +1.04 ± 1.29
+  P at 30 min
+    DraftKings 2025-26 games 10+       open n  964  LL +0.0044 ± 0.0106  w +0.47 ± 0.41 | close n  964  LL +0.0154 ± 0.0106  w +0.05 ± 0.44
+    ESPN BET 2024-25 games 10+         open n 1071  LL +0.0008 ± 0.0097  w +0.59 ± 0.40 | close n 1071  LL +0.0131 ± 0.0093  w +0.11 ± 0.42
+    ESPN BET 2025-26 games 10+         open n  107  LL -0.0207 ± 0.0329  w +1.34 ± 1.18 | close n  107  LL -0.0096 ± 0.0319  w +1.11 ± 1.29
+    ESPN BET 2024-25 games 1–9         open n  138  LL -0.0363 ± 0.0329  w +1.64 ± 1.06 | close n  138  LL -0.0188 ± 0.0251  w +1.62 ± 1.43
+    ESPN BET 2025-26 games 1–9         open n  138  LL +0.0016 ± 0.0309  w +1.01 ± 1.13 | close n  138  LL +0.0039 ± 0.0272  w +0.96 ± 1.32
+
+== 3b. Where v11's opening disagreement pays: value side at the open, P at 18 h (timing-honest), by the side's market role and the gap (± 95%; CLV = no-vig move to the close toward the bet)
+  DraftKings 2025-26 games 10+
+    all value sides                    n  964  ROI   -4.1% ±  8.5  null -4.1%  CLV +0.50 ± 0.35 pp
+    value favourite (q > 0.5) = H2·F   n  328  ROI   -1.0% ±  7.8  null -4.1%  CLV +1.01 ± 0.56 pp
+    value underdog                     n  636  ROI   -5.7% ± 12.2  null -4.1%  CLV +0.24 ± 0.45 pp
+    gap < 0.04                         n  444  ROI   -3.6% ± 12.6  null -4.1%  CLV -0.05 ± 0.44 pp
+    gap 0.04-0.08                      n  284  ROI  -10.7% ± 13.7  null -4.1%  CLV +0.31 ± 0.46 pp
+    gap 0.08-0.12                      n  133  ROI   -8.7% ± 23.7  null -4.1%  CLV +1.36 ± 1.01 pp
+    gap >= 0.12 = H4                   n  103  ROI  +18.1% ± 31.7  null -4.4%  CLV +2.28 ± 1.98 pp
+    gap >= 0.12, underdog              n   93  ROI  +19.0% ± 34.8  null -4.4%  CLV +2.39 ± 2.17 pp
+  ESPN BET 2024-25 games 10+
+    all value sides                    n 1071  ROI   -2.2% ±  8.6  null -4.2%  CLV +1.19 ± 0.35 pp
+    value favourite (q > 0.5) = H2·F   n  416  ROI   -1.2% ±  6.9  null -4.0%  CLV +1.58 ± 0.57 pp
+    value underdog                     n  655  ROI   -2.9% ± 13.4  null -4.2%  CLV +0.94 ± 0.44 pp
+    gap < 0.04                         n  468  ROI   -6.6% ± 12.5  null -4.2%  CLV +0.29 ± 0.44 pp
+    gap 0.04-0.08                      n  345  ROI   -0.9% ± 14.9  null -4.1%  CLV +1.32 ± 0.59 pp
+    gap 0.08-0.12                      n  157  ROI   -9.6% ± 24.7  null -4.1%  CLV +2.48 ± 0.98 pp
+    gap >= 0.12 = H4                   n  101  ROI  +25.2% ± 30.0  null -4.2%  CLV +2.86 ± 1.69 pp
+    gap >= 0.12, underdog              n   88  ROI  +24.8% ± 34.0  null -4.2%  CLV +2.76 ± 1.72 pp
+  ESPN BET 2025-26 games 10+
+    all value sides                    n  107  ROI  +12.7% ± 26.3  null -4.1%  CLV +1.93 ± 0.85 pp
+    value favourite (q > 0.5) = H2·F   n   48  ROI   +7.9% ± 17.7  null -4.1%  CLV +1.44 ± 0.97 pp
+    value underdog                     n   59  ROI  +16.5% ± 45.6  null -4.2%  CLV +2.33 ± 1.32 pp
+    gap < 0.04                         n   45  ROI  +10.7% ± 46.2  null -4.3%  CLV +1.77 ± 0.98 pp
+    gap 0.04-0.08                      n   31  ROI   +8.9% ± 45.9  null -4.1%  CLV +2.20 ± 1.88 pp
+    gap 0.08-0.12                      n   16  ROI   -8.6% ± 48.2  null -4.1%  CLV +3.21 ± 2.19 pp
+    gap >= 0.12 = H4                   n   15  ROI  +49.1% ± 68.8  null -3.9%  CLV +0.51 ± 2.73 pp
+    gap >= 0.12, underdog              n   10  ROI  +94.5% ± 85.5  null -3.9%  CLV +0.48 ± 3.97 pp
+  ESPN BET 2024-25 games 1–9
+    all value sides                    n  138  ROI  +18.2% ± 23.1  null -4.1%  CLV +2.58 ± 1.04 pp
+    value favourite (q > 0.5) = H2·F   n   50  ROI   -1.2% ± 19.6  null -3.9%  CLV +3.47 ± 1.51 pp
+    value underdog                     n   88  ROI  +29.3% ± 34.3  null -4.2%  CLV +2.07 ± 1.38 pp
+    gap < 0.04                         n   57  ROI   -8.3% ± 27.2  null -4.1%  CLV -0.28 ± 1.26 pp
+    gap 0.04-0.08                      n   39  ROI  +12.3% ± 42.0  null -4.2%  CLV +2.24 ± 1.38 pp
+    gap 0.08-0.12                      n   19  ROI  -17.2% ± 55.8  null -4.3%  CLV +3.73 ± 1.73 pp
+    gap >= 0.12 = H4                   n   23  ROI +123.5% ± 74.3  null -4.1%  CLV +9.28 ± 3.30 pp
+    gap >= 0.12, underdog              n   18  ROI +149.6% ± 90.3  null -4.2%  CLV +8.44 ± 3.94 pp
+  ESPN BET 2025-26 games 1–9
+    all value sides                    n  138  ROI   -5.8% ± 21.3  null -4.1%  CLV +1.17 ± 0.90 pp
+    value favourite (q > 0.5) = H2·F   n   38  ROI  +12.3% ± 21.2  null -4.1%  CLV +1.64 ± 1.41 pp
+    value underdog                     n  100  ROI  -12.7% ± 28.2  null -4.0%  CLV +0.99 ± 1.13 pp
+    gap < 0.04                         n   50  ROI  -24.8% ± 24.5  null -4.1%  CLV +0.32 ± 1.00 pp
+    gap 0.04-0.08                      n   36  ROI  -16.5% ± 41.4  null -4.0%  CLV +0.53 ± 1.71 pp
+    gap 0.08-0.12                      n   34  ROI  +17.4% ± 41.6  null -4.1%  CLV +1.05 ± 2.17 pp
+    gap >= 0.12 = H4                   n   18  ROI  +24.3% ± 95.7  null -3.9%  CLV +5.06 ± 3.01 pp
+    gap >= 0.12, underdog              n   15  ROI  +17.3% ± 115.1  null -3.9%  CLV +4.46 ± 3.35 pp
+
+== 3c. The three tests by the P they read (hindsight; these games chose the rules). @open uses the open's price and line; @close the close's. ± 95%
+   recon P = the reconstructed rows (leave-one-season-out, 30-minute report: news the open did not have)
+  DraftKings 2025-26 games 10+
+    recon P (30 min, LOSO)   H4             @open n   97  ROI  +19.9% ± 31.1  null -4.4%  move +3.95 ± 2.03 pp | @close n  109  ROI   -1.5% ± 28.8  null -4.1%
+    recon P (30 min, LOSO)   H2·F           @open n  342  ROI   +2.7% ±  7.4  null -4.1%  move +2.04 ± 0.46 pp | @close n  325  ROI   -8.4% ±  7.8  null -4.1%
+    recon P (30 min, LOSO)   H5             @open n  689  ROI   +3.5% ±  7.1  null -4.5%  move +0.69 ± 0.17 pts | @close n  699  ROI   -4.7% ±  7.1  null -4.5%
+    P at 18 h                H4             @open n  103  ROI  +18.1% ± 31.7  null -4.4%  move +2.28 ± 1.98 pp | @close n  129  ROI  -11.0% ± 27.4  null -4.1%
+    P at 18 h                H2·F           @open n  328  ROI   -1.0% ±  7.8  null -4.1%  move +1.01 ± 0.56 pp | @close n  295  ROI   -6.5% ±  8.2  null -4.1%
+    P at 18 h                H5             @open n  691  ROI   -2.3% ±  7.1  null -4.5%  move +0.32 ± 0.17 pts | @close n  731  ROI   -5.4% ±  6.9  null -4.5%
+    P at 5 h                 H4             @open n   95  ROI  +21.8% ± 31.4  null -4.4%  move +3.19 ± 2.04 pp | @close n  122  ROI  -10.5% ± 25.9  null -4.1%
+    P at 5 h                 H2·F           @open n  340  ROI   +0.2% ±  7.5  null -4.1%  move +1.70 ± 0.48 pp | @close n  314  ROI   -7.8% ±  7.9  null -4.1%
+    P at 5 h                 H5             @open n  675  ROI   -0.9% ±  7.2  null -4.5%  move +0.58 ± 0.17 pts | @close n  713  ROI   -7.6% ±  7.0  null -4.5%
+    P at 30 min              H4             @open n   97  ROI  +19.9% ± 31.1  null -4.4%  move +3.95 ± 2.03 pp | @close n  109  ROI   -1.5% ± 28.8  null -4.1%
+    P at 30 min              H2·F           @open n  342  ROI   +2.7% ±  7.4  null -4.1%  move +2.04 ± 0.46 pp | @close n  325  ROI   -8.4% ±  7.8  null -4.1%
+    P at 30 min              H5             @open n  689  ROI   +3.5% ±  7.1  null -4.5%  move +0.69 ± 0.17 pts | @close n  699  ROI   -4.7% ±  7.1  null -4.5%
+  ESPN BET 2024-25 games 10+
+    recon P (30 min, LOSO)   H4             @open n  116  ROI  +16.4% ± 28.6  null -4.1%  move +5.43 ± 1.50 pp | @close n  104  ROI   -6.2% ± 27.0  null -4.1%
+    recon P (30 min, LOSO)   H2·F           @open n  434  ROI   +1.1% ±  6.5  null -4.0%  move +2.27 ± 0.51 pp | @close n  389  ROI   -3.3% ±  6.9  null -4.1%
+    recon P (30 min, LOSO)   H5             @open n  735  ROI   +2.1% ±  6.9  null -4.5%  move +0.92 ± 0.15 pts | @close n  732  ROI   -5.2% ±  6.9  null -4.5%
+    P at 18 h                H4             @open n  101  ROI  +25.2% ± 30.0  null -4.2%  move +2.86 ± 1.69 pp | @close n  133  ROI   -4.8% ± 24.3  null -4.3%
+    P at 18 h                H2·F           @open n  416  ROI   -1.2% ±  6.9  null -4.0%  move +1.58 ± 0.57 pp | @close n  353  ROI   -5.2% ±  7.5  null -4.1%
+    P at 18 h                H5             @open n  722  ROI   -2.4% ±  7.0  null -4.5%  move +0.48 ± 0.16 pts | @close n  733  ROI   -7.2% ±  6.9  null -4.5%
+    P at 5 h                 H4             @open n  106  ROI  +19.2% ± 28.4  null -4.2%  move +4.49 ± 1.40 pp | @close n  107  ROI   -8.3% ± 27.8  null -4.2%
+    P at 5 h                 H2·F           @open n  417  ROI   -0.4% ±  6.8  null -4.0%  move +1.91 ± 0.56 pp | @close n  369  ROI   -2.1% ±  7.2  null -4.1%
+    P at 5 h                 H5             @open n  712  ROI   -0.2% ±  7.0  null -4.5%  move +0.73 ± 0.16 pts | @close n  732  ROI   -6.5% ±  6.9  null -4.5%
+    P at 30 min              H4             @open n  108  ROI  +19.8% ± 30.0  null -4.1%  move +5.16 ± 1.55 pp | @close n   98  ROI   -8.1% ± 28.3  null -4.2%
+    P at 30 min              H2·F           @open n  418  ROI   +0.8% ±  6.8  null -4.0%  move +2.30 ± 0.53 pp | @close n  368  ROI   -2.4% ±  7.2  null -4.1%
+    P at 30 min              H5             @open n  722  ROI   +1.9% ±  6.9  null -4.5%  move +0.90 ± 0.16 pts | @close n  742  ROI   -6.2% ±  6.9  null -4.5%
+  ESPN BET 2025-26 games 10+
+    recon P (30 min, LOSO)   H4             @open n   16  ROI  +58.3% ± 59.7  null -3.9%  move +3.04 ± 2.75 pp | @close n   10  ROI  +39.1% ± 103.3  null -3.9%
+    recon P (30 min, LOSO)   H2·F           @open n   48  ROI   +5.7% ± 18.2  null -4.1%  move +1.64 ± 0.95 pp | @close n   46  ROI   -0.3% ± 19.2  null -4.2%
+    recon P (30 min, LOSO)   H5             @open n   79  ROI   +8.3% ± 20.9  null -4.5%  move +0.94 ± 0.42 pts | @close n   74  ROI   +3.1% ± 21.8  null -4.6%
+    P at 18 h                H4             @open n   15  ROI  +49.1% ± 68.8  null -3.9%  move +0.51 ± 2.73 pp | @close n   13  ROI  +31.7% ± 87.4  null -4.0%
+    P at 18 h                H2·F           @open n   48  ROI   +7.9% ± 17.7  null -4.1%  move +1.44 ± 0.97 pp | @close n   43  ROI   +0.5% ± 19.9  null -4.2%
+    P at 18 h                H5             @open n   77  ROI   +6.2% ± 21.2  null -4.5%  move +0.70 ± 0.47 pts | @close n   79  ROI   +3.6% ± 21.1  null -4.6%
+    P at 5 h                 H4             @open n   15  ROI  +55.6% ± 63.6  null -3.9%  move +1.77 ± 2.42 pp | @close n   13  ROI  +24.7% ± 85.2  null -3.9%
+    P at 5 h                 H2·F           @open n   52  ROI   +5.4% ± 17.5  null -4.1%  move +1.43 ± 0.93 pp | @close n   52  ROI   +3.5% ± 17.3  null -4.2%
+    P at 5 h                 H5             @open n   78  ROI   +5.0% ± 21.2  null -4.5%  move +0.85 ± 0.44 pts | @close n   77  ROI   -1.0% ± 21.4  null -4.6%
+    P at 30 min              H4             @open n   16  ROI  +58.3% ± 59.7  null -3.9%  move +3.04 ± 2.75 pp | @close n   10  ROI  +39.1% ± 103.3  null -3.9%
+    P at 30 min              H2·F           @open n   48  ROI   +5.7% ± 18.2  null -4.1%  move +1.64 ± 0.95 pp | @close n   46  ROI   -0.3% ± 19.2  null -4.2%
+    P at 30 min              H5             @open n   79  ROI   +8.3% ± 20.9  null -4.5%  move +0.94 ± 0.42 pts | @close n   74  ROI   +3.1% ± 21.8  null -4.6%
+  ESPN BET 2024-25 games 1–9
+    recon P (30 min, LOSO)   H4·E           @open n   25  ROI  +98.8% ± 71.5  null -4.2%  move +9.31 ± 3.02 pp | @close n   13  ROI  +92.7% ± 111.3  null -4.3%
+    recon P (30 min, LOSO)   H2·F·E         @open n   45  ROI  -10.5% ± 22.2  null -4.0%  move +4.31 ± 1.59 pp | @close n   41  ROI   +8.8% ± 21.3  null -4.1%
+    recon P (30 min, LOSO)   H5·E           @open n   80  ROI  +21.4% ± 20.2  null -4.5%  move +1.38 ± 0.42 pts | @close n  100  ROI  +14.3% ± 18.4  null -4.5%
+    P at 18 h                H4·E           @open n   23  ROI +123.5% ± 74.3  null -4.1%  move +9.28 ± 3.30 pp | @close n   15  ROI  +98.1% ± 96.8  null -4.1%
+    P at 18 h                H2·F·E         @open n   50  ROI   -1.2% ± 19.6  null -3.9%  move +3.47 ± 1.51 pp | @close n   39  ROI   +6.5% ± 20.7  null -4.1%
+    P at 18 h                H5·E           @open n   83  ROI  +23.9% ± 19.7  null -4.5%  move +1.34 ± 0.43 pts | @close n   97  ROI   +6.3% ± 19.0  null -4.5%
+    P at 5 h                 H4·E           @open n   24  ROI  +99.6% ± 74.5  null -4.1%  move +8.68 ± 3.37 pp | @close n   13  ROI  +95.5% ± 101.6  null -4.1%
+    P at 5 h                 H2·F·E         @open n   56  ROI   -1.7% ± 18.5  null -4.0%  move +3.44 ± 1.39 pp | @close n   41  ROI   +6.9% ± 20.9  null -4.0%
+    P at 5 h                 H5·E           @open n   80  ROI  +26.2% ± 19.9  null -4.5%  move +1.34 ± 0.44 pts | @close n  102  ROI   +4.7% ± 18.5  null -4.5%
+    P at 30 min              H4·E           @open n   22  ROI +117.7% ± 76.9  null -4.1%  move +9.77 ± 3.31 pp | @close n   13  ROI  +81.9% ± 105.8  null -4.2%
+    P at 30 min              H2·F·E         @open n   56  ROI   -5.0% ± 18.6  null -4.0%  move +3.68 ± 1.37 pp | @close n   45  ROI   +7.2% ± 19.9  null -4.1%
+    P at 30 min              H5·E           @open n   80  ROI  +28.6% ± 19.7  null -4.5%  move +1.34 ± 0.44 pts | @close n  100  ROI  +10.6% ± 18.5  null -4.5%
+  ESPN BET 2025-26 games 1–9
+    recon P (30 min, LOSO)   H4·E           @open n   24  ROI  +36.4% ± 76.0  null -3.9%  move +5.52 ± 3.07 pp | @close n   19  ROI  +43.9% ± 66.0  null -3.8%
+    recon P (30 min, LOSO)   H2·F·E         @open n   38  ROI  +13.2% ± 20.0  null -4.1%  move +2.59 ± 1.53 pp | @close n   38  ROI   -4.6% ± 21.9  null -4.2%
+    recon P (30 min, LOSO)   H5·E           @open n  109  ROI   +3.1% ± 17.9  null -4.5%  move +0.85 ± 0.39 pts | @close n  100  ROI  -14.1% ± 18.7  null -4.5%
+    P at 18 h                H4·E           @open n   18  ROI  +24.3% ± 95.7  null -3.9%  move +5.06 ± 3.01 pp | @close n   23  ROI  +43.0% ± 59.4  null -3.8%
+    P at 18 h                H2·F·E         @open n   38  ROI  +12.3% ± 21.2  null -4.1%  move +1.64 ± 1.41 pp | @close n   36  ROI   -3.3% ± 22.3  null -4.2%
+    P at 18 h                H5·E           @open n  106  ROI   +7.9% ± 18.1  null -4.5%  move +0.57 ± 0.44 pts | @close n  104  ROI   -4.6% ± 18.4  null -4.5%
+    P at 5 h                 H4·E           @open n   23  ROI  +42.4% ± 78.4  null -3.9%  move +5.93 ± 3.09 pp | @close n   20  ROI  +37.0% ± 64.3  null -3.8%
+    P at 5 h                 H2·F·E         @open n   38  ROI  +12.7% ± 19.9  null -4.1%  move +1.74 ± 1.46 pp | @close n   37  ROI   -6.4% ± 22.3  null -4.3%
+    P at 5 h                 H5·E           @open n  105  ROI   +1.6% ± 18.3  null -4.5%  move +0.73 ± 0.42 pts | @close n  105  ROI  -10.9% ± 18.3  null -4.5%
+    P at 30 min              H4·E           @open n   24  ROI  +36.4% ± 76.0  null -3.9%  move +5.52 ± 3.07 pp | @close n   19  ROI  +43.9% ± 66.0  null -3.8%
+    P at 30 min              H2·F·E         @open n   38  ROI  +13.2% ± 20.0  null -4.1%  move +2.59 ± 1.53 pp | @close n   38  ROI   -4.6% ± 21.9  null -4.2%
+    P at 30 min              H5·E           @open n  109  ROI   +3.1% ± 17.9  null -4.5%  move +0.85 ± 0.39 pts | @close n  100  ROI  -14.1% ± 18.7  null -4.5%
+

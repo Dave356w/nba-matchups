@@ -723,3 +723,60 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   leads). Refits at the lock lead (odL, qL) fail too. No historical price
   at the lock lead exists, so the price side rests on the thin native
   path; any lock change needs a registered amendment.
+- v11 review: pace, totals and the picks (owner's questions, 2026-10-29;
+  `research/v11_review.py`, [results](../diagnostics/v11_review/RESULTS.txt);
+  totals cached by `research/totals_fetch.py`). ± 95%, hindsight.
+  **Pace.** v11 has no pace term: its inputs are per-possession rates and
+  one slope maps them to points, so a rating gap is worth the same margin
+  in any matchup. Pregame matchup pace varies little (sd 1.3% of league
+  possessions, games 10+). Scaling v11's walk-forward margin and sigma by
+  it, fitted on earlier seasons and scored 2023-24 to 2025-26 at 5 h and
+  18 h, changes log loss by at most ±0.0003 in every cell (DraftKings
+  2025-26 games 10+ +0.0003 ± 0.0004 / −0.0002 ± 0.0003), and the fitted
+  scaling flips sign between seasons. Nothing to gain; as for v4.
+  **Totals.** v11 predicts only the margin, so it gives no total or O/U
+  probability. A walk-forward total from the same box-score inputs
+  (decayed pace and points per 100 possessions) is worse than the closing
+  total on every book-season (RMSE 19.09 vs 18.46 DraftKings 2025-26;
+  18.20 vs 17.55 ESPN BET 2024-25) and adds nothing to it (weight −0.09 ±
+  0.26, −0.06 ± 0.23). At the open it adds to ESPN BET 2024-25 (weight
+  +0.45 ± 0.30; the line moved toward it +0.69 ± 0.24 pts) but not to
+  DraftKings 2025-26 (+0.06 ± 0.33). Not a usable O/U signal as built.
+  **Picks.** The reconstructed rows read the 30-minute report, news the
+  open lacked. With the walk-forward v11 P at 18 h (about the open's
+  information), games 10+ at the open: H4 +18.1% ± 31.7 / +25.2% ± 30.0
+  (null −4.4 / −4.2%; CLV +2.3 ± 2.0 / +2.9 ± 1.7 pp), H2·F −1.0% ± 7.8 /
+  −1.2% ± 6.9 (null −4.1 / −4.0%; CLV +1.0 ± 0.6 / +1.6 ± 0.6 pp), H5
+  −2.3% ± 7.1 / −2.4% ± 7.0 (null −4.5%; CLV +0.32 ± 0.17 / +0.48 ± 0.16
+  pts), DraftKings 2025-26 / ESPN BET 2024-25. Most of H5's and H2·F's
+  registered opening hindsight (+3.5%, +2.7% on DraftKings) was report
+  timing. At the close, with P at 5 h, w is +0.02 ± 0.44 / +0.07 ± 0.40
+  and every rule is at or below its null. v11's disagreement pays at the
+  open, mostly in large gaps (≥ 0.12, 87–90% underdogs) and value
+  favourites; small gaps carry no CLV. Early games (1–9, ESPN BET, 138 a
+  season) beat the open in 2024-25 (−0.035 ± 0.033) but not 2025-26. The
+  5 h lock prices between the open and the close, unmeasured historically;
+  native lock CLV per rule is the read. Rules unchanged.
+- Totals (O/U) fit, v11-style (owner's question, 2026-10-29;
+  `research/totals_model.py`, [results](../diagnostics/totals_model/RESULTS.txt)).
+  v11's recipe on the final total: least squares on pregame decayed pace
+  and points per 100 (prior = last season regressed, K = 10 games; league
+  level prior 30 games, both chosen on 2017-18 to 2022-23 only), fitted
+  relative to the league's level, P(over) = 1 − Φ((line − T) / σ).
+  Walk-forward RMSE 18.65 on games 10+ 2017-18 to 2025-26. Against the
+  close it is worse than the market on both large book-seasons (P(over)
+  log loss +0.0249 ± 0.0132 DraftKings 2025-26, +0.0253 ± 0.0117 ESPN BET
+  2024-25) and adds nothing (weight on T − line −0.02 ± 0.26, −0.09 ±
+  0.23). Against the open it is level with the market (+0.0049 ± 0.0109,
+  +0.0047 ± 0.0094), adds +0.19 ± 0.32 / +0.43 ± 0.30, and the total
+  moved toward its side by the close (+0.57 ± 0.22, +0.76 ± 0.24 pts); its
+  side at |P − q| ≥ 0.05 returned +4.2% ± 8.4 / +0.3% ± 8.4 (null −4.5%).
+  Main lines only (both prices −135..+115): the feed's ESPN BET 2024-25
+  "open" is an alternate line on 123 games (Oct–Dec, prices like −425).
+  By the posted total (descriptive): the model leans over on low totals
+  and under on high ones, more than the market; no band beats its null at
+  the close, and the market's extreme totals were right on average.
+  Absent rotation minutes from who played (about the 30-minute report)
+  add nothing (+0.26 ± 0.24 squared error). Like v11's moneyline signal,
+  any O/U value is at the open and gone by the close. Buildable; not
+  shown to be useful at the 5 h lock. Research only.

@@ -1,0 +1,107 @@
+Totals (O/U) model, v11-style, walk-forward (research/totals_model.py). ± 95%. Hindsight.
+Team prior weight K, league-level prior (games) = (10, 30.0), chosen on 2017-18..2022-23 games 1+ walk-forward RMSE: (5, 30.0): 18.783, (5, 300.0): 18.819, (10, 30.0): 18.776, (10, 300.0): 18.812, (20, 30.0): 18.819, (20, 300.0): 18.853.
+T0 = pregame pace/efficiency (decayed; prior = last season regressed), league level, b2b, phase.
+T1 = T0 + absent rotation minutes from who played (about the 30-minute report; read at the close only).
+
+== 1. Against outcomes, every season (walk-forward)
+  T0 games 10+ 2017-18..2025-26 n 8435  RMSE 18.65  last fit {'a': np.float64(0.224), 'naive_rel': np.float64(0.969), 'b2b': np.float64(-0.299), 'phase': np.float64(0.858)}
+  T1 games 10+ 2017-18..2025-26 n 8435  RMSE 18.66  last fit {'a': np.float64(0.308), 'naive_rel': np.float64(0.969), 'b2b': np.float64(-0.28), 'phase': np.float64(0.915), 'absent': np.float64(-0.697)}
+  T1 − T0 squared error +0.26 ± 0.24 (sd of their difference 0.31 pts)
+
+== 2. Against the books' totals (book x season x stage; never pooled)
+  DraftKings 2025-26 games 10+
+    T0     @open  n  964  RMSE line 18.79 model 19.04  weight on (T − line) +0.19 ± 0.32  P(over) LL − market +0.0049 ± 0.0109  w +0.41 ± 0.40
+      model side, all             n  964  ROI   +0.6% ±  6.0  null -4.5%  line moved toward it +0.57 ± 0.22 pts
+      model side, |P − q| ≥ 0.05  n  497  ROI   +4.2% ±  8.4  null -4.5%  line moved toward it +0.80 ± 0.33 pts
+    T0     @close n  964  RMSE line 18.46 model 19.04  weight on (T − line) -0.02 ± 0.26  P(over) LL − market +0.0249 ± 0.0132  w -0.07 ± 0.33
+      model side, all             n  964  ROI   -6.4% ±  6.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n  564  ROI   -5.6% ±  7.9  null -4.5%
+  ESPN BET 2024-25 games 10+
+    T0     @open  n 1015  RMSE line 18.08 model 18.13  weight on (T − line) +0.43 ± 0.30  P(over) LL − market +0.0047 ± 0.0094  w +0.30 ± 0.39
+      model side, all             n 1015  ROI   -4.0% ±  5.9  null -4.5%  line moved toward it +0.76 ± 0.24 pts
+      model side, |P − q| ≥ 0.05  n  499  ROI   +0.3% ±  8.4  null -4.5%  line moved toward it +1.10 ± 0.37 pts
+    T0     @close n 1070  RMSE line 17.55 model 18.21  weight on (T − line) -0.09 ± 0.23  P(over) LL − market +0.0253 ± 0.0117  w -0.18 ± 0.31
+      model side, all             n 1070  ROI   -8.6% ±  5.7  null -4.5%
+      model side, |P − q| ≥ 0.05  n  639  ROI  -10.0% ±  7.4  null -4.5%
+  ESPN BET 2024-25 games 1–9
+    T0     @open  n   71  RMSE line 20.38 model 20.58  weight on (T − line) +0.13 ± 1.33  P(over) LL − market +0.0159 ± 0.0350  w -0.21 ± 1.58
+      model side, all             n   71  ROI   -5.8% ± 22.4  null -4.6%  line moved toward it +1.30 ± 0.80 pts
+      model side, |P − q| ≥ 0.05  n   35  ROI   -7.3% ± 32.1  null -4.6%  line moved toward it +2.83 ± 1.04 pts
+    T0     @close n  138  RMSE line 18.38 model 18.70  weight on (T − line) -0.06 ± 0.92  P(over) LL − market +0.0182 ± 0.0238  w -0.19 ± 1.22
+      model side, all             n  138  ROI  -16.8% ± 15.9  null -4.5%
+      model side, |P − q| ≥ 0.05  n   64  ROI  -10.2% ± 23.6  null -4.5%
+  ESPN BET 2025-26 games 1–9
+    T0     @open  n  138  RMSE line 16.75 model 18.32  weight on (T − line) -0.58 ± 0.62  P(over) LL − market +0.0548 ± 0.0431  w -0.55 ± 0.89
+      model side, all             n  138  ROI  -12.8% ± 15.9  null -4.5%  line moved toward it +0.45 ± 0.50 pts
+      model side, |P − q| ≥ 0.05  n  100  ROI  -15.9% ± 18.7  null -4.5%  line moved toward it +0.95 ± 0.57 pts
+    T0     @close n  138  RMSE line 16.93 model 18.32  weight on (T − line) -0.35 ± 0.60  P(over) LL − market +0.0352 ± 0.0429  w -0.19 ± 0.85
+      model side, all             n  138  ROI   +1.2% ± 16.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n   94  ROI   -6.3% ± 19.5  null -4.5%
+  DraftKings 2025-26 games 10+
+    T1     @close n  964  RMSE line 18.46 model 19.05  weight on (T − line) -0.03 ± 0.26  P(over) LL − market +0.0251 ± 0.0132  w -0.08 ± 0.33
+      model side, all             n  964  ROI   -6.6% ±  6.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n  560  ROI   -5.6% ±  7.9  null -4.5%
+  ESPN BET 2024-25 games 10+
+    T1     @close n 1070  RMSE line 17.55 model 18.21  weight on (T − line) -0.09 ± 0.24  P(over) LL − market +0.0252 ± 0.0117  w -0.18 ± 0.31
+      model side, all             n 1070  ROI   -8.2% ±  5.7  null -4.5%
+      model side, |P − q| ≥ 0.05  n  636  ROI   -9.6% ±  7.4  null -4.5%
+  ESPN BET 2024-25 games 1–9
+    T1     @close n  138  RMSE line 18.38 model 18.70  weight on (T − line) -0.07 ± 0.92  P(over) LL − market +0.0184 ± 0.0238  w -0.20 ± 1.22
+      model side, all             n  138  ROI  -16.8% ± 15.9  null -4.5%
+      model side, |P − q| ≥ 0.05  n   65  ROI  -11.5% ± 23.4  null -4.5%
+  ESPN BET 2025-26 games 1–9
+    T1     @close n  138  RMSE line 16.93 model 18.31  weight on (T − line) -0.35 ± 0.61  P(over) LL − market +0.0348 ± 0.0429  w -0.19 ± 0.85
+      model side, all             n  138  ROI   +2.6% ± 16.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n   95  ROI   -5.3% ± 19.4  null -4.5%
+
+== 3. T0 by the posted total (games 10+; descriptive, not filters; ± 95%)
+  DraftKings 2025-26
+    @open
+      all          n  964  overs hit 49.9% (market 50.0%)  model − line  +1.7  model picks 643 over / 321 under  won 52.7%  ROI   +0.6% ±  6.0  null -4.5%  line moved toward it +0.57 ± 0.22
+      under 220    n   86  overs hit 50.0% (market 50.1%)  model − line  +5.3  model picks 75 over / 11 under  won 51.2%  ROI   -2.4% ± 20.3  null -4.6%  line moved toward it +1.08 ± 0.94
+      220-229.5    n  399  overs hit 47.6% (market 50.0%)  model − line  +2.5  model picks 311 over / 88 under  won 51.6%  ROI   -1.4% ±  9.4  null -4.5%  line moved toward it +0.43 ± 0.31
+      230-239.5    n  400  overs hit 52.0% (market 50.0%)  model − line  +0.6  model picks 218 over / 182 under  won 53.5%  ROI   +2.1% ±  9.3  null -4.5%  line moved toward it +0.60 ± 0.34
+      240 and up   n   79  overs hit 50.6% (market 50.1%)  model − line  -0.2  model picks 39 over / 40 under  won 55.7%  ROI   +6.2% ± 21.0  null -4.6%  line moved toward it +0.58 ± 0.79
+      model over   n  643  overs hit 51.9% (market 50.0%)  model − line  +3.6  model picks 643 over / 0 under  won 51.9%  ROI   -0.8% ±  7.4  null -4.5%  line moved toward it +0.68 ± 0.28
+      model under  n  321  overs hit 45.8% (market 50.0%)  model − line  -1.9  model picks 0 over / 321 under  won 54.2%  ROI   +3.5% ± 10.4  null -4.5%  line moved toward it +0.34 ± 0.36
+    @close
+      all          n  964  overs hit 48.3% (market 50.0%)  model − line  +1.4  model picks 593 over / 371 under  won 49.1%  ROI   -6.4% ±  6.0  null -4.5%
+      under 220    n  106  overs hit 47.2% (market 50.0%)  model − line  +5.7  model picks 99 over / 7 under  won 48.1%  ROI   -8.3% ± 18.2  null -4.5%
+      220-229.5    n  365  overs hit 47.4% (market 50.0%)  model − line  +2.8  model picks 278 over / 87 under  won 46.6%  ROI  -11.0% ±  9.8  null -4.5%
+      230-239.5    n  378  overs hit 48.9% (market 50.0%)  model − line  +0.1  model picks 187 over / 191 under  won 50.3%  ROI   -4.1% ±  9.6  null -4.5%
+      240 and up   n  115  overs hit 50.4% (market 50.0%)  model − line  -2.7  model picks 29 over / 86 under  won 53.9%  ROI   +3.0% ± 17.5  null -4.5%
+      model over   n  593  overs hit 47.9% (market 50.0%)  model − line  +4.1  model picks 593 over / 0 under  won 47.9%  ROI   -8.5% ±  7.7  null -4.5%
+      model under  n  371  overs hit 49.1% (market 49.9%)  model − line  -2.9  model picks 0 over / 371 under  won 50.9%  ROI   -2.8% ±  9.7  null -4.5%
+  ESPN BET 2024-25
+    @open
+      all          n 1015  overs hit 52.3% (market 50.0%)  model − line  +0.0  model picks 488 over / 527 under  won 50.2%  ROI   -4.0% ±  5.9  null -4.5%  line moved toward it +0.76 ± 0.24
+      under 220    n  185  overs hit 52.4% (market 50.0%)  model − line  +1.1  model picks 107 over / 78 under  won 51.4%  ROI   -2.1% ± 13.8  null -4.5%  line moved toward it +1.04 ± 0.54
+      220-229.5    n  457  overs hit 53.0% (market 50.0%)  model − line  +0.6  model picks 261 over / 196 under  won 49.9%  ROI   -4.6% ±  8.8  null -4.5%  line moved toward it +0.63 ± 0.38
+      230-239.5    n  322  overs hit 50.9% (market 49.9%)  model − line  -1.0  model picks 115 over / 207 under  won 50.0%  ROI   -4.6% ± 10.4  null -4.5%  line moved toward it +0.90 ± 0.40
+      240 and up   n   51  overs hit 54.9% (market 49.9%)  model − line  -3.2  model picks 5 over / 46 under  won 51.0%  ROI   -2.4% ± 26.5  null -4.5%  line moved toward it -0.06 ± 1.02
+      model over   n  488  overs hit 52.7% (market 50.0%)  model − line  +2.9  model picks 488 over / 0 under  won 52.7%  ROI   +0.7% ±  8.5  null -4.5%  line moved toward it +0.77 ± 0.35
+      model under  n  527  overs hit 52.0% (market 49.9%)  model − line  -2.7  model picks 0 over / 527 under  won 48.0%  ROI   -8.4% ±  8.1  null -4.5%  line moved toward it +0.75 ± 0.33
+    @close
+      all          n 1070  overs hit 52.6% (market 50.1%)  model − line  +0.0  model picks 517 over / 553 under  won 47.9%  ROI   -8.6% ±  5.7  null -4.5%
+      under 220    n  233  overs hit 49.8% (market 50.0%)  model − line  +2.8  model picks 170 over / 63 under  won 47.6%  ROI   -9.0% ± 12.3  null -4.5%
+      220-229.5    n  418  overs hit 54.5% (market 50.1%)  model − line  +0.7  model picks 231 over / 187 under  won 49.0%  ROI   -6.2% ±  9.2  null -4.5%
+      230-239.5    n  335  overs hit 52.2% (market 50.1%)  model − line  -1.7  model picks 108 over / 227 under  won 46.6%  ROI  -11.1% ± 10.2  null -4.5%
+      240 and up   n   84  overs hit 52.4% (market 50.0%)  model − line  -4.2  model picks 8 over / 76 under  won 47.6%  ROI   -9.0% ± 20.5  null -4.5%
+      model over   n  517  overs hit 50.5% (market 50.0%)  model − line  +3.7  model picks 517 over / 0 under  won 50.5%  ROI   -3.6% ±  8.2  null -4.5%
+      model under  n  553  overs hit 54.6% (market 50.1%)  model − line  -3.4  model picks 0 over / 553 under  won 45.4%  ROI  -13.2% ±  7.9  null -4.5%
+
+== 4. Examples: the 6 largest |model − opening total| per book-season, games 10+ (the model side at the opening price)
+  DraftKings 2025-26
+    2025-12-23  MIL @ IND  open 197.5 -> close 216.5  model 226.4  over  -110  final 205  won +0.91u
+    2025-12-28  DET @ LAC  open 200.5 -> close 224.5  model 228.4  over  -115  final 211  won +0.87u
+    2026-01-30  LAC @ DEN  open 210.5 -> close 218.5  model 228.0  over  -110  final 231  won +0.91u
+    2026-02-03  PHI @ GSW  open 217.5 -> close 222.5  model 233.0  over  -112  final 207  lost -1.00u
+    2026-01-05  DEN @ PHI  open 227.5 -> close 228.5  model 242.1  over  -110  final 249  won +0.91u
+    2026-01-29  BRK @ DEN  open 211.5 -> close 209.5  model 225.5  over  -110  final 210  lost -1.00u
+  ESPN BET 2024-25
+    2024-11-15  PHI @ ORL  open 228.5 -> close 208.5  model 210.1  under -115  final 184  won +0.87u
+    2025-04-01  PHO @ MIL  open 221.5 -> close 225.5  model 233.6  over  -110  final 256  won +0.91u
+    2025-03-12  PHI @ TOR  open 213.5 -> close 222.5  model 225.5  over  -105  final 223  won +0.95u
+    2024-12-05  SAC @ MEM  open 243.5 -> close 242.5  model 231.6  under -120  final 225  won +0.83u
+    2025-04-13  IND @ CLE  open 227.5 -> close 227.5  model 239.2  over  -110  final 244  won +0.91u
+    2024-12-25  LAL @ GSW  open 235.5 -> close 220.5  model 223.8  under -115  final 228  won +0.87u
