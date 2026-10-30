@@ -346,7 +346,8 @@ def body(data, ui):
                 "<option value='flat'>Flat</option></select></label>"
                 "<label id='dfs-k-l'>% per $1<input type='number' id='dfs-k' min='0.5' max='5' step='0.5' value='2'></label>"
                 "<label>Max exposure %<input type='number' id='dfs-exp' min='10' max='100' step='5' value='70'></label>"
-                f"<label>Min salary $<input type='number' id='dfs-min' min='0' max='{data['cap']:g}' value='0'></label>"
+                "<label>Min player salary $<input type='number' id='dfs-min' min='0' "
+                f"max='{max((p['sal'] for p in data['players']), default=0)}' value='0'></label>"
                 "<button type='button' class='dfs-btn primary' id='dfs-go'>Build lineups</button>"
                 "<button type='button' class='dfs-btn' id='dfs-reset'>Reset</button></div>")
     pool = ("<section class='dfs-panel'><h2>Player pool</h2>"
@@ -386,7 +387,8 @@ def guide():
         "Yahoo’s season average and <b>Min</b> Sleeper’s projected minutes.</p>"
         f"<h3>Lineup rules</h3><p>Yahoo classic contests: PG, SG, G, SF, PF, F, C and UTIL under the "
         f"cap, with players from at least {MIN_TEAMS} teams and at most {MAX_PER_TEAM} from one. "
-        "Players whose game has started are left out, and locked players are in every lineup.</p>"
+        "Players whose game has started are left out, and locked players are in every lineup. "
+        "<b>Min player salary</b> leaves out every player priced below it (locked players stay).</p>"
         "<h3>Slates</h3><p>Yahoo lists the day’s games under one cap, so the slate choices come from "
         "start times: Main (every game), Early (games up to a start time) and Late (games from one), "
         "each with at least two games.</p>"
@@ -539,7 +541,10 @@ function inSlate(p){if(!st.slate)return true;var t=Date.parse(p.start);return t>
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function proj(p){return st.proj[p.id]!==undefined?st.proj[p.id]:p.proj;}
 function started(p){return Date.parse(p.start)<=Date.now();}
-function pool(){return D.players.filter(function(p){var v=proj(p);return inSlate(p)&&!st.out[p.id]&&!started(p)&&v!==null&&v!==undefined&&(v>0||st.lock[p.id]);})
+// players under the min player salary are left out unless locked
+function floor(){return Math.max(0,+$('dfs-min').value||0);}
+function cheap(p){return p.sal<floor()&&!st.lock[p.id];}
+function pool(){return D.players.filter(function(p){var v=proj(p);return inSlate(p)&&!st.out[p.id]&&!started(p)&&!cheap(p)&&v!==null&&v!==undefined&&(v>0||st.lock[p.id]);})
  .map(function(p){return {id:p.id,pos:p.pos,sal:p.sal,v:proj(p),team:p.team,game:p.game,starter:!!p.starter,star:p.star||0,big:p.big||0,big_split:p.big_split||0};});}
 function slots(ids,byId){var ps=ids.map(function(i){return byId[i];}),used={},at={};
  function take(ok){for(var i=0;i<ps.length;i++){if(!used[i]&&ok(ps[i])){used[i]=1;return ps[i];}}return null;}
@@ -579,11 +584,11 @@ function gpp(all,team,N,cap,minSal,lock){var S=Math.max(100,Math.min(2000,+$('df
 function capShare(p){var mx=Math.max(10,Math.min(100,+$('dfs-exp').value||100))/100,k=Math.max(0,+$('dfs-k').value||0);
  return $('dfs-exprule').value==='salary'?Math.min(mx,k*p.sal/100):mx;}
 function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){byId[p.id]=p;team[p.id]=p.team;});
- var N=Math.max(1,Math.min(20,+$('dfs-n').value||10)),minSal=Math.max(0,+$('dfs-min').value||0),cap={},lock={},t0=performance.now();
+ var N=Math.max(1,Math.min(20,+$('dfs-n').value||10)),minSal=0,cap={},lock={},t0=performance.now();
  all.forEach(function(p){cap[p.id]=Math.max(1,Math.floor(N*capShare(p)+1e-9));});
  Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id])&&inSlate(byId[id]))lock[id]=1;});
  var R=($('dfs-mode').value==='gpp'?gpp:cash)(all,team,N,cap,minSal,lock),L=R.L,cnt=R.cnt,el=$('dfs-out');
- if(!L.length){el.innerHTML='';$('dfs-exposure').innerHTML='';$('dfs-msg').textContent='No legal lineup: check the locks, exclusions and minimum salary.';return;}
+ if(!L.length){el.innerHTML='';$('dfs-exposure').innerHTML='';$('dfs-msg').textContent='No legal lineup: check the locks, exclusions and min player salary.';return;}
  $('dfs-msg').textContent=L.length+' lineup'+(L.length>1?'s':'')+(R.note?' · '+R.note:' · best '+L[0].v.toFixed(2)+' pts')+(L.length<N?' · fewer than asked under these caps':'')+' · '+Math.round(performance.now()-t0)+' ms';
  el.innerHTML=L.map(function(l,i){var sim=!!l.sim;return "<article class='dfs-lineup'><header><span>#"+(i+1)+(l.top!==undefined?" · top 5% in <b>"+(100*l.top).toFixed(0)+"%</b> · p90 <b>"+l.p90.toFixed(1)+"</b>":"")+"</span><span>$<b>"+l.sal+"</b> · <b>"+l.v.toFixed(2)+"</b> pts</span></header>"+
   (sim?"<p class='dfs-msg' style='margin:0 0 4px'>"+(l.won!==undefined?"Won":"Best in")+" simulated slate "+(l.slate+1)+": <b class='mono'>"+l.simTotal.toFixed(1)+"</b> pts</p>":"")+"<ol>"+
@@ -595,11 +600,11 @@ function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){by
   (lock[id]?" · locked":" <small>/ "+Math.round(100*cap[id]/N)+"%</small>")+"</b></li>";}).join('');}
 function draw(){var rows=D.players.slice().sort(function(a,b){return (proj(b)||0)-(proj(a)||0)||b.sal-a.sal;});
  $('dfs-pool').innerHTML=rows.filter(function(p){return inSlate(p);}).filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
-  var v=proj(p),gone=started(p),cls=st.lock[p.id]?'locked':(st.out[p.id]||gone?'out':'');
+  var v=proj(p),gone=started(p),cls=st.lock[p.id]?'locked':(st.out[p.id]||gone||cheap(p)?'out':'');
   return "<tr class='"+cls+"' data-id='"+esc(p.id)+"'><td><input type='checkbox' data-act='lock' aria-label='Lock "+esc(p.name)+"'"+(st.lock[p.id]?' checked':'')+(gone?' disabled':'')+"></td>"+
    "<td><input type='checkbox' data-act='out' aria-label='Exclude "+esc(p.name)+"'"+(st.out[p.id]||gone?' checked':'')+(gone?' disabled':'')+"></td>"+
    "<td class='nm'>"+esc(p.name)+(p.inj?"<span class='dfs-inj'>"+esc(p.inj)+"</span>":"")+"<small><span class='mpos'>"+p.pos+" · </span>"+esc(p.team)+(p.home?' vs ':' @ ')+esc(p.opp)+(gone?' · started':'')+"</small></td>"+
-   "<td class='x'>"+p.pos+"</td><td class='n'>$"+p.sal+"</td><td class='n'><input type='number' step='0.1' min='0' data-act='proj' aria-label='Projection for "+esc(p.name)+"' value='"+(v===null||v===undefined?'':v)+"'></td>"+
+   "<td class='x'>"+p.pos+"</td><td class='n'>$"+p.sal+(cheap(p)?"<small>below min</small>":"")+"</td><td class='n'><input type='number' step='0.1' min='0' data-act='proj' aria-label='Projection for "+esc(p.name)+"' value='"+(v===null||v===undefined?'':v)+"'></td>"+
    "<td class='n x'>"+(v?(10*v/p.sal).toFixed(2):'—')+"</td><td class='n x'>"+(p.fppg===null?'—':p.fppg.toFixed(1))+"</td><td class='n x'>"+(p.min===null?'—':p.min)+"</td></tr>";}).join('');}
 $('dfs-pos').innerHTML=['ALL','PG','SG','G','SF','PF','F','C'].map(function(k){return "<button type='button' data-pos='"+k+"' aria-pressed='"+(k===st.pos)+"'>"+(k==='ALL'?'All':k)+"</button>";}).join('');
 $('dfs-pos').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;st.pos=b.dataset.pos;
@@ -615,6 +620,7 @@ $('dfs-mode').addEventListener('change',function(){$('dfs-sims-l').hidden=$('dfs
 $('dfs-reseed').addEventListener('click',function(){st.seed=1+Math.floor(Math.random()*2147483646);run();});
 $('dfs-exprule').addEventListener('change',function(){$('dfs-k-l').hidden=this.value!=='salary';run();});
 $('dfs-go').addEventListener('click',run);
+$('dfs-min').addEventListener('change',draw);
 $('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};st.seed=D.sim.seed;draw();run();});
 draw();run();
 })();

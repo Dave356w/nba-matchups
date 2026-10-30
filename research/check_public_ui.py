@@ -198,6 +198,27 @@ def main():
                             assert page.locator('.dfs-lineup').count() == 10, (mode, rule)
                             assert all(n <= max(1, cap(s)) for _, n, s in used), (mode, rule, used)
                     assert page.locator('#dfs-k').is_hidden()       # flat: no per-$1 input
+                    # min player salary: nobody under it, except a locked player
+                    sal = page.evaluate("() => Object.fromEntries(JSON.parse(document.getElementById('dfs-data').textContent).players.map(p => [p.name, [p.sal, p.id]]))")
+                    cheap = min((v for v in sal.items() if v[1][0] < 20), key=lambda kv: kv[1][0])
+                    page.fill('#dfs-min', '20')
+                    page.locator('#dfs-min').dispatch_event('change')
+                    for mode in ('cash', 'gpp'):
+                        page.select_option('#dfs-mode', mode)
+                        page.click('#dfs-go')
+                        page.wait_for_function("!document.getElementById('dfs-go').disabled && /lineup/.test(document.getElementById('dfs-msg').textContent)")
+                        names = [n for n, _, _ in page.evaluate(counts)]
+                        assert names and all(sal[n][0] >= 20 for n in names), (mode, names)
+                    assert page.locator('#dfs-pool tr.out', has_text='below min').count() > 0
+                    page.locator(f"#dfs-pool tr[data-id='{cheap[1][1]}'] input[data-act='lock']").check()
+                    page.select_option('#dfs-mode', 'cash')
+                    page.click('#dfs-go')
+                    page.wait_for_function("!document.getElementById('dfs-go').disabled && /lineup/.test(document.getElementById('dfs-msg').textContent)")
+                    assert page.locator('.dfs-lineup', has_text=cheap[0]).count() == page.locator('.dfs-lineup').count() == 10
+                    page.fill('#dfs-min', '0')
+                    page.locator('#dfs-min').dispatch_event('change')
+                    page.click('#dfs-reset')
+                    page.wait_for_function("!document.getElementById('dfs-go').disabled && /lineup/.test(document.getElementById('dfs-msg').textContent)")
                     page.select_option('#dfs-exprule', 'salary')
                     page.select_option('#dfs-mode', 'gpp')
                     page.wait_for_function("/simulated slates/.test(document.getElementById('dfs-msg').textContent)")
@@ -211,7 +232,7 @@ def main():
                     page.click('#dfs-reset')
                     page.wait_for_function("/seed 356\\)/.test(document.getElementById('dfs-msg').textContent)")
                     page.screenshot(path=str(out/f'{device}-fixture-dfs.jpg'),full_page=True,type='jpeg',quality=85)
-                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show the points of the slate they won; New draws reseeds')
+                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show the points of the slate they won; New draws reseeds; the min player salary leaves out cheaper players except a locked one')
                 assert not errors,errors
                 # Live-score overlay may update status/score only, never a selection.
                 page.unroute_all()
