@@ -5,7 +5,7 @@ desktop: How it works · navigation, overflow and screenshot passed
 desktop: DFS lineups · the browser optimizer ran on the live slate (10 lineups)
 desktop: DFS · navigation, overflow and screenshot passed
 desktop: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
-desktop: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show the points of the slate they won; New draws reseeds; the min player salary leaves out cheaper players except a locked one
+desktop: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show median examples from 5,000 independent evaluation slates; New draws reseeds; the min player salary leaves out cheaper players except a locked one
 mobile: Today · navigation, overflow and screenshot passed
 mobile: Results · navigation, overflow and screenshot passed
 mobile: Performance · navigation, overflow and screenshot passed
@@ -13,5 +13,5 @@ mobile: How it works · navigation, overflow and screenshot passed
 mobile: DFS lineups · the browser optimizer ran on the live slate (10 lineups)
 mobile: DFS · navigation, overflow and screenshot passed
 mobile: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
-mobile: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show the points of the slate they won; New draws reseeds; the min player salary leaves out cheaper players except a locked one
+mobile: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show median examples from 5,000 independent evaluation slates; New draws reseeds; the min player salary leaves out cheaper players except a locked one
 Live-score overlay updated status and scores without changing four frozen selections

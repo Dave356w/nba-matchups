@@ -109,11 +109,16 @@ jobs:
         # fit on the completed game-log seasons (totals.py; 2019-20 left out
         # as in its research), written to model/totals.json.
         run: python totals.py fit --years "2017-2019 2021-2026"
+      - name: Check DFS uncertainty on native pregame errors
+        # This is separate from the tracked game model. Failed or thin
+        # chronological holdouts write an inactive candidate, never an
+        # apparently calibrated simulation. Final boxes share bbr_cache.
+        run: python research/dfs_calibration.py
       - name: Commit model
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add model/
+          git add model/ diagnostics/dfs_calibration/RESULTS.json
           git diff --cached --quiet && exit 0
           git commit -m "model refit $(date -u +%Y-%m-%d)"
           for i in 1 2 3 4; do

@@ -135,7 +135,7 @@ def main():
                             page.wait_for_function("!/Building/.test(document.getElementById('dfs-msg').textContent)")
                             msg = page.locator('#dfs-msg').inner_text()
                             built = page.locator('.dfs-lineup').count()
-                            assert built or msg.startswith('No legal lineup'), msg
+                            assert built or msg.startswith('No complete portfolio found'), msg
                             checks.append(f'{device}: DFS lineups · the browser optimizer ran on the live slate'
                                           f" ({built} lineups{'' if built else ': every game started'})")
                         page.screenshot(path=str(out/f'{device}-{filename[:-5]}.jpg'),full_page=True,type='jpeg',quality=85)
@@ -179,9 +179,9 @@ def main():
                     page.select_option('#dfs-slate', 'main')
                     page.select_option('#dfs-mode', 'gpp')
                     assert page.locator('#dfs-sims').is_visible()
-                    page.wait_for_function("/simulated slates/.test(document.getElementById('dfs-msg').textContent)")
+                    page.wait_for_function("/independent evaluation slates/.test(document.getElementById('dfs-msg').textContent)")
                     assert page.locator('.dfs-lineup').count() == 10
-                    assert page.locator('.dfs-lineup header', has_text='top 5% in').count() == 10
+                    assert page.locator('.dfs-lineup header', has_text='candidate top 5%:').count() == 10
                     # exposure by salary: at most floor(10 x min(70%, 2% per $1)) lineups per player
                     counts = """() => { const D = JSON.parse(document.getElementById('dfs-data').textContent), sal = {};
                         D.players.forEach(p => sal[p.name] = p.sal); const n = {};
@@ -201,6 +201,9 @@ def main():
                     # min player salary: nobody under it, except a locked player
                     sal = page.evaluate("() => Object.fromEntries(JSON.parse(document.getElementById('dfs-data').textContent).players.map(p => [p.name, [p.sal, p.id]]))")
                     cheap = min((v for v in sal.items() if v[1][0] < 20), key=lambda kv: kv[1][0])
+                    # Isolate the salary filter from exposure feasibility:
+                    # this small fixture has scarce centres after filtering.
+                    page.fill('#dfs-exp', '100')
                     page.fill('#dfs-min', '20')
                     page.locator('#dfs-min').dispatch_event('change')
                     for mode in ('cash', 'gpp'):
@@ -216,15 +219,16 @@ def main():
                     page.wait_for_function("!document.getElementById('dfs-go').disabled && /lineup/.test(document.getElementById('dfs-msg').textContent)")
                     assert page.locator('.dfs-lineup', has_text=cheap[0]).count() == page.locator('.dfs-lineup').count() == 10
                     page.fill('#dfs-min', '0')
+                    page.fill('#dfs-exp', '70')
                     page.locator('#dfs-min').dispatch_event('change')
                     page.click('#dfs-reset')
                     page.wait_for_function("!document.getElementById('dfs-go').disabled && /lineup/.test(document.getElementById('dfs-msg').textContent)")
                     page.select_option('#dfs-exprule', 'salary')
                     page.select_option('#dfs-mode', 'gpp')
-                    page.wait_for_function("/simulated slates/.test(document.getElementById('dfs-msg').textContent)")
-                    # each tournament lineup shows its players' points in the slate it won
+                    page.wait_for_function("/independent evaluation slates/.test(document.getElementById('dfs-msg').textContent)")
+                    # each tournament lineup shows its players' points in a central independent evaluation slate
                     assert page.locator('.dfs-lineup li.sim:not(.hd)').count() == 80
-                    assert page.locator('.dfs-lineup', has_text='simulated slate').count() == 10
+                    assert page.locator('.dfs-lineup', has_text='Median evaluation example').count() == 10
                     seed = page.locator('#dfs-msg').inner_text()
                     page.click('#dfs-reseed')
                     page.wait_for_function(f"document.getElementById('dfs-msg').textContent !== {json.dumps(seed)} && /seed/.test(document.getElementById('dfs-msg').textContent)")
@@ -232,7 +236,7 @@ def main():
                     page.click('#dfs-reset')
                     page.wait_for_function("/seed 356\\)/.test(document.getElementById('dfs-msg').textContent)")
                     page.screenshot(path=str(out/f'{device}-fixture-dfs.jpg'),full_page=True,type='jpeg',quality=85)
-                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show the points of the slate they won; New draws reseeds; the min player salary leaves out cheaper players except a locked one')
+                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show median examples from 5,000 independent evaluation slates; New draws reseeds; the min player salary leaves out cheaper players except a locked one')
                 assert not errors,errors
                 # Live-score overlay may update status/score only, never a selection.
                 page.unroute_all()

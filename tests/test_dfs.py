@@ -134,7 +134,7 @@ var cases=JSON.parse(require('fs').readFileSync(0,'utf8'));
 var out=cases.map(function(c){var team={};c.pool.forEach(function(p){team[p.id]=p.team;});
  var lock={};c.lock.forEach(function(i){lock[i]=1;});
  var P=c.pool.filter(function(p){return c.out.indexOf(p.id)<0;});
- var r=DFS.kbest(P,c.cap,c.min,lock,c.n,function(s){return DFS.teamsOk(s.ids,team,3,6);},5000);
+ var r=DFS.kbest(P,c.cap,c.min,lock,c.n,function(s){return DFS.teamsOk(s.ids,team,3,6);},5000,{minTeams:3,maxPer:6});
  return r.lineups.map(function(l){return {v:l.v,sal:l.sal,ids:l.ids};});});
 process.stdout.write(JSON.stringify(out));"""
     res = subprocess.run([NODE, "-e", script], input=json.dumps(pools), capture_output=True,
