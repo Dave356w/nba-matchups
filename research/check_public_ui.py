@@ -185,7 +185,7 @@ def main():
                     # exposure by salary: at most floor(10 x min(70%, 2% per $1)) lineups per player
                     counts = """() => { const D = JSON.parse(document.getElementById('dfs-data').textContent), sal = {};
                         D.players.forEach(p => sal[p.name] = p.sal); const n = {};
-                        document.querySelectorAll('.dfs-lineup li span:nth-child(2)').forEach(s => {
+                        document.querySelectorAll('.dfs-lineup li:not(.hd) span:nth-child(2)').forEach(s => {
                           const name = s.childNodes[0].textContent.trim(); n[name] = (n[name] || 0) + 1; });
                         return Object.entries(n).map(([k, v]) => [k, v, sal[k]]); }"""
                     for mode in ('cash', 'gpp'):
@@ -201,8 +201,17 @@ def main():
                     page.select_option('#dfs-exprule', 'salary')
                     page.select_option('#dfs-mode', 'gpp')
                     page.wait_for_function("/simulated slates/.test(document.getElementById('dfs-msg').textContent)")
+                    # each tournament lineup shows its players' points in the slate it won
+                    assert page.locator('.dfs-lineup li.sim:not(.hd)').count() == 80
+                    assert page.locator('.dfs-lineup', has_text='simulated slate').count() == 10
+                    seed = page.locator('#dfs-msg').inner_text()
+                    page.click('#dfs-reseed')
+                    page.wait_for_function(f"document.getElementById('dfs-msg').textContent !== {json.dumps(seed)} && /seed/.test(document.getElementById('dfs-msg').textContent)")
+                    assert page.locator('.dfs-lineup').count() == 10
+                    page.click('#dfs-reset')
+                    page.wait_for_function("/seed 356\\)/.test(document.getElementById('dfs-msg').textContent)")
                     page.screenshot(path=str(out/f'{device}-fixture-dfs.jpg'),full_page=True,type='jpeg',quality=85)
-                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes')
+                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show the points of the slate they won; New draws reseeds')
                 assert not errors,errors
                 # Live-score overlay may update status/score only, never a selection.
                 page.unroute_all()

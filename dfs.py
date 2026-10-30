@@ -263,7 +263,7 @@ CSS = """
 .dfs-panel h2{font-size:16px;margin:0 0 10px;letter-spacing:-.01em;text-transform:none}
 .dfs-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:12px}
 .dfs-controls label{font-size:11px;color:var(--muted);font-weight:650}
-.dfs-controls #dfs-slate{width:auto;max-width:100%}
+.dfs-controls select{width:auto !important;max-width:100%}
 .dfs-controls input,.dfs-controls select{display:block;margin-top:4px;min-height:38px;width:96px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
 .dfs-btn{min-height:38px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:650 13px var(--sans);cursor:pointer}
 .dfs-btn.primary{background:rgb(var(--accent));border-color:rgb(var(--accent));color:var(--accent-on)}
@@ -289,6 +289,9 @@ CSS = """
 .dfs-lineup li span:first-child{font:600 11px var(--mono);color:var(--muted)}
 .dfs-lineup li .n{text-align:right;font-family:var(--mono)}
 .dfs-lineup li em{font-style:normal;color:var(--muted);font-size:11px}
+.dfs-lineup li.sim{grid-template-columns:40px minmax(0,1fr) 40px 46px 46px}
+.dfs-lineup li.hd{border-top:0;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.dfs-lineup li .s{color:rgb(var(--accent-tx))}
 .dfs-msg{font-size:13px;color:var(--muted);margin:8px 0}
 .dfs-exp{font-size:12px;columns:2;column-gap:16px;margin:8px 0 0;padding:0;list-style:none}
 .dfs-exp li{display:flex;justify-content:space-between;gap:8px;break-inside:avoid;padding:2px 0}
@@ -312,11 +315,9 @@ def body(data, ui):
             "<h1>DFS lineups</h1><p>Build Yahoo classic lineups for today’s slate from Sleeper’s "
             "projections and Yahoo’s salaries. The best lineups are found on your device; lock, "
             "exclude or re-project any player.</p></div></div>")
-    note = ("<p class='public-note'>A separate tool: these projections are Sleeper’s (RotoWire) stat "
-            "projections in Yahoo scoring (points 1, rebounds 1.2, assists 1.5, steals 3, blocks 3, "
-            "turnovers −1), not this site’s model, and nothing here is a tracked pick. Players "
-            "listed at 0 minutes or Out project 0. Check each contest’s rules and lock before "
-            "entering. Not betting advice.</p>")
+    note = ("<p class='public-note'>Projections are Sleeper’s, in Yahoo scoring: not this site’s model, "
+            "and nothing here is a tracked pick. Check each contest’s rules and lock. Not betting "
+            "advice. <a href='how-it-works.html#dfs'>How the optimizer works →</a></p>")
     if not data:
         return (head + "<div class='public-empty'><h2>No Yahoo slate today</h2><p>Yahoo has not "
                 "published salaries for today’s games yet, or they could not be fetched. The page "
@@ -331,13 +332,15 @@ def body(data, ui):
               "</div>")
     games = " · ".join(f"{_esc(g['away'])} @ {_esc(g['home'])} {_esc(ui.tip_pt(g['start']))}"
                        for g in data["games"])
-    miss = (f" {len(data['unmatched'])} Yahoo player(s) have no Sleeper projection; enter one "
-            "to use them." if data["unmatched"] else "")
+    k = len(data["unmatched"])
+    miss = (f" {k} Yahoo player{'s have' if k > 1 else ' has'} no Sleeper projection; enter one "
+            "to use them." if k else "")
     controls = ("<div class='dfs-controls'>"
                 "<label>Slate<select id='dfs-slate' aria-label='Slate by start time'></select></label>"
                 "<label>Mode<select id='dfs-mode' aria-label='Contest type'><option value='cash'>Cash · best projection</option>"
                 "<option value='gpp'>Tournament · simulated</option></select></label>"
                 "<label id='dfs-sims-l' hidden>Sims<input type='number' id='dfs-sims' min='100' max='2000' step='100' value='500'></label>"
+                "<button type='button' class='dfs-btn' id='dfs-reseed' hidden>New draws</button>"
                 "<label>Lineups<input type='number' id='dfs-n' min='1' max='20' value='10'></label>"
                 "<label>Exposure<select id='dfs-exprule' aria-label='Exposure rule'><option value='salary'>By salary</option>"
                 "<option value='flat'>Flat</option></select></label>"
@@ -350,33 +353,57 @@ def body(data, ui):
             "<div class='dfs-pos' id='dfs-pos' role='group' aria-label='Filter by position'></div>"
             "<div class='dfs-scroll'><table class='dfs-table'><thead><tr><th>Lock</th><th>Out</th>"
             "<th>Player</th><th class='x'>Pos</th><th class='n'>Salary</th><th class='n'>Proj</th>"
-            "<th class='n x'>Value</th><th class='n x'>FPPG</th><th class='n x'>Min</th></tr></thead>"
+            "<th class='n x' title='Projection per $10 of salary'>Value</th>"
+            "<th class='n x' title='Yahoo season average'>FPPG</th>"
+            "<th class='n x' title='Sleeper projected minutes'>Min</th></tr></thead>"
             "<tbody id='dfs-pool'></tbody></table></div></section>")
     out = ("<section class='dfs-panel dfs-out'><h2>Lineups</h2>" + controls +
            "<div id='dfs-msg' class='dfs-msg' aria-live='polite'>Building lineups…</div>"
            "<div id='dfs-out'></div><h2 style='margin-top:14px'>Exposure</h2>"
            "<ul class='dfs-exp' id='dfs-exposure'></ul></section>")
     payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
-    return (head + status + f"<p class='public-note'>{games}. Yahoo classic: PG, SG, G, SF, PF, F, "
-            f"C, UTIL under the cap, players from at least {MIN_TEAMS} teams and at most "
-            f"{MAX_PER_TEAM} from one. Pick the slate by start time: main (every game), early or "
-            f"late, each with at least 2 games. Exposure by salary caps each player at 2% of the "
-            f"lineups per $1 of salary (a $10 player 20%, a $25 player 50%), under the max "
-            f"exposure. Value = projection per $10 of salary. Players "
-            f"whose game has started are out.{miss}</p>"
-            "<p class='public-note'><b>Cash</b> builds the lineups with the most projected points. "
-            "<b>Tournament</b> simulates the slate: each player’s points are drawn around his projection "
-            f"with the spread typical of that projection (sd ≈ {SIM['sd_base']:g} + {SIM['sd_slope']:g} × "
-            "projection) and the correlations measured on two seasons of results (teammates move together "
-            "a little, two starters more, opposing stars slightly; a team’s own two top scorers less, "
-            "and its two centres slightly against each other). "
-            "Each simulated slate’s best lineup is found exactly; those winners and the best cash "
-            "lineups are scored in every simulated slate, and ranked by how often they finish in the top "
-            "5% of them. Each shows that share and its 90th-percentile score.</p>"
+    return (head + status + f"<p class='public-note'>{games}.{miss} "
+            "<a href='how-it-works.html#dfs'>Rules, slates, exposure and modes →</a></p>"
             "<noscript><p class='public-note'>The optimizer needs JavaScript.</p></noscript>"
             "<div class='dfs-grid'>" + pool + out + "</div>" + note
             + f"<script type='application/json' id='dfs-data'>{payload}</script>"
             + f"<script>{SOLVER_JS}{UI_JS}</script>")
+
+
+def guide():
+    """The DFS section of How it works: everything the page itself leaves
+    out, from the same constants the optimizer uses."""
+    m = SIM
+    return (
+        "<section id='dfs'><h2>DFS lineups</h2>"
+        "<p>The DFS page builds Yahoo daily-fantasy lineups for the day’s games. It is a separate "
+        "tool: it uses none of this site’s forecasts or tracked picks and does not affect them.</p>"
+        "<h3>Projections and salaries</h3><p>Salaries, positions and the cap come from Yahoo. "
+        "Projections are Sleeper’s (RotoWire) stat projections in Yahoo scoring: points 1, rebounds "
+        "1.2, assists 1.5, steals 3, blocks 3, turnovers −1, with no three-pointer bonus. A player "
+        "listed at 0 minutes, Out or on IR projects 0; a Yahoo player Sleeper does not list has no "
+        "projection until you enter one. <b>Value</b> is projection per $10 of salary, <b>FPPG</b> "
+        "Yahoo’s season average and <b>Min</b> Sleeper’s projected minutes.</p>"
+        f"<h3>Lineup rules</h3><p>Yahoo classic contests: PG, SG, G, SF, PF, F, C and UTIL under the "
+        f"cap, with players from at least {MIN_TEAMS} teams and at most {MAX_PER_TEAM} from one. "
+        "Players whose game has started are left out, and locked players are in every lineup.</p>"
+        "<h3>Slates</h3><p>Yahoo lists the day’s games under one cap, so the slate choices come from "
+        "start times: Main (every game), Early (games up to a start time) and Late (games from one), "
+        "each with at least two games.</p>"
+        "<h3>Exposure</h3><p>By salary (the default), a player can be in up to 2% of the lineups per "
+        "$1 of salary (a $10 player 20%, a $25 player 50%), never above the max exposure (70% by "
+        "default). Flat uses the max exposure for every player. Locked players are exempt.</p>"
+        "<h3>Cash and tournament</h3><p><b>Cash</b> builds the lineups with the most projected "
+        "points, found exactly. <b>Tournament</b> simulates the slate: each player’s points are drawn "
+        f"around his projection with the spread typical of that projection (sd ≈ {m['sd_base']:g} + "
+        f"{m['sd_slope']:g} × projection) and the correlations measured on two seasons of results: "
+        "teammates move together a little and two starters more, opposing stars slightly, a team’s "
+        "own two top scorers less, and its two centres slightly against each other. Each simulated "
+        "slate’s best lineup is found exactly; those winners and the best cash lineups are scored in "
+        "every simulated slate and ranked by how often they finish in the top 5% of them.</p>"
+        "<p>Each tournament lineup shows that share, its 90th-percentile score and, under <b>Sim</b>, "
+        "its players’ points in the simulated slate it won. The draws are seeded, so a build repeats; "
+        "New draws reseeds them and Reset returns to the default.</p></section>")
 
 
 def page(ui, today, built, native=None, yahoo=None, sleeper=None, css=""):
@@ -464,16 +491,18 @@ function draw(P,M,r){var f={},out=new Float64Array(P.length);function F(k){if(!(
 // S simulated slates, each solved exactly (ok(ids): the team rules). Returns
 // the distinct winning lineups and every draw, so any lineup can be scored
 // in each slate (rank).
-function simulate(P,cap,minSal,lock,M,S,seed,ok){var r=rng(seed),cnt={},ids={},vals=new Float64Array(S*P.length);
+function simulate(P,cap,minSal,lock,M,S,seed,ok){var r=rng(seed),cnt={},ids={},won={},vals=new Float64Array(S*P.length);
  for(var s=0;s<S;s++){var x=draw(P,M,r),Q=P.map(function(p,i){return {id:p.id,pos:p.pos,sal:p.sal,v:x[i]};});vals.set(x,s*P.length);
   var b=kbest(Q,cap,minSal,lock,1,function(sol){return ok(sol.ids);},200).lineups[0];if(!b)continue;
-  var key=b.ids.slice().sort().join();cnt[key]=(cnt[key]||0)+1;ids[key]=b.ids;}
+  var key=b.ids.slice().sort().join();if(!(key in cnt))won[key]=s;cnt[key]=(cnt[key]||0)+1;ids[key]=b.ids;}
  var idx={};P.forEach(function(p,i){idx[p.id]=i;});
  var mean=function(l){return l.reduce(function(t,id){return t+P[idx[id]].v;},0);};
- var cands=Object.keys(cnt).map(function(k){return {ids:ids[k],n:cnt[k],v:mean(ids[k]),sal:ids[k].reduce(function(t,id){return t+P[idx[id]].sal;},0)};})
+ var cands=Object.keys(cnt).map(function(k){return {ids:ids[k],n:cnt[k],won:won[k],v:mean(ids[k]),sal:ids[k].reduce(function(t,id){return t+P[idx[id]].sal;},0)};})
   .sort(function(a,b){return b.n-a.n||b.v-a.v;});
  function scores(l){var out=new Float64Array(S);for(var s=0;s<S;s++){var t=0;for(var j=0;j<l.length;j++)t+=vals[s*P.length+idx[l[j]]];out[s]=t;}return out;}
- return {cands:cands,sims:S,scores:scores};}
+ // a player's simulated points in slate s
+ function value(s,id){return vals[s*P.length+idx[id]];}
+ return {cands:cands,sims:S,scores:scores,value:value};}
 // Tournament ranking: in each simulated slate, the candidates (the winners
 // plus any added) scoring in the top `frac` of all candidates; a lineup's
 // share of slates in that group (c.top) and its 90th-percentile score
@@ -492,7 +521,7 @@ return {solve:solve,kbest:kbest,teamsOk:teamsOk,rng:rng,draw:draw,simulate:simul
 UI_JS = r"""
 (function(){
 var D=JSON.parse(document.getElementById('dfs-data').textContent);
-var st={lock:{},out:{},proj:{},pos:'ALL',slate:null};
+var st={lock:{},out:{},proj:{},pos:'ALL',slate:null,seed:D.sim.seed};
 function $(id){return document.getElementById(id);}
 // Slates by start time: Yahoo's feed lists the day's games with one cap, not
 // its contests, so the choices are main (every game), early (games up to a
@@ -534,13 +563,17 @@ function cash(all,team,N,cap,minSal,lock){var cnt={},made={},L=[];
 // candidates' top 5%, kept while every non-locked player stays under the cap.
 function gpp(all,team,N,cap,minSal,lock){var S=Math.max(100,Math.min(2000,+$('dfs-sims').value||500)),cnt={},L=[];
  var ok=function(ids){return DFS.teamsOk(ids,team,D.min_teams,D.max_per_team);};
- var res=DFS.simulate(all,D.cap,minSal,lock,D.sim,S,D.sim.seed,ok),seen={},cands=[];
+ var res=DFS.simulate(all,D.cap,minSal,lock,D.sim,S,st.seed,ok),seen={},cands=[];
  res.cands.concat(DFS.kbest(all,D.cap,minSal,lock,20,function(sol){return ok(sol.ids);},400).lineups,
   cash(all,team,N,cap,minSal,lock).L).forEach(function(c){
-  var k=c.ids.slice().sort().join();if(!seen[k]){seen[k]=1;cands.push({ids:c.ids,v:c.v,sal:c.sal});}});
+  var k=c.ids.slice().sort().join();if(!seen[k]){seen[k]=1;cands.push({ids:c.ids,v:c.v,sal:c.sal,won:c.won});}});
  DFS.rank(cands,res,.05).forEach(function(c){if(L.length>=N||!c.ids.every(function(i){return lock[i]||(cnt[i]||0)<cap[i];}))return;
   L.push(c);c.ids.forEach(function(i){cnt[i]=(cnt[i]||0)+1;});});
- return {L:L,cnt:cnt,note:S+' simulated slates · '+cands.length+' candidate lineups'};}
+ // the simulated slate each lineup shows: the one it won, else its best one
+ L.forEach(function(l){var sc=res.scores(l.ids),s=l.won;
+  if(s===undefined){s=0;for(var t=1;t<S;t++)if(sc[t]>sc[s])s=t;}
+  l.slate=s;l.sim={};l.ids.forEach(function(id){l.sim[id]=res.value(s,id);});l.simTotal=sc[s];});
+ return {L:L,cnt:cnt,note:S+' simulated slates (seed '+st.seed+') · '+cands.length+' candidate lineups'};}
 // Each player's exposure cap, in lineups: the max exposure %, or by salary
 // k x salary % (2 x: a $10 player 20%, a $25 player 50%) under that max.
 function capShare(p){var mx=Math.max(10,Math.min(100,+$('dfs-exp').value||100))/100,k=Math.max(0,+$('dfs-k').value||0);
@@ -552,8 +585,11 @@ function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){by
  var R=($('dfs-mode').value==='gpp'?gpp:cash)(all,team,N,cap,minSal,lock),L=R.L,cnt=R.cnt,el=$('dfs-out');
  if(!L.length){el.innerHTML='';$('dfs-exposure').innerHTML='';$('dfs-msg').textContent='No legal lineup: check the locks, exclusions and minimum salary.';return;}
  $('dfs-msg').textContent=L.length+' lineup'+(L.length>1?'s':'')+(R.note?' · '+R.note:' · best '+L[0].v.toFixed(2)+' pts')+(L.length<N?' · fewer than asked under these caps':'')+' · '+Math.round(performance.now()-t0)+' ms';
- el.innerHTML=L.map(function(l,i){return "<article class='dfs-lineup'><header><span>#"+(i+1)+(l.top!==undefined?" · top 5% in <b>"+(100*l.top).toFixed(0)+"%</b> · p90 <b>"+l.p90.toFixed(1)+"</b>":"")+"</span><span>$<b>"+l.sal+"</b> · <b>"+l.v.toFixed(2)+"</b> pts</span></header><ol>"+
-  slots(l.ids,byId).map(function(x){var p=x[1];return "<li><span>"+x[0]+"</span><span>"+esc(p.name)+" <em>"+esc(p.team)+"</em></span><span class='n'>$"+p.sal+"</span><span class='n'>"+proj(p).toFixed(1)+"</span></li>";}).join('')+"</ol></article>";}).join('');
+ el.innerHTML=L.map(function(l,i){var sim=!!l.sim;return "<article class='dfs-lineup'><header><span>#"+(i+1)+(l.top!==undefined?" · top 5% in <b>"+(100*l.top).toFixed(0)+"%</b> · p90 <b>"+l.p90.toFixed(1)+"</b>":"")+"</span><span>$<b>"+l.sal+"</b> · <b>"+l.v.toFixed(2)+"</b> pts</span></header>"+
+  (sim?"<p class='dfs-msg' style='margin:0 0 4px'>"+(l.won!==undefined?"Won":"Best in")+" simulated slate "+(l.slate+1)+": <b class='mono'>"+l.simTotal.toFixed(1)+"</b> pts</p>":"")+"<ol>"+
+  (sim?"<li class='hd sim'><span></span><span></span><span></span><span class='n'>Proj</span><span class='n'>Sim</span></li>":"")+
+  slots(l.ids,byId).map(function(x){var p=x[1];return "<li"+(sim?" class='sim'":"")+"><span>"+x[0]+"</span><span>"+esc(p.name)+" <em>"+esc(p.team)+"</em></span><span class='n'>$"+p.sal+"</span><span class='n'>"+proj(p).toFixed(1)+"</span>"+
+   (sim?"<span class='n s'>"+l.sim[p.id].toFixed(1)+"</span>":"")+"</li>";}).join('')+"</ol></article>";}).join('');
  var ex=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||byId[a].name.localeCompare(byId[b].name);});
  $('dfs-exposure').innerHTML=ex.map(function(id){return "<li><span>"+esc(byId[id].name)+"</span><b class='mono'>"+Math.round(100*cnt[id]/L.length)+"%"+
   (lock[id]?" · locked":" <small>/ "+Math.round(100*cap[id]/N)+"%</small>")+"</b></li>";}).join('');}
@@ -575,10 +611,11 @@ var SL=slates(),sel=$('dfs-slate');st.slate=SL[0]||null;
 sel.innerHTML=SL.map(function(o){return "<option value='"+o.key+"'>"+esc(o.label)+"</option>";}).join('')||"<option>No slate with 2+ games</option>";
 sel.disabled=SL.length<2;
 sel.addEventListener('change',function(){st.slate=SL.filter(function(o){return o.key===sel.value;})[0]||null;draw();run();});
-$('dfs-mode').addEventListener('change',function(){$('dfs-sims-l').hidden=this.value!=='gpp';run();});
+$('dfs-mode').addEventListener('change',function(){$('dfs-sims-l').hidden=$('dfs-reseed').hidden=this.value!=='gpp';run();});
+$('dfs-reseed').addEventListener('click',function(){st.seed=1+Math.floor(Math.random()*2147483646);run();});
 $('dfs-exprule').addEventListener('change',function(){$('dfs-k-l').hidden=this.value!=='salary';run();});
 $('dfs-go').addEventListener('click',run);
-$('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};draw();run();});
+$('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};st.seed=D.sim.seed;draw();run();});
 draw();run();
 })();
 """

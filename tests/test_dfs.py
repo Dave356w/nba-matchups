@@ -305,3 +305,39 @@ process.stdout.write(JSON.stringify({best:top[0].ids.slice().sort(),flat:flat.ma
     tops = [t for t, _, _ in out["sim"]]
     assert tops == sorted(tops, reverse=True) and 0 < tops[0] <= 1
     assert all(p90 >= v for _, p90, v in out["sim"])      # the 90th percentile is above the mean
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_each_winner_is_best_in_the_slate_it_won_and_shows_its_draws():
+    pool = _sim_pool()
+    out = _node_js("""
+var team={};I.pool.forEach(function(p){team[p.id]=p.team;});var ok=function(ids){return DFS.teamsOk(ids,team,3,6);};
+var res=DFS.simulate(I.pool,200,0,{},I.sim,150,9,ok),bad=[],sums=[];
+res.cands.forEach(function(c){var mine=res.scores(c.ids)[c.won];
+ res.cands.forEach(function(o){if(res.scores(o.ids)[c.won]>mine+1e-9)bad.push([c.won,mine]);});
+ var t=c.ids.reduce(function(a,id){return a+res.value(c.won,id);},0);sums.push(Math.abs(t-mine));});
+process.stdout.write(JSON.stringify({bad:bad,maxdiff:Math.max.apply(null,sums),
+ won:res.cands.map(function(c){return c.won;}),n:res.cands.map(function(c){return c.n;})}));""",
+        dict(pool=pool, sim=dfs.SIM))
+    assert out["bad"] == []                       # no candidate beats a winner in its own slate
+    assert out["maxdiff"] < 1e-9                  # per-player draws add up to the lineup's score
+    assert all(0 <= w < 150 for w in out["won"]) and sum(out["n"]) == 150
+
+
+def test_the_page_stays_short_and_how_it_works_explains_it():
+    yahoo = pd.DataFrame(dfs.parse_feed(_feed([_yp("p1", "Zion Williamson", "NO", "PF", 36),
+                                               _yp("p2", "Deep Bench", "NO", "SG", 10)]), now=NOW),
+                         columns=dfs.YAHOO_COLUMNS).astype(str)
+    line = dict(minutes="32", pts="20", reb="5", ast="3", stl="1", blk="1", to="2", tpm="1")
+    sl = _sleeper([dict(kind="pre", team="NOP", sleeper_id="1", name="Zion Williamson", **line)])
+    html = dfs.page(build_site, "2026-10-29", "built", native=_native(), yahoo=yahoo, sleeper=sl)
+    text = html.split("id='dfs-data'")[0]
+    assert "how-it-works.html#dfs" in text and "1 Yahoo player has no Sleeper projection" in text
+    assert "sd ≈" not in text and "Yahoo classic: PG" not in text      # moved to How it works
+    g = dfs.guide()
+    assert g.startswith("<section id='dfs'>")
+    assert f"at least {dfs.MIN_TEAMS} teams and at most {dfs.MAX_PER_TEAM}" in g
+    assert f"sd ≈ {dfs.SIM['sd_base']:g} + {dfs.SIM['sd_slope']:g}" in g
+    import public_site
+    guide = public_site.PublicSite(build_site, ledger.empty(), "2026-10-29", "built").guide_page()
+    assert "<section id='dfs'><h2>DFS lineups</h2>" in guide
