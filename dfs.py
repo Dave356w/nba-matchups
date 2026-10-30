@@ -339,6 +339,9 @@ def body(data, ui):
                 "<option value='gpp'>Tournament · simulated</option></select></label>"
                 "<label id='dfs-sims-l' hidden>Sims<input type='number' id='dfs-sims' min='100' max='2000' step='100' value='500'></label>"
                 "<label>Lineups<input type='number' id='dfs-n' min='1' max='20' value='10'></label>"
+                "<label>Exposure<select id='dfs-exprule' aria-label='Exposure rule'><option value='salary'>By salary</option>"
+                "<option value='flat'>Flat</option></select></label>"
+                "<label id='dfs-k-l'>% per $1<input type='number' id='dfs-k' min='0.5' max='5' step='0.5' value='2'></label>"
                 "<label>Max exposure %<input type='number' id='dfs-exp' min='10' max='100' step='5' value='70'></label>"
                 f"<label>Min salary $<input type='number' id='dfs-min' min='0' max='{data['cap']:g}' value='0'></label>"
                 "<button type='button' class='dfs-btn primary' id='dfs-go'>Build lineups</button>"
@@ -357,7 +360,9 @@ def body(data, ui):
     return (head + status + f"<p class='public-note'>{games}. Yahoo classic: PG, SG, G, SF, PF, F, "
             f"C, UTIL under the cap, players from at least {MIN_TEAMS} teams and at most "
             f"{MAX_PER_TEAM} from one. Pick the slate by start time: main (every game), early or "
-            f"late, each with at least 2 games. Value = projection per $10 of salary. Players "
+            f"late, each with at least 2 games. Exposure by salary caps each player at 2% of the "
+            f"lineups per $1 of salary (a $10 player 20%, a $25 player 50%), under the max "
+            f"exposure. Value = projection per $10 of salary. Players "
             f"whose game has started are out.{miss}</p>"
             "<p class='public-note'><b>Cash</b> builds the lineups with the most projected points. "
             "<b>Tournament</b> simulates the slate: each player’s points are drawn around his projection "
@@ -518,8 +523,8 @@ function run(){var btn=$('dfs-go');btn.disabled=true;$('dfs-msg').textContent='B
 // Cash: N lineups, each the best legal one not yet built from the players
 // still under their exposure cap (locked players are exempt): a capped
 // player leaves the pool, so the search never wades through lineups on him.
-function cash(all,team,N,capN,minSal,lock){var cnt={},made={},L=[];
- while(L.length<N){var P=all.filter(function(p){return lock[p.id]||(cnt[p.id]||0)<capN;});
+function cash(all,team,N,cap,minSal,lock){var cnt={},made={},L=[];
+ while(L.length<N){var P=all.filter(function(p){return lock[p.id]||(cnt[p.id]||0)<cap[p.id];});
   var r=DFS.kbest(P,D.cap,minSal,lock,1,function(sol){return DFS.teamsOk(sol.ids,team,D.min_teams,D.max_per_team)&&!made[sol.ids.slice().sort().join()];},400);
   if(!r.lineups.length)break;var l=r.lineups[0];made[l.ids.slice().sort().join()]=1;L.push(l);l.ids.forEach(function(i){cnt[i]=(cnt[i]||0)+1;});}
  return {L:L,cnt:cnt};}
@@ -527,26 +532,31 @@ function cash(all,team,N,capN,minSal,lock){var cnt={},made={},L=[];
 // lineups and the cash lineups under the exposure cap (strong lineups
 // without the capped players), ranked by their share of slates in the
 // candidates' top 5%, kept while every non-locked player stays under the cap.
-function gpp(all,team,N,capN,minSal,lock){var S=Math.max(100,Math.min(2000,+$('dfs-sims').value||500)),cnt={},L=[];
+function gpp(all,team,N,cap,minSal,lock){var S=Math.max(100,Math.min(2000,+$('dfs-sims').value||500)),cnt={},L=[];
  var ok=function(ids){return DFS.teamsOk(ids,team,D.min_teams,D.max_per_team);};
  var res=DFS.simulate(all,D.cap,minSal,lock,D.sim,S,D.sim.seed,ok),seen={},cands=[];
  res.cands.concat(DFS.kbest(all,D.cap,minSal,lock,20,function(sol){return ok(sol.ids);},400).lineups,
-  cash(all,team,N,capN,minSal,lock).L).forEach(function(c){
+  cash(all,team,N,cap,minSal,lock).L).forEach(function(c){
   var k=c.ids.slice().sort().join();if(!seen[k]){seen[k]=1;cands.push({ids:c.ids,v:c.v,sal:c.sal});}});
- DFS.rank(cands,res,.05).forEach(function(c){if(L.length>=N||!c.ids.every(function(i){return lock[i]||(cnt[i]||0)<capN;}))return;
+ DFS.rank(cands,res,.05).forEach(function(c){if(L.length>=N||!c.ids.every(function(i){return lock[i]||(cnt[i]||0)<cap[i];}))return;
   L.push(c);c.ids.forEach(function(i){cnt[i]=(cnt[i]||0)+1;});});
  return {L:L,cnt:cnt,note:S+' simulated slates · '+cands.length+' candidate lineups'};}
+// Each player's exposure cap, in lineups: the max exposure %, or by salary
+// k x salary % (2 x: a $10 player 20%, a $25 player 50%) under that max.
+function capShare(p){var mx=Math.max(10,Math.min(100,+$('dfs-exp').value||100))/100,k=Math.max(0,+$('dfs-k').value||0);
+ return $('dfs-exprule').value==='salary'?Math.min(mx,k*p.sal/100):mx;}
 function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){byId[p.id]=p;team[p.id]=p.team;});
- var N=Math.max(1,Math.min(20,+$('dfs-n').value||10)),exp=Math.max(10,Math.min(100,+$('dfs-exp').value||100)),
-  minSal=Math.max(0,+$('dfs-min').value||0),capN=Math.max(1,Math.floor(N*exp/100+1e-9)),lock={},t0=performance.now();
+ var N=Math.max(1,Math.min(20,+$('dfs-n').value||10)),minSal=Math.max(0,+$('dfs-min').value||0),cap={},lock={},t0=performance.now();
+ all.forEach(function(p){cap[p.id]=Math.max(1,Math.floor(N*capShare(p)+1e-9));});
  Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id])&&inSlate(byId[id]))lock[id]=1;});
- var R=($('dfs-mode').value==='gpp'?gpp:cash)(all,team,N,capN,minSal,lock),L=R.L,cnt=R.cnt,el=$('dfs-out');
+ var R=($('dfs-mode').value==='gpp'?gpp:cash)(all,team,N,cap,minSal,lock),L=R.L,cnt=R.cnt,el=$('dfs-out');
  if(!L.length){el.innerHTML='';$('dfs-exposure').innerHTML='';$('dfs-msg').textContent='No legal lineup: check the locks, exclusions and minimum salary.';return;}
  $('dfs-msg').textContent=L.length+' lineup'+(L.length>1?'s':'')+(R.note?' · '+R.note:' · best '+L[0].v.toFixed(2)+' pts')+(L.length<N?' · fewer than asked under these caps':'')+' · '+Math.round(performance.now()-t0)+' ms';
  el.innerHTML=L.map(function(l,i){return "<article class='dfs-lineup'><header><span>#"+(i+1)+(l.top!==undefined?" · top 5% in <b>"+(100*l.top).toFixed(0)+"%</b> · p90 <b>"+l.p90.toFixed(1)+"</b>":"")+"</span><span>$<b>"+l.sal+"</b> · <b>"+l.v.toFixed(2)+"</b> pts</span></header><ol>"+
   slots(l.ids,byId).map(function(x){var p=x[1];return "<li><span>"+x[0]+"</span><span>"+esc(p.name)+" <em>"+esc(p.team)+"</em></span><span class='n'>$"+p.sal+"</span><span class='n'>"+proj(p).toFixed(1)+"</span></li>";}).join('')+"</ol></article>";}).join('');
  var ex=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||byId[a].name.localeCompare(byId[b].name);});
- $('dfs-exposure').innerHTML=ex.map(function(id){return "<li><span>"+esc(byId[id].name)+"</span><b class='mono'>"+Math.round(100*cnt[id]/L.length)+"%</b></li>";}).join('');}
+ $('dfs-exposure').innerHTML=ex.map(function(id){return "<li><span>"+esc(byId[id].name)+"</span><b class='mono'>"+Math.round(100*cnt[id]/L.length)+"%"+
+  (lock[id]?" · locked":" <small>/ "+Math.round(100*cap[id]/N)+"%</small>")+"</b></li>";}).join('');}
 function draw(){var rows=D.players.slice().sort(function(a,b){return (proj(b)||0)-(proj(a)||0)||b.sal-a.sal;});
  $('dfs-pool').innerHTML=rows.filter(function(p){return inSlate(p);}).filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
   var v=proj(p),gone=started(p),cls=st.lock[p.id]?'locked':(st.out[p.id]||gone?'out':'');
@@ -566,6 +576,7 @@ sel.innerHTML=SL.map(function(o){return "<option value='"+o.key+"'>"+esc(o.label
 sel.disabled=SL.length<2;
 sel.addEventListener('change',function(){st.slate=SL.filter(function(o){return o.key===sel.value;})[0]||null;draw();run();});
 $('dfs-mode').addEventListener('change',function(){$('dfs-sims-l').hidden=this.value!=='gpp';run();});
+$('dfs-exprule').addEventListener('change',function(){$('dfs-k-l').hidden=this.value!=='salary';run();});
 $('dfs-go').addEventListener('click',run);
 $('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};draw();run();});
 draw();run();

@@ -131,8 +131,13 @@ def main():
                             top=page.locator('.gcard').first.bounding_box()['y']
                             assert top < height-100,(device,'first game is below the fold',top)
                         if filename=='dfs.html' and page.locator('#dfs-data').count():
-                            page.locator('.dfs-lineup').first.wait_for()
-                            checks.append(f'{device}: DFS lineups · the browser optimizer built lineups')
+                            # the live slate: lineups, or (every game started) a clear "no lineup"
+                            page.wait_for_function("!/Building/.test(document.getElementById('dfs-msg').textContent)")
+                            msg = page.locator('#dfs-msg').inner_text()
+                            built = page.locator('.dfs-lineup').count()
+                            assert built or msg.startswith('No legal lineup'), msg
+                            checks.append(f'{device}: DFS lineups · the browser optimizer ran on the live slate'
+                                          f" ({built} lineups{'' if built else ': every game started'})")
                         page.screenshot(path=str(out/f'{device}-{filename[:-5]}.jpg'),full_page=True,type='jpeg',quality=85)
                         checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
                     page.goto(f'{base}/fixture/index.html')
@@ -177,8 +182,27 @@ def main():
                     page.wait_for_function("/simulated slates/.test(document.getElementById('dfs-msg').textContent)")
                     assert page.locator('.dfs-lineup').count() == 10
                     assert page.locator('.dfs-lineup header', has_text='top 5% in').count() == 10
+                    # exposure by salary: at most floor(10 x min(70%, 2% per $1)) lineups per player
+                    counts = """() => { const D = JSON.parse(document.getElementById('dfs-data').textContent), sal = {};
+                        D.players.forEach(p => sal[p.name] = p.sal); const n = {};
+                        document.querySelectorAll('.dfs-lineup li span:nth-child(2)').forEach(s => {
+                          const name = s.childNodes[0].textContent.trim(); n[name] = (n[name] || 0) + 1; });
+                        return Object.entries(n).map(([k, v]) => [k, v, sal[k]]); }"""
+                    for mode in ('cash', 'gpp'):
+                        for rule, cap in (('salary', lambda s: int(10 * min(.7, .02 * s) + 1e-9)), ('flat', lambda s: 7)):
+                            page.select_option('#dfs-mode', mode)
+                            page.select_option('#dfs-exprule', rule)
+                            page.click('#dfs-go')
+                            page.wait_for_function("!document.getElementById('dfs-go').disabled && /lineup/.test(document.getElementById('dfs-msg').textContent)")
+                            used = page.evaluate(counts)
+                            assert page.locator('.dfs-lineup').count() == 10, (mode, rule)
+                            assert all(n <= max(1, cap(s)) for _, n, s in used), (mode, rule, used)
+                    assert page.locator('#dfs-k').is_hidden()       # flat: no per-$1 input
+                    page.select_option('#dfs-exprule', 'salary')
+                    page.select_option('#dfs-mode', 'gpp')
+                    page.wait_for_function("/simulated slates/.test(document.getElementById('dfs-msg').textContent)")
                     page.screenshot(path=str(out/f'{device}-fixture-dfs.jpg'),full_page=True,type='jpeg',quality=85)
-                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups')
+                    checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes')
                 assert not errors,errors
                 # Live-score overlay may update status/score only, never a selection.
                 page.unroute_all()
