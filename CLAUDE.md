@@ -352,3 +352,13 @@ no data: it long-polls each slate and dispatches `build` at every game's
 five-hour lock window (`watch_slate.py`), since GitHub drops most scheduled
 builds. Fifteen closed research workflows are retired. Fit model already
 fits availability.
+
+DFS uncertainty also refits inside the serialized Build workflow, once per
+ET morning from 08:00 ET after the latest prior slate with stored Sleeper
+lines is fully graded. It runs after native grading and pregame snapshots
+are saved; historical `--date` builds skip it. New candidates use the
+growing native history and the existing chronological holdout gate. A
+rejected candidate updates diagnostics but retains the last accepted fit.
+The same build renders accepted changes and commits only the DFS fit/report
+alongside its normal data. A timeout or failed refit must not prevent
+snapshot commits or publication. No extra workflow or tracked-model refit.
