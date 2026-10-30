@@ -111,7 +111,7 @@ def test_pages_render_bases_separately_with_ev_null(tmp_path, monkeypatch):
     assert "Actual win rate" in cal and "<svg" in cal      # reliability charts
     assert "Bet grading by price band" in cal and "Null (pp)" not in cal
     grades = (tmp_path / "grades.html").read_text()
-    assert "Closing-line value" in grades
+    assert "Closing-line value" not in grades     # pregame price is mostly the close
     assert "ROI — one unit on every pick" in grades and "vs null (± 1 SE)" in grades
     assert "Probabilities vs the close" in grades        # verdict strip
     assert "pregame snapshot price" in grades        # native bettable price
@@ -172,14 +172,6 @@ def test_pages_and_report_leave_out_espn_bet(tmp_path, monkeypatch):
     # the report too; the hidden rows are still in the data it was given
     assert "ESPN BET 2026-27" not in txt and "ESPN BET close" not in txt
     assert "DraftKings 2026-27" in txt and "no longer offered" in txt
-
-
-def test_clv_only_within_one_book():
-    g = ledger.graded(synth(40, 5))
-    g["pre_q_home"] = g["close_q_home"] - 0.02
-    g.loc[g.index[:10], "close_book"] = "espnbet"      # pre dk, close espnbet
-    c = analysis.clv(g)
-    assert c["n"] == 30
 
 
 def test_ats_picks_grade_covers_pushes_and_null():
