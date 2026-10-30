@@ -305,3 +305,20 @@ process.stdout.write(JSON.stringify({best:top[0].ids.slice().sort(),flat:flat.ma
     tops = [t for t, _, _ in out["sim"]]
     assert tops == sorted(tops, reverse=True) and 0 < tops[0] <= 1
     assert all(p90 >= v for _, p90, v in out["sim"])      # the 90th percentile is above the mean
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_each_winner_is_best_in_the_slate_it_won_and_shows_its_draws():
+    pool = _sim_pool()
+    out = _node_js("""
+var team={};I.pool.forEach(function(p){team[p.id]=p.team;});var ok=function(ids){return DFS.teamsOk(ids,team,3,6);};
+var res=DFS.simulate(I.pool,200,0,{},I.sim,150,9,ok),bad=[],sums=[];
+res.cands.forEach(function(c){var mine=res.scores(c.ids)[c.won];
+ res.cands.forEach(function(o){if(res.scores(o.ids)[c.won]>mine+1e-9)bad.push([c.won,mine]);});
+ var t=c.ids.reduce(function(a,id){return a+res.value(c.won,id);},0);sums.push(Math.abs(t-mine));});
+process.stdout.write(JSON.stringify({bad:bad,maxdiff:Math.max.apply(null,sums),
+ won:res.cands.map(function(c){return c.won;}),n:res.cands.map(function(c){return c.n;})}));""",
+        dict(pool=pool, sim=dfs.SIM))
+    assert out["bad"] == []                       # no candidate beats a winner in its own slate
+    assert out["maxdiff"] < 1e-9                  # per-player draws add up to the lineup's score
+    assert all(0 <= w < 150 for w in out["won"]) and sum(out["n"]) == 150
