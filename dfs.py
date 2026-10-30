@@ -315,11 +315,9 @@ def body(data, ui):
             "<h1>DFS lineups</h1><p>Build Yahoo classic lineups for today’s slate from Sleeper’s "
             "projections and Yahoo’s salaries. The best lineups are found on your device; lock, "
             "exclude or re-project any player.</p></div></div>")
-    note = ("<p class='public-note'>A separate tool: these projections are Sleeper’s (RotoWire) stat "
-            "projections in Yahoo scoring (points 1, rebounds 1.2, assists 1.5, steals 3, blocks 3, "
-            "turnovers −1), not this site’s model, and nothing here is a tracked pick. Players "
-            "listed at 0 minutes or Out project 0. Check each contest’s rules and lock before "
-            "entering. Not betting advice.</p>")
+    note = ("<p class='public-note'>Projections are Sleeper’s, in Yahoo scoring: not this site’s model, "
+            "and nothing here is a tracked pick. Check each contest’s rules and lock. Not betting "
+            "advice. <a href='how-it-works.html#dfs'>How the optimizer works →</a></p>")
     if not data:
         return (head + "<div class='public-empty'><h2>No Yahoo slate today</h2><p>Yahoo has not "
                 "published salaries for today’s games yet, or they could not be fetched. The page "
@@ -334,8 +332,9 @@ def body(data, ui):
               "</div>")
     games = " · ".join(f"{_esc(g['away'])} @ {_esc(g['home'])} {_esc(ui.tip_pt(g['start']))}"
                        for g in data["games"])
-    miss = (f" {len(data['unmatched'])} Yahoo player(s) have no Sleeper projection; enter one "
-            "to use them." if data["unmatched"] else "")
+    k = len(data["unmatched"])
+    miss = (f" {k} Yahoo player{'s have' if k > 1 else ' has'} no Sleeper projection; enter one "
+            "to use them." if k else "")
     controls = ("<div class='dfs-controls'>"
                 "<label>Slate<select id='dfs-slate' aria-label='Slate by start time'></select></label>"
                 "<label>Mode<select id='dfs-mode' aria-label='Contest type'><option value='cash'>Cash · best projection</option>"
@@ -354,35 +353,57 @@ def body(data, ui):
             "<div class='dfs-pos' id='dfs-pos' role='group' aria-label='Filter by position'></div>"
             "<div class='dfs-scroll'><table class='dfs-table'><thead><tr><th>Lock</th><th>Out</th>"
             "<th>Player</th><th class='x'>Pos</th><th class='n'>Salary</th><th class='n'>Proj</th>"
-            "<th class='n x'>Value</th><th class='n x'>FPPG</th><th class='n x'>Min</th></tr></thead>"
+            "<th class='n x' title='Projection per $10 of salary'>Value</th>"
+            "<th class='n x' title='Yahoo season average'>FPPG</th>"
+            "<th class='n x' title='Sleeper projected minutes'>Min</th></tr></thead>"
             "<tbody id='dfs-pool'></tbody></table></div></section>")
     out = ("<section class='dfs-panel dfs-out'><h2>Lineups</h2>" + controls +
            "<div id='dfs-msg' class='dfs-msg' aria-live='polite'>Building lineups…</div>"
            "<div id='dfs-out'></div><h2 style='margin-top:14px'>Exposure</h2>"
            "<ul class='dfs-exp' id='dfs-exposure'></ul></section>")
     payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
-    return (head + status + f"<p class='public-note'>{games}. Yahoo classic: PG, SG, G, SF, PF, F, "
-            f"C, UTIL under the cap, players from at least {MIN_TEAMS} teams and at most "
-            f"{MAX_PER_TEAM} from one. Pick the slate by start time: main (every game), early or "
-            f"late, each with at least 2 games. Exposure by salary caps each player at 2% of the "
-            f"lineups per $1 of salary (a $10 player 20%, a $25 player 50%), under the max "
-            f"exposure. Value = projection per $10 of salary. Players "
-            f"whose game has started are out.{miss}</p>"
-            "<p class='public-note'><b>Cash</b> builds the lineups with the most projected points. "
-            "<b>Tournament</b> simulates the slate: each player’s points are drawn around his projection "
-            f"with the spread typical of that projection (sd ≈ {SIM['sd_base']:g} + {SIM['sd_slope']:g} × "
-            "projection) and the correlations measured on two seasons of results (teammates move together "
-            "a little, two starters more, opposing stars slightly; a team’s own two top scorers less, "
-            "and its two centres slightly against each other). "
-            "Each simulated slate’s best lineup is found exactly; those winners and the best cash "
-            "lineups are scored in every simulated slate, and ranked by how often they finish in the top "
-            "5% of them. Each shows that share and its 90th-percentile score, and its players’ points in "
-            "the simulated slate it won (Sim) beside their projections. The draws are seeded, so a "
-            "build repeats; New draws reseeds them.</p>"
+    return (head + status + f"<p class='public-note'>{games}.{miss} "
+            "<a href='how-it-works.html#dfs'>Rules, slates, exposure and modes →</a></p>"
             "<noscript><p class='public-note'>The optimizer needs JavaScript.</p></noscript>"
             "<div class='dfs-grid'>" + pool + out + "</div>" + note
             + f"<script type='application/json' id='dfs-data'>{payload}</script>"
             + f"<script>{SOLVER_JS}{UI_JS}</script>")
+
+
+def guide():
+    """The DFS section of How it works: everything the page itself leaves
+    out, from the same constants the optimizer uses."""
+    m = SIM
+    return (
+        "<section id='dfs'><h2>DFS lineups</h2>"
+        "<p>The DFS page builds Yahoo daily-fantasy lineups for the day’s games. It is a separate "
+        "tool: it uses none of this site’s forecasts or tracked picks and does not affect them.</p>"
+        "<h3>Projections and salaries</h3><p>Salaries, positions and the cap come from Yahoo. "
+        "Projections are Sleeper’s (RotoWire) stat projections in Yahoo scoring: points 1, rebounds "
+        "1.2, assists 1.5, steals 3, blocks 3, turnovers −1, with no three-pointer bonus. A player "
+        "listed at 0 minutes, Out or on IR projects 0; a Yahoo player Sleeper does not list has no "
+        "projection until you enter one. <b>Value</b> is projection per $10 of salary, <b>FPPG</b> "
+        "Yahoo’s season average and <b>Min</b> Sleeper’s projected minutes.</p>"
+        f"<h3>Lineup rules</h3><p>Yahoo classic contests: PG, SG, G, SF, PF, F, C and UTIL under the "
+        f"cap, with players from at least {MIN_TEAMS} teams and at most {MAX_PER_TEAM} from one. "
+        "Players whose game has started are left out, and locked players are in every lineup.</p>"
+        "<h3>Slates</h3><p>Yahoo lists the day’s games under one cap, so the slate choices come from "
+        "start times: Main (every game), Early (games up to a start time) and Late (games from one), "
+        "each with at least two games.</p>"
+        "<h3>Exposure</h3><p>By salary (the default), a player can be in up to 2% of the lineups per "
+        "$1 of salary (a $10 player 20%, a $25 player 50%), never above the max exposure (70% by "
+        "default). Flat uses the max exposure for every player. Locked players are exempt.</p>"
+        "<h3>Cash and tournament</h3><p><b>Cash</b> builds the lineups with the most projected "
+        "points, found exactly. <b>Tournament</b> simulates the slate: each player’s points are drawn "
+        f"around his projection with the spread typical of that projection (sd ≈ {m['sd_base']:g} + "
+        f"{m['sd_slope']:g} × projection) and the correlations measured on two seasons of results: "
+        "teammates move together a little and two starters more, opposing stars slightly, a team’s "
+        "own two top scorers less, and its two centres slightly against each other. Each simulated "
+        "slate’s best lineup is found exactly; those winners and the best cash lineups are scored in "
+        "every simulated slate and ranked by how often they finish in the top 5% of them.</p>"
+        "<p>Each tournament lineup shows that share, its 90th-percentile score and, under <b>Sim</b>, "
+        "its players’ points in the simulated slate it won. The draws are seeded, so a build repeats; "
+        "New draws reseeds them and Reset returns to the default.</p></section>")
 
 
 def page(ui, today, built, native=None, yahoo=None, sleeper=None, css=""):

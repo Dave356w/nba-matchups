@@ -373,7 +373,8 @@ class PublicSite:
 <section><h2>Read the results fairly</h2><p>Each result uses the selection and price recorded before play. Wins, losses and pushes stay visible. Pending picks have no return until graded. A push returns the stake and produces zero profit.</p>
 <p>One unit is staked on each selection. ROI is profit divided by total stakes. The market-price baseline is the expected ROI if the market probability is correct; it is usually negative because of the bookmaker’s margin. The market favourite benchmark uses the same games and prices; for totals the benchmark is the over on the same games.</p>
 <p>Uncertainty is shown as one standard error (1 SE). One SE is not a 95% confidence interval. Small samples do not establish a lasting advantage. Tests may overlap, so their returns and the early/established stages are never pooled.</p>
-<p>Public performance reports live, pregame-recorded selections. Rebuilt games, exploratory comparisons and historical model experiments are excluded from the public track record.</p></section></div>"""
+<p>Public performance reports live, pregame-recorded selections. Rebuilt games, exploratory comparisons and historical model experiments are excluded from the public track record.</p></section>"""
+        body += dfs.guide() + "</div>"
         return self.page("How it works · NBA Composite", "how-it-works.html", body)
 
     def model_note(self):

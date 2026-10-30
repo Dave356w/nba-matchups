@@ -322,3 +322,22 @@ process.stdout.write(JSON.stringify({bad:bad,maxdiff:Math.max.apply(null,sums),
     assert out["bad"] == []                       # no candidate beats a winner in its own slate
     assert out["maxdiff"] < 1e-9                  # per-player draws add up to the lineup's score
     assert all(0 <= w < 150 for w in out["won"]) and sum(out["n"]) == 150
+
+
+def test_the_page_stays_short_and_how_it_works_explains_it():
+    yahoo = pd.DataFrame(dfs.parse_feed(_feed([_yp("p1", "Zion Williamson", "NO", "PF", 36),
+                                               _yp("p2", "Deep Bench", "NO", "SG", 10)]), now=NOW),
+                         columns=dfs.YAHOO_COLUMNS).astype(str)
+    line = dict(minutes="32", pts="20", reb="5", ast="3", stl="1", blk="1", to="2", tpm="1")
+    sl = _sleeper([dict(kind="pre", team="NOP", sleeper_id="1", name="Zion Williamson", **line)])
+    html = dfs.page(build_site, "2026-10-29", "built", native=_native(), yahoo=yahoo, sleeper=sl)
+    text = html.split("id='dfs-data'")[0]
+    assert "how-it-works.html#dfs" in text and "1 Yahoo player has no Sleeper projection" in text
+    assert "sd ≈" not in text and "Yahoo classic: PG" not in text      # moved to How it works
+    g = dfs.guide()
+    assert g.startswith("<section id='dfs'>")
+    assert f"at least {dfs.MIN_TEAMS} teams and at most {dfs.MAX_PER_TEAM}" in g
+    assert f"sd ≈ {dfs.SIM['sd_base']:g} + {dfs.SIM['sd_slope']:g}" in g
+    import public_site
+    guide = public_site.PublicSite(build_site, ledger.empty(), "2026-10-29", "built").guide_page()
+    assert "<section id='dfs'><h2>DFS lineups</h2>" in guide
