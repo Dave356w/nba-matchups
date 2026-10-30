@@ -2,16 +2,16 @@ desktop: Today · navigation, overflow and screenshot passed
 desktop: Results · navigation, overflow and screenshot passed
 desktop: Performance · navigation, overflow and screenshot passed
 desktop: How it works · navigation, overflow and screenshot passed
-desktop: DFS lineups · the browser optimizer built lineups
+desktop: DFS lineups · the browser optimizer ran on the live slate (0 lineups: every game started)
 desktop: DFS · navigation, overflow and screenshot passed
 desktop: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
-desktop: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups
+desktop: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes
 mobile: Today · navigation, overflow and screenshot passed
 mobile: Results · navigation, overflow and screenshot passed
 mobile: Performance · navigation, overflow and screenshot passed
 mobile: How it works · navigation, overflow and screenshot passed
-mobile: DFS lineups · the browser optimizer built lineups
+mobile: DFS lineups · the browser optimizer ran on the live slate (0 lineups: every game started)
 mobile: DFS · navigation, overflow and screenshot passed
 mobile: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
-mobile: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups
+mobile: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes
 Live-score overlay updated status and scores without changing four frozen selections
