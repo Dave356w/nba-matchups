@@ -65,6 +65,7 @@ def test_report_prints_null_and_fav_beside_every_roi_and_keeps_bases_apart():
     for ln in roi_lines:
         assert "(null " in ln and "| fav " in ln
     assert "pregame snapshot" in txt and "HINDSIGHT" in txt
+    assert "CLV (lean" not in txt      # pregame price is mostly the close
     assert "Model tags: tag_v6" in txt
     # one number, two surfaces: the report's lean ROI is analysis.roi_summary's
     h = analysis.with_close(ledger.graded(rec))

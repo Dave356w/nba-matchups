@@ -1174,30 +1174,6 @@ def hypothesis_backtest(recon, book):
     return out
 
 
-def clv(g):
-    """Closing-line value of native leans: close q - pregame q, lean side.
-
-    Only rows whose pregame and closing prices come from the same book; a
-    move between two books' lines is not a line move.
-    """
-    if g is None or not len(g):
-        return None
-    g = g[g["pre_book"].astype(str) == g["close_book"].astype(str)]
-    if not len(g):
-        return None
-    pre = pd.to_numeric(g["pre_q_home"], errors="coerce")
-    cls = pd.to_numeric(g["close_q_home"], errors="coerce")
-    lean_home = (g["lean"].astype(str) == g["home"].astype(str))
-    d = np.where(lean_home, cls - pre, pre - cls)
-    d = d[np.isfinite(d)]
-    if not d.size:
-        return None
-    return dict(n=int(d.size), mean=float(d.mean()),
-                se=float(d.std(ddof=1) / np.sqrt(d.size)) if d.size > 1
-                else float("nan"),
-                beat=float((d > 0).mean()))
-
-
 # --------------------------------------------------------- against the spread
 ATS_SIGMA = 13.5     # pts: SD of margin about the market's expectation. Maps a
                      # stored p_home to a margin for the model's cover %; it

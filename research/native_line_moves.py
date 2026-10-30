@@ -15,9 +15,16 @@ are counted apart in the graded line.
      (sign of first P - first q), the spread on H5's side (13.5 x
      Phi^-1(first P) + first spread, analysis.ATS_SIGMA), and the lean's q.
   3. Graded outcomes split by move direction (descriptive; tiny samples).
+  4. Overnight lean CLV by edge floor: the lean (first P >= 0.5) where it is
+     also the value side, first P - first q above each floor, on closed
+     games; by first_model_tag version, v8 (before v9, in no active row)
+     apart from v9 or later; the value side on the model's underdog beside
+     it. The floors were picked after looking at the data: not a rule.
+  5. Close ties: how often the pregame and 5 h lock prices already equal the
+     close (CLV is then 0 by tie, not by skill), and Kalshi close coverage.
 
-Games 1-9 and 10+ are shown apart. +/- is 1 SE. Writes
-diagnostics/native_line_moves/RESULTS.txt.
+Games 1-9 and 10+ are shown apart; game 0 is in neither. +/- is 1 SE.
+Writes diagnostics/native_line_moves/RESULTS.txt.
 """
 import json
 import os
@@ -37,6 +44,14 @@ ND = NormalDist()
 NUM = ["first_p_home", "first_q_home", "pre_q_home", "close_q_home", "p_home",
        "margin_home", "first_spread", "pre_spread", "close_spread",
        "home_pts", "away_pts", "home_won", "gp_home", "gp_away"]
+FLOORS = (0.0, 0.01, 0.02, 0.03, 0.05)      # post hoc, descriptive only
+TIES = (("pregame", "pre", "snapshot_utc"), ("5 h lock", "lock", "lock_snapshot_utc"))
+
+
+def version(tag):
+    """'v9' from a model tag ending _v9; '' when there is no tag."""
+    s = str(tag).rsplit("_", 1)[-1]
+    return s if s.startswith("v") else ""
 
 
 def sigma(path):
@@ -53,7 +68,62 @@ def moves(df):
     d["ml_mv"] = 100 * d.ml_dir * (d.end_q - d.first_q_home)            # pp
     d["sp_mv"] = np.sign(d.ats_edge) * (d.first_spread - d.end_sp)      # pts
     d["lean_mv"] = 100 * np.where(d.first_p_home >= .5, 1, -1) * (d.end_q - d.first_q_home)
+    d["lean_edge"] = np.where(d.first_p_home >= .5, 1, -1) * (d.first_p_home - d.first_q_home)
+    d["ver"] = d.first_model_tag.map(version)
     return d
+
+
+def floors(g, L):
+    """Section 4 for one stage: closed games, lean CLV vs the close."""
+    c = g[g.close_q_home.notna()]
+    v9 = c.first_model_tag.astype(str).str.endswith(analysis.EARLY_TAG_SUFFIXES)
+    L.append("    overnight lean CLV, lean is the value side (closed; floors post hoc):")
+    for t in FLOORS:
+        m = c.lean_edge > t
+        L.append(line(f"  P - q > {100 * t:.0f}pp, all tags", c.lean_mv[m], "pp"))
+        L.append(line("    first tag v9 or later", c.lean_mv[m & v9], "pp"))
+        L.append(line(f"    first tag v8 (pre-v9)", c.lean_mv[m & (c.ver == "v8")], "pp"))
+    m = c.lean_edge > 0.03
+    fav = np.where(c.first_p_home >= .5, c.first_q_home, 1 - c.first_q_home) > .5
+    L.append(line("  > 3pp, v9+, market fav", c.lean_mv[m & v9 & fav], "pp"))
+    L.append(line("  > 3pp, v9+, market dog", c.lean_mv[m & v9 & ~fav], "pp"))
+    m = c.lean_edge < -0.03
+    L.append(line("  value on model dog > 3pp", -c.lean_mv[m], "pp"))
+    L.append(line("    first tag v9 or later", -c.lean_mv[m & v9], "pp"))
+    big = c.lean_edge.abs() > 0.03
+    L.append(line("  lean, |P - q| > 3pp", c.lean_mv[big], "pp"))
+    L.append(line("  lean, |P - q| <= 3pp", c.lean_mv[~big], "pp"))
+
+
+def ties(df, L):
+    """Section 5: each price's ties with the same book's close."""
+    for c in ("pre_home_ml", "pre_away_ml", "close_home_ml", "close_away_ml", "lock_home_ml",
+              "lock_away_ml", "lock_spread", "lock_home_spread_odds", "lock_away_spread_odds",
+              "pre_home_spread_odds", "pre_away_spread_odds", "close_home_spread_odds",
+              "close_away_spread_odds", "pre_spread", "close_spread", "kalshi_close_q_home",
+              "first_p_home"):
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    tip = pd.to_datetime(df.tip_utc, utc=True, errors="coerce")
+    for name, p, ts in TIES:
+        g = df[df[f"{p}_home_ml"].notna() & df.close_home_ml.notna()
+               & (df[f"{p}_book"].astype(str) == df.close_book.astype(str))]
+        if not len(g):
+            L.append(f"  {name:<9} no rows with a same-book close")
+            continue
+        h = (tip[g.index] - pd.to_datetime(g[ts], utc=True, errors="coerce")).dt.total_seconds() / 3600
+        ml = (g[f"{p}_home_ml"] == g.close_home_ml) & (g[f"{p}_away_ml"] == g.close_away_ml)
+        sp = g[f"{p}_spread"].notna() & g.close_spread.notna()
+        line_eq = sp & (g[f"{p}_spread"] == g.close_spread)
+        all_eq = line_eq & (g[f"{p}_home_spread_odds"] == g.close_home_spread_odds) \
+            & (g[f"{p}_away_spread_odds"] == g.close_away_spread_odds)
+        L.append(f"  {name:<9} n={len(g):<3} before tip median {h.median():.2f} h, min "
+                 f"{60 * h.min():.1f} min; moneyline = close {ml.sum()}/{len(g)}; "
+                 f"spread line = close {line_eq.sum()}/{sp.sum()} (prices too {all_eq.sum()})")
+    k = df[df.kalshi_close_q_home.notna()]
+    L.append(f"  Kalshi close: {len(k)} rows (slates {k.slate_date.min()}..{k.slate_date.max()}), "
+             f"{k.first_p_home.notna().sum()} with a first P; no new Kalshi writes, so there is "
+             "no second-market close for later bets." if len(k) else
+             "  Kalshi close: no rows.")
 
 
 def line(label, x, unit):
@@ -114,14 +184,15 @@ def report(df):
         closed = g.close_q_home.notna()
         L.append(line("moneyline value side q", g.ml_mv, "pp"))
         L.append(line("  closed games only", g.ml_mv[closed], "pp"))
-        for t in ("v8", "v9"):
-            L.append(line(f"  first tag {t}", g.ml_mv[g.first_model_tag.str.contains(t)], "pp"))
+        for t in sorted(set(g.ver) - {""}, key=lambda v: int(v[1:])):
+            L.append(line(f"  first tag {t}", g.ml_mv[g.ver == t], "pp"))
         for r, gg in g.groupby(g.first_route.fillna("none")):
             L.append(line(f"  first route {r}", gg.ml_mv, "pp"))
         L.append(line("spread, H5 side", g.sp_mv[g.first_spread.notna()], "pt"))
         for lo, hi in ((0, 1), (1, 3), (3, 99)):
             L.append(line(f"  |edge| {lo}-{hi} pt", g.sp_mv[g.ats_edge.abs().between(lo, hi, inclusive="left")], "pt"))
         L.append(line("lean (model favourite) q", g.lean_mv, "pp"))
+        floors(g, L)
         L.append(f"    corr(P - q, home q move) {np.corrcoef(g.first_p_home - g.first_q_home, g.end_q - g.first_q_home)[0, 1]:+.2f}; "
                  f"corr(ATS edge, home line move) {np.corrcoef(g.ats_edge[g.first_spread.notna()], (g.first_spread - g.end_sp)[g.first_spread.notna()])[0, 1]:+.2f}")
         gd = g[g.home_won.notna() & g.close_q_home.notna()]
@@ -133,6 +204,8 @@ def report(df):
                             ("flat", gd.ml_mv.abs() <= 1e-9, gd.sp_mv == 0)):
             L.append(f"      {lab:<8} value side won {won[mm].sum()}/{mm.sum()}   "
                      f"H5 side vs first line {(cov[ms] > 0).sum()}-{(cov[ms] < 0).sum()}-{(cov[ms] == 0).sum()}")
+    L += ["", "== Close ties (all native rows; same book)"]
+    ties(df.copy(), L)
     L += ["", "== Rows: date  matchup  first P  q first -> end  ATS edge  spread first -> end  moves (ml pp, spread pt)  first tag"]
     for _, r in d.sort_values(["slate_date", "game_id"]).iterrows():
         L.append(f"  {r.slate_date} {r.away}@{r.home:<4} P {r.first_p_home:.3f}  q {r.first_q_home:.3f} -> {r.end_q:.3f}  "

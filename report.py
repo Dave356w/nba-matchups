@@ -109,11 +109,6 @@ def native_block(native):
                 lines.append(f"  at the {what}:")
                 lines += block
         lines += scoring_lines(analysis.scoring(h), "  ")
-        c = analysis.clv(h)
-        if c:
-            lines.append(f"  CLV (lean, same book): {100 * c['mean']:+.2f} pp +/- "
-                         f"{_f(100 * c['se'], '.2f')} (1 SE), beat the close "
-                         f"{100 * c['beat']:.0f}% of {c['n']}")
     return lines
 
 

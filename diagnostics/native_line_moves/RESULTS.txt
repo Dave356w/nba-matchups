@@ -1,35 +1,64 @@
 Native line moves, first snapshot -> close (latest pregame if not yet closed): DESCRIPTIVE
-Source: data/nba_ledger.csv; 37 rows with a first P, 28 closed, slates 2026-10-22..2026-10-26. First tags: margin_v9 13, avail_v8 12, avail_v9 11, ft_v8 1
+Source: data/nba_ledger.csv; 66 rows with a first P, 56 closed, slates 2026-10-22..2026-10-30. First tags: avail_v9 22, margin_v9 18, avail_v8 12, avail_v11 10, margin_v10 2, ft_v8 1, avail_v10 1
 Toward = the line moved to the model's side. +/- 1 SE. Not a rule, not forward evidence of ROI.
 
 == Model checks (all rows)
-  p_home vs Phi(margin_home / sigma): max |diff| 0.00014 on 36 v9 rows (sigma 13.30 base, 13.64 avail)
-  first -> latest P drift, first route avail: mean |dP| 1.1pp, max 3.7pp (n=23)
-  first -> latest P drift, first route base : mean |dP| 3.1pp, max 11.7pp (n=14)
-  home margin: model +3.10 vs market (-first spread) +2.80; corr 0.84
-  P std 0.145 vs q std 0.178; logit(P) on logit(q) slope 0.67 (1 = same spread as the market)
-  moneyline value side is the underdog in 23 / 37
-  moneyline value side and H5 side disagree in 4 game(s): HOU @ SAS 2026-10-23, HOU @ ATL 2026-10-24, ORL @ NYK 2026-10-25, MEM @ UTA 2026-10-26
+  p_home vs Phi(margin_home / sigma): max |diff| 0.00027 on 40 v9 rows (sigma 13.30 base, 13.63 avail)
+  first -> latest P drift, first route avail: mean |dP| 0.9pp, max 4.6pp (n=45)
+  first -> latest P drift, first route base : mean |dP| 6.0pp, max 17.0pp (n=21)
+  home margin: model +2.56 vs market (-first spread) +2.30; corr 0.90
+  P std 0.158 vs q std 0.183; logit(P) on logit(q) slope 0.75 (1 = same spread as the market)
+  moneyline value side is the underdog in 43 / 66
+  moneyline value side and H5 side disagree in 6 game(s): HOU @ SAS 2026-10-23, HOU @ ATL 2026-10-24, ORL @ NYK 2026-10-25, MEM @ UTA 2026-10-26, LAL @ LAC 2026-10-28, CLE @ ATL 2026-10-29
 
-== Games 1-9: 36 rows
-    moneyline value side q     n=36   +0.40pp +/- 0.60   toward 21 / against 13 / flat 2
-      closed games only        n=27   +0.25pp +/- 0.79   toward 14 / against 11 / flat 2
+== Games 1-9: 65 rows
+    moneyline value side q     n=65   -0.49pp +/- 0.47   toward 27 / against 33 / flat 5
+      closed games only        n=55   -0.34pp +/- 0.55   toward 26 / against 24 / flat 5
       first tag v8             n=12   +1.12pp +/- 1.02   toward 8 / against 3 / flat 1
-      first tag v9             n=24   +0.05pp +/- 0.75   toward 13 / against 10 / flat 1
-      first route avail        n=23   +0.38pp +/- 0.71   toward 15 / against 7 / flat 1
-      first route base         n=13   +0.45pp +/- 1.15   toward 6 / against 6 / flat 1
-    spread, H5 side            n=36   +0.53pt +/- 0.29   toward 16 / against 9 / flat 11
-      |edge| 0-1 pt            n=7    +0.86pt +/- 0.59   toward 3 / against 1 / flat 3
-      |edge| 1-3 pt            n=16   +0.06pt +/- 0.41   toward 6 / against 5 / flat 5
-      |edge| 3-99 pt           n=13   +0.92pt +/- 0.52   toward 7 / against 3 / flat 3
-    lean (model favourite) q   n=36   +0.71pp +/- 0.60   toward 20 / against 14 / flat 2
-    corr(P - q, home q move) +0.17; corr(ATS edge, home line move) +0.24
+      first tag v9             n=40   -0.85pp +/- 0.68   toward 16 / against 20 / flat 4
+      first tag v10            n=3    +0.70pp +/- 1.04   toward 2 / against 1 / flat 0
+      first tag v11            n=10   -1.31pp +/- 0.40   toward 1 / against 9 / flat 0
+      first route avail        n=45   -0.43pp +/- 0.49   toward 19 / against 22 / flat 4
+      first route base         n=20   -0.62pp +/- 1.08   toward 8 / against 11 / flat 1
+    spread, H5 side            n=65   +0.26pt +/- 0.22   toward 23 / against 22 / flat 20
+      |edge| 0-1 pt            n=16   +0.62pt +/- 0.54   toward 6 / against 6 / flat 4
+      |edge| 1-3 pt            n=29   -0.17pt +/- 0.27   toward 7 / against 10 / flat 12
+      |edge| 3-99 pt           n=20   +0.60pt +/- 0.37   toward 10 / against 6 / flat 4
+    lean (model favourite) q   n=65   +0.44pp +/- 0.47   toward 37 / against 23 / flat 5
+    overnight lean CLV, lean is the value side (closed; floors post hoc):
+      P - q > 0pp, all tags    n=28   +0.05pp +/- 0.89   toward 16 / against 10 / flat 2
+        first tag v9 or later  n=21   -0.47pp +/- 1.12   toward 11 / against 9 / flat 1
+        first tag v8 (pre-v9)  n=7    +1.61pp +/- 1.03   toward 5 / against 1 / flat 1
+      P - q > 1pp, all tags    n=24   +0.59pp +/- 0.79   toward 14 / against 8 / flat 2
+        first tag v9 or later  n=17   +0.17pp +/- 1.03   toward 9 / against 7 / flat 1
+        first tag v8 (pre-v9)  n=7    +1.61pp +/- 1.03   toward 5 / against 1 / flat 1
+      P - q > 2pp, all tags    n=21   +0.88pp +/- 0.88   toward 13 / against 6 / flat 2
+        first tag v9 or later  n=15   +0.33pp +/- 1.15   toward 8 / against 6 / flat 1
+        first tag v8 (pre-v9)  n=6    +2.25pp +/- 0.96   toward 5 / against 0 / flat 1
+      P - q > 3pp, all tags    n=18   +1.82pp +/- 0.78   toward 13 / against 3 / flat 2
+        first tag v9 or later  n=12   +1.60pp +/- 1.09   toward 8 / against 3 / flat 1
+        first tag v8 (pre-v9)  n=6    +2.25pp +/- 0.96   toward 5 / against 0 / flat 1
+      P - q > 5pp, all tags    n=13   +1.94pp +/- 0.99   toward 10 / against 2 / flat 1
+        first tag v9 or later  n=9    +2.06pp +/- 1.40   toward 7 / against 2 / flat 0
+        first tag v8 (pre-v9)  n=4    +1.65pp +/- 0.92   toward 3 / against 0 / flat 1
+      > 3pp, v9+, market fav   n=7    +0.44pp +/- 1.08   toward 4 / against 2 / flat 1
+      > 3pp, v9+, market dog   n=5    +3.23pp +/- 2.06   toward 4 / against 1 / flat 0
+      value on model dog > 3pp n=19   -1.76pp +/- 0.74   toward 4 / against 12 / flat 3
+        first tag v9 or later  n=15   -1.99pp +/- 0.79   toward 2 / against 10 / flat 3
+      lean, |P - q| > 3pp      n=37   +1.79pp +/- 0.53   toward 25 / against 7 / flat 5
+      lean, |P - q| <= 3pp     n=18   -2.49pp +/- 0.99   toward 5 / against 13 / flat 0
+    corr(P - q, home q move) +0.03; corr(ATS edge, home line move) +0.12
     graded, by move direction (descriptive):
-      toward   value side won 6/14   H5 side vs first line 6-6-0
-      against  value side won 2/11   H5 side vs first line 3-5-0
-      flat     value side won 0/2   H5 side vs first line 6-1-0
+      toward   value side won 15/26   H5 side vs first line 13-9-0
+      against  value side won 5/24   H5 side vs first line 5-13-0
+      flat     value side won 2/5   H5 side vs first line 9-6-0
 
 == Games 10+: 0 rows
+
+== Close ties (all native rows; same book)
+  pregame   n=71  before tip median 0.93 h, min 0.3 min; moneyline = close 46/71; spread line = close 55/70 (prices too 36)
+  5 h lock  n=6   before tip median 2.72 h, min 55.3 min; moneyline = close 3/6; spread line = close 6/6 (prices too 2)
+  Kalshi close: 16 rows (slates 2026-10-20..2026-10-22), 1 with a first P; no new Kalshi writes, so there is no second-market close for later bets.
 
 == Rows: date  matchup  first P  q first -> end  ATS edge  spread first -> end  moves (ml pp, spread pt)  first tag
   2026-10-22 DEN@OKC  P 0.675  q 0.741 -> 0.741  edge  -1.4   -7.5 ->  -7.5   -0.0 -0.0  v8
@@ -60,12 +89,41 @@ Toward = the line moved to the model's side. +/- 1 SE. Not a rule, not forward e
   2026-10-25 LAC@OKC  P 0.761  q 0.868 -> 0.893  edge  -4.9  -14.5 -> -16.5   -2.6 -2.0  v9
   2026-10-25 DET@PHI  P 0.451  q 0.551 -> 0.457  edge  -4.2   -2.5 ->  +1.5   +9.4 +4.0  v9
   2026-10-25 MEM@SAC  P 0.475  q 0.396 -> 0.384  edge  +3.7   +4.5 ->  +3.5   -1.3 +1.0  v9
-  2026-10-26 WAS@CHO  P 0.716  q 0.522 -> 0.543  edge  +6.2   -1.5 ->  -1.5   +2.1 +0.0  v9  (pending)
-  2026-10-26 MIN@CLE  P 0.637  q 0.572 -> 0.616  edge  +1.2   -3.5 ->  -4.5   +4.4 +1.0  v9  (pending)
-  2026-10-26 CHI@BOS  P 0.790  q 0.858 -> 0.847  edge  -2.6  -13.5 -> -14.5   +1.1 -1.0  v9  (pending)
-  2026-10-26 DAL@MIA  P 0.735  q 0.741 -> 0.734  edge  -0.0   -8.5 ->  -8.5   +0.7 -0.0  v9  (pending)
-  2026-10-26 IND@MIL  P 0.574  q 0.396 -> 0.400  edge  +7.0   +4.5 ->  +4.5   +0.4 +0.0  v9  (pending)
-  2026-10-26 PHO@OKC  P 0.790  q 0.766 -> 0.772  edge  +1.4   -9.5 -> -10.5   +0.6 +1.0  v9  (pending)
-  2026-10-26 ATL@HOU  P 0.571  q 0.645 -> 0.637  edge  -3.1   -5.5 ->  -4.5   +0.8 +1.0  v9  (pending)
-  2026-10-26 MEM@UTA  P 0.544  q 0.511 -> 0.496  edge  -0.0   -1.5 ->  +1.5   -1.5 +3.0  v9  (pending)
-  2026-10-26 GSW@DEN  P 0.749  q 0.722 -> 0.714  edge  +1.6   -7.5 ->  -7.5   -0.9 +0.0  v9  (pending)
+  2026-10-26 WAS@CHO  P 0.716  q 0.522 -> 0.563  edge  +6.2   -1.5 ->  -2.5   +4.2 +1.0  v9
+  2026-10-26 MIN@CLE  P 0.637  q 0.572 -> 0.583  edge  +1.2   -3.5 ->  -3.5   +1.1 +0.0  v9
+  2026-10-26 CHI@BOS  P 0.790  q 0.858 -> 0.847  edge  -2.6  -13.5 -> -14.5   +1.1 -1.0  v9
+  2026-10-26 DAL@MIA  P 0.735  q 0.741 -> 0.700  edge  -0.0   -8.5 ->  -7.5   +4.1 +1.0  v9
+  2026-10-26 IND@MIL  P 0.574  q 0.396 -> 0.417  edge  +7.0   +4.5 ->  +3.5   +2.1 +1.0  v9
+  2026-10-26 PHO@OKC  P 0.790  q 0.766 -> 0.734  edge  +1.4   -9.5 ->  -8.5   -3.2 -1.0  v9
+  2026-10-26 ATL@HOU  P 0.571  q 0.645 -> 0.631  edge  -3.1   -5.5 ->  -4.5   +1.4 +1.0  v9
+  2026-10-26 MEM@UTA  P 0.544  q 0.511 -> 0.496  edge  -0.0   -1.5 ->  +1.5   -1.5 +3.0  v9
+  2026-10-26 GSW@DEN  P 0.749  q 0.722 -> 0.700  edge  +1.6   -7.5 ->  -6.5   -2.2 -1.0  v9
+  2026-10-27 BRK@BOS  P 0.824  q 0.817 -> 0.847  edge  +1.1  -11.5 -> -13.5   +2.9 +2.0  v9
+  2026-10-27 DET@NYK  P 0.524  q 0.583 -> 0.609  edge  -2.7   -3.5 ->  -4.5   -2.6 -1.0  v9
+  2026-10-27 SAC@SAS  P 0.849  q 0.912 -> 0.912  edge  -4.6  -18.5 -> -19.5   -0.0 -1.0  v9
+  2026-10-27 POR@LAL  P 0.675  q 0.563 -> 0.517  edge  +3.6   -2.5 ->  -1.5   -4.6 -1.0  v9
+  2026-10-28 MIA@ATL  P 0.613  q 0.593 -> 0.563  edge  +0.4   -3.5 ->  -2.5   -3.0 -1.0  v9
+  2026-10-28 WAS@CLE  P 0.799  q 0.766 -> 0.766  edge  +0.8  -10.5 ->  -9.5   +0.0 -1.0  v9
+  2026-10-28 CHO@DET  P 0.681  q 0.705 -> 0.714  edge  -1.1   -7.5 ->  -7.5   -0.9 -0.0  v9
+  2026-10-28 PHI@IND  P 0.450  q 0.400 -> 0.295  edge  +2.8   +4.5 ->  +7.5  -10.5 -3.0  v9
+  2026-10-28 ORL@TOR  P 0.657  q 0.609 -> 0.631  edge  +1.0   -4.5 ->  -5.5   +2.2 +1.0  v9
+  2026-10-28 NYK@CHI  P 0.314  q 0.300 -> 0.295  edge  +1.0   +7.5 ->  +7.5   -0.5 +0.0  v9
+  2026-10-28 HOU@MIL  P 0.340  q 0.274 -> 0.259  edge  +2.9   +8.5 ->  +8.5   -1.5 +0.0  v9
+  2026-10-28 GSW@MIN  P 0.547  q 0.583 -> 0.583  edge  -1.9   -3.5 ->  -3.5   -0.0 -0.0  v9
+  2026-10-28 DEN@NOP  P 0.392  q 0.378 -> 0.384  edge  +0.8   +4.5 ->  +4.5   +0.6 +0.0  v9
+  2026-10-28 SAS@UTA  P 0.271  q 0.183 -> 0.153  edge  +4.3  +12.5 -> +13.5   -2.9 -1.0  v9
+  2026-10-28 OKC@DAL  P 0.372  q 0.355 -> 0.369  edge  +1.1   +5.5 ->  +4.5   +1.4 +1.0  v9
+  2026-10-28 LAL@LAC  P 0.351  q 0.355 -> 0.504  edge  +0.3   +5.5 ->  -1.5  -14.9 +7.0  v9
+  2026-10-29 CLE@ATL  P 0.500  q 0.500 -> 0.517  edge  -1.5   -1.5 ->  -1.5   +1.7 -0.0  v10
+  2026-10-29 SAC@NOP  P 0.709  q 0.657 -> 0.675  edge  +1.9   -5.5 ->  -6.5   +1.8 +1.0  v10
+  2026-10-29 MEM@POR  P 0.657  q 0.696 -> 0.710  edge  -2.0   -7.5 ->  -7.5   -1.4 -0.0  v10
+  2026-10-30 CHO@WAS  P 0.448  q 0.511 -> 0.517  edge  -3.3   -1.5 ->  -1.5   -0.7 -0.0  v11  (pending)
+  2026-10-30 CHI@BOS  P 0.804  q 0.858 -> 0.868  edge  -4.0  -15.5 -> -14.5   -1.0 +1.0  v11  (pending)
+  2026-10-30 DET@BRK  P 0.297  q 0.290 -> 0.266  edge  +0.3   +7.5 ->  +8.5   -2.4 -1.0  v11  (pending)
+  2026-10-30 NYK@PHI  P 0.550  q 0.474 -> 0.468  edge  +3.2   +1.5 ->  +1.5   -0.6 +0.0  v11  (pending)
+  2026-10-30 ORL@TOR  P 0.708  q 0.645 -> 0.657  edge  +1.9   -5.5 ->  -5.5   +1.3 +0.0  v11  (pending)
+  2026-10-30 IND@MIA  P 0.692  q 0.705 -> 0.734  edge  -0.7   -7.5 ->  -8.5   -2.9 -1.0  v11  (pending)
+  2026-10-30 HOU@DAL  P 0.368  q 0.343 -> 0.325  edge  +1.0   +5.5 ->  +6.5   -1.8 -1.0  v11  (pending)
+  2026-10-30 LAC@MIN  P 0.609  q 0.696 -> 0.705  edge  -3.8   -7.5 ->  -7.5   -0.9 -0.0  v11  (pending)
+  2026-10-30 LAL@GSW  P 0.506  q 0.457 -> 0.428  edge  +1.7   +1.5 ->  +3.5   -2.9 -2.0  v11  (pending)
+  2026-10-30 DEN@PHO  P 0.415  q 0.396 -> 0.384  edge  +1.6   +4.5 ->  +4.5   -1.3 +0.0  v11  (pending)

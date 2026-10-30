@@ -2167,14 +2167,6 @@ def _forecast_section(scope):
                          f"± {100 * fav['se']:.1f} (1 SE) · "
                          f"{resolved_txt(zf, 'won more than priced', 'won less than priced')}",
                          sig_cls(zf)))
-    c = analysis.clv(h)
-    if c:
-        zv = z_of(c["mean"], c["se"])
-        cal.append(_stat("Closing-line value · lean", f"{100 * c['mean']:+.2f} pp",
-                         f"± {se_txt(c['se'])} (1 SE) · beat the close on "
-                         f"{pct(c['beat'], 0)} · n={c['n']} · "
-                         f"{resolved_txt(zv, 'market moved to the lean', 'market moved away')}",
-                         sig_cls(zv)))
     out += cal + ["</div>"]
     out.append("<div class='charts'>"
                + reliability_svg([("Model", "s1", analysis.reliability(p, y)),
@@ -2218,8 +2210,7 @@ def _forecast_section(scope):
                "close on the same games. Lower log loss and Brier are better; model − "
                "market below 0 means the model did better. The calibration slope is "
                "the outcome's slope on each forecast's log-odds: 1 is calibrated, "
-               "below 1 too confident. Closing-line value is how far the market moved "
-               "toward the lean from the pregame snapshot to the close. Colour marks "
+               "below 1 too confident. Colour marks "
                f"only a gap of at least {SIG:g} SE (from 0, from a slope of 1, or "
                "from the stated probability). Every season and the rebuilt rows are "
                "on the <a href='market-calibration.html'>Calibration</a> page.</p>")
@@ -2586,7 +2577,9 @@ def _score_tile(s):
 
 
 def _verdicts(sec):
-    """The section's three questions, answered in plain words."""
+    """The section's two questions, answered in plain words. The lean's
+    pregame-to-close CLV is not shown: the pregame price is mostly the close
+    already (research/native_line_moves.py, close ties)."""
     h, native = sec["h"], sec["basis"] == "native"
     price = "pre" if native and analysis.roi_summary(h, "pre") else "close"
     summ = {label: rows[0] for label, rows in analysis.roi_summary(h, price)}
@@ -2594,15 +2587,6 @@ def _verdicts(sec):
     at = "pregame price" if price == "pre" else "close"
     tiles = [_score_tile(analysis.scoring(h)),
              _bet_tile(f"Lean bets · 1u at the {at}", lean)]
-    if native:
-        c = analysis.clv(h)
-        if c:
-            z = c["mean"] / c["se"] if np.isfinite(c["se"]) and c["se"] > 0 else float("nan")
-            tiles.append(tile("Closing-line value (lean)", f"{100 * c['mean']:+.2f} pp",
-                              f"± {se_txt(c['se'])} (1 SE) · "
-                              f"{resolved_txt(z, 'beat the close', 'lost to the close')}"
-                              f"<br>beat the close on {pct(c['beat'], 0)} · n={c['n']}",
-                              sig_cls(z)))
     return "<div class='tiles'>" + "".join(tiles) + "</div>"
 
 
