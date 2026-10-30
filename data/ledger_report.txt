@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-30T13:50:20Z; latest graded slate 2026-10-29 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-10-30T14:40:26Z; latest graded slate 2026-10-29 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_avail_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_neutral_avail_v11
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -25,7 +25,6 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
   Log loss  model 0.6154  close 0.5564  model - close +0.0590 +/- 0.0206 (1 SE; negative = model better; z +2.9)
   Brier     model 0.2139  close 0.1895  model - close +0.0245 +/- 0.0096
   Lean accuracy 64.3%  vs close favourite 69.6%  (accuracy is not calibration)
-  CLV (lean, same book): -0.15 pp +/- 0.20 (1 SE), beat the close 20% of 56
 
 == PRE-REGISTERED HYPOTHESES (frozen; analysis.HYPOTHESES)
   Native at the registered price beside the hindsight rule on the reconstructed rows. Never pooled; one season is not a verdict.
