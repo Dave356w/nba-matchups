@@ -72,8 +72,23 @@ no feasible portfolio exists in the full lineup universe.
 
 ## Native calibration and temporal check
 
-Run `python research/dfs_calibration.py --as-of YYYY-MM-DD`. The existing
-Fit model workflow also runs it. Outcomes are cached under
+The existing Build workflow runs the DFS-only refit once each ET morning,
+after saving grading and pregame snapshots. It waits until 08:00 ET
+(05:00 Pacific) and until the latest prior slate with saved Sleeper lines
+is fully graded. Delayed builds retry this eligibility check. The first
+completed candidate attempt records the ET date, preventing repeated fits
+on every intraday build. An off-day can reuse the available history; no
+new outcomes are invented. Historical `--date` builds do not refit live.
+
+Accepted candidates are rendered into the same build's DFS page. The
+serialized build commits only its normal data plus the DFS fit and report;
+the main NBA model is not retrained. A three-minute refit timeout or
+fetch failure does not block the normal snapshot commit and publication.
+No additional workflow or separate schedule is required.
+
+For a manual refit run
+`python research/dfs_calibration.py --as-of YYYY-MM-DD`.
+The existing Fit model workflow also runs it. Outcomes are cached under
 `bbr_cache/dfs_final_boxes/`; this cache is already retained by the workflow.
 
 Only graded native games strictly before the cutoff enter. Independently
@@ -93,11 +108,15 @@ The last two slate dates are held out; all earlier dates train. At least
 are required. Activation requires at least 95% result matching, no worse
 held-out variance loss (mean(error²/variance + log variance)), and p90
 coverage within max(3 percentage points, 3 × date-level SE) of 90%.
-The holdout does not refit parameters. The loader rejects failed, missing,
-malformed, overlapping or future-dated fits.
+The holdout does not refit parameters. A rejected candidate is saved only
+to the diagnostic report; it never overwrites the last accepted fit.
+Writes replace files atomically. The loader rejects failed, missing,
+malformed, overlapping or future-dated active fits, using provisional
+parameters only when there is no usable accepted model.
 
-`model/dfs_simulation.json` is the versioned fit and decision;
-`diagnostics/dfs_calibration/RESULTS.json` records its evidence. The page
+`model/dfs_simulation.json` is the last accepted versioned fit;
+`diagnostics/dfs_calibration/RESULTS.json` records the latest candidate's
+evidence and the active model's status/date. The page
 states whether the model is provisional or native-holdout checked, with
 the small held-out sample size. Passing two dates is an early diagnostic,
 not evidence of season-long calibration, ownership accuracy or profitability.

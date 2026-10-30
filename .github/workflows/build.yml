@@ -45,7 +45,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
+          # Optional pip-cache restore previously stalled CI at the account
+          # egress limit. Install directly; keep the input-data cache below.
       - run: python -m pip install -r requirements.txt
 
       # Basketball-Reference pages, refetched at most once per ET day.
@@ -58,6 +59,21 @@ jobs:
       - name: Grade, score slate, render
         run: python build_site.py ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
 
+      # DFS-only uncertainty fitting, once per ET morning after the build
+      # has saved grading and today's pregame snapshots. Deferred runs retry
+      # on later delivered builds; a rejected fit keeps the last good model.
+      # Historical renders never train the live DFS model.
+      - name: Refit DFS uncertainty once daily
+        id: dfs_refit
+        if: ${{ !inputs.date }}
+        continue-on-error: true
+        timeout-minutes: 3
+        run: python research/dfs_calibration.py --daily --github-output "$GITHUB_OUTPUT"
+
+      - name: Render with accepted DFS update
+        if: ${{ steps.dfs_refit.outputs.updated == 'true' }}
+        run: python build_site.py --render-only
+
       # Validate and commit even if the render step failed: a pregame row
       # already written to data/ cannot be re-derived after tip (the NFL
       # site's rule). Validation runs inside this step, so a bad file still
@@ -69,7 +85,7 @@ jobs:
           python validate_data_files.py
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add data/ model/dfs_simulation.json diagnostics/dfs_calibration/RESULTS.json
           if git diff --cached --quiet; then echo "no data changes"; exit 0; fi
           git commit -m "ledger $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4; do
