@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-10-31T16:07:05Z; latest graded slate 2026-10-30 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-10-31T17:02:27Z; latest graded slate 2026-10-30 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_avail_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_neutral_avail_v11
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -32,8 +32,8 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
   ACTIVE: three tests; games 1–9 (·E) and 10+ never pooled. First-snapshot rows close at the 5 h lock's activation; the lock rows (·L) start there.
   MODEL-FAMILY RESET (registered 2026-10-29T13:58:40Z): the ·L rows close with the slate before 2026-10-29; the v11-family rows (·L·v11, lock tag _v11) start there and alone are public.
   EDGE FLOORS (registered 2026-10-29T16:13:38Z): the public spread and value-favourite tests are H5·3 (edge ≥ 3 pts) and H2·F·5 (P − q ≥ 0.05), with H4; the old-floor v11 rows are their internal supersets.
-  5 h lock active from slate 2026-10-28: 17 games locked (median 5.0 h before tip), 9 missed (no snapshot in the window).
-  v11 family from slate 2026-10-29: 14 locked with a family tag, 0 locked off-family (no tracked bet).
+  5 h lock active from slate 2026-10-28: 18 games locked (median 5.0 h before tip), 9 missed (no snapshot in the window).
+  v11 family from slate 2026-10-29: 15 locked with a family tag, 0 locked off-family (no tracked bet).
   H4           Games 10+ · value side · model P − no-vig q ≥ 0.12
     native @ first snapshot    no bets
     hindsight @ open           n=97    44-53       +19.31u  ROI  +19.9% +/- 15.9  (null -4.4%, z +1.5)  win 45.4% vs q 35.7%  | fav -10.1%
