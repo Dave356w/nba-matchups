@@ -15,13 +15,14 @@ import threading
 
 import numpy as np
 import pandas as pd
-from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import build_site as ui  # noqa: E402
 import dfs  # noqa: E402
 import ledger  # noqa: E402
+from matchup_context import MatchupContext  # noqa: E402
+import nba_composite as nc  # noqa: E402
 from public_site import PublicSite  # noqa: E402
 
 
@@ -90,7 +91,26 @@ def dfs_fixture():
             pd.DataFrame(native))
 
 
+def matchup_fixture():
+    """Explicitly synthetic prior-game context, never saved as production data."""
+    logs = {}
+    for team, n in (('BOS', 3), ('NYK', 30)):
+        totals = dict(zip(nc.COLS, [40, 85, 12, 18, 23, 10, 34, 12,
+                                   38, 84, 11, 17, 22, 9, 32, 14]))
+        logs[(2027, team)] = pd.DataFrame([
+            dict(date=date, pts=110 if i % 2 else 100, opp_pts=105, **totals)
+            for i, date in enumerate(pd.date_range(end='2026-11-18', periods=n))])
+    injuries = pd.DataFrame([
+        dict(game_id='fixture-0', tip_utc='2026-11-20T03:00:00Z', snapshot_utc='2026-11-19T22:00:00Z',
+             team='BOS', player_id='fixture', name='Example player', status='Questionable', detail='Ankle'),
+        dict(game_id='fixture-0', tip_utc='2026-11-20T03:00:00Z', snapshot_utc='2026-11-19T22:00:00Z',
+             team='NYK', player_id='', name='', status='NONE', detail='')], columns=ledger.INJURY_COLUMNS)
+    return dict(context=MatchupContext(logs), injuries=injuries)
+
+
 def main():
+    from playwright.sync_api import sync_playwright
+
     _, model = ui.load_model()
     ui.ACTIVE_TAGS = ui.active_tags(model, ui.load_avail()) if model else [ui.MODEL_TAG_V9]
     out = ROOT/'diagnostics'/'public_ui'/'screenshots'
@@ -102,7 +122,8 @@ def main():
                                   ('fixture',fixture(),'2026-11-19')):
             target = root/name
             target.mkdir()
-            pages = PublicSite(ui,native,day,'UI verification · Pacific time').render()
+            context = matchup_fixture() if name == 'fixture' else {}
+            pages = PublicSite(ui,native,day,'UI verification · Pacific time', **context).render()
             for filename, html in pages.items():
                 if name == 'fixture':
                     if filename == 'dfs.html':
@@ -152,6 +173,14 @@ def main():
                     assert page.get_by_text('Tracked picks · 5 h lock').count()==4
                     page.locator('.gcard summary').first.click()
                     assert page.get_by_role('heading',name='Recorded before play',exact=True).is_visible()
+                    card = page.locator('[data-gid="fixture-0"]')
+                    assert card.locator('.team-record').all_inner_texts() == ['(15–15)', '(1–2)']
+                    assert card.get_by_role('table', name='Season four-factor comparison before this slate').is_visible()
+                    assert card.get_by_text('Example player', exact=True).is_visible()
+                    assert card.get_by_text('Questionable', exact=True).is_visible()
+                    assert 'Source: ESPN' in card.inner_text()
+                    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                    checks.append(f'{device}: matchup context · season W/L, prior-slate four factors and timestamped player injuries passed')
                     page.get_by_role('button',name='Toggle colour theme').click()
                     assert page.locator('html').get_attribute('data-theme') in ('dark','light')
                     page.screenshot(path=str(out/f'{device}-fixture-tracked.jpg'),full_page=True,type='jpeg',quality=85)

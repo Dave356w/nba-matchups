@@ -263,6 +263,18 @@ information only, separate from DraftKings and native evidence.
 
 ## Sources of truth and engineering rules
 
+- **Public matchup context (owner request, 2026-11-01).** Today cards show
+  each team's current-season W/L beside its abbreviation. Game details show
+  season-to-date offensive and opponent four factors from saved game logs,
+  plus captured ESPN player injuries, statuses, details and timestamps.
+  Records and factors use completed regular-season games strictly before
+  the slate and require complete coverage against the forecast's GP count.
+  Factors use raw season totals, clearly distinguished from the model's
+  faded/decayed inputs. Missing data stays unavailable. Injury lists are
+  display context, labeled ESPN and distinct from the NBA report used by
+  the model. This supersedes their research-only presentation restriction
+  below. No model, rule, threshold, snapshot or grade changes.
+
 - **Public model-prediction record (owner request, 2026-10-31).** Add all
   native v11 winner predictions at their saved five-hour locks, including
   forecast-only games, to Today, Results and Performance. This explicitly
@@ -307,11 +319,11 @@ information only, separate from DraftKings and native evidence.
   validate/commit on !cancelled(), even when rendering fails. Tests gate PRs,
   never block a pregame snapshot. Other data-writing workflows use their own
   queue and retry pushes.
-- `data/nba_box_<season>.csv` and preseason boxes are model inputs. Injury
-  lists (`data/nba_injuries.csv`) shown on cards and Sleeper projections
-  (`data/nba_sleeper.csv`, first/latest snapshots) stay research-only. The ESPN
-  injury lists are retained internally rather than presented as the NBA
-  injury-report inputs. Their
+- `data/nba_box_<season>.csv` and preseason boxes are model inputs. ESPN
+  injury lists (`data/nba_injuries.csv`) are public display context under the
+  2026-11-01 request above, never presented as the NBA injury-report inputs.
+  Sleeper projections (`data/nba_sleeper.csv`, first/latest snapshots) stay
+  research-only apart from the approved DFS page. Their
   failures never stop a build or alter its probability.
 
 Before every PR: `python validate_data_files.py`, `python -m pytest tests/ -q`,

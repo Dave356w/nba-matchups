@@ -14,7 +14,7 @@ Steps
      of the first listed book in market.BOOKS (DraftKings, then ESPN BET);
      written to data/nba_ledger.csv only while before tip. Each game's ESPN
      injury list is snapshotted alongside to data/nba_injuries.csv under the
-     same pregame lock (internal research only; the model does not read it),
+     same pregame lock (public display context; the model does not read it),
      and Sleeper's (RotoWire's) projected lineups to data/nba_sleeper.csv
      (first and latest pregame snapshot; research data, read by nothing).
      Exhibitions are excluded; historical preseason rows stay untouched.
