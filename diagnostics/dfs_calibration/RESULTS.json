@@ -1,49 +1,49 @@
 {
   "version": "dfs_sim_v2",
   "accepted": true,
-  "as_of": "2026-10-31",
+  "as_of": "2026-11-01",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
-    "high:bench": 0.9766975849137044,
-    "high:starter": 1.0740592757396408,
-    "low:bench": 2.9366807297984927,
-    "mid:bench": 1.3475508669184777,
-    "mid:starter": 1.0444145740813042
+    "high:bench": 0.9647163635964646,
+    "high:starter": 1.0828593885604505,
+    "low:bench": 3.0398683158197346,
+    "mid:bench": 1.4530649792076942,
+    "mid:starter": 1.0566731755141832
   },
-  "trained_through": "2026-10-28",
-  "validation_from": "2026-10-29",
-  "validated_through": "2026-10-30",
-  "train_rows": 1129,
-  "test_rows": 268,
-  "train_dates": 7,
+  "trained_through": "2026-10-29",
+  "validation_from": "2026-10-30",
+  "validated_through": "2026-10-31",
+  "train_rows": 1192,
+  "test_rows": 344,
+  "train_dates": 8,
   "test_dates": 2,
   "factors": {
     "team": 0.0,
     "starter": 0.0,
-    "game_star": 0.04322787596293979,
-    "star_split": 0.021156940757612108,
+    "game_star": 0.04410413596771491,
+    "star_split": 0.03575650245454635,
     "center_pair": 0.0
   },
   "holdout": {
-    "n": 268,
-    "bias": -1.3601194029850745,
-    "rmse": 10.913778410524461,
-    "variance_loss": 5.770786691827205,
-    "p90_coverage": 0.8843283582089553
+    "n": 344,
+    "bias": -1.7132412790697675,
+    "rmse": 10.383745305653179,
+    "variance_loss": 5.660092671754813,
+    "p90_coverage": 0.8982558139534884
   },
   "baseline": {
-    "n": 268,
-    "bias": -1.3601194029850745,
-    "rmse": 10.913778410524461,
-    "variance_loss": 6.0451213980975655,
-    "p90_coverage": 0.8619402985074627
+    "n": 344,
+    "bias": -1.7132412790697675,
+    "rmse": 10.383745305653179,
+    "variance_loss": 5.914332294149263,
+    "p90_coverage": 0.872093023255814
   },
-  "coverage_date_se": 0.03852109949670928,
+  "coverage_date_se": 0.005176346727496062,
   "reason": "passed chronological variance-loss and p90 coverage checks",
-  "projected_rows": 1405,
-  "matched_rows": 1397,
-  "matched_games": 67,
+  "projected_rows": 1548,
+  "matched_rows": 1536,
+  "matched_games": 74,
   "model_updated": true,
-  "active_model_as_of": "2026-10-31",
-  "active_model_status": "native holdout checked \u00b7 early sample \u00b7 268 player-games / 2 dates"
+  "active_model_as_of": "2026-11-01",
+  "active_model_status": "native holdout checked \u00b7 early sample \u00b7 344 player-games / 2 dates"
 }
