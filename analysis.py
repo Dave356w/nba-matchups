@@ -226,6 +226,71 @@ def scoring(h):
     )
 
 
+def model_predictions(native):
+    """Every native v11 winner forecast at its frozen five-hour lock.
+
+    No betting threshold or market-price requirement. Both model routes and
+    neutral-input tags count; later probabilities/tags never replace the lock.
+    Opening games and unknown stages remain separate from games 1-9 and 10+.
+    """
+    if native is None or not len(native):
+        return pd.DataFrame()
+    g = native.copy()
+    p = pd.to_numeric(g['lock_p_home'], errors='coerce')
+    at = pd.to_datetime(g['lock_snapshot_utc'], utc=True, errors='coerce')
+    tip = pd.to_datetime(g['tip_utc'], utc=True, errors='coerce')
+    keep = (g['basis'].eq('native') & g['slate_date'].astype(str).ge(FAMILY_SLATE)
+            & g['lock_model_tag'].astype(str).str.endswith(FAMILY_TAGS)
+            & p.between(0, 1)
+            & at.ge(tip - pd.Timedelta(hours=5)) & at.lt(tip))
+    g, p = g.loc[keep].copy(), p.loc[keep]
+    if not len(g):
+        return g
+    home = p.ge(.5)
+    g['prediction'] = np.where(home, g['home'], g['away'])
+    g['prediction_p'] = np.where(home, p, 1 - p)
+    result = pd.to_numeric(g['home_won'], errors='coerce')
+    g['prediction_won'] = np.where(result.isin([0, 1]),
+                                   np.where(home, result, 1 - result), np.nan)
+    hp = pd.to_numeric(g['gp_home'], errors='coerce')
+    ap = pd.to_numeric(g['gp_away'], errors='coerce')
+    gp = np.minimum(hp, ap)
+    g['prediction_stage'] = np.select(
+        [gp.eq(0), gp.between(1, 9), gp.ge(10)],
+        ['opener', 'early', 'established'], default='unknown')
+    return g
+
+
+def model_prediction_summary(predictions):
+    """W/L for one season/stage, plus a same-game closing-market comparison.
+
+    Wilson 95% intervals remain meaningful for all-win/all-loss samples.
+    Market scores use only matched, graded DraftKings closing pairs; missing
+    closes never remove a game from the model's full W/L record.
+    """
+    d = predictions
+    if d is None or not len(d):
+        return dict(n=0, w=0, l=0, pending=0, accuracy=np.nan,
+                    low=np.nan, high=np.nan, comparison=None)
+    graded = d[d['prediction_won'].notna()]
+    n = len(graded)
+    w = int(graded['prediction_won'].sum())
+    acc = w / n if n else np.nan
+    z = NormalDist().inv_cdf(.975)
+    if n:
+        denom = 1 + z*z/n
+        centre = (acc + z*z/(2*n))/denom
+        radius = z*np.sqrt(acc*(1-acc)/n + z*z/(4*n*n))/denom
+        low, high = max(0., centre-radius), min(1., centre+radius)
+    else:
+        low = high = np.nan
+    frozen = graded.assign(p_home=graded['lock_p_home'], lean=graded['prediction'])
+    paired = with_close(frozen)
+    paired = paired[paired['close_book'].eq(HYPOTHESIS_BOOK)]
+    return dict(n=n, w=w, l=n-w, pending=len(d)-n, accuracy=acc,
+                low=low, high=high, comparison=scoring(paired))
+
+
 def calibration_slope(p, y, min_n=30, iters=50):
     """(slope, se, intercept, se) of the outcome on logit(p): 1 / 0 for a
     calibrated forecast (slope < 1: too confident, > 1: too timid). NaNs

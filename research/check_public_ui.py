@@ -27,7 +27,7 @@ from public_site import PublicSite  # noqa: E402
 
 def fixture():
     rows = []
-    for i, (gp, won, margin) in enumerate(((3, 1, 12), (3, 0, -5), (3, 1, 6), (30, None, None))):
+    for i, (gp, won, margin) in enumerate(((3, 1, 12), (3, 0, -5), (3, 1, 6), (30, None, None), (3, 1, 2))):
         row = dict.fromkeys(ledger.COLUMNS, np.nan)
         row.update(game_id=f'fixture-{i}', basis='native', season=2027,
             slate_date='2026-11-19', tip_utc='2026-11-20T03:00:00Z',
@@ -55,6 +55,12 @@ def fixture():
             home_won=np.nan if won is None else won,
             home_pts=np.nan if margin is None else 100+margin,
             away_pts=np.nan if margin is None else 100)
+        if won is not None:
+            row.update(close_home_ml=-150, close_away_ml=130, close_q_home=.6)
+        if i == 4:
+            # A model prediction that qualifies for no betting rule.
+            row.update(lock_p_home=.5, lock_q_home=.5, lock_spread=0,
+                       lock_ou_p_over=.5)
         rows.append(row)
     return pd.DataFrame(rows, columns=ledger.COLUMNS)
 
@@ -150,6 +156,21 @@ def main():
                     assert page.locator('html').get_attribute('data-theme') in ('dark','light')
                     page.screenshot(path=str(out/f'{device}-fixture-tracked.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/results.html')
+                    assert page.locator('[data-prediction-row]:visible').count()==5
+                    assert page.locator('[data-prediction-row][data-outcome="loss"]').count()==1
+                    page.get_by_label('Prediction outcome',exact=True).select_option('pending')
+                    assert page.locator('[data-prediction-row]:visible').count()==1
+                    page.get_by_label('Prediction stage',exact=True).select_option('early')
+                    assert page.locator('[data-prediction-row]:visible').count()==0
+                    assert page.locator('[data-predictions-empty]').is_visible()
+                    page.get_by_label('Prediction outcome',exact=True).select_option('all')
+                    assert page.locator('[data-prediction-row]:visible').count()==4
+                    page.screenshot(path=str(out/f'{device}-fixture-model-results.jpg'),full_page=True,type='jpeg',quality=85)
+                    page.get_by_role('button',name='Tracked picks',exact=True).click()
+                    assert page.locator('[data-prediction-row]:visible').count()==0
+                    page.get_by_role('button',name='Model predictions',exact=True).click()
+                    assert page.locator('[data-prediction-row]:visible').count()==4  # filters survive a view change
+                    page.get_by_role('button',name='Tracked picks',exact=True).click()
                     assert page.locator('[data-result-row]').count()==16
                     for result in ('Win','Loss','Push','Pending'):
                         assert page.locator('.result-badge',has_text=result).count()>0,result
@@ -161,6 +182,10 @@ def main():
                     assert page.locator('[data-result-row]:visible').count()==3
                     page.screenshot(path=str(out/f'{device}-fixture-results.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/performance.html')
+                    assert page.locator('#model-predictions').get_by_text('3–1',exact=True).count()==1
+                    assert page.locator('#model-predictions').get_by_text('Log loss',exact=True).count()==1
+                    assert page.locator('#model-predictions').get_by_text('Brier score',exact=True).count()==1
+                    checks.append(f'{device}: v11 model predictions · forecast-only games, W/L, matched scores, outcome/stage filters, empty states and view switching passed')
                     assert page.get_by_text('1–1–1',exact=True).count()==1
                     page.get_by_text('Benchmarks and return chart',exact=True).first.click()
                     page.screenshot(path=str(out/f'{device}-fixture-performance.jpg'),full_page=True,type='jpeg',quality=85)

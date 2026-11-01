@@ -21,6 +21,9 @@ PAGES = (("index.html", "Today"), ("results.html", "Results"),
          ("dfs.html", "DFS"))
 RULES = (("H5·3", "Spread", "spread"), ("H2·F·5", "Value favourite", "favourite"),
          ("H4", "Large probability gap", "gap"), ("OU", "Total (over/under)", "total"))
+PREDICTION_STAGES = (("early", "Early · games 1–9"),
+                     ("established", "Established · games 10+"),
+                     ("opener", "Opening games · game 0"), ("unknown", "Stage unavailable"))
 
 
 def rule_key(root, early):
@@ -75,7 +78,14 @@ CSS = """
 .public-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface)}
 .public-table th{text-align:left;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:14px 12px;background:var(--surface-2)}
 .public-table td{text-align:left;padding:14px 12px;border-top:1px solid var(--line-2)}.public-table small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
-.result-badge{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11px;font-weight:700}
+.result-badge,.prediction-badge{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:11px;font-weight:700}
+.model-pick{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--line-2);font-size:12px}
+.model-pick small{display:block;font-size:10px;color:var(--muted);margin-top:3px}.model-pick>b{text-align:right;white-space:nowrap}
+.prediction-grid .stage-panel{border:0;padding:0}.prediction-grid .stage-panel .sample{display:block;margin:6px 0 0}
+.prediction-grid .rule-panel>p{min-height:0}.prediction-comparison{width:100%;font-size:12px;border-collapse:collapse;margin-top:14px}
+.prediction-comparison th,.prediction-comparison td{text-align:right;padding:8px 4px;border-bottom:1px solid var(--line-2)}
+.prediction-comparison th:first-child,.prediction-comparison td:first-child{text-align:left}.prediction-comparison th{font-size:10px;color:var(--muted)}
+[data-record-panel][hidden],[data-prediction-row][hidden],[data-result-row][hidden]{display:none!important}
 .public-empty{padding:32px;border:1px dashed var(--line);border-radius:14px;margin:24px 0;background:var(--surface);color:var(--muted)}
 .public-empty h2{color:var(--ink);font-size:18px;margin:0 0 8px}.public-empty p{font-size:14px;margin:0;max-width:600px}
 .guide{max-width:760px}.guide section{margin:28px 0;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
@@ -103,6 +113,17 @@ controls.forEach(function(c){c.addEventListener('change',function(){var n=0;docu
 var show=true;controls.forEach(function(f){if(f.value!=='all'&&r.dataset[f.dataset.resultFilter]!==f.value)show=false;});r.hidden=!show;if(show)n++;});
 document.querySelector('[data-results-empty]').hidden=n>0;});});})();</script>"""
 
+PREDICTION_FILTER_JS = """<script>(function(){var controls=document.querySelectorAll('[data-prediction-filter]');
+controls.forEach(function(c){c.addEventListener('change',function(){var n=0;document.querySelectorAll('[data-prediction-row]').forEach(function(r){
+var show=true;controls.forEach(function(f){if(f.value!=='all'&&r.dataset[f.dataset.predictionFilter]!==f.value)show=false;});r.hidden=!show;if(show)n++;});
+document.querySelector('[data-predictions-empty]').hidden=n>0;});});
+var bar=document.querySelector('[data-record-view]');bar.hidden=false;
+bar.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
+bar.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
+document.querySelectorAll('[data-record-panel]').forEach(function(x){x.hidden=x.dataset.recordPanel!==b.dataset.view;});});
+document.querySelector('[data-record-panel="tracked"]').hidden=true;
+})();</script>"""
+
 
 class PublicSite:
     def __init__(self, ui, native, today, built, model_ok=True):
@@ -112,6 +133,7 @@ class PublicSite:
         if len(self.native):
             self.native = self.native[self.native["basis"].eq("native")]
         self.season = ui.season_for(today)
+        self.predictions = analysis.model_predictions(self.native)
         self.hypotheses = {h["key"]: h for h in analysis.public_hypotheses() + analysis.OU_TESTS}
         self.records = []
         # Model-family reset and edge floors (CLAUDE.md amendments 2026-10-29):
@@ -220,6 +242,14 @@ class PublicSite:
                    "No tracked rule qualified at the 5 h lock.")
             tracking = f"<div class='forecast-only'><b>Forecast only</b><br>{why}</div>"
         forecast += self.ou_readout(row, dk)
+        if len(self.predictions):
+            saved = self.predictions[self.predictions.game_id.astype(str).eq(str(row.game_id))]
+            if len(saved):
+                pick = saved.iloc[0]
+                result = self.prediction_result(pick)
+                forecast += (f"<div class='model-pick'><span>Model pick · 5 h lock"
+                             f"<small>{u.esc(pick.prediction)} · {u.pct(pick.prediction_p)} at lock</small></span>"
+                             f"<b>{result}<small><a href='results.html'>Model record →</a></small></b></div>")
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
         detail = (f"<h3>Forecast and market</h3><p>{u.esc(row.away)} @ {u.esc(row.home)} · {u.esc(book)} prices. "
@@ -256,7 +286,12 @@ class PublicSite:
 
     def results_page(self):
         u = self.ui
-        body = self.head("Tracked results", "Every qualifying selection at its original price. Wins, losses and pending picks stay in the record.")
+        body = self.head("Results", "Every v11 model prediction and every tracked selection, recorded before play.")
+        body += ("<div class='seg' data-record-view role='group' aria-label='Results view' hidden>"
+                 "<button type='button' data-view='predictions' aria-pressed='true'>Model predictions</button>"
+                 "<button type='button' data-view='tracked' aria-pressed='false'>Tracked picks</button></div>"
+                 "<section data-record-panel='predictions'>" + self.prediction_results() + "</section>"
+                 "<section data-record-panel='tracked'><h2 class='sec'>Tracked picks</h2>")
         body += ("<p class='public-note'>Four separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
                  "Picks lock at the first priced snapshot within 5 hours of tip.</p>" + self.restart_note())
         if not self.records:
@@ -286,7 +321,89 @@ class PublicSite:
                             f"data-season='{rec['season']}'>"+"".join(f"<td data-label='{l}'>{v}</td>" for l,v in zip(labels,cells))+"</tr>")
             body += "<table class='public-table'><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)+"</tr></thead><tbody>"+"".join(rows)+"</tbody></table>"
             body += "<div class='public-empty' data-results-empty hidden><p>No picks match these filters.</p></div>"+RESULT_FILTER_JS
+        body += "</section>" + PREDICTION_FILTER_JS
         return self.page("Results · NBA Composite", "results.html", body)
+
+    @staticmethod
+    def prediction_result(row):
+        return "Pending" if pd.isna(row.prediction_won) else "Win" if row.prediction_won == 1 else "Loss"
+
+    def prediction_results(self):
+        u, d = self.ui, self.predictions
+        body = ("<h2 class='sec'>Model predictions · v11</h2><p class='public-note'>One winner prediction per game, "
+                "frozen at the 5 h lock, whether or not a tracked betting rule qualifies. "
+                "Pending games have no W/L result. The closing favourite is a later benchmark.</p>")
+        if not len(d):
+            return body + "<div class='public-empty'><h3>No locked v11 predictions yet</h3><p>Predictions appear here after a valid five-hour snapshot is saved.</p></div>"
+        options = (("stage", "Prediction stage", [("all", "All stages")]+list(PREDICTION_STAGES)),
+                   ("season", "Prediction season", [("all", "All seasons")]+[(str(s),u.season_txt(s)) for s in sorted(set(d.season.astype(int)), reverse=True)]),
+                   ("outcome", "Prediction outcome", [("all", "All outcomes"),("win", "Win"),("loss", "Loss"),("pending", "Pending")]))
+        body += "<div class='public-filters'>" + "".join(
+            f"<div><label for='prediction-{key}'>{name}</label><select id='prediction-{key}' data-prediction-filter='{key}'>"
+            + "".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></div>"
+            for key,name,opts in options) + "</div>"
+        labels = ["Game", "Stage / season", "Model pick", "Recorded at", "Outcome", "Closing favourite"]
+        rows = []
+        for _, r in d.sort_values(['tip_utc','game_id'], ascending=False).iterrows():
+            result = self.prediction_result(r)
+            q = pd.to_numeric(r.get('close_q_home'), errors='coerce')
+            done = pd.notna(r.prediction_won)
+            close_prices = [pd.to_numeric(r.get(c), errors='coerce') for c in ('close_home_ml','close_away_ml')]
+            if done and r.get('close_book') == analysis.HYPOTHESIS_BOOK and 0 < q < 1 and np.isfinite(close_prices).all():
+                fav = r.home if q >= .5 else r.away
+                won = (q >= .5) == (float(r.home_won) == 1)
+                closing = f"{u.esc(fav)}<small>{'Win' if won else 'Loss'} · {u.pct(max(q,1-q))}</small>"
+            else:
+                closing = '—<small>' + ('Close unavailable' if done else 'Awaiting close') + '</small>'
+            cells = [f"{u.esc(r.away)} @ {u.esc(r.home)}<small>{u.esc(r.slate_date)} · {u.tip_pt(r.tip_utc)}</small>",
+                     f"{dict(PREDICTION_STAGES)[r.prediction_stage]}<small>{u.season_txt(int(r.season))}</small>",
+                     f"{u.esc(r.prediction)}<small>{u.pct(r.prediction_p)} win chance · v11</small>",
+                     f"{u.tip_pt(r.lock_snapshot_utc)}<small>5 h lock · {u.esc(str(r.lock_snapshot_utc)[:10])}</small>",
+                     f"<span class='prediction-badge'>{result}</span>", closing]
+            rows.append(f"<tr data-prediction-row data-stage='{r.prediction_stage}' data-season='{int(r.season)}' data-outcome='{result.lower()}'>"
+                        + "".join(f"<td data-label='{label}'>{value}</td>" for label,value in zip(labels,cells))+"</tr>")
+        return (body + "<table class='public-table'><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)
+                + "</tr></thead><tbody>"+"".join(rows)+"</tbody></table>"
+                + "<div class='public-empty' data-predictions-empty hidden><p>No predictions match these filters.</p></div>")
+
+    def prediction_performance(self):
+        u, d = self.ui, self.predictions
+        body = ("<section id='model-predictions'><h2 class='sec'>Model predictions · v11</h2>"
+                "<p class='public-note'>Every winner prediction frozen at the 5 h lock, including forecast-only games. "
+                "This W/L record measures game predictions; betting returns are shown separately below. "
+                "Each season and stage has its own record.</p>")
+        seasons = sorted({self.season} | (set(d.season.astype(int)) if len(d) else set()), reverse=True)
+        for season in seasons:
+            sd = d[d.season.astype(int).eq(season)] if len(d) else d
+            body += f"<h3>{u.season_txt(season)} · v11 · 5 h lock</h3><div class='rule-grid prediction-grid'>"
+            for stage, label in PREDICTION_STAGES:
+                part = sd[sd.prediction_stage.eq(stage)] if len(sd) else sd
+                if stage in ('opener', 'unknown') and not len(part):
+                    continue
+                r = analysis.model_prediction_summary(part)
+                body += f"<article class='rule-panel'><section class='stage-panel'><h3>{label}</h3>"
+                if not r['n']:
+                    body += f"<div class='empty-stage'>No graded predictions yet</div><div class='empty-help'>{r['pending']} pending</div>"
+                else:
+                    body += (f"<span class='record'>{r['w']}–{r['l']}</span><span class='sample'>{r['n']} graded · {r['pending']} pending</span>"
+                             f"<div class='stage-stats'><div>Winner accuracy<b>{u.pct(r['accuracy'])}</b></div>"
+                             f"<div>95% Wilson interval<b>{u.pct(r['low'],0)}–{u.pct(r['high'],0)}</b></div></div>")
+                c = r['comparison']
+                if c:
+                    mw, fw = (int(round(c[k]['acc']*c['n'])) for k in ('model','market'))
+                    body += (f"<p class='null'>Closing favourite: {fw}–{c['n']-fw} · {u.pct(c['market']['acc'])}. "
+                             f"Model on those same {c['n']} games: {mw}–{c['n']-mw}. "
+                             "Games without a usable DraftKings close stay in the model record above.</p>"
+                             "<table class='prediction-comparison'><caption>Probability quality · lower is better</caption>"
+                             "<thead><tr><th>Score</th><th>Model at lock</th><th>Market at close</th></tr></thead><tbody>"
+                             + "".join(f"<tr><td>{name}</td><td>{c['model'][key]:.4f}</td><td>{c['market'][key]:.4f}</td></tr>"
+                                       for key,name in (('logloss','Log loss'),('brier','Brier score')))
+                             + "</tbody></table>")
+                else:
+                    body += "<p class='null'>The market comparison appears when graded games have usable DraftKings closing prices.</p>"
+                body += "</section></article>"
+            body += "</div>"
+        return body + "<p class='public-note'>Accuracy is wins divided by graded predictions. Small samples have wide uncertainty. A high win rate alone does not establish profitable betting.</p></section>"
 
     def stage(self, hyp, season):
         u = self.ui
@@ -335,7 +452,9 @@ class PublicSite:
 
     def performance_page(self):
         u = self.ui
-        body = self.head("The forward record", "Four registered tests, tracked from prices saved before play. Each test and season stage stands on its own.")
+        body = self.head("The forward record", "Every v11 model prediction, followed by four separate betting tests. Each season and stage stands on its own.")
+        body += self.prediction_performance()
+        body += "<h2 class='sec'>Tracked betting tests</h2><p class='public-note'>Four registered tests, each with its own forward record.</p>"
         body += "<p class='public-note'>Returns use a flat 1 unit per pick. ROI is return divided by stakes. The market-price baseline includes the bookmaker’s margin. A small sample can move sharply.</p>"
         body += self.restart_note()
         seasons = sorted({self.season}|{r['season'] for r in self.records},reverse=True)
@@ -362,6 +481,10 @@ class PublicSite:
 <p><b>Tracked pick</b> means a registered rule qualified at the game’s lock: the first priced snapshot within 5 hours of tip. Until then a game shows its forecast only. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
 <section><h2>One model, before the game</h2><p>The model combines prior-game team performance, roster talent, schedule and available NBA injury-report information. It predicts a points margin and converts it to a win probability. Market prices are a comparison, not a model input.</p>
 """ + self.model_note() + """<p>Only information saved before tip is used for a live prediction. Each team’s first game has a forecast but sits outside the tracked rules. Early-season forecasts have less current-season information, and injury-report timing can affect them.</p></section>
+<section><h2>Every v11 model prediction has a record</h2>
+<p>Results includes one winner pick per game from the saved five-hour v11 snapshot, even when no betting test qualifies. Pick the home team at a 50% tie. The pick and probability stay fixed after the lock; later forecast updates never change its grade. No valid lock means no recorded prediction. Rebuilt games and predictions from earlier model versions are excluded.</p>
+<p>Performance shows W/L, winner accuracy and pending counts separately for each season and for games 1–9 and games 10+. Opening games and games whose stage is unavailable have their own records when present. Pending predictions do not enter accuracy. The 95% Wilson interval shows uncertainty, including when every prediction has won or lost.</p>
+<p>The closing favourite is a later market benchmark on the same graded games with usable DraftKings closes. Missing closes do not remove games from the model W/L record. Log loss and Brier score compare the locked model probabilities with the closing market probabilities; lower scores are better. Winner accuracy measures predictions, while the four betting tests below measure returns.</p></section>
 <section><h2>Four fixed tracking rules</h2>
 <p>Rules use the probability and DraftKings prices saved at the lock, the first priced snapshot within 5 hours of tip. By then most of each day’s NBA injury report is in, though the price may have moved from its opening. No rule is adjusted to fit later outcomes.</p>
 <h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the locked win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 3 points, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>

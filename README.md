@@ -6,8 +6,8 @@ Actions: <https://dave356w.github.io/nba-matchups/>.
 | Public page | Purpose |
 |---|---|
 | Today | One probability, predicted margin and total per game, current DraftKings prices, and each tracked pick once its game locks (the first priced snapshot within 5 hours of tip). |
-| Results | Every tracked win, loss, push and pending pick; filters for test, stage and season. |
-| Performance | Spread (H5·3), value favourite (H2·F·5), large probability gap (H4) and total (OU), each with separate games 1–9 and games 10+ records per season, uncertainty and same-game benchmarks. No combined portfolio return. |
+| Results | Every frozen v11 winner prediction, including forecast-only games, with stage, season and outcome filters; a separate view contains every tracked win, loss, push and pending bet. |
+| Performance | Every v11 prediction's W/L, accuracy, pending count and Wilson 95% interval, with same-game closing-favourite W/L, log loss and Brier scores. Separate betting records for spread (H5·3), value favourite (H2·F·5), large probability gap (H4) and total (OU). Each season and stage stands alone. No combined portfolio return. |
 | How it works | Plain-language forecast, rule, timing and results definitions. |
 | DFS lineups | A Yahoo classic-contest lineup optimizer for the day's slate: Yahoo salaries with Sleeper's projections in Yahoo scoring; the best lineups are found in the browser for the main, early or late slate by start time (lock, exclude, re-project, exposure caps). Cash mode maximizes projected points; tournament mode simulates the slate with each player's measured spread and correlations (`diagnostics/dfs_correlation/`), solves every simulated slate exactly and ranks lineups by how often they finish in the top 5%. A separate tool: no forecast, tracked pick or record. |
 
@@ -18,6 +18,13 @@ first-snapshot and 5 h-lock rows stay graded in the internal workbench and
 `data/ledger_report.txt`, never pooled. Forecast-only games, rebuilt
 history, retired rules, coefficient tables, price-band comparisons and
 exploratory diagnostics remain research outputs.
+
+The model-prediction record reads every native v11 five-hour lock from
+2026-10-29, with no betting threshold and no market-price requirement.
+Later forecast updates cannot change a recorded prediction. Missing locks
+are never replaced with a later forecast. Opening games and unknown stages
+get their own rows when present. Missing closes remain in the model W/L;
+the market comparison uses only matched, graded DraftKings closing pairs.
 
 `public/` is exclusively generated publication output. It contains only the
 five approved HTML pages and `.nojekyll`; stale files and directories are
