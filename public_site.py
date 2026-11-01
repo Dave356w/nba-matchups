@@ -348,7 +348,8 @@ class PublicSite:
                 items.append(f"<li><div class='inj-player'><b>{u.esc(player['name'])}</b><span class='badge'>{u.esc(player.status)}</span></div>{detail}</li>")
             if not items:
                 items = ['<li>None listed in captured report.</li>' if len(t) else '<li>Injury list unavailable for this team.</li>']
-            stamp = f"<small>Captured {u.esc(str(t.snapshot_utc.iloc[0])[:10])} · {u.tip_pt(t.snapshot_utc.iloc[0])}</small>" if len(t) else ''
+            captured = pd.Timestamp(t.snapshot_utc.iloc[0]).tz_convert(u.PT) if len(t) else None
+            stamp = f"<small>Captured {captured.strftime('%b %-d, %Y · %-I:%M %p PT')}</small>" if captured is not None else ''
             html += f"<section class='inj-team'><h4>{u.esc(u.TEAM_NAMES.get(team, team))} · {u.esc(team)}</h4><ul>{''.join(items)}</ul>{stamp}</section>"
         return (html + "<p class='context-note'>Source: ESPN pregame injury list. Display context only; the model uses the NBA’s official injury report separately. "
                 'Lists refresh before tip and freeze afterward; the capture time can differ from the model lock.</p>')

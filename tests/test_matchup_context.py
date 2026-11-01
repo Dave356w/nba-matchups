@@ -88,6 +88,9 @@ def test_cards_show_records_factors_and_distinct_injury_source_with_safe_missing
     assert 'Questionable' in card and 'None listed in captured report' in card
     assert 'Source: ESPN' in card and 'NBA’s official injury report separately' in card
     assert 'Other game' not in card and 'After tip' not in card
+    injuries.loc[0, 'snapshot_utc'] = '2026-11-19T00:15:00Z'
+    # Both the date and the clock use Pacific time across UTC midnight.
+    assert 'Captured Nov 18, 2026 · 4:15 PM PT' in site.card(row)
     empty = PublicSite(ui, pd.DataFrame([row]), row.slate_date, 'built', context=MatchupContext(),
                        injuries=pd.DataFrame(columns=ledger.INJURY_COLUMNS)).card(row)
     assert 'Season record unavailable' in empty and 'Season comparison unavailable' in empty
