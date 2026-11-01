@@ -263,6 +263,19 @@ information only, separate from DraftKings and native evidence.
 
 ## Sources of truth and engineering rules
 
+- **Public model-prediction record (owner request, 2026-10-31).** Add all
+  native v11 winner predictions at their saved five-hour locks, including
+  forecast-only games, to Today, Results and Performance. This explicitly
+  extends the prior public-only-registered-tests presentation rule. Keep
+  prediction W/L separate from betting returns. Read lock P/tag/time only;
+  never rescore or substitute the latest forecast. Both routes and neutral
+  tags count. No thresholds or prices are required for forecast membership.
+  Keep season and stage separate; opening games and unknown stages get
+  distinct rows. Pending games do not enter accuracy. Show Wilson 95%
+  intervals and matched closing-favourite W/L, log loss and Brier scores.
+  Missing closes stay in the full model record. Earlier versions, rebuilt
+  rows and research records stay outside the public forecast record.
+
 - Read `docs/model_guidelines.md` before a model or rule change. The model
   is `MODEL.md` / `nba_composite.py`; prices are `market.py`; pregame locks
   and schema are `ledger.py`; grading/statistics are `analysis.py`.
