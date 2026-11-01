@@ -15,6 +15,7 @@ import analysis
 import dfs
 import ledger
 import market
+from matchup_context import MatchupContext
 
 PAGES = (("index.html", "Today"), ("results.html", "Results"),
          ("performance.html", "Performance"), ("how-it-works.html", "How it works"),
@@ -35,6 +36,7 @@ def rule_key(root, early):
     return root + ("·E" if early else "") + "·L·v11"
 
 CSS = """
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .public-head{display:flex;justify-content:space-between;gap:24px;align-items:end;margin:30px 0 24px}
 .public-head h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.04em;margin:8px 0}
 .public-head p{color:var(--muted);max-width:650px;margin:8px 0 0;font-size:15px}
@@ -52,6 +54,16 @@ CSS = """
 .pub-team .tchip{width:28px;height:28px}.pub-team .tn{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pub-team small{display:block;font-size:10px;color:var(--muted)}.pub-team .px{text-align:right;font:600 12px var(--mono)}
 .pub-team .sc{text-align:right;font:700 16px var(--mono)}
+.team-record{font-weight:400;white-space:nowrap;margin-left:5px}
+.factor-table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+.factor-table th,.factor-table td{padding:7px 3px;border-bottom:1px solid var(--line-2);text-align:right}
+.factor-table th:first-child,.factor-table td:first-child{text-align:left}
+.factor-table thead th{font-size:10px;color:var(--muted)}.factor-table .factor-group th{padding-top:12px;color:var(--muted);font-size:10px;text-align:left}
+.factor-best{font-weight:750;color:rgb(var(--accent-tx));background:rgba(var(--accent),.07)}
+.tool-card .context-note{font-size:11px;line-height:1.5}.inj-team{margin-top:12px}
+.inj-team h4{font-size:12px;margin:0 0 4px}.inj-team ul{list-style:none;margin:0;padding:0}
+.inj-team li{padding:7px 0;border-bottom:1px solid var(--line-2)}.inj-player{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.inj-team small{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.inj-team .badge{white-space:normal;text-align:right}
 .forecast-readout{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 0;margin-top:8px;border-top:1px solid var(--line-2)}
 .forecast-readout small,.tracked-label{display:block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .forecast-readout strong{display:block;font:750 24px/1.35 var(--sans);letter-spacing:-.03em}.forecast-readout span{font-size:12px;color:var(--muted)}
@@ -126,13 +138,21 @@ document.querySelector('[data-record-panel="tracked"]').hidden=true;
 
 
 class PublicSite:
-    def __init__(self, ui, native, today, built, model_ok=True):
+    def __init__(self, ui, native, today, built, model_ok=True, context=None, injuries=None):
         self.ui, self.today, self.built, self.model_ok = ui, today, built, model_ok
         self.built_utc = pd.Timestamp(ledger.utc_now())
         self.native = native.copy() if native is not None else ledger.empty()
         if len(self.native):
             self.native = self.native[self.native["basis"].eq("native")]
         self.season = ui.season_for(today)
+        day = self.native[self.native.slate_date.astype(str).eq(today)]
+        self.context = context if context is not None else MatchupContext.saved(day)
+        if injuries is None:
+            try:
+                injuries = ledger.load_injuries()
+            except (OSError, ValueError, KeyError):
+                injuries = pd.DataFrame(columns=ledger.INJURY_COLUMNS)
+        self.injuries = injuries
         self.predictions = analysis.model_predictions(self.native)
         self.hypotheses = {h["key"]: h for h in analysis.public_hypotheses() + analysis.OU_TESTS}
         self.records = []
@@ -207,12 +227,17 @@ class PublicSite:
         final = np.isfinite(number("home_won"))
         status = "Final" if final else "Pregame"
         teams = []
+        context = {side: self.context.team(row, side) for side in ('away', 'home')}
         for side in ("away", "home"):
             team = row[side]
             pts = number(f"{side}_pts")
             line = number("pre_spread") * (-1 if side == "away" else 1) if dk else np.nan
+            record = context[side]['record']
+            record_text = f'{record[0]}–{record[1]}' if record is not None else '—'
+            record_title = 'Season W/L before this slate' if record is not None else 'Season record unavailable'
             teams.append(f"<div class='pub-team'><div class='tchip'><span>{u.esc(team)}</span>{u.logo_html(team)}</div>"
-                f"<div class='tn'>{u.esc(u.TEAM_NAMES.get(team,team))}<small>{'@ ' if side == 'home' else ''}{u.esc(team)}</small></div>"
+                f"<div class='tn'>{u.esc(u.TEAM_NAMES.get(team,team))}<small>{'@ ' if side == 'home' else ''}{u.esc(team)}"
+                f"<span class='team-record' title='{record_title}' aria-label='{u.esc(team)} {record_title}: {record_text}'>({record_text})</span></small></div>"
                 f"<div class='px'>{u.ml_txt(number(f'pre_{side}_ml') if dk else np.nan)}<small>{u.line_txt(line) if np.isfinite(line) else '—'}</small></div>"
                 f"<span class='sc' data-side='{side}'>{int(pts) if np.isfinite(pts) else ''}</span></div>")
         if np.isfinite(p):
@@ -261,12 +286,72 @@ class PublicSite:
                        "A game can qualify for multiple tests; each keeps its own record.</p>")
         if str(row.get("model_tag", "")) in u.AVAIL_TAGS:
             detail += "<p>The model includes the NBA injury report available when this forecast was saved.</p>"
+        detail += self.factor_details(row, context) + self.injury_details(row)
         detail += "<p><a href='how-it-works.html'>How forecasts and tracked picks work →</a></p>"
         return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(recs))}' data-state='{'final' if final else 'upcoming'}'>"
                 f"<summary><div class='g-meta'><span>{u.tip_pt(row.tip_utc)}</span><span class='badge st'>{status}</span></div>"
                 + "".join(teams) + forecast + tracking
                 + "<span class='details-cue'>Game details<i aria-hidden='true'>⌄</i></span></summary>"
                 + f"<div class='g-detail'>{detail}</div></details>")
+
+    def factor_details(self, row, context):
+        u = self.ui
+        heading = '<h3>Four factors · season to date</h3>'
+        labels = (('Effective FG% ↑', '%', True), ('Turnovers / 100 poss. ↓', '', False),
+                  ('Offensive rebound% ↑', '%', True), ('FTA / FGA ↑', '%', True),
+                  ('Effective FG% ↓', '%', False), ('Turnovers / 100 poss. ↑', '', True),
+                  ('Offensive rebound% ↓', '%', False), ('FTA / FGA ↓', '%', False))
+        if all(context[s]['factors'] is None for s in ('away', 'home')):
+            return heading + '<p class="context-note">Season comparison unavailable: no complete prior-game box-score totals were saved.</p>'
+        html = (heading + "<table class='factor-table'><caption class='sr-only'>Season four-factor comparison before this slate</caption>"
+                f"<thead><tr><th scope='col'>Factor</th><th scope='col'>{u.esc(row.away)}</th><th scope='col'>{u.esc(row.home)}</th></tr></thead><tbody>")
+        for i, (label, unit, higher) in enumerate(labels):
+            if i in (0, 4):
+                html += f"<tr class='factor-group'><th colspan='3' scope='rowgroup'>{'Team offense' if i == 0 else 'Opponent rates allowed'}</th></tr>"
+            values = [np.nan if context[s]['factors'] is None else context[s]['factors'][i] for s in ('away', 'home')]
+            html += f"<tr><th scope='row'>{label}</th>"
+            for j, value in enumerate(values):
+                # Do not mark invisible differences between identically rounded values.
+                a, b = round(value, 1), round(values[1-j], 1)
+                best = np.isfinite(values).all() and ((a > b) if higher else (a < b))
+                text = f'{value:.1f}{unit}' if np.isfinite(value) else '—'
+                html += f"<td class='{'factor-best' if best else ''}'>{text}</td>"
+            html += '</tr>'
+        samples = ' · '.join(f"{u.esc(row[s])}: {context[s]['games']} games" for s in ('away', 'home') if context[s]['factors'] is not None)
+        before = (pd.Timestamp(row.slate_date) - pd.Timedelta(days=1)).strftime('%b %-d, %Y')
+        return (html + '</tbody></table>' + f"<p class='context-note'>Regular season through {before} · {samples}. "
+                'Basketball-Reference season totals, without decay or prior-season blending. Arrows show the better direction; shaded values lead this comparison. '
+                'eFG% = (FG + 0.5 × 3P) / FGA; rebound% = ORB / (ORB + opponent DRB); FTA / FGA measures free-throw attempts per field-goal attempt.</p>')
+
+    def injury_details(self, row):
+        u = self.ui
+        html = '<h3>Player injuries</h3>'
+        g = self.injuries[self.injuries.game_id.astype(str).eq(str(row.game_id))]
+        at = pd.to_datetime(g.snapshot_utc, utc=True, errors='coerce')
+        tip = pd.to_datetime(row.tip_utc, utc=True, errors='coerce')
+        g = g[at.notna() & (at < tip)]
+        if not len(g):
+            return html + '<p class="context-note">No pregame injury list was captured for this game.</p>'
+        order = {'Out': 0, 'Doubtful': 1, 'Questionable': 2, 'Day-To-Day': 3, 'Probable': 4}
+        for side in ('away', 'home'):
+            team = row[side]
+            t = g[g.team.eq(team)]
+            # Keep only this team's latest captured list, never a mixed edition.
+            if len(t):
+                at = pd.to_datetime(t.snapshot_utc, utc=True)
+                t = t[at.eq(at.max())]
+            listed = t[~t.status.isin(('NONE', ''))].copy()
+            listed['order'] = listed.status.map(order).fillna(len(order))
+            items = []
+            for _, player in listed.sort_values(['order', 'name'], kind='stable').iterrows():
+                detail = f'<small>{u.esc(player.detail)}</small>' if player.detail else ''
+                items.append(f"<li><div class='inj-player'><b>{u.esc(player['name'])}</b><span class='badge'>{u.esc(player.status)}</span></div>{detail}</li>")
+            if not items:
+                items = ['<li>None listed in captured report.</li>' if len(t) else '<li>Injury list unavailable for this team.</li>']
+            stamp = f"<small>Captured {u.esc(str(t.snapshot_utc.iloc[0])[:10])} · {u.tip_pt(t.snapshot_utc.iloc[0])}</small>" if len(t) else ''
+            html += f"<section class='inj-team'><h4>{u.esc(u.TEAM_NAMES.get(team, team))} · {u.esc(team)}</h4><ul>{''.join(items)}</ul>{stamp}</section>"
+        return (html + "<p class='context-note'>Source: ESPN pregame injury list. Display context only; the model uses the NBA’s official injury report separately. "
+                'Lists refresh before tip and freeze afterward; the capture time can differ from the model lock.</p>')
 
     def today_page(self):
         u = self.ui
@@ -454,7 +539,7 @@ class PublicSite:
         u = self.ui
         body = self.head("The forward record", "Every v11 model prediction, followed by four separate betting tests. Each season and stage stands on its own.")
         body += self.prediction_performance()
-        body += "<h2 class='sec'>Tracked betting tests</h2><p class='public-note'>Four registered tests, each with its own forward record.</p>"
+        body += "<h2 class='sec'>Tracked betting tests</h2><p class='public-note'>Four registered tests, each with its own forward record. Every qualifying pick is included, with wins, losses, pushes and pending picks.</p>"
         body += "<p class='public-note'>Returns use a flat 1 unit per pick. ROI is return divided by stakes. The market-price baseline includes the bookmaker’s margin. A small sample can move sharply.</p>"
         body += self.restart_note()
         seasons = sorted({self.season}|{r['season'] for r in self.records},reverse=True)
@@ -479,6 +564,8 @@ class PublicSite:
 <p>The prices beside the teams come from DraftKings. The small number below each moneyline is that team’s spread. All times are Pacific (PT).</p>
 <p><b>Total</b> shows the model’s expected combined score beside the DraftKings total, and which side the model leans to: its chance of the over against the market’s after removing the bookmaker’s margin.</p>
 <p><b>Tracked pick</b> means a registered rule qualified at the game’s lock: the first priced snapshot within 5 hours of tip. Until then a game shows its forecast only. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
+<section><h2>Team records and game details</h2><p>The W/L beside each team abbreviation is its current regular-season record before this slate. Four-factor comparisons use completed games strictly before the slate: effective field-goal percentage, turnovers per 100 possessions, offensive rebounding share and free-throw attempts per field-goal attempt, for team offense and opponents. These are season totals without the decay or prior-season blending used by the model. Arrows show the better direction; missing or incomplete inputs are marked unavailable.</p>
+<p>Player injuries come from the captured ESPN pregame list, with each team’s capture time, player status and listed reason. This is display context, separate from the NBA’s official injury report used by the model. Injury lists can change before tip; they freeze afterward and do not rewrite a locked pick.</p></section>
 <section><h2>One model, before the game</h2><p>The model combines prior-game team performance, roster talent, schedule and available NBA injury-report information. It predicts a points margin and converts it to a win probability. Market prices are a comparison, not a model input.</p>
 """ + self.model_note() + """<p>Only information saved before tip is used for a live prediction. Each team’s first game has a forecast but sits outside the tracked rules. Early-season forecasts have less current-season information, and injury-report timing can affect them.</p></section>
 <section><h2>Every v11 model prediction has a record</h2>
