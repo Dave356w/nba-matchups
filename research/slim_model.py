@@ -26,7 +26,9 @@ in data/nba_box_<season>.csv (g = min of the two teams): games 1–9 and 10+
 separate; game 0 is not in the file. Market: the reconstructed close
 (data/nba_reconstructed.csv), one book per row; only the 2024-25 ESPN BET and
 2025-26 DraftKings / ESPN BET rows have one. Hindsight research only: no
-model, rule, threshold, snapshot or tag changes.
+model, rule, threshold, snapshot or tag changes. ATS (added 2026-11-03 on the
+owner's request): each arm's side against the same closing spread, flat
+units, descriptive edge floors 0 / 1 / 3, never a selected rule.
 """
 import json
 import math
@@ -144,10 +146,73 @@ def market(d, P, label):
             print(f"  {s - 1}-{str(s)[2:]} {book:8s} {name:10s} n {len(g2):4d}  close {cl.mean():.4f}\n      {row}")
 
 
+def ats(d, P, M, label):
+    """Each arm's side against the reconstructed closing spread (one book per
+    row; both prices in the main-line window -135..+115, as H5). Two margins:
+    the arm's own fitted margin, and H5's registered 13.5 x Phi^-1(P). edge =
+    margin + home line; home when edge > 0. Flat 1 unit at the side's close
+    price; a push returns the stake. ROI ± 95% against the no-vig null
+    (q x decimal - 1, the same bets at a fair price). Rules descriptive."""
+    import sys
+    sys.path.insert(0, str(ROOT))
+    import market
+    from statistics import NormalDist
+    nd = NormalDist()
+    line = d.close_spread.values
+    hso, aso = d.close_home_spread_odds.values, d.close_away_spread_odds.values
+    ok = (np.isfinite(line) & (hso >= -135) & (hso <= 115) & (aso >= -135) & (aso <= 115)
+          & P["full8"].notna().values & (d.gp >= 1).values)
+    print(f"\n== {label}: ATS at the reconstructed close, main-line prices, ± 95%; "
+          "ROI null = the same bets at no-vig prices")
+    res_home = np.array([market.ats_result(m, l) if o else np.nan
+                         for m, l, o in zip(d.margin.values, line, ok)])
+    q_home = np.array([market.devig(h, a) if o else np.nan for h, a, o in zip(hso, aso, ok)])
+    rows = []
+    for a in ARMS:
+        if a not in ("full8", "slim6"):
+            continue
+        for how in ("own margin", "H5 13.5"):
+            m = (M[a].values if how == "own margin"
+                 else np.array([13.5 * nd.inv_cdf(min(max(p, 1e-9), 1 - 1e-9)) if np.isfinite(p) else np.nan
+                                for p in P[a].values]))
+            edge = m + line
+            home = edge > 0
+            res = np.where(home, res_home, 1 - res_home)
+            ml = np.where(home, hso, aso)
+            q = np.where(home, q_home, 1 - q_home)
+            rows.append((a, how, edge, res, ml, q))
+    for (s, book), g in d[ok].groupby(["season", "close_book"]):
+        for stg, sm in [("games 1–9", (g.gp <= 9)), ("games 10+", (g.gp >= 10))]:
+            idx = g.index[sm.values]
+            if len(idx) < 30:
+                continue
+            print(f"  {s - 1}-{str(s)[2:]} {book} {stg} (n {len(idx)})")
+            for a, how, edge, res, ml, q in rows:
+                cells = []
+                for floor in (0, 1, 3):
+                    j = idx[np.abs(edge[idx]) >= floor] if floor else idx
+                    if len(j) == 0:
+                        cells.append(f"edge≥{floor}: none")
+                        continue
+                    r_, ml_, q_ = res[j], ml[j], q[j]
+                    u = np.array([0.0 if x == 0.5 else market.unit_profit(m_, x == 1) for x, m_ in zip(r_, ml_)])
+                    nul = q_ * np.array([market.decimal_payout(m_) for m_ in ml_]) - 1
+                    w, l_, pu = int((r_ == 1).sum()), int((r_ == 0).sum()), int((r_ == 0.5).sum())
+                    roi = u.mean()
+                    se = 1.96 * u.std(ddof=1) / math.sqrt(len(u)) if len(u) > 1 else float("nan")
+                    cells.append(f"edge≥{floor}: {w}-{l_}-{pu} {w / max(1, w + l_):.1%} "
+                                 f"ROI {roi:+.3f} ± {se:.3f} (null {nul.mean():+.3f})")
+                print(f"      {a:5s} {how:10s} " + " | ".join(c if i else c.replace('edge≥0', 'all') for i, c in enumerate(cells)))
+            # agreement between the two arms (own margin)
+            same = np.mean(np.sign(rows[0][2][idx]) == np.sign(rows[2][2][idx]))
+            print(f"      sides agree (own margin) {same:.1%}")
+
+
 def main():
     d = pd.read_csv(ROOT / "model/avail_train.csv")
     r = pd.read_csv(ROOT / "data/nba_reconstructed.csv",
-                    usecols=["season", "slate_date", "home", "away", "close_q_home", "close_book"])
+                    usecols=["season", "slate_date", "home", "away", "close_q_home", "close_book",
+                             "close_spread", "close_home_spread_odds", "close_away_spread_odds"])
     d = d.merge(r, on=["season", "slate_date", "home", "away"], how="left").reset_index(drop=True)
     d["gp"] = gp_lookup(d)
     print(__doc__.split("\n\n")[1].strip())
@@ -167,6 +232,8 @@ def main():
     P2, M2, _ = score(d, lambda d, s: d.season != s)
     report(d, P2, M2, "Leave-one-season-out")
     market(d, P2, "Leave-one-season-out")
+
+    ats(d, P, M, "Walk-forward")
 
     # How far the slim candidate moves the prediction
     m8, m6 = M2["full8"].values, M2["slim6"].values
