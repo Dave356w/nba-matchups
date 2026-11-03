@@ -1,0 +1,181 @@
+STALE GAME-LOG LOCKS (2026-10-31, 2026-11-02) -- audit, replay and void effect
+Generated 2026-11-03 from data/nba_ledger.csv history, data/nba_box_2027.csv and
+research/stale_log_audit.py, research/stale_log_replay.py, research/stale_log_replay_eval.py.
+
+CAUSE. build_site.fresh_logs refetched Basketball-Reference game logs once per ET
+day, at the first build after midnight ET, and reused them all day. On 2026-11-02
+that build (run 41396793077, 00:55 ET) refetched all 30 teams and Basketball-
+Reference still lacked every 2026-11-01 game, so each team on a back-to-back was
+scored, first-snapshotted and locked without its previous game and with b2b unset.
+2026-10-31 had the same failure for the 2026-10-30 games. PR #140 (merged
+2026-11-03) refetches any log behind the ledger's graded finals before scoring.
+
+1. AUDIT (outcome-blind: games played and b2b at the commit that first wrote each
+   first snapshot / lock, against the saved ESPN box scores; no result, price or
+   probability read). research/stale_log_audit.py
+
+   first: 92 games audited; sides short of the box 12, ahead 0, b2b wrong 12
+   slate      2026-10-24  2026-10-25  2026-10-26  2026-10-27  2026-10-28  2026-10-29  2026-10-31  2026-11-02
+   b2b_sides          11           2           5           1           4           3           4           8
+   stale               0           0           0           0           0           0           4           8
+   lock: 42 games audited; sides short of the box 10, ahead 0, b2b wrong 10
+   slate      2026-10-28  2026-10-29  2026-10-31  2026-11-02
+   b2b_sides           2           3           4           8
+   stale               0           0           2           8
+   
+   stale-log locks (a side short of its box games at the lock):
+     2026-10-31  401909897  stale: CHO PHI  (lock commit 2286521)
+     2026-11-02  401909909  stale: IND  (lock commit 8efe12f)
+     2026-11-02  401909910  stale: BRK  (lock commit 8efe12f)
+     2026-11-02  401909911  stale: ORL  (lock commit 8efe12f)
+     2026-11-02  401909916  stale: BOS  (lock commit 8935d41)
+     2026-11-02  401909919  stale: GSW  (lock commit ff8a5d3)
+     2026-11-02  401909920  stale: LAC TOR  (lock commit ff8a5d3)
+     2026-11-02  401909921  stale: LAL  (lock commit ff8a5d3)
+
+2. REPLAY (HINDSIGHT, information only; never a record, a lock or a page figure).
+   Each lock commit's own score_slate, at each lock time, with the lock's frozen
+   prices; 2026-27 logs truncated to games before the previous day (stale) or
+   before the slate (complete). The stale run must reproduce the frozen locks.
+   2026-11-02: tree ff8a5d3, all six lock times, all 15 games. 2026-10-31: tree
+   2286521, lock times 14:02:29Z (POR @ UTA, control) and 17:02:27Z (PHI @ CHO).
+   Per-game rows: replay_<slate>_stale.csv / replay_<slate>_complete.csv here.
+   Refit of the report route: stale 72 games (intercept +2.03, sigma 13.65, as
+   the 2026-11-02 builds logged); complete 76 games (+2.03, 13.64).
+
+   --- 2026-11-02
+   == reproduction: stale replay vs frozen lock (2026-11-02, 15 games)
+             away home  lock_p_home  stale_p_home  stale_dp  lock_ou_total  stale_ou_total  lock_ou_p_over  stale_ou_p_over  stale_tag_same
+   game_id                                                                                                                                 
+   401909907  OKC  CLE      0.63352       0.63352       0.0         226.70          226.70         0.44165          0.44165            True
+   401909908  DET  CHO      0.38399       0.38399       0.0         209.04          209.04         0.46944          0.46944            True
+   401909909  ATL  IND      0.41601       0.41601       0.0         234.59          234.59         0.60529          0.60529            True
+   401909910  BRK  NYK      0.77305       0.77305       0.0         217.61          217.61         0.48145          0.48145            True
+   401909911  WAS  ORL      0.58999       0.58999       0.0         228.32          228.32         0.55883          0.55883            True
+   401909912  CHI  PHI      0.68735       0.68735       0.0         229.85          229.85         0.32485          0.32485            True
+   401909913  SAC  DAL      0.74700       0.74700       0.0         234.02          234.02         0.53177          0.53177            True
+   401909914  NOP  MEM      0.62429       0.62429       0.0         236.10          236.10         0.57500          0.57500            True
+   401909915  MIL  MIN      0.66045       0.66045       0.0         231.61          231.61         0.52331          0.52331            True
+   401909916  BOS  HOU      0.63033       0.63033       0.0         225.13          225.13         0.67477          0.67477            True
+   401909917  UTA  SAS      0.83617       0.83617       0.0         233.26          233.26         0.59866          0.59866            True
+   401909918  POR  DEN      0.64609       0.64609       0.0         231.63          231.63         0.50273          0.50273            True
+   401909919  PHO  GSW      0.47295       0.47295       0.0         227.60          227.60         0.50218          0.50218            True
+   401909920  TOR  LAC      0.41303       0.41303       0.0         220.14          220.14         0.51349          0.51349            True
+   401909921  MIA  LAL      0.66657       0.66657       0.0         236.66          236.66         0.50344          0.50344            True
+   max |dP| 0.0  max |d total| 0.0  max |d p_over| 0.0  report same: True
+   
+   == complete logs vs stale (lock P is home win P; margin via H5's 13.5 x inv-Phi)
+             away home  b2b_game  stale_gp_away  complete_gp_away  stale_gp_home  complete_gp_home  complete_away_b2b  complete_home_b2b  stale_p_home  complete_p_home  shift_p  shift_margin  stale_ou_total  complete_ou_total  shift_total
+   game_id                                                                                                                                                                                                                                    
+   401909907  OKC  CLE     False              6                 6              6                 6                  0                  0        0.6335           0.6333  -0.0002       -0.0065          226.70             226.63        -0.07
+   401909908  DET  CHO     False              6                 6              7                 7                  0                  0        0.3840           0.3841   0.0001        0.0025          209.04             208.97        -0.07
+   401909909  ATL  IND      True              7                 7              6                 7                  0                  1        0.4160           0.3560  -0.0600       -2.1185          234.59             231.12        -3.47
+   401909910  BRK  NYK      True              5                 6              6                 6                  1                  0        0.7730           0.8109   0.0378        1.7859          217.61             214.69        -2.92
+   401909911  WAS  ORL      True              6                 6              5                 6                  0                  1        0.5900           0.5062  -0.0837       -2.8603          228.32             226.29        -2.03
+   401909912  CHI  PHI     False              6                 6              7                 7                  0                  0        0.6874           0.6875   0.0001        0.0042          229.85             229.78        -0.07
+   401909913  SAC  DAL     False              6                 6              6                 6                  0                  0        0.7470           0.7470  -0.0000       -0.0008          234.02             233.94        -0.08
+   401909914  NOP  MEM     False              6                 6              6                 6                  0                  0        0.6243           0.6242  -0.0001       -0.0043          236.10             236.02        -0.08
+   401909915  MIL  MIN     False              6                 6              7                 7                  0                  0        0.6604           0.6605   0.0000        0.0018          231.61             231.55        -0.06
+   401909916  BOS  HOU      True              5                 6              7                 7                  1                  0        0.6303           0.6855   0.0552        2.0316          225.13             223.18        -1.95
+   401909917  UTA  SAS     False              6                 6              6                 6                  0                  0        0.8362           0.8364   0.0002        0.0126          233.26             233.18        -0.08
+   401909918  POR  DEN     False              5                 5              5                 5                  0                  0        0.6461           0.6464   0.0003        0.0113          231.63             231.53        -0.10
+   401909919  PHO  GSW      True              4                 4              6                 7                  0                  1        0.4730           0.4408  -0.0321       -1.0940          227.60             227.63         0.03
+   401909920  TOR  LAC      True              5                 6              5                 6                  1                  1        0.4130           0.4080  -0.0050       -0.1736          220.14             222.41         2.27
+   401909921  MIA  LAL      True              6                 6              6                 7                  0                  1        0.6666           0.6088  -0.0578       -2.0844          236.66             238.17         1.51
+   
+   == tracked picks by variant (2026-11-02, 5 h lock, frozen lock prices)
+                            n  w  l  units
+   test           variant                 
+   H2·F·5·E·L·v11 complete  1  1  0  0.741
+                  frozen    1  1  0  0.741
+                  stale     1  1  0  0.741
+   H4·E·L·v11     complete  2  0  2 -2.000
+                  frozen    1  0  1 -1.000
+                  stale     1  0  1 -1.000
+   H5·3·E·L·v11   complete  5  1  4 -3.074
+                  frozen    7  3  4 -1.205
+                  stale     7  3  4 -1.205
+   OU·E·L         complete  7  5  2  2.557
+                  frozen    6  2  4 -2.148
+                  stale     6  2  4 -2.148
+   
+   -- in frozen not stale:
+      none
+   -- in stale not frozen:
+      none
+   
+   -- in stale not complete:
+                                edge     ml  result  units
+   test         game    side                              
+   H5·3·E·L·v11 BRK@NYK BRK   4.3895 -106.0     1.0  0.943
+                MIA@LAL LAL   3.3112 -108.0     1.0  0.926
+   OU·E·L       ATL@IND over  0.0966 -114.0     0.0 -1.000
+                WAS@ORL over  0.0588 -110.0     0.0 -1.000
+   -- in complete not stale:
+                               edge     ml  result  units
+   test       game    side                               
+   H4·E·L·v11 PHO@GSW PHO    0.1227  120.0     0.0 -1.000
+   OU·E·L     BRK@NYK under  0.0837 -108.0     1.0  0.926
+              OKC@CLE under  0.0503 -115.0     1.0  0.870
+              TOR@LAC over   0.0608 -110.0     1.0  0.909
+
+   --- 2026-10-31
+   == reproduction: stale replay vs frozen lock (2026-10-31, 2 games)
+             away home  lock_p_home  stale_p_home  stale_dp  lock_ou_total  stale_ou_total  lock_ou_p_over  stale_ou_p_over  stale_tag_same
+   game_id                                                                                                                                 
+   401909896  POR  UTA      0.42867       0.42867       0.0         235.89          235.89         0.57072          0.57072            True
+   401909897  PHI  CHO      0.52130       0.52130       0.0         215.91          215.91         0.50868          0.50868            True
+   max |dP| 0.0  max |d total| 0.0  max |d p_over| 0.0  report same: True
+   
+   == complete logs vs stale (lock P is home win P; margin via H5's 13.5 x inv-Phi)
+             away home  b2b_game  stale_gp_away  complete_gp_away  stale_gp_home  complete_gp_home  complete_away_b2b  complete_home_b2b  stale_p_home  complete_p_home  shift_p  shift_margin  stale_ou_total  complete_ou_total  shift_total
+   game_id                                                                                                                                                                                                                                    
+   401909896  POR  UTA     False              4                 4              5                 5                  0                  0        0.4287           0.4285  -0.0002       -0.0072          235.89             235.55        -0.34
+   401909897  PHI  CHO      True              5                 6              5                 6                  1                  1        0.5213           0.4720  -0.0493       -1.6684          215.91             209.87        -6.04
+   
+   == tracked picks by variant (2026-10-31, 5 h lock, frozen lock prices)
+                          n  w  l  units
+   test         variant                 
+   H4·E·L·v11   complete  1  0  1  -1.00
+                frozen    1  0  1  -1.00
+                stale     1  0  1  -1.00
+   H5·3·E·L·v11 complete  1  0  1  -1.00
+                frozen    1  0  1  -1.00
+                stale     1  0  1  -1.00
+   OU·E·L       complete  2  1  1  -0.13
+                frozen    1  0  1  -1.00
+                stale     1  0  1  -1.00
+   
+   -- in frozen not stale:
+      none
+   -- in stale not frozen:
+      none
+   
+   -- in stale not complete:
+      none
+   -- in complete not stale:
+                           edge     ml  result  units
+   test   game    side                               
+   OU·E·L PHI@CHO under  0.1055 -115.0     1.0   0.87
+
+3. VOID EFFECT on the public records at registration (frozen lock bets of the
+   eight stale-log locks; the rules unchanged, DraftKings, graded ledger 2ef14d0).
+
+   Public records, 2026-27, games 1-9 (no games-10+ bets yet), 5 h lock, v11 family, DraftKings
+   test             as graded              void games             after void            
+   H5·3·E·L·v11     n=13  7-6  +0.36u      n=4   3-1  +1.80u      n=9   4-5  -1.44u     
+                     void: 2026-11-02 ATL @ IND         IND 9.5 -108  W  +0.93u
+                     void: 2026-11-02 BRK @ NYK         BRK 14.5 -106  W  +0.94u
+                     void: 2026-11-02 PHO @ GSW         PHO 2.5 -107  L  -1.00u
+                     void: 2026-11-02 MIA @ LAL         LAL -2.5 -108  W  +0.93u
+   H2·F·5·E·L·v11   n=4   3-1  +1.19u      n=1   1-0  +0.74u      n=3   2-1  +0.44u     
+                     void: 2026-11-02 MIA @ LAL         LAL -135  W  +0.74u
+   H4·E·L·v11       n=2   0-2  -2.00u      n=1   0-1  -1.00u      n=1   0-1  -1.00u     
+                     void: 2026-11-02 ATL @ IND         IND +320  L  -1.00u
+   OU·E·L           n=16  7-9  -2.53u      n=3   0-3  -3.00u      n=13  7-6  +0.47u     
+                     void: 2026-11-02 ATL @ IND         over 229.5 -114  L  -1.00u
+                     void: 2026-11-02 WAS @ ORL         over 225.5 -110  L  -1.00u
+                     void: 2026-11-02 BOS @ HOU         over 216.5 -108  L  -1.00u
+   
+   Model predictions, 2026-27 games 1-9 at the 5 h lock: 25-14 as graded; void games 5-3; after void 20-11
+   (other stages: 0 predictions, none in the void list: True)
