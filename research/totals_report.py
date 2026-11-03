@@ -35,6 +35,7 @@ totals tag.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -93,6 +94,7 @@ def report_terms(t, lead, rates):
 
 
 def main():
+    os.makedirs(pav.DEFAULT_CACHE, exist_ok=True)        # fetch_tips caches here
     g = tt.frame()
     base = tm.walk_forward(g, tt.ARMS["T*"])
     d = base[base.season.isin(REPORT_SEASONS)].reset_index(drop=True)
