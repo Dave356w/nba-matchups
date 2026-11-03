@@ -1,46 +1,46 @@
 {
   "version": "dfs_sim_v2",
   "accepted": true,
-  "as_of": "2026-11-02",
+  "as_of": "2026-11-03",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
-    "high:bench": 0.9984397869380026,
-    "high:starter": 1.10409333756757,
-    "low:bench": 2.9409604731413173,
-    "mid:bench": 1.5137308486988728,
+    "high:bench": 1.021322920468798,
+    "high:starter": 1.1013970410995617,
+    "low:bench": 2.9231358274989594,
+    "mid:bench": 1.5279802692277171,
     "mid:starter": 1.0399495213753989
   },
-  "trained_through": "2026-10-30",
-  "validation_from": "2026-10-31",
-  "validated_through": "2026-11-01",
-  "train_rows": 1397,
-  "test_rows": 226,
-  "train_dates": 9,
+  "trained_through": "2026-10-31",
+  "validation_from": "2026-11-01",
+  "validated_through": "2026-11-02",
+  "train_rows": 1536,
+  "test_rows": 391,
+  "train_dates": 10,
   "test_dates": 2,
   "factors": {
     "team": 0.0,
     "starter": 0.0,
-    "game_star": 0.036232851779118315,
-    "star_split": 0.03614246186589659,
+    "game_star": 0.038459163309523654,
+    "star_split": 0.04209650921160441,
     "center_pair": 0.0
   },
   "holdout": {
-    "n": 226,
-    "bias": -1.7327035398230088,
-    "rmse": 9.760287560367365,
-    "variance_loss": 5.599813637876909,
-    "p90_coverage": 0.8938053097345132
+    "n": 391,
+    "bias": -1.4157263427109972,
+    "rmse": 9.634213347548775,
+    "variance_loss": 5.474924415666941,
+    "p90_coverage": 0.907928388746803
   },
   "baseline": {
-    "n": 226,
-    "bias": -1.7327035398230088,
-    "rmse": 9.760287560367365,
-    "variance_loss": 6.039921659338779,
-    "p90_coverage": 0.8761061946902655
+    "n": 391,
+    "bias": -1.4157263427109972,
+    "rmse": 9.634213347548775,
+    "variance_loss": 5.6874847586262165,
+    "p90_coverage": 0.8900255754475703
   },
-  "coverage_date_se": 0.002232696601339623,
+  "coverage_date_se": 0.007316243194192384,
   "reason": "passed chronological variance-loss and p90 coverage checks",
-  "projected_rows": 1635,
-  "matched_rows": 1623,
-  "matched_games": 78
+  "projected_rows": 1946,
+  "matched_rows": 1927,
+  "matched_games": 93
 }
