@@ -74,7 +74,8 @@ def test_fit_recovers_its_coefficients_and_reads_p_over():
         - 0.4 * rows["b2b"] + 1.0 * rows["phase"] + rng.normal(0, 18, n)
     rows.loc[:199, ["gp_home", "gp_away"]] = 3
     m = totals.fit(rows)
-    assert m["tag"] == totals.TAG and m["tag"].endswith(analysis.OU_TAG_SUFFIX)
+    # the base fit alone is ou2's neutral route; fit_report adds the report stage
+    assert m["tag"] == totals.TAG_NEUTRAL and m["tag"].endswith(analysis.OU2_TAG_SUFFIX)
     assert abs(m["coef"]["rel"] - 0.9) < 0.1 and abs(m["coef"]["form"] - 0.3) < 0.3
     f = dict(rel=0.0, form=0.0, b2b=0.0, phase=0.0, lg_total=225.0, gp_home=12, gp_away=12)
     T, s = totals.predict(m, f)
@@ -85,7 +86,11 @@ def test_fit_recovers_its_coefficients_and_reads_p_over():
 
 def test_committed_fit_is_the_registered_model():
     m = totals.load()
-    assert m["tag"] == "totals_hl25_form5_ou1"
+    assert m["tag"] == "totals_hl25_form5_rep_ou2"            # O/U model ou2 amendment
+    rep = m["report"]
+    assert rep["lead"] == 300 and rep["seasons"] == [2023, 2024, 2025, 2026]
+    assert set(rep["coef"]) == {"intercept", *totals.REPORT_TERMS}
+    assert rep["coef"]["av_o"] > 0 > rep["coef"]["av_d"]
     assert (m["half_life"], m["form_half_life"], m["shrink"], m["lg_prior"], m["regress"]) == \
         (25.0, 5.0, 10.0, 30.0, 0.6)
     assert 2020 not in m["seasons"] and set(m["coef"]) == {"intercept", *totals.FEATURES}
@@ -200,7 +205,7 @@ def _ou_ledger():
         if c in g:
             g[c] = g[c].astype(object)
     g["lock_ou_snapshot_utc"] = "2026-10-29T21:00:00Z"
-    g["lock_ou_tag"], g["lock_ou_book"] = totals.TAG, "dk"
+    g["lock_ou_tag"], g["lock_ou_book"] = totals.TAG_OU1, "dk"   # the closed ou1 rows
     g["lock_ou_line"], g["lock_ou_over"], g["lock_ou_under"] = 220.5, -110, -110
     g["lock_ou_p_over"] = [0.60, 0.40, 0.52]                    # over, under, below the floor
     g["lock_ou_total"] = [226.0, 214.0, 221.0]
@@ -234,7 +239,7 @@ def test_ou_test_membership_grading_and_clv():
 
 
 def test_pages_show_the_total_and_four_tests():
-    g = _ou_ledger()
+    g = _ou_ledger().assign(lock_ou_tag=totals.TAG)       # native ou2 locks: the public rows
     g["pre_book"], g["pre_ou_line"], g["pre_ou_over"], g["pre_ou_under"] = "dk", 220.5, -110, -110
     g["ou_total"], g["ou_p_over"] = [226.0, 214.0, 221.0], [0.60, 0.40, 0.52]
     site = PublicSite(build_site, g, "2026-10-29", "built")

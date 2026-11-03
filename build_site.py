@@ -50,6 +50,7 @@ import player_availability as pav
 import report
 import sleeper
 import public_site
+import ou_rescore
 import totals
 
 ET = ZoneInfo("America/New_York")
@@ -548,7 +549,15 @@ def score_slate(today, weights, model, now=None, finals=None):
         r["report_utc"] = report_utc(getattr(live, "report_time", None))
         r["route"] = route(r, model)
         add_pregame_price(r)
-        add_totals(r, ou_model, ou_season)
+        ou_terms = None
+        if live is not None and ou_model is not None and ou_model.get("report"):
+            try:              # ou2's report terms; a failure leaves the game neutral
+                ou_terms = live.totals_terms(g["game_id"], g["home"], g["away"], today,
+                                             tip_utc=g["tip_utc"],
+                                             q_rates=(avail_model or {}).get("q_rates"))
+            except Exception as e:  # noqa: BLE001
+                log(f"totals report terms {g['game_id']}: {e!r}")
+        add_totals(r, ou_model, ou_season, ou_terms)
         if r["stale_logs"]:
             log(f"lock held: {g['away']} @ {g['home']} ({g['game_id']}): game logs "
                 f"behind graded finals for {r['stale_logs']}")
@@ -576,10 +585,12 @@ def totals_inputs(logs, today):
         return None, None
 
 
-def add_totals(r, model, season):
+def add_totals(r, model, season, av=None):
     """The totals model's forecast for one scored row, in place: ou_total,
     ou_sigma, ou_tag and ou_p_over against the row's pregame total (when the
-    book has one). Blank when the model or an input is missing."""
+    book has one). Blank when the model or an input is missing. `av` (ou2,
+    CLAUDE.md amendment 2026-11-03): the game's injury-report terms, or None
+    (the neutral tag)."""
     if model is None or season is None:
         return
     try:
@@ -589,8 +600,8 @@ def add_totals(r, model, season):
         return
     if f is None:
         return
-    T, sigma = totals.predict(model, f)
-    r["ou_total"], r["ou_sigma"], r["ou_tag"] = round(T, 2), round(sigma, 3), model["tag"]
+    T, sigma, tag = totals.forecast(model, f, av)
+    r["ou_total"], r["ou_sigma"], r["ou_tag"] = round(T, 2), round(sigma, 3), tag
     line = pd.to_numeric(r.get("pre_ou_line"), errors="coerce")
     if np.isfinite(line):
         r["ou_p_over"] = round(totals.p_over(T, sigma, line), 5)
@@ -2851,7 +2862,7 @@ def _ou_table(native):
     """The O/U test (analysis.OU_TESTS; CLAUDE.md amendment 2026-10-29):
     native bets at the 5 h lock, ROI beside its null, CLV; no hindsight."""
     rows = []
-    for test in analysis.OU_TESTS:
+    for test in analysis.ALL_OU_TESTS:
         d = analysis.ou_picks(native, test) if native is not None and len(native) else None
         r = analysis.ou_row("", d) if d is not None and len(d) else None
         c = analysis.ou_clv(native, test) if r else None
@@ -2863,11 +2874,14 @@ def _ou_table(native):
             cells = ["0", "—", "—"]
         rows.append([f"<b>{test['key']}</b>", esc(test["rule"]), *cells,
                      f"{c['mean']:+.2f} pts ± {se_txt(c['se'])}" if c else "—"])
-    return ("<h3>O/U test · 5 h lock</h3><p class='note'>Totals model (totals.py, tag "
-            f"{esc(totals.TAG)}): the model's side when |P(over) − q| ≥ "
+    return ("<h3>O/U test · 5 h lock</h3><p class='note'>Totals model (totals.py, ou2 tags "
+            f"{esc(totals.TAG)} / {esc(totals.TAG_NEUTRAL)}): the model's side when |P(over) − q| ≥ "
             f"{analysis.OU_FLOOR:.2f}, DraftKings main-line totals. Its own record, never pooled "
             "with the moneyline and spread tests; amendment registered "
-            f"{esc(analysis.FLOOR_REGISTRATION_UTC)}.</p>"
+            f"{esc(analysis.FLOOR_REGISTRATION_UTC)}. ou2 rows (registered "
+            f"{esc(analysis.OU2_REGISTRATION_UTC)}): locks before ou2's first native lock read "
+            "their one-time rescore from lock-time information (data/nba_ou_rescore.csv); the "
+            f"closed ou1 rows ({esc(totals.TAG_OU1)}) end before it. Never pooled.</p>"
             + table(["", "Rule", "Native n · W–L", "ROI", "vs null (± 1 SE)", "CLV (± 1 SE)"],
                     rows, left=(0, 1)))
 
@@ -3528,6 +3542,9 @@ def main(argv=None):
         else:
             log("no fitted model in model/ -- skipping slate scoring")
         ledger.save(native, ledger.NATIVE_PATH)
+        # ou2 amendment (2026-11-03): rescore each earlier ou1 O/U lock once,
+        # from lock-time information, to data/nba_ou_rescore.csv; never raises
+        ou_rescore.update(native, log)
         dfs.snapshot(log)   # Yahoo salaries for the DFS page; never raises
     text = write_pages(native, recon, today, model_ok)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)

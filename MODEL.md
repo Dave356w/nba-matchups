@@ -821,6 +821,41 @@ points. Research: `research/totals_model.py`, `research/totals_improve.py`
 hindsight the model is level with the opening total and worse than the
 closing one; no O/U rule beat its null at the close.
 
+## Totals ou2 (owner's decision, 2026-11-03)
+
+CLAUDE.md "O/U model ou2 amendment" (registered 2026-11-03T23:05:00Z). ou2
+is the totals model above plus the NBA injury report:
+
+    T = T* + r0 + r_o av_o + r_d av_d + r_m av_m
+
+av_o / av_d are both teams' summed av_bpm (§4's availability, the q rule
+at the report's lead) with players valued by last season's OBPM / DBPM
+instead of BPM, and av_m their summed av_min
+(`player_availability.totals_terms`). The stage is fitted by least squares
+on T*'s residual over the report seasons 2022-23 .. 2025-26 from the last
+report at least 300 minutes before tip (`totals.fit_report`,
+`model/totals.json` "report"; Fit model refits it); σ by stage is its
+residual sd. Committed fit: r_o +0.92 (an absent scorer lowers the total),
+r_d −1.23 (an absent defender raises it), r_m +0.34, n 4,847. The build
+reads the terms from its current report (`LiveAvailability.totals_terms`);
+a game the report does not cover, or a failed input, keeps T* and its σ.
+Tags `totals_hl25_form5_rep_ou2` and `totals_hl25_form5_rep_neutral_ou2`.
+
+Walk-forward (research/totals_report.py, arm rep5h): squared error −2.54 ±
+2.42 against T* on games 1+ of 2023-24 .. 2025-26 (RMSE 18.52 → 18.45), the
+selection set before the run; at the close the model still trails both
+books (DraftKings 2025-26 games 10+: P(over) log loss − market +0.0171 ±
+0.0109, T* +0.0223).
+
+The O/U test's ou2 rows (`analysis.OU2_TESTS`, OU·L·ou2 / OU·E·L·ou2) read
+price "lock2" (`analysis.with_ou2`): a native ou2 lock as recorded, and each
+earlier ou1 lock (from 2026-10-29) at its one-time rescore
+(`ou_rescore.py`, `data/nba_ou_rescore.csv`): the lock's recorded T*, line,
+prices and book, the latest report at or before the lock snapshot, box
+scores before the slate and last season's BPM. The ledger's lock_ou_*
+columns are never changed. The ou1 rows close with the last slate before
+ou2's first native lock.
+
 ## Version rule
 
 Any change to prediction math (features, weights protocol, half-life, logit

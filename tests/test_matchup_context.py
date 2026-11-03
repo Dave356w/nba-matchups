@@ -104,7 +104,7 @@ def test_all_four_public_test_records_match_every_registered_signal_and_grade():
     g['lock_ou_line'] = 210.
     g['lock_ou_over'] = g['lock_ou_under'] = -110.
     g['lock_ou_book'] = 'dk'
-    g['lock_ou_tag'] = 'totals_hl25_form5_ou1'
+    g['lock_ou_tag'] = 'totals_hl25_form5_rep_ou2'   # public rows: ou2
     g['lock_ou_snapshot_utc'] = g.lock_snapshot_utc
     g.loc[g.index[-1], ['home_won', 'home_pts', 'away_pts']] = np.nan
     site = PublicSite(ui, g, '2026-11-19', 'built')

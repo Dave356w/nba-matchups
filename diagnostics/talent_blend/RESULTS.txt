@@ -1,0 +1,154 @@
+Talent blend and star term (research/talent_blend.py). ± 95%. Hindsight research only; no model change.
+
+python research/talent_blend.py > diagnostics/talent_blend/RESULTS.txt
+
+Star cut c (shrunk BPM above replacement, 90th pct, ≥ 500 MP): 2022-23 3.84, 2023-24 3.73, 2024-25 4.15, 2025-26 4.11
+Rows 4847; dropped 0 with a missing term
+
+Correlations: talent_cur~talent_diff +0.414  talent_cur~delta +0.366  star_diff~talent_diff +0.693  talent_cur~margin +0.199  star_diff~margin +0.254
+
+== Full-sample fits (points per unit)
+  prod      sigma 13.627  delta +0.140  talent_diff +0.300
+  cur       sigma 13.628  delta +0.140  talent_diff +0.298  talent_cur +0.010
+  curphase  sigma 13.627  delta +0.146  talent_diff +0.297  talent_cur -0.065  cur_phase +0.141
+  star      sigma 13.627  delta +0.140  talent_diff +0.321  star_diff -0.085
+  both      sigma 13.627  delta +0.146  talent_diff +0.322  talent_cur -0.057  cur_phase +0.146  star_diff -0.113
+
+== Walk-forward (fit on earlier seasons only); full8 = prod: arm − full8, paired, ± 95% (positive = arm worse)
+  pooled   all games 1+  n  3633  full8 LL 0.5907
+      cur    LL +0.0000 ± 0.0001   margin MSE +0.01 ± 0.05
+      curphase LL +0.0001 ± 0.0003   margin MSE +0.06 ± 0.16
+      star   LL -0.0000 ± 0.0003   margin MSE +0.02 ± 0.13
+      both   LL +0.0001 ± 0.0005   margin MSE +0.08 ± 0.21
+  pooled   games 1–9     n   417  full8 LL 0.5973
+      cur    LL +0.0002 ± 0.0003   margin MSE +0.10 ± 0.13
+      curphase LL -0.0003 ± 0.0013   margin MSE -0.11 ± 0.61
+      star   LL -0.0001 ± 0.0008   margin MSE +0.14 ± 0.34
+      both   LL -0.0004 ± 0.0015   margin MSE +0.06 ± 0.61
+  pooled   games 10+     n  3216  full8 LL 0.5899
+      cur    LL +0.0000 ± 0.0001   margin MSE -0.01 ± 0.05
+      curphase LL +0.0002 ± 0.0003   margin MSE +0.08 ± 0.16
+      star   LL -0.0000 ± 0.0003   margin MSE +0.01 ± 0.14
+      both   LL +0.0001 ± 0.0005   margin MSE +0.09 ± 0.23
+  2023-24  all games 1+  n  1215  full8 LL 0.5990
+      cur    LL -0.0000 ± 0.0000   margin MSE -0.00 ± 0.02
+      curphase LL +0.0001 ± 0.0008   margin MSE +0.06 ± 0.36
+      star   LL -0.0001 ± 0.0007   margin MSE -0.01 ± 0.33
+      both   LL +0.0001 ± 0.0011   margin MSE +0.06 ± 0.50
+  2023-24  games 1–9     n   141  full8 LL 0.6197
+      cur    LL +0.0000 ± 0.0001   margin MSE -0.02 ± 0.05
+      curphase LL -0.0011 ± 0.0033   margin MSE -0.89 ± 1.59
+      star   LL -0.0007 ± 0.0022   margin MSE +0.28 ± 0.91
+      both   LL -0.0020 ± 0.0036   margin MSE -0.51 ± 1.42
+  2023-24  games 10+     n  1074  full8 LL 0.5963
+      cur    LL -0.0000 ± 0.0000   margin MSE -0.00 ± 0.02
+      curphase LL +0.0003 ± 0.0008   margin MSE +0.18 ± 0.35
+      star   LL -0.0001 ± 0.0008   margin MSE -0.05 ± 0.36
+      both   LL +0.0003 ± 0.0012   margin MSE +0.14 ± 0.54
+  2024-25  all games 1+  n  1209  full8 LL 0.5914
+      cur    LL +0.0000 ± 0.0001   margin MSE -0.02 ± 0.05
+      curphase LL +0.0003 ± 0.0005   margin MSE +0.20 ± 0.23
+      star   LL +0.0000 ± 0.0004   margin MSE +0.04 ± 0.18
+      both   LL +0.0003 ± 0.0007   margin MSE +0.29 ± 0.32
+  2024-25  games 1–9     n   138  full8 LL 0.5966
+      cur    LL +0.0000 ± 0.0002   margin MSE +0.05 ± 0.10
+      curphase LL +0.0003 ± 0.0021   margin MSE +0.45 ± 0.83
+      star   LL +0.0005 ± 0.0012   margin MSE +0.11 ± 0.47
+      both   LL +0.0008 ± 0.0027   margin MSE +0.55 ± 1.08
+  2024-25  games 10+     n  1071  full8 LL 0.5908
+      cur    LL +0.0000 ± 0.0001   margin MSE -0.02 ± 0.05
+      curphase LL +0.0003 ± 0.0005   margin MSE +0.17 ± 0.24
+      star   LL -0.0001 ± 0.0004   margin MSE +0.03 ± 0.19
+      both   LL +0.0003 ± 0.0007   margin MSE +0.26 ± 0.34
+  2025-26  all games 1+  n  1209  full8 LL 0.5816
+      cur    LL +0.0001 ± 0.0003   margin MSE +0.04 ± 0.14
+      curphase LL -0.0001 ± 0.0004   margin MSE -0.08 ± 0.21
+      star   LL +0.0000 ± 0.0001   margin MSE +0.03 ± 0.04
+      both   LL -0.0001 ± 0.0004   margin MSE -0.10 ± 0.22
+  2025-26  games 1–9     n   138  full8 LL 0.5751
+      cur    LL +0.0005 ± 0.0009   margin MSE +0.26 ± 0.37
+      curphase LL -0.0002 ± 0.0007   margin MSE +0.14 ± 0.30
+      star   LL -0.0001 ± 0.0002   margin MSE +0.02 ± 0.11
+      both   LL -0.0001 ± 0.0008   margin MSE +0.14 ± 0.30
+  2025-26  games 10+     n  1071  full8 LL 0.5825
+      cur    LL +0.0001 ± 0.0003   margin MSE +0.01 ± 0.15
+      curphase LL -0.0001 ± 0.0004   margin MSE -0.11 ± 0.24
+      star   LL +0.0001 ± 0.0001   margin MSE +0.03 ± 0.04
+      both   LL -0.0001 ± 0.0004   margin MSE -0.14 ± 0.25
+
+== Leave-one-season-out; full8 = prod: arm − full8, paired, ± 95% (positive = arm worse)
+  pooled   all games 1+  n  4847  full8 LL 0.6002
+      cur    LL -0.0000 ± 0.0001   margin MSE +0.01 ± 0.06
+      curphase LL +0.0001 ± 0.0005   margin MSE +0.14 ± 0.27
+      star   LL +0.0004 ± 0.0003   margin MSE +0.08 ± 0.15
+      both   LL +0.0005 ± 0.0006   margin MSE +0.20 ± 0.31
+  pooled   games 1–9     n   558  full8 LL 0.6084
+      cur    LL +0.0001 ± 0.0003   margin MSE -0.00 ± 0.14
+      curphase LL +0.0008 ± 0.0016   margin MSE +0.84 ± 0.80
+      star   LL +0.0006 ± 0.0009   margin MSE +0.07 ± 0.45
+      both   LL +0.0015 ± 0.0019   margin MSE +0.86 ± 0.90
+  pooled   games 10+     n  4289  full8 LL 0.5991
+      cur    LL -0.0000 ± 0.0001   margin MSE +0.01 ± 0.06
+      curphase LL -0.0000 ± 0.0006   margin MSE +0.05 ± 0.29
+      star   LL +0.0004 ± 0.0003   margin MSE +0.08 ± 0.16
+      both   LL +0.0003 ± 0.0007   margin MSE +0.11 ± 0.33
+  2022-23  all games 1+  n  1214  full8 LL 0.6317
+      cur    LL -0.0002 ± 0.0003   margin MSE +0.01 ± 0.15
+      curphase LL +0.0004 ± 0.0018   margin MSE +0.61 ± 0.91
+      star   LL +0.0012 ± 0.0008   margin MSE +0.21 ± 0.40
+      both   LL +0.0017 ± 0.0020   margin MSE +0.88 ± 1.02
+  2022-23  games 1–9     n   141  full8 LL 0.6352
+      cur    LL -0.0000 ± 0.0007   margin MSE -0.16 ± 0.33
+      curphase LL +0.0014 ± 0.0051   margin MSE +2.01 ± 2.45
+      star   LL +0.0016 ± 0.0024   margin MSE +0.39 ± 1.32
+      both   LL +0.0035 ± 0.0059   margin MSE +2.40 ± 3.02
+  2022-23  games 10+     n  1073  full8 LL 0.6313
+      cur    LL -0.0002 ± 0.0003   margin MSE +0.03 ± 0.17
+      curphase LL +0.0003 ± 0.0020   margin MSE +0.42 ± 0.98
+      star   LL +0.0011 ± 0.0009   margin MSE +0.18 ± 0.42
+      both   LL +0.0015 ± 0.0022   margin MSE +0.68 ± 1.08
+  2023-24  all games 1+  n  1215  full8 LL 0.5964
+      cur    LL -0.0001 ± 0.0002   margin MSE -0.01 ± 0.08
+      curphase LL +0.0000 ± 0.0011   margin MSE +0.11 ± 0.53
+      star   LL +0.0004 ± 0.0007   margin MSE +0.07 ± 0.37
+      both   LL +0.0004 ± 0.0013   margin MSE +0.15 ± 0.62
+  2023-24  games 1–9     n   141  full8 LL 0.6246
+      cur    LL -0.0000 ± 0.0004   margin MSE -0.07 ± 0.22
+      curphase LL +0.0018 ± 0.0037   margin MSE +1.39 ± 1.93
+      star   LL +0.0013 ± 0.0023   margin MSE -0.08 ± 1.03
+      both   LL +0.0031 ± 0.0038   margin MSE +1.13 ± 1.67
+  2023-24  games 10+     n  1074  full8 LL 0.5927
+      cur    LL -0.0001 ± 0.0002   margin MSE -0.00 ± 0.08
+      curphase LL -0.0002 ± 0.0011   margin MSE -0.06 ± 0.54
+      star   LL +0.0003 ± 0.0008   margin MSE +0.09 ± 0.40
+      both   LL -0.0000 ± 0.0014   margin MSE +0.02 ± 0.67
+  2024-25  all games 1+  n  1209  full8 LL 0.5908
+      cur    LL -0.0000 ± 0.0000   margin MSE +0.01 ± 0.02
+      curphase LL -0.0001 ± 0.0003   margin MSE -0.09 ± 0.12
+      star   LL +0.0001 ± 0.0005   margin MSE -0.00 ± 0.24
+      both   LL -0.0001 ± 0.0006   margin MSE -0.14 ± 0.29
+  2024-25  games 1–9     n   138  full8 LL 0.5977
+      cur    LL -0.0000 ± 0.0001   margin MSE -0.03 ± 0.04
+      curphase LL -0.0001 ± 0.0011   margin MSE -0.23 ± 0.43
+      star   LL -0.0005 ± 0.0016   margin MSE -0.07 ± 0.61
+      both   LL -0.0006 ± 0.0021   margin MSE -0.25 ± 0.86
+  2024-25  games 10+     n  1071  full8 LL 0.5899
+      cur    LL -0.0000 ± 0.0000   margin MSE +0.01 ± 0.02
+      curphase LL -0.0001 ± 0.0003   margin MSE -0.08 ± 0.13
+      star   LL +0.0001 ± 0.0005   margin MSE +0.01 ± 0.26
+      both   LL +0.0000 ± 0.0006   margin MSE -0.13 ± 0.31
+  2025-26  all games 1+  n  1209  full8 LL 0.5816
+      cur    LL +0.0001 ± 0.0003   margin MSE +0.04 ± 0.14
+      curphase LL -0.0001 ± 0.0004   margin MSE -0.08 ± 0.21
+      star   LL +0.0000 ± 0.0001   margin MSE +0.03 ± 0.04
+      both   LL -0.0001 ± 0.0004   margin MSE -0.10 ± 0.22
+  2025-26  games 1–9     n   138  full8 LL 0.5751
+      cur    LL +0.0005 ± 0.0009   margin MSE +0.26 ± 0.37
+      curphase LL -0.0002 ± 0.0007   margin MSE +0.14 ± 0.30
+      star   LL -0.0001 ± 0.0002   margin MSE +0.02 ± 0.11
+      both   LL -0.0001 ± 0.0008   margin MSE +0.14 ± 0.30
+  2025-26  games 10+     n  1071  full8 LL 0.5825
+      cur    LL +0.0001 ± 0.0003   margin MSE +0.01 ± 0.15
+      curphase LL -0.0001 ± 0.0004   margin MSE -0.11 ± 0.24
+      star   LL +0.0001 ± 0.0001   margin MSE +0.03 ± 0.04
+      both   LL -0.0001 ± 0.0004   margin MSE -0.14 ± 0.25

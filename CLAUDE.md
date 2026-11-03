@@ -291,6 +291,50 @@ information only, separate from DraftKings and native evidence.
     Pages carry one dated line that eight locks on October 31 and November 2,
     2026 were voided for incomplete game logs.
 
+- **O/U model ou2 amendment (owner's decision, registered 2026-11-03T23:05:00Z).**
+  Committed on its own before any ou2 code or snapshot: the native ledger at
+  `3503c29` (containing `main` at `473d97f`) has 39 O/U locks, the last at
+  2026-11-02T22:02:34Z, every lock tag `totals_hl25_form5_ou1`. Evidence:
+  [totals report availability](diagnostics/totals_report/RESULTS.txt) (arm
+  rep5h: walk-forward squared error −2.54 ± 2.42 on games 1+ of 2023-24 ..
+  2025-26, the selection fixed before its run; at the close the model still
+  trails both books), [totals talent](diagnostics/totals_talent/RESULTS.txt).
+  - **Model ou2** = the totals model T* plus injury-report availability:
+    av_o / av_d = both teams' summed av_bpm valued by last season's OBPM /
+    DBPM, av_m = their summed av_min, from the latest NBA report at the
+    snapshot with v11's Questionable weighting at its lead (Out 0;
+    Doubtful, Questionable, Probable their play rates; Available and
+    unlisted previous-box players 1). The terms enter by least squares on
+    T*'s residual (total − T), fitted on the report seasons 2022-23 ..
+    2025-26 at the 300-minute lead, σ by stage its residual sd; refitted by
+    Fit model. A game the report does not cover, or a missing term,
+    contributes zero under its own neutral tag. Tags
+    `totals_hl25_form5_rep_ou2` and `totals_hl25_form5_rep_neutral_ou2`.
+  - The O/U rule is unchanged: at the 5 h lock with current game logs, the
+    model's side when |P(over) − q| ≥ 0.05, main-line DraftKings totals
+    (both prices −135..+115), games 1–9 and 10+ separate, game 0 never, per
+    season, a push returns the stake, CLV = lock total against the close.
+  - **Record.** The O/U test restarts with ou2 in new rows OU·L·ou2 and
+    OU·E·L·ou2, from the 2026-10-29 slate. Locks taken before activation
+    (tag ending `_ou1`) are rescored once with ou2 at their recorded lock:
+    the lock's book, line, prices and T* total, the latest NBA report at or
+    before the lock snapshot, box scores and game logs strictly before the
+    slate, and last season's BPM; nothing after the lock is read. These
+    values are written once to `data/nba_ou_rescore.csv` (keyed by game id);
+    the native first_ou_* and lock_ou_* columns stay unchanged. From
+    activation, locks carry ou2 natively. The voided locks stay void. The
+    ou1 rows OU·L and OU·E·L close with the last slate before activation and
+    stay graded in the internal workbench and `data/ledger_report.txt`,
+    never pooled with the ou2 rows.
+  - Public Today, Results and Performance show only the ou2 rows, with one
+    dated line that O/U picks before activation were scored with the current
+    totals model from the information available at each lock. How it works
+    describes ou2. The margin model, its tests and their records are
+    unchanged.
+  - Presentation (owner's decision, 2026-11-03, before activation): that
+    dated line appears once, as a clause in How it works' O/U rule, not on
+    Results or Performance.
+
 ## Sources of truth and engineering rules
 
 - **Public matchup context (owner request, 2026-11-01).** Today cards show

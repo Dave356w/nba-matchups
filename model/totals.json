@@ -1,5 +1,5 @@
 {
- "tag": "totals_hl25_form5_ou1",
+ "tag": "totals_hl25_form5_rep_ou2",
  "coef": {
   "intercept": -0.2845516211520049,
   "rel": 0.9271302641407929,
@@ -25,5 +25,23 @@
  "form_half_life": 5.0,
  "shrink": 10.0,
  "lg_prior": 30.0,
- "regress": 0.6
+ "regress": 0.6,
+ "report": {
+  "coef": {
+   "intercept": 0.31210948839345065,
+   "av_o": 0.9197186003941605,
+   "av_d": -1.2316760579207224,
+   "av_m": 0.34169761700189405
+  },
+  "sigma_early": 18.045756572855474,
+  "sigma_late": 18.522467946924117,
+  "n_games": 4847,
+  "lead": 300,
+  "seasons": [
+   2023,
+   2024,
+   2025,
+   2026
+  ]
+ }
 }

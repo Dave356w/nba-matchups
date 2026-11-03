@@ -19,6 +19,17 @@ league's level because scoring drifts between seasons:
 P(over a line) = 1 - Phi((line - T) / sigma), sigma the fit's residual sd for
 games 1-9 or 10+. Research twin: research/totals_improve.py (arm "form",
 T*); tests/test_totals.py pins the features to it.
+
+ou2 (CLAUDE.md O/U model ou2 amendment, registered 2026-11-03T23:05:00Z):
+T* plus the NBA injury report's availability terms (player_availability
+TOTALS_TERMS: both teams' av_bpm valued by last season's OBPM / DBPM, and
+their av_min), entering by least squares on T*'s residual over the report
+seasons at the 300-minute lead (research/totals_report.py arm rep5h):
+  T = T* + r0 + r_o av_o + r_d av_d + r_m av_m
+with sigma by stage the stage's residual sd. A game without terms (the report
+does not cover it, an input failed) keeps T* and its sigma under TAG_NEUTRAL.
+
+  python totals.py fit [--years ...] [--report-years 2023-2026]
 """
 from __future__ import annotations
 
@@ -32,8 +43,13 @@ import pandas as pd
 
 import nba_composite as nc
 
-TAG = "totals_hl25_form5_ou1"
-TAG_SUFFIX = "_ou1"
+TAG = "totals_hl25_form5_rep_ou2"                # ou2 with report terms
+TAG_NEUTRAL = "totals_hl25_form5_rep_neutral_ou2"  # ou2, no report terms for the game
+TAG_SUFFIX = "_ou2"
+TAG_OU1 = "totals_hl25_form5_ou1"                # the closed first O/U model (history)
+REPORT_TERMS = ("av_o", "av_d", "av_m")
+REPORT_LEAD = 300            # minutes before tip: the fit's report (the 5 h lock)
+REPORT_YEARS = "2023-2026"   # the report seasons
 HALF_LIFE = 25.0
 FORM_HALF_LIFE = 5.0
 SHRINK = 10.0          # prior weight in games
@@ -179,11 +195,32 @@ def fit(rows):
     b = np.linalg.lstsq(X, y, rcond=None)[0]
     res = y - X @ b
     early = (np.fmin(tr["gp_home"], tr["gp_away"]) < 10).to_numpy()
-    return dict(tag=TAG, coef=dict(zip(("intercept",) + FEATURES, map(float, b))),
+    return dict(tag=TAG_NEUTRAL, coef=dict(zip(("intercept",) + FEATURES, map(float, b))),
                 sigma_early=float(res[early].std()), sigma_late=float(res[~early].std()),
                 n_games=int(len(tr)), seasons=sorted(int(s) for s in tr["season"].unique()),
                 half_life=HALF_LIFE, form_half_life=FORM_HALF_LIFE, shrink=SHRINK,
                 lg_prior=LG_PRIOR, regress=REGRESS)
+
+
+def fit_report(model, rows):
+    """ou2's report stage on the base model's residual: rows carry the base
+    features, total, lg_total, gp_* and REPORT_TERMS (0 where the report did
+    not cover the game). Least squares with an intercept on games 1+;
+    returns model with model["report"] = dict(coef, sigma_early, sigma_late,
+    n_games, seasons, lead)."""
+    tr = rows[np.fmin(rows["gp_home"], rows["gp_away"]) >= 1]
+    base = np.array([predict(model, f)[0] for f in tr.to_dict("records")])
+    res = tr["total"].to_numpy(float) - base
+    X = np.column_stack([np.ones(len(tr)), tr[list(REPORT_TERMS)].to_numpy(float)])
+    b = np.linalg.lstsq(X, res, rcond=None)[0]
+    r2 = res - X @ b
+    early = (np.fmin(tr["gp_home"], tr["gp_away"]) < 10).to_numpy()
+    out = dict(model, tag=TAG)
+    out["report"] = dict(coef=dict(zip(("intercept",) + REPORT_TERMS, map(float, b))),
+                         sigma_early=float(r2[early].std()), sigma_late=float(r2[~early].std()),
+                         n_games=int(len(tr)), lead=REPORT_LEAD,
+                         seasons=sorted(int(s) for s in tr["season"].unique()))
+    return out
 
 
 def load(path=MODEL_PATH):
@@ -200,6 +237,32 @@ def predict(model, f):
     T = f["lg_total"] + c["intercept"] + sum(c[k] * f[k] for k in FEATURES)
     sigma = model["sigma_early"] if min(f["gp_home"], f["gp_away"]) < 10 else model["sigma_late"]
     return float(T), float(sigma)
+
+
+def forecast(model, f, av=None):
+    """(model total, sigma, tag) for a features dict and the game's report
+    terms (dict with REPORT_TERMS, or None): ou2 with its report stage when
+    the model has one and the terms are there, else the base total under the
+    neutral tag (a model without a report stage keeps its own tag)."""
+    T, sigma = predict(model, f)
+    if model.get("report") is None:
+        return T, sigma, model["tag"]
+    return adjust(model, T, min(f["gp_home"], f["gp_away"]), av, sigma)
+
+
+def adjust(model, T, gp, av, sigma=None):
+    """ou2's report stage on a base total T (games played g = gp): (total,
+    sigma, tag). Without terms, T keeps the base sigma for its stage (or the
+    given one) under TAG_NEUTRAL. The rescore of earlier locks starts from
+    their recorded base total (ou_rescore.py)."""
+    early = gp < 10
+    rep = model["report"]
+    if av is None or not all(np.isfinite(float(av.get(k, np.nan))) for k in REPORT_TERMS):
+        base = sigma if sigma is not None else (model["sigma_early"] if early else model["sigma_late"])
+        return float(T), float(base), TAG_NEUTRAL
+    c = rep["coef"]
+    T = T + c["intercept"] + sum(c[k] * float(av[k]) for k in REPORT_TERMS)
+    return float(T), float(rep["sigma_early"] if early else rep["sigma_late"]), TAG
 
 
 def p_over(T, sigma, line):
@@ -228,10 +291,29 @@ def main():
     f = sub.add_parser("fit")
     f.add_argument("--years", default=FIT_YEARS)
     f.add_argument("--out", default=str(MODEL_PATH))
+    f.add_argument("--report-years", default=REPORT_YEARS,
+                   help="ou2's report seasons ('' fits the base model only)")
+    f.add_argument("--q-rates", default=str(Path(__file__).resolve().parent / "model" / "logit_avail.json"),
+                   help="a file whose q_rates table gives v11's play rates by lead")
     a = ap.parse_args()
     years = _years(a.years)
     rows = training_rows({y: nc.load_logs(y) for y in years})
     m = fit(rows)
+    if a.report_years:
+        import player_availability as pav
+        q = json.loads(Path(a.q_rates).read_text())
+        q = q.get("q_rates", q)
+        ry = _years(a.report_years)
+        terms = {}
+        for y in ry:
+            terms.update(pav.season_totals_terms(y, REPORT_LEAD, q))
+        rr = rows[rows["season"].isin(ry)].copy()
+        for k in REPORT_TERMS:
+            rr[k] = [terms.get((d, h, w), {}).get(k, 0.0)
+                     for d, h, w in zip(rr["date"], rr["home"], rr["away"])]
+        m = fit_report(m, rr)
+        print(f"ou2 report stage on {m['report']['n_games']} games: {m['report']['coef']}, "
+              f"sigma {m['report']['sigma_early']:.2f} / {m['report']['sigma_late']:.2f}")
     Path(a.out).write_text(json.dumps(m, indent=1) + "\n")
     print(f"totals fit on {m['n_games']} games, seasons {m['seasons']}: {m['coef']}, "
           f"sigma {m['sigma_early']:.2f} / {m['sigma_late']:.2f}")

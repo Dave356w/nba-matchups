@@ -857,7 +857,7 @@ def early_hindsight(recon):
     return out
 
 PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "lock": "5 h lock",
-               "open": "open", "close": "close"}
+               "lock2": "5 h lock", "open": "open", "close": "close"}
 
 
 def _hypothesis_members(d, hyp):
@@ -1096,18 +1096,82 @@ def hypothesis_clv(native, hyp, book=HYPOTHESIS_BOOK):
 # 1-9 separate, game 0 never; DraftKings; the totals model's tags only.
 OU_FLOOR = 0.05
 OU_TAG_SUFFIX = "_ou1"
+# The first O/U rows (totals model ou1): closed by the ou2 amendment with the
+# last slate before ou2's first native lock; internal workbench and report only.
 OU_TESTS = tuple(dict(key=key, early=early, market="ou", native="lock", min_edge=OU_FLOOR,
                       rule=f"Games {'1–9' if early else '10+'} · O/U: model side, "
-                           f"|P(over) − q| ≥ {OU_FLOOR:.2f} · 5 h lock",
-                      registered_utc=FLOOR_REGISTRATION_UTC, public=True)
+                           f"|P(over) − q| ≥ {OU_FLOOR:.2f} · 5 h lock · ou1",
+                      registered_utc=FLOOR_REGISTRATION_UTC, public=False,
+                      tag_suffix=OU_TAG_SUFFIX, closes="ou2")
                  for key, early in (("OU·L", False), ("OU·E·L", True)))
+# ou2 (CLAUDE.md O/U model ou2 amendment, registered 2026-11-03T23:05:00Z):
+# the totals model with injury-report terms, the same rule at the 5 h lock, in
+# new rows from the 2026-10-29 slate. Locks before activation read their
+# one-time lock-time rescore (data/nba_ou_rescore.csv; price "lock2", with_ou2),
+# later locks their native ou2 values.
+OU2_REGISTRATION_UTC = "2026-11-03T23:05:00Z"
+OU2_TAG_SUFFIX = "_ou2"
+OU_RESCORE_PATH = Path(__file__).resolve().parent / "data" / "nba_ou_rescore.csv"
+OU2_TESTS = tuple(dict(key=key, early=early, market="ou", native="lock2", min_edge=OU_FLOOR,
+                       rule=f"Games {'1–9' if early else '10+'} · O/U: model side, "
+                            f"|P(over) − q| ≥ {OU_FLOOR:.2f} · 5 h lock · ou2",
+                       registered_utc=OU2_REGISTRATION_UTC, public=True,
+                       tag_suffix=OU2_TAG_SUFFIX)
+                  for key, early in (("OU·L·ou2", False), ("OU·E·L·ou2", True)))
+ALL_OU_TESTS = OU2_TESTS + OU_TESTS
 OU_PRICE_COLUMNS = {"lock": ("lock_ou_line", "lock_ou_over", "lock_ou_under", "lock_ou_p_over",
                              "lock_ou_tag", "lock_ou_book", "lock_ou_total"),
+                    "lock2": ("ou2_line", "ou2_over", "ou2_under", "ou2_p_over",
+                              "ou2_tag", "ou2_book", "ou2_total"),
                     "first": ("first_ou_line", "first_ou_over", "first_ou_under",
                               "first_ou_p_over", "first_ou_tag", "first_ou_book",
                               "first_ou_total"),
                     "pre": ("pre_ou_line", "pre_ou_over", "pre_ou_under", "ou_p_over",
                             "ou_tag", "pre_book", "ou_total")}
+
+
+def load_ou_rescore(path=None):
+    """The one-time ou2 rescore of earlier locks (ou_rescore.py), or empty."""
+    try:
+        return pd.read_csv(path or OU_RESCORE_PATH, dtype={"game_id": str})
+    except (OSError, ValueError):
+        return pd.DataFrame(columns=["game_id", "rescore_ou_tag", "rescore_ou_total",
+                                     "rescore_ou_p_over"])
+
+
+def ou2_activation_slate(g):
+    """The first slate with a native ou2 O/U lock, or None before activation."""
+    if g is None or not len(g) or "lock_ou_tag" not in g:
+        return None
+    on = g["lock_ou_tag"].astype(str).str.endswith(OU2_TAG_SUFFIX)
+    return str(g.loc[on, "slate_date"].astype(str).min()) if on.any() else None
+
+
+def with_ou2(g, rescore=None):
+    """g with the ou2 lock columns (OU_PRICE_COLUMNS["lock2"]): a native lock
+    whose tag ends _ou2 as recorded; an earlier (ou1) lock with its book,
+    line and prices from lock_ou_* and its model total, P(over) and tag from
+    the one-time rescore; blank otherwise. Native columns are not changed."""
+    if g is None or not len(g) or "ou2_line" in g.columns or "lock_ou_tag" not in g:
+        return g
+    rs = load_ou_rescore() if rescore is None else rescore
+    g = g.copy()
+    lock = OU_PRICE_COLUMNS["lock"]
+    new = OU_PRICE_COLUMNS["lock2"]
+    native = g["lock_ou_tag"].astype(str).str.endswith(OU2_TAG_SUFFIX).to_numpy()
+    rs = rs.drop_duplicates("game_id").set_index(rs["game_id"].astype(str)) if len(rs) else rs
+    gid = g["game_id"].astype(str)
+    have = (gid.isin(rs.index) if len(rs) else pd.Series(False, index=g.index)).to_numpy() \
+        & ~native & g["lock_ou_tag"].astype(str).str.endswith(OU_TAG_SUFFIX).to_numpy()
+    for src, dst in zip(lock, new):
+        g[dst] = g[src].where(native | have) if src not in ("lock_ou_p_over", "lock_ou_tag",
+                                                              "lock_ou_total") else g[src].where(native)
+    if have.any():
+        r = rs.loc[gid[have]]
+        g.loc[have, "ou2_p_over"] = r["rescore_ou_p_over"].to_numpy()
+        g.loc[have, "ou2_tag"] = r["rescore_ou_tag"].astype(str).to_numpy()
+        g.loc[have, "ou2_total"] = r["rescore_ou_total"].to_numpy()
+    return g
 
 
 def ou_sides(g, price="lock"):
@@ -1138,26 +1202,37 @@ def ou_sides(g, price="lock"):
         slate_date=g["slate_date"].astype(str).to_numpy()), index=g.index)
 
 
-def _ou_members(d, test):
+def _ou_members(d, test, closed_from=None):
     if not len(d):
         return d
     keep = (d["early"] if test["early"] else ~d["early"] & ~d["opener"])
-    keep &= d["model_tag"].str.endswith(OU_TAG_SUFFIX) & (d["edge"] >= test["min_edge"])
+    keep &= (d["model_tag"].str.endswith(test.get("tag_suffix", OU_TAG_SUFFIX))
+             & (d["edge"] >= test["min_edge"]))
     keep &= (d["book"] == HYPOTHESIS_BOOK) & (d["slate_date"] >= FAMILY_SLATE)
+    if closed_from is not None:                 # a closed row: slates before its successor
+        keep &= d["slate_date"] < closed_from
     return d[keep]
 
 
-def ou_signals(g, test, price="lock"):
-    """The O/U test's selections at `price`, graded or not."""
-    if price == "lock":
+def ou_signals(g, test, price=None):
+    """The O/U test's selections at `price` (default: the test's own),
+    graded or not."""
+    price = price or test["native"]
+    if price in ("lock", "lock2"):
         g = drop_void_locks(g)                  # stale game-log locks: void
-    return _ou_members(ou_sides(g, price), test)
+    closed_from = ou2_activation_slate(g) if test.get("closes") == "ou2" else None
+    if price == "lock2":
+        g = with_ou2(g)
+    return _ou_members(ou_sides(g, price), test, closed_from)
 
 
-def ou_picks(g, test, price="lock"):
+def ou_picks(g, test, price=None):
     """The O/U test's bets on finished games: result (1 win, 0 loss, 0.5
     push), units (a push returns the stake), its no-vig null, break-even and
     over_units, 1u on the over of the same game at the same price."""
+    price = price or test["native"]
+    if price == "lock2":
+        g = with_ou2(g)
     d = ou_signals(g, test, price)
     if not len(d):
         return d
@@ -1174,7 +1249,7 @@ def ou_picks(g, test, price="lock"):
                   for m, r in zip(d["ml"], d["result"])]
     d["breakeven"] = market.breakeven_prob(d["ml"])
     d["units_null"] = d["q"] * [market.decimal_payout(m) for m in d["ml"]] - 1
-    oc = OU_PRICE_COLUMNS[test["native"]][1]
+    oc = OU_PRICE_COLUMNS[price][1]
     over_ml = pd.to_numeric(g.loc[d.index, oc], errors="coerce").to_numpy()
     d["over_units"] = [0.0 if h == 0.5 else market.unit_profit(m, h == 1)
                        for m, h in zip(over_ml, over_hit)]
@@ -1193,7 +1268,7 @@ def void_lock_bets(native, book=HYPOTHESIS_BOOK):
         for hyp in active_hypotheses():
             if hyp.get("native") == "lock" and not hyp.get("retired"):
                 out.append((hyp["key"], hypothesis_picks(on_book(g, "lock", book), hyp, "lock")))
-        for test in OU_TESTS:
+        for test in ALL_OU_TESTS:
             out.append((test["key"], ou_picks(g, test)))
     return [(k, d) for k, d in out if d is not None and len(d)]
 

@@ -309,8 +309,48 @@ def check_pre_box(path):
     return errs
 
 
+def check_ou_rescore(path=None, native_path=ledger.NATIVE_PATH):
+    """data/nba_ou_rescore.csv (O/U model ou2 amendment, 2026-11-03): one row
+    per native ou1 O/U lock from 2026-10-29, at that lock's own snapshot, an
+    ou2 tag, P(over) in [0, 1], a total, and no report later than the lock."""
+    import ou_rescore
+    path = path or str(ou_rescore.PATH)
+    if not os.path.exists(path):
+        return []
+    errs = []
+    r = pd.read_csv(path, dtype={"game_id": str})
+    if list(r.columns) != ou_rescore.COLUMNS:
+        return [f"{path}: columns differ from ou_rescore.COLUMNS"]
+    if r["game_id"].duplicated().any():
+        errs.append(f"{path}: duplicate game_id")
+    if not r["rescore_ou_tag"].astype(str).str.endswith("_ou2").all():
+        errs.append(f"{path}: a tag not ending _ou2")
+    p = pd.to_numeric(r["rescore_ou_p_over"], errors="coerce")
+    if (~p.between(0, 1) | pd.to_numeric(r["rescore_ou_total"], errors="coerce").isna()).any():
+        errs.append(f"{path}: P(over) outside [0,1] or a missing total")
+    if (r["slate_date"].astype(str) < ou_rescore.FIRST_SLATE).any():
+        errs.append(f"{path}: a slate before {ou_rescore.FIRST_SLATE}")
+    lock = pd.to_datetime(r["lock_ou_snapshot_utc"], utc=True, errors="coerce")
+    rep = pd.to_datetime(r["rescore_ou_report_utc"], utc=True, errors="coerce")
+    if (rep.notna() & (rep > lock)).any():
+        errs.append(f"{path}: a report later than its lock")
+    if os.path.exists(native_path):
+        n = pd.read_csv(native_path, dtype={"game_id": str}).set_index("game_id")
+        missing = ~r["game_id"].isin(n.index)
+        if missing.any():
+            errs.append(f"{path}: a game not in the native ledger")
+        ok = r[~missing]
+        nl = n.loc[ok["game_id"]]
+        same = (pd.to_datetime(nl["lock_ou_snapshot_utc"], utc=True).to_numpy()
+                == pd.to_datetime(ok["lock_ou_snapshot_utc"], utc=True).to_numpy())
+        if not (nl["lock_ou_tag"].astype(str).str.endswith("_ou1").to_numpy() & same).all():
+            errs.append(f"{path}: a row not at its game's native ou1 lock")
+    return errs
+
+
 def main():
     errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
+    errs += check_ou_rescore()
     errs += check_sleeper()
     errs += check_yahoo()
     for path in sorted(glob.glob(os.path.join("data", "nba_box_[0-9][0-9][0-9][0-9].csv"))):

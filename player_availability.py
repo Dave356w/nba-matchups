@@ -1299,6 +1299,87 @@ def upcoming_terms(box, team, gid, date, value, present):
                              value=value, present=present)[gid]
 
 
+# ------------------------------------------- totals ou2 (CLAUDE.md 2026-11-03) --
+# The totals model's report terms: each team's av_bpm valued by last season's
+# OBPM (av_o) and DBPM (av_d) and its av_min (av_m), summed over both teams
+# (a total, not a margin). Rookies and unmatched players at replacement.
+TOTALS_TERMS = ("av_o", "av_d", "av_m")
+TOTALS_STATS = ("OBPM", "DBPM")
+
+
+def stat_values(box, prev_season):
+    """{'OBPM': {player_id: value}, 'DBPM': ...}: last season's shrunk OBPM /
+    DBPM above replacement for the players in `box` (no lookahead)."""
+    return {s: player_values(box, load_bpm(prev_season, s))[0] for s in TOTALS_STATS}
+
+
+def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
+                 values, q_rates):
+    """dict(av_o, av_d, av_m, report) for an upcoming game, both teams summed,
+    from one parsed report (published at report_time, ET naive) and the box
+    rows before the game, under the q rule at the report's lead before tip;
+    None when the report does not cover the game or a team has no history
+    (the neutral ou2 route)."""
+    if report_rows is None or report_time is None or not values:
+        return None
+    slate = pd.Timestamp(date).strftime("%Y-%m-%d")
+    if not covers(report_coverage(report_rows, slate), home, away):
+        return None
+    rates = None
+    tip = ledger.parse_utc(tip_utc)
+    if q_rates and tip is not None:
+        lead = (tip.astimezone(ET).replace(tzinfo=None) - report_time).total_seconds() / 60
+        rates = lead_rates(q_rates, lead)
+    present = od_present(report_rows, box, gid, {home, away}, slate, rates)
+    out = dict(av_o=0.0, av_d=0.0, av_m=0.0)
+    for team in (home, away):
+        o = upcoming_terms(box, team, gid, date, values["OBPM"], present)
+        d = upcoming_terms(box, team, gid, date, values["DBPM"], present)
+        if o is None or d is None:
+            return None
+        out["av_o"] += o[2]
+        out["av_d"] += d[2]
+        out["av_m"] += o[0]
+    out["report"] = f"{report_time:%Y-%m-%d %H:%M}"
+    return out
+
+
+def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None):
+    """(slate date, home, away) -> dict(av_o, av_d, av_m) for every game of
+    season t from the last report at least `lead` minutes before tip (the
+    ou2 fit; research/totals_report.py arm rep5h). Uncovered games get 0."""
+    box = fetch_box(t, cache_dir=cache_dir)
+    tips = fetch_tips(t, cache_dir)
+    archive = archive or ReportArchive(REPORT_DIR)
+    cut = []
+    for gid in box["game_id"].astype(str).unique():
+        tip = ledger.parse_utc(tips.get(gid))
+        if tip is not None:
+            cut.append(tip.astimezone(ET).replace(tzinfo=None) - timedelta(minutes=lead))
+    archive.prefetch(cut)
+    st, s = game_statuses(box, tips, archive, lead)
+    archive.save()
+    present = present_map(st, "q", lead_rates(q_table, lead))
+    values = stat_values(box, t - 1)
+    team = {}
+    for stat in TOTALS_STATS:
+        for tm, tg in box.groupby("team"):
+            for gid, v in team_availability(tg, value=values[stat], present=present).items():
+                team.setdefault((str(gid), tm), {})[stat] = v
+    covered = {str(g) for g in s["covered"]}
+    out = {}
+    g = box[box["home"]].drop_duplicates("game_id")[["game_id", "date", "team", "opp"]]
+    for gid, date, h, a in g.itertuples(index=False):
+        th, ta = team.get((str(gid), h)), team.get((str(gid), a))
+        key = (pd.Timestamp(date).strftime("%Y-%m-%d"), h, a)
+        if th is None or ta is None or str(gid) not in covered:
+            out[key] = dict(av_o=0.0, av_d=0.0, av_m=0.0)
+            continue
+        out[key] = dict(av_o=th["OBPM"][2] + ta["OBPM"][2], av_d=th["DBPM"][2] + ta["DBPM"][2],
+                        av_m=th["OBPM"][0] + ta["OBPM"][0])
+    return out
+
+
 class LiveAvailability:
     """Availability terms and roster talent for today's slate (daily build,
     models v3-v5). A failed injury-report fetch leaves report None (no
@@ -1306,6 +1387,7 @@ class LiveAvailability:
 
     def __init__(self, season, today, now_et, data_dir="data",
                  report_dir=os.path.join("bbr_cache", "injury_reports"), rookies=None):
+        self.season = season
         self.box = update_box(season, today, data_dir)
         bpm = load_bpm(season - 1)
         self.report_dir, self.now_et = report_dir, now_et
@@ -1350,6 +1432,19 @@ class LiveAvailability:
             return None
         return dict(av_min=th[0] - ta[0], av_bpm=th[2] - ta[2],
                     report=f"{self.report_time:%Y-%m-%d %H:%M}")
+
+    def totals_terms(self, gid, home, away, date, tip_utc=None, q_rates=None):
+        """The totals model's report terms (ou2; totals_terms) from this
+        build's report, or None (neutral). Last season's OBPM / DBPM load on
+        first use; a failure leaves every game neutral, never the build."""
+        if getattr(self, "_stat_values", None) is None:
+            try:
+                self._stat_values = stat_values(self.box, self.season - 1)
+            except Exception as e:  # noqa: BLE001
+                print(f"totals report terms unavailable ({e!r})", flush=True)
+                self._stat_values = {}
+        return totals_terms(self.report, self.report_time, self.box, gid, home, away, date,
+                            tip_utc, self._stat_values, q_rates)
 
 
 def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES,

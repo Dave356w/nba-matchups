@@ -1,0 +1,210 @@
+Slim model test (research/slim_model.py). ± 95%. Hindsight research only; no model change.
+
+python research/slim_model.py > diagnostics/slim_model/RESULTS.txt
+
+Rows 4847: 2022-23 1214, 2023-24 1215, 2024-25 1209, 2025-26 1209; games 1–9 558, 10+ 4289, g 0 0
+
+== Full-sample fits (all four seasons), points per unit; sigma = residual SD
+  full8  sigma 13.627  int +2.062  delta +0.140  b2b_net +2.226  av_min +1.038  av_bpm +0.304  d_phase +0.171  luck_def +0.108  talent_diff +0.300  ft_diff +0.149
+  slim6  sigma 13.649  int +2.063  delta +0.127  b2b_net +2.215  av_min +1.096  av_bpm +0.265  d_phase +0.171  talent_diff +0.332
+  slim5  sigma 13.669  int +2.071  delta +0.124  b2b_net +2.327  av_bpm +0.470  d_phase +0.179  talent_diff +0.333
+  base4  sigma 13.743  int +2.099  delta +0.104  b2b_net +2.602  d_phase +0.181  talent_diff +0.428
+  core3  sigma 13.908  int +2.073  delta +0.182  b2b_net +2.671  d_phase +0.209
+
+== Walk-forward (fit on earlier report seasons only): arm − full8, paired, ± 95% (positive = arm worse)
+  pooled   all games 1+  n  3633  full8 LL 0.5907
+      slim6  LL +0.0009 ± 0.0014   margin MSE +0.47 ± 0.69
+      slim5  LL +0.0016 ± 0.0021   margin MSE +0.63 ± 1.00
+      base4  LL +0.0054 ± 0.0030   margin MSE +2.94 ± 1.52
+      core3  LL +0.0135 ± 0.0051   margin MSE +7.05 ± 2.50
+  pooled   games 1–9     n   417  full8 LL 0.5973
+      slim6  LL +0.0007 ± 0.0048   margin MSE +0.15 ± 2.16
+      slim5  LL +0.0048 ± 0.0059   margin MSE +1.38 ± 2.46
+      base4  LL +0.0061 ± 0.0076   margin MSE +2.29 ± 3.36
+      core3  LL +0.0195 ± 0.0123   margin MSE +12.56 ± 5.79
+  pooled   games 10+     n  3216  full8 LL 0.5899
+      slim6  LL +0.0009 ± 0.0015   margin MSE +0.52 ± 0.72
+      slim5  LL +0.0012 ± 0.0022   margin MSE +0.53 ± 1.08
+      base4  LL +0.0053 ± 0.0032   margin MSE +3.02 ± 1.66
+      core3  LL +0.0127 ± 0.0056   margin MSE +6.33 ± 2.72
+  2023-24  all games 1+  n  1215  full8 LL 0.5990
+      slim6  LL -0.0010 ± 0.0030   margin MSE -0.43 ± 1.44
+      slim5  LL -0.0008 ± 0.0047   margin MSE -0.98 ± 2.09
+      base4  LL +0.0036 ± 0.0051   margin MSE +1.74 ± 2.47
+      core3  LL +0.0191 ± 0.0089   margin MSE +7.99 ± 4.09
+  2023-24  games 1–9     n   141  full8 LL 0.6197
+      slim6  LL -0.0012 ± 0.0107   margin MSE -0.51 ± 4.54
+      slim5  LL +0.0084 ± 0.0138   margin MSE +2.30 ± 5.31
+      base4  LL +0.0117 ± 0.0150   margin MSE +4.71 ± 5.87
+      core3  LL +0.0316 ± 0.0240   margin MSE +15.45 ± 11.08
+  2023-24  games 10+     n  1074  full8 LL 0.5963
+      slim6  LL -0.0010 ± 0.0031   margin MSE -0.42 ± 1.52
+      slim5  LL -0.0020 ± 0.0049   margin MSE -1.42 ± 2.26
+      base4  LL +0.0025 ± 0.0054   margin MSE +1.35 ± 2.68
+      core3  LL +0.0175 ± 0.0096   margin MSE +7.01 ± 4.39
+  2024-25  all games 1+  n  1209  full8 LL 0.5914
+      slim6  LL +0.0020 ± 0.0018   margin MSE +0.61 ± 0.95
+      slim5  LL +0.0012 ± 0.0031   margin MSE +0.41 ± 1.61
+      base4  LL +0.0057 ± 0.0051   margin MSE +2.18 ± 2.70
+      core3  LL +0.0096 ± 0.0093   margin MSE +3.88 ± 4.54
+  2024-25  games 1–9     n   138  full8 LL 0.5966
+      slim6  LL +0.0018 ± 0.0066   margin MSE -1.33 ± 2.79
+      slim5  LL +0.0035 ± 0.0076   margin MSE -0.51 ± 2.97
+      base4  LL +0.0028 ± 0.0115   margin MSE -0.98 ± 4.81
+      core3  LL +0.0100 ± 0.0193   margin MSE +3.47 ± 8.03
+  2024-25  games 10+     n  1071  full8 LL 0.5908
+      slim6  LL +0.0020 ± 0.0019   margin MSE +0.86 ± 1.01
+      slim5  LL +0.0009 ± 0.0034   margin MSE +0.53 ± 1.78
+      base4  LL +0.0061 ± 0.0056   margin MSE +2.59 ± 2.99
+      core3  LL +0.0095 ± 0.0102   margin MSE +3.93 ± 5.02
+  2025-26  all games 1+  n  1209  full8 LL 0.5816
+      slim6  LL +0.0018 ± 0.0023   margin MSE +1.24 ± 1.12
+      slim5  LL +0.0043 ± 0.0027   margin MSE +2.46 ± 1.39
+      base4  LL +0.0068 ± 0.0051   margin MSE +4.89 ± 2.70
+      core3  LL +0.0118 ± 0.0083   margin MSE +9.27 ± 4.35
+  2025-26  games 1–9     n   138  full8 LL 0.5751
+      slim6  LL +0.0017 ± 0.0071   margin MSE +2.30 ± 3.62
+      slim5  LL +0.0025 ± 0.0077   margin MSE +2.33 ± 4.12
+      base4  LL +0.0037 ± 0.0129   margin MSE +3.09 ± 6.62
+      core3  LL +0.0166 ± 0.0202   margin MSE +18.69 ± 10.56
+  2025-26  games 10+     n  1071  full8 LL 0.5825
+      slim6  LL +0.0018 ± 0.0024   margin MSE +1.10 ± 1.18
+      slim5  LL +0.0046 ± 0.0029   margin MSE +2.48 ± 1.47
+      base4  LL +0.0072 ± 0.0055   margin MSE +5.12 ± 2.93
+      core3  LL +0.0112 ± 0.0090   margin MSE +8.05 ± 4.71
+
+== Walk-forward: model − close log loss by book, ± 95% (positive = close better)
+  2024-25 espnbet  games 1–9  n  138  close 0.6169
+      full8 -0.0203 ± 0.0250  slim6 -0.0186 ± 0.0242  slim5 -0.0168 ± 0.0245  base4 -0.0175 ± 0.0256  core3 -0.0103 ± 0.0354
+  2024-25 espnbet  games 10+  n 1071  close 0.5776
+      full8 +0.0132 ± 0.0092  slim6 +0.0152 ± 0.0094  slim5 +0.0141 ± 0.0095  base4 +0.0192 ± 0.0112  core3 +0.0227 ± 0.0134
+  2025-26 dk       games 10+  n  964  close 0.5702
+      full8 +0.0161 ± 0.0107  slim6 +0.0183 ± 0.0107  slim5 +0.0215 ± 0.0108  base4 +0.0238 ± 0.0120  core3 +0.0286 ± 0.0140
+  2025-26 espnbet  games 1–9  n  138  close 0.5693
+      full8 +0.0058 ± 0.0268  slim6 +0.0075 ± 0.0274  slim5 +0.0083 ± 0.0275  base4 +0.0095 ± 0.0290  core3 +0.0224 ± 0.0385
+  2025-26 espnbet  games 10+  n  107  close 0.5551
+      full8 -0.0075 ± 0.0314  slim6 -0.0094 ± 0.0310  slim5 -0.0100 ± 0.0307  base4 -0.0043 ± 0.0322  core3 -0.0069 ± 0.0387
+
+== Leave-one-season-out: arm − full8, paired, ± 95% (positive = arm worse)
+  pooled   all games 1+  n  4847  full8 LL 0.6002
+      slim6  LL +0.0010 ± 0.0013   margin MSE +0.56 ± 0.63
+      slim5  LL +0.0018 ± 0.0018   margin MSE +0.93 ± 0.89
+      base4  LL +0.0049 ± 0.0028   margin MSE +2.91 ± 1.48
+      core3  LL +0.0138 ± 0.0044   margin MSE +7.39 ± 2.22
+  pooled   games 1–9     n   558  full8 LL 0.6084
+      slim6  LL +0.0009 ± 0.0045   margin MSE +0.80 ± 2.03
+      slim5  LL +0.0038 ± 0.0050   margin MSE +1.96 ± 2.27
+      base4  LL +0.0036 ± 0.0071   margin MSE +1.40 ± 3.36
+      core3  LL +0.0166 ± 0.0102   margin MSE +11.33 ± 4.95
+  pooled   games 10+     n  4289  full8 LL 0.5991
+      slim6  LL +0.0010 ± 0.0013   margin MSE +0.52 ± 0.67
+      slim5  LL +0.0016 ± 0.0019   margin MSE +0.80 ± 0.96
+      base4  LL +0.0050 ± 0.0031   margin MSE +3.11 ± 1.61
+      core3  LL +0.0134 ± 0.0048   margin MSE +6.87 ± 2.42
+  2022-23  all games 1+  n  1214  full8 LL 0.6317
+      slim6  LL +0.0012 ± 0.0028   margin MSE +0.63 ± 1.23
+      slim5  LL +0.0022 ± 0.0035   margin MSE +1.28 ± 1.65
+      base4  LL +0.0028 ± 0.0066   margin MSE +1.88 ± 3.22
+      core3  LL +0.0148 ± 0.0096   margin MSE +7.47 ± 4.74
+  2022-23  games 1–9     n   141  full8 LL 0.6352
+      slim6  LL +0.0023 ± 0.0097   margin MSE +3.16 ± 3.86
+      slim5  LL +0.0029 ± 0.0102   margin MSE +4.07 ± 4.69
+      base4  LL -0.0008 ± 0.0155   margin MSE -0.82 ± 7.89
+      core3  LL +0.0131 ± 0.0218   margin MSE +9.26 ± 10.50
+  2022-23  games 10+     n  1073  full8 LL 0.6313
+      slim6  LL +0.0011 ± 0.0028   margin MSE +0.29 ± 1.30
+      slim5  LL +0.0021 ± 0.0037   margin MSE +0.91 ± 1.76
+      base4  LL +0.0032 ± 0.0071   margin MSE +2.23 ± 3.49
+      core3  LL +0.0150 ± 0.0105   margin MSE +7.23 ± 5.19
+  2023-24  all games 1+  n  1215  full8 LL 0.5964
+      slim6  LL -0.0007 ± 0.0029   margin MSE +0.05 ± 1.44
+      slim5  LL +0.0005 ± 0.0038   margin MSE +0.18 ± 1.86
+      base4  LL +0.0050 ± 0.0052   margin MSE +3.13 ± 2.79
+      core3  LL +0.0190 ± 0.0078   margin MSE +9.04 ± 4.01
+  2023-24  games 1–9     n   141  full8 LL 0.6246
+      slim6  LL -0.0017 ± 0.0103   margin MSE -0.34 ± 4.82
+      slim5  LL +0.0060 ± 0.0122   margin MSE +2.25 ± 5.22
+      base4  LL +0.0093 ± 0.0152   margin MSE +4.82 ± 6.61
+      core3  LL +0.0269 ± 0.0205   margin MSE +14.61 ± 9.94
+  2023-24  games 10+     n  1074  full8 LL 0.5927
+      slim6  LL -0.0005 ± 0.0030   margin MSE +0.10 ± 1.51
+      slim5  LL -0.0002 ± 0.0039   margin MSE -0.10 ± 1.99
+      base4  LL +0.0045 ± 0.0055   margin MSE +2.91 ± 3.04
+      core3  LL +0.0180 ± 0.0084   margin MSE +8.31 ± 4.34
+  2024-25  all games 1+  n  1209  full8 LL 0.5908
+      slim6  LL +0.0016 ± 0.0024   margin MSE +0.31 ± 1.26
+      slim5  LL +0.0003 ± 0.0040   margin MSE -0.17 ± 2.12
+      base4  LL +0.0049 ± 0.0056   margin MSE +1.76 ± 3.06
+      core3  LL +0.0093 ± 0.0092   margin MSE +3.76 ± 4.60
+  2024-25  games 1–9     n   138  full8 LL 0.5977
+      slim6  LL +0.0012 ± 0.0086   margin MSE -1.93 ± 3.81
+      slim5  LL +0.0035 ± 0.0098   margin MSE -0.88 ± 3.99
+      base4  LL +0.0022 ± 0.0128   margin MSE -1.54 ± 5.47
+      core3  LL +0.0098 ± 0.0193   margin MSE +2.75 ± 8.32
+  2024-25  games 10+     n  1071  full8 LL 0.5899
+      slim6  LL +0.0017 ± 0.0025   margin MSE +0.60 ± 1.33
+      slim5  LL -0.0001 ± 0.0044   margin MSE -0.08 ± 2.33
+      base4  LL +0.0053 ± 0.0061   margin MSE +2.19 ± 3.38
+      core3  LL +0.0093 ± 0.0101   margin MSE +3.89 ± 5.09
+  2025-26  all games 1+  n  1209  full8 LL 0.5816
+      slim6  LL +0.0018 ± 0.0023   margin MSE +1.24 ± 1.12
+      slim5  LL +0.0043 ± 0.0027   margin MSE +2.46 ± 1.39
+      base4  LL +0.0068 ± 0.0051   margin MSE +4.89 ± 2.70
+      core3  LL +0.0118 ± 0.0083   margin MSE +9.27 ± 4.35
+  2025-26  games 1–9     n   138  full8 LL 0.5751
+      slim6  LL +0.0017 ± 0.0071   margin MSE +2.30 ± 3.62
+      slim5  LL +0.0025 ± 0.0077   margin MSE +2.33 ± 4.12
+      base4  LL +0.0037 ± 0.0129   margin MSE +3.09 ± 6.62
+      core3  LL +0.0166 ± 0.0202   margin MSE +18.69 ± 10.56
+  2025-26  games 10+     n  1071  full8 LL 0.5825
+      slim6  LL +0.0018 ± 0.0024   margin MSE +1.10 ± 1.18
+      slim5  LL +0.0046 ± 0.0029   margin MSE +2.48 ± 1.47
+      base4  LL +0.0072 ± 0.0055   margin MSE +5.12 ± 2.93
+      core3  LL +0.0112 ± 0.0090   margin MSE +8.05 ± 4.71
+
+== Leave-one-season-out: model − close log loss by book, ± 95% (positive = close better)
+  2024-25 espnbet  games 1–9  n  138  close 0.6169
+      full8 -0.0191 ± 0.0264  slim6 -0.0179 ± 0.0249  slim5 -0.0157 ± 0.0253  base4 -0.0169 ± 0.0260  core3 -0.0094 ± 0.0354
+  2024-25 espnbet  games 10+  n 1071  close 0.5776
+      full8 +0.0122 ± 0.0093  slim6 +0.0139 ± 0.0093  slim5 +0.0121 ± 0.0093  base4 +0.0175 ± 0.0111  core3 +0.0215 ± 0.0133
+  2025-26 dk       games 10+  n  964  close 0.5702
+      full8 +0.0161 ± 0.0107  slim6 +0.0183 ± 0.0107  slim5 +0.0215 ± 0.0108  base4 +0.0238 ± 0.0120  core3 +0.0286 ± 0.0140
+  2025-26 espnbet  games 1–9  n  138  close 0.5693
+      full8 +0.0058 ± 0.0268  slim6 +0.0075 ± 0.0274  slim5 +0.0083 ± 0.0275  base4 +0.0095 ± 0.0290  core3 +0.0224 ± 0.0385
+  2025-26 espnbet  games 10+  n  107  close 0.5551
+      full8 -0.0075 ± 0.0314  slim6 -0.0094 ± 0.0310  slim5 -0.0100 ± 0.0307  base4 -0.0043 ± 0.0322  core3 -0.0069 ± 0.0387
+
+== Walk-forward: ATS at the reconstructed close, main-line prices, ± 95%; ROI null = the same bets at no-vig prices
+  2024-25 espnbet games 1–9 (n 137)
+      full8 own margin all: 71-66-0 51.8% ROI -0.013 ± 0.160 (null -0.045) | edge≥1: 56-40-0 58.3% ROI +0.113 ± 0.189 (null -0.045) | edge≥3: 21-12-0 63.6% ROI +0.211 ± 0.318 (null -0.045)
+      full8 H5 13.5    all: 72-65-0 52.6% ROI +0.001 ± 0.160 (null -0.045) | edge≥1: 55-39-0 58.5% ROI +0.116 ± 0.191 (null -0.045) | edge≥3: 21-12-0 63.6% ROI +0.211 ± 0.318 (null -0.045)
+      slim6 own margin all: 72-65-0 52.6% ROI +0.003 ± 0.160 (null -0.045) | edge≥1: 55-39-0 58.5% ROI +0.115 ± 0.191 (null -0.045) | edge≥3: 16-9-0 64.0% ROI +0.222 ± 0.367 (null -0.045)
+      slim6 H5 13.5    all: 70-67-0 51.1% ROI -0.025 ± 0.160 (null -0.045) | edge≥1: 55-40-0 57.9% ROI +0.103 ± 0.190 (null -0.045) | edge≥3: 16-9-0 64.0% ROI +0.225 ± 0.368 (null -0.045)
+      sides agree (own margin) 90.5%
+  2024-25 espnbet games 10+ (n 1071)
+      full8 own margin all: 558-513-0 52.1% ROI -0.007 ± 0.057 (null -0.045) | edge≥1: 367-370-0 49.8% ROI -0.050 ± 0.069 (null -0.045) | edge≥3: 116-134-0 46.4% ROI -0.114 ± 0.118 (null -0.045)
+      full8 H5 13.5    all: 555-516-0 51.8% ROI -0.013 ± 0.057 (null -0.045) | edge≥1: 361-371-0 49.3% ROI -0.059 ± 0.069 (null -0.045) | edge≥3: 120-139-0 46.3% ROI -0.115 ± 0.116 (null -0.045)
+      slim6 own margin all: 548-523-0 51.2% ROI -0.024 ± 0.057 (null -0.045) | edge≥1: 376-369-0 50.5% ROI -0.038 ± 0.069 (null -0.045) | edge≥3: 135-146-0 48.0% ROI -0.082 ± 0.112 (null -0.045)
+      slim6 H5 13.5    all: 550-521-0 51.4% ROI -0.021 ± 0.057 (null -0.045) | edge≥1: 369-378-0 49.4% ROI -0.058 ± 0.068 (null -0.045) | edge≥3: 139-143-0 49.3% ROI -0.058 ± 0.112 (null -0.045)
+      sides agree (own margin) 93.1%
+  2025-26 dk games 10+ (n 964)
+      full8 own margin all: 489-475-0 50.7% ROI -0.033 ± 0.060 (null -0.045) | edge≥1: 354-355-0 49.9% ROI -0.049 ± 0.070 (null -0.045) | edge≥3: 147-159-0 48.0% ROI -0.087 ± 0.107 (null -0.045)
+      full8 H5 13.5    all: 489-475-0 50.7% ROI -0.033 ± 0.060 (null -0.045) | edge≥1: 354-354-0 50.0% ROI -0.048 ± 0.070 (null -0.045) | edge≥3: 147-158-0 48.2% ROI -0.084 ± 0.107 (null -0.045)
+      slim6 own margin all: 477-487-0 49.5% ROI -0.057 ± 0.060 (null -0.045) | edge≥1: 348-357-0 49.4% ROI -0.059 ± 0.070 (null -0.045) | edge≥3: 140-160-0 46.7% ROI -0.112 ± 0.108 (null -0.045)
+      slim6 H5 13.5    all: 478-486-0 49.6% ROI -0.055 ± 0.060 (null -0.045) | edge≥1: 349-357-0 49.4% ROI -0.058 ± 0.070 (null -0.045) | edge≥3: 138-159-0 46.5% ROI -0.116 ± 0.108 (null -0.045)
+      sides agree (own margin) 93.4%
+  2025-26 espnbet games 1–9 (n 138)
+      full8 own margin all: 69-69-0 50.0% ROI -0.048 ± 0.160 (null -0.045) | edge≥1: 42-54-0 43.8% ROI -0.165 ± 0.190 (null -0.045) | edge≥3: 23-20-0 53.5% ROI +0.017 ± 0.287 (null -0.046)
+      full8 H5 13.5    all: 69-69-0 50.0% ROI -0.048 ± 0.160 (null -0.045) | edge≥1: 43-54-0 44.3% ROI -0.155 ± 0.190 (null -0.045) | edge≥3: 23-20-0 53.5% ROI +0.017 ± 0.287 (null -0.046)
+      slim6 own margin all: 65-73-0 47.1% ROI -0.103 ± 0.159 (null -0.045) | edge≥1: 45-53-0 45.9% ROI -0.127 ± 0.189 (null -0.045) | edge≥3: 20-22-0 47.6% ROI -0.089 ± 0.292 (null -0.045)
+      slim6 H5 13.5    all: 65-73-0 47.1% ROI -0.103 ± 0.159 (null -0.045) | edge≥1: 45-53-0 45.9% ROI -0.127 ± 0.189 (null -0.045) | edge≥3: 20-21-0 48.8% ROI -0.067 ± 0.296 (null -0.045)
+      sides agree (own margin) 88.4%
+  2025-26 espnbet games 10+ (n 106)
+      full8 own margin all: 56-50-0 52.8% ROI +0.006 ± 0.182 (null -0.046) | edge≥1: 39-32-0 54.9% ROI +0.048 ± 0.223 (null -0.046) | edge≥3: 17-11-0 60.7% ROI +0.156 ± 0.351 (null -0.047)
+      full8 H5 13.5    all: 54-52-0 50.9% ROI -0.029 ± 0.182 (null -0.046) | edge≥1: 39-32-0 54.9% ROI +0.048 ± 0.223 (null -0.046) | edge≥3: 17-11-0 60.7% ROI +0.156 ± 0.351 (null -0.047)
+      slim6 own margin all: 55-51-0 51.9% ROI -0.007 ± 0.183 (null -0.046) | edge≥1: 38-35-0 52.1% ROI -0.007 ± 0.220 (null -0.046) | edge≥3: 13-8-0 61.9% ROI +0.179 ± 0.405 (null -0.045)
+      slim6 H5 13.5    all: 54-52-0 50.9% ROI -0.025 ± 0.183 (null -0.046) | edge≥1: 38-35-0 52.1% ROI -0.007 ± 0.220 (null -0.046) | edge≥3: 13-8-0 61.9% ROI +0.179 ± 0.405 (null -0.045)
+      sides agree (own margin) 85.8%
+
+== slim6 vs full8, leave-one-season-out predictions
+  |margin diff| median 0.54, 90th pct 1.37 pts; |P diff| median 0.0134, 90th pct 0.0362; winner flips 3.6%
