@@ -489,6 +489,10 @@ def score_slate(today, weights, model, now=None, finals=None):
     # finals: the graded native ledger, so a day-old page cannot stand in
     # for games ESPN has already finished
     logs = complete_logs(logs, season_for(today), today, finals)
+    # Stale game-log locks amendment (CLAUDE.md, 2026-11-03): a team still
+    # behind its graded finals is named on the row, and ledger.upsert_pregame
+    # takes no lock from that snapshot (the forecast still refreshes).
+    behind = set(stale_log_teams(logs, finals, season_for(today), today))
     prior = None
     teams = {t for g in pre for t in (g["home"], g["away"])}
     if is_v8(model) and (teams - set(logs) or any(
@@ -523,7 +527,8 @@ def score_slate(today, weights, model, now=None, finals=None):
     for g in pre:
         r = dict(game_id=g["game_id"], slate_date=today,
                  season=season_for(today), tip_utc=g["tip_utc"],
-                 model_tag=model_tag(model), home=g["home"], away=g["away"])
+                 model_tag=model_tag(model), home=g["home"], away=g["away"],
+                 stale_logs=" ".join(t for t in (g["away"], g["home"]) if t in behind))
         terms = None
         if live is not None:
             try:
@@ -544,6 +549,9 @@ def score_slate(today, weights, model, now=None, finals=None):
         r["route"] = route(r, model)
         add_pregame_price(r)
         add_totals(r, ou_model, ou_season)
+        if r["stale_logs"]:
+            log(f"lock held: {g['away']} @ {g['home']} ({g['game_id']}): game logs "
+                f"behind graded finals for {r['stale_logs']}")
         rows.append(r)
     return rows
 
@@ -2822,12 +2830,13 @@ def _hypothesis_ats_bands(native, recon):
 
 
 def _lock_txt(native):
-    """' (slate 2026-10-29; 41 locked, 0 missed)' or ' (not yet active)'."""
+    """' (slate 2026-10-29; 41 locked, ...; 0 missed; 8 void ...)' or ' (not yet active)'."""
     st = analysis.lock_status(native) if native is not None and len(native) else None
     if not st:
         return " (not yet active)"
     return (f" (slate {st['activation']}; {st['locked']} locked, median "
-            f"{st['lead_median_h']:.1f} h before tip; {st['missed']} missed)")
+            f"{st['lead_median_h']:.1f} h before tip; {st['missed']} missed; "
+            f"{st['void']} void for stale game logs)")
 
 
 def _family_txt(native):

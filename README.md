@@ -5,7 +5,7 @@ Actions: <https://dave356w.github.io/nba-matchups/>.
 
 | Public page | Purpose |
 |---|---|
-| Today | One probability, predicted margin and total per game, current DraftKings prices, each team's season W/L, and each tracked pick once its game locks (the first priced snapshot within 5 hours of tip). Game details include season four-factor comparisons and timestamped ESPN player injury lists. |
+| Today | One probability, predicted margin and total per game, current DraftKings prices, each team's season W/L, and each tracked pick once its game locks (the first priced snapshot within 5 hours of tip with current game logs). Game details include season four-factor comparisons and timestamped ESPN player injury lists. |
 | Results | Every frozen v11 winner prediction, including forecast-only games, with stage, season and outcome filters; a separate view contains every tracked win, loss, push and pending bet. |
 | Performance | Every v11 prediction's W/L, accuracy, pending count and Wilson 95% interval, with same-game closing-favourite W/L, log loss and Brier scores. Separate betting records for spread (H5·3), value favourite (H2·F·5), large probability gap (H4) and total (OU). Each season and stage stands alone. No combined portfolio return. |
 | How it works | Plain-language forecast, rule, timing and results definitions. |

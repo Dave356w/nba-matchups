@@ -153,8 +153,10 @@ COLUMNS = COLUMNS + MARGIN_COLUMNS
 # next save writes the current schema (2026-10-28).
 PRE_LOCK_COLUMNS = list(COLUMNS)
 # Five-hour lock (CLAUDE.md amendment, 2026-10-28): the first pregame snapshot
-# with a model P and a price taken within LOCK_LEAD_HOURS of tip. Written once,
-# like first_*, and never refreshed or graded; the tracked bets read it.
+# with a model P and a price taken within LOCK_LEAD_HOURS of tip, and (stale
+# game-log locks amendment, 2026-11-03) with current game logs: a row naming
+# `stale_logs` never locks. Written once, like first_*, and never refreshed or
+# graded; the tracked bets read it.
 LOCK_LEAD_HOURS = 5
 LOCK_COLUMNS = ["lock_snapshot_utc", "lock_model_tag", "lock_p_home", "lock_book",
                 "lock_home_ml", "lock_away_ml", "lock_q_home", "lock_report_utc",
@@ -322,7 +324,9 @@ def upsert_pregame(led, rows, now=None, basis="native"):
     The first such snapshot within LOCK_LEAD_HOURS of tip fills `lock_*` once.
     The O/U total fills `first_ou_*` / `lock_ou_*` the same way, on its own
     condition (ou_ready). A new row also gets `seen_*` once. Optional keys of a row: `report_utc`
-    and `route` (copied to first_*), `price_note` (why it has no price).
+    and `route` (copied to first_*), `price_note` (why it has no price),
+    `stale_logs` (teams whose game log is behind the graded finals: that
+    snapshot fills neither lock_* nor lock_ou_*; a later one may).
     `basis` labels the rows ("native"; "preseason" for PRESEASON_PATH).
     """
     now = now or utc_now()
@@ -349,7 +353,9 @@ def upsert_pregame(led, rows, now=None, basis="native"):
         has_q = pd.notna(pd.to_numeric(rec["pre_q_home"], errors="coerce"))
         usable = has_p and has_q
         ou_usable = ou_ready(rec)
-        in_lock = now >= tip - timedelta(hours=LOCK_LEAD_HOURS)
+        stale = r.get("stale_logs")
+        logs_ok = not (isinstance(stale, str) and stale.strip())
+        in_lock = logs_ok and now >= tip - timedelta(hours=LOCK_LEAD_HOURS)
         hit = led.index[led["game_id"].astype(str) == gid]
         if len(hit):
             old = led.loc[hit[0]]

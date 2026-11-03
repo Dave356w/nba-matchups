@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from statistics import NormalDist
 
@@ -235,7 +236,7 @@ def model_predictions(native):
     """
     if native is None or not len(native):
         return pd.DataFrame()
-    g = native.copy()
+    g = drop_void_locks(native).copy()          # stale game-log locks: void
     p = pd.to_numeric(g['lock_p_home'], errors='coerce')
     at = pd.to_datetime(g['lock_snapshot_utc'], utc=True, errors='coerce')
     tip = pd.to_datetime(g['tip_utc'], utc=True, errors='coerce')
@@ -683,6 +684,46 @@ HYPOTHESES += tuple(dict(h, key=h["key"] + "·v11", family="v11", tags=FAMILY_TA
 # old-floor family rows (H5·L·v11, H2·F·L·v11) continue internally as their
 # supersets. The O/U test is OU_TESTS below. Never pooled.
 FLOOR_REGISTRATION_UTC = "2026-10-29T16:13:38Z"
+# Stale game-log locks amendment (CLAUDE.md, registered 2026-11-03T07:12:59Z):
+# these 5 h locks were taken while a team's saved game log was behind its
+# graded finals (research/stale_log_audit.py; outcome-blind). They are void:
+# no tracked test, CLV or model-prediction record reads them. Their frozen
+# first and lock values stay in the ledger; void_lock_bets lists the bets they
+# made, internally only. From the next slate a stale-log snapshot never locks
+# (ledger.upsert_pregame), so this list is closed.
+VOID_REGISTRATION_UTC = "2026-11-03T07:12:59Z"
+VOID_LOCKS = {
+    "401909897": "2026-10-31 PHI @ CHO (CHO, PHI logs behind)",
+    "401909909": "2026-11-02 ATL @ IND (IND log behind)",
+    "401909910": "2026-11-02 BRK @ NYK (BRK log behind)",
+    "401909911": "2026-11-02 WAS @ ORL (ORL log behind)",
+    "401909916": "2026-11-02 BOS @ HOU (BOS log behind)",
+    "401909919": "2026-11-02 PHO @ GSW (GSW log behind)",
+    "401909920": "2026-11-02 TOR @ LAC (TOR, LAC logs behind)",
+    "401909921": "2026-11-02 MIA @ LAL (LAL log behind)",
+}
+_READ_VOID = [False]     # True only inside including_void_locks()
+
+
+def drop_void_locks(g):
+    """Rows of `g` without the void locks (VOID_LOCKS): what every record
+    reads at the lock. Unchanged inside including_void_locks()."""
+    if _READ_VOID[0] or g is None or not len(g) or "game_id" not in g.columns:
+        return g
+    return g[~g["game_id"].astype(str).isin(VOID_LOCKS)]
+
+
+@contextmanager
+def including_void_locks():
+    """Internal listings only: the rules read the void locks too, so the bets
+    they made can be shown beside the records that exclude them."""
+    _READ_VOID[0] = True
+    try:
+        yield
+    finally:
+        _READ_VOID[0] = False
+
+
 FLOORS = {"H5": ("H5·3", 3.0, "≥ 3 pts"), "H2·F": ("H2·F·5", 0.05, "P − q ≥ 0.05")}
 
 
@@ -785,6 +826,8 @@ def native_scope(g, hyp, price):
     Hindsight prices and retired rows are unchanged."""
     if g is None or not len(g) or hyp.get("retired"):
         return g
+    if price == "lock":
+        g = drop_void_locks(g)                  # stale game-log locks: void
     if price == hyp["native"]:
         g = registered_scope(g, hyp)
     if not len(g) or price != "first" or hyp.get("lock"):
@@ -1106,6 +1149,8 @@ def _ou_members(d, test):
 
 def ou_signals(g, test, price="lock"):
     """The O/U test's selections at `price`, graded or not."""
+    if price == "lock":
+        g = drop_void_locks(g)                  # stale game-log locks: void
     return _ou_members(ou_sides(g, price), test)
 
 
@@ -1134,6 +1179,23 @@ def ou_picks(g, test, price="lock"):
     d["over_units"] = [0.0 if h == 0.5 else market.unit_profit(m, h == 1)
                        for m, h in zip(over_ml, over_hit)]
     return d
+
+
+def void_lock_bets(native, book=HYPOTHESIS_BOOK):
+    """The bets the void locks (VOID_LOCKS) made: [(test key, picks)] for each
+    active 5 h lock row and O/U test with any, read through the unchanged
+    rules at the frozen lock. Internal listing only; no record counts them."""
+    if native is None or not len(native):
+        return []
+    g = native[native["game_id"].astype(str).isin(VOID_LOCKS)]
+    out = []
+    with including_void_locks():
+        for hyp in active_hypotheses():
+            if hyp.get("native") == "lock" and not hyp.get("retired"):
+                out.append((hyp["key"], hypothesis_picks(on_book(g, "lock", book), hyp, "lock")))
+        for test in OU_TESTS:
+            out.append((test["key"], ou_picks(g, test)))
+    return [(k, d) for k, d in out if d is not None and len(d)]
 
 
 def ou_row(label, d):
@@ -1165,7 +1227,7 @@ def ou_clv(g, test):
 
 def lock_status(native, now=None):
     """The five-hour lock's coverage on the native ledger: dict(activation,
-    locked, missed, lead_median_h, family_locked, off_family) or None before
+    locked, missed, void, lead_median_h, family_locked, off_family) or None before
     activation. `missed` counts games from the activation slate on whose tip
     has passed without a lock; from FAMILY_SLATE on, `family_locked` counts
     locks with a v11-family tag and `off_family` the locks without one (no
@@ -1184,6 +1246,7 @@ def lock_status(native, now=None):
     in_family = tag.astype(str).str.endswith(FAMILY_TAGS)
     return dict(activation=cut, locked=int(lock.notna().sum()),
                 missed=int((lock.isna() & (tip <= now)).sum()),
+                void=int((lock.notna() & g["game_id"].astype(str).isin(VOID_LOCKS)).sum()),
                 lead_median_h=float(lead.median()) if len(lead) else float("nan"),
                 family_locked=int((fam & in_family).sum()),
                 off_family=int((fam & ~in_family).sum()))
