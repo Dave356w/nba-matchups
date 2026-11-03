@@ -59,6 +59,8 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
       H5·3·E·L·v11    2026-11-02 BRK @ NYK  BRK 14.5 -106  W  +0.94u
       H5·3·E·L·v11    2026-11-02 PHO @ GSW  PHO 2.5 -107  L  -1.00u
       H5·3·E·L·v11    2026-11-02 MIA @ LAL  LAL -2.5 -108  W  +0.93u
+      OU·E·L·ou2      2026-11-02 WAS @ ORL  over 225.5 -110  L  -1.00u
+      OU·E·L·ou2      2026-11-02 BOS @ HOU  over 216.5 -108  L  -1.00u
       OU·E·L          2026-11-02 ATL @ IND  over 229.5 -114  L  -1.00u
       OU·E·L          2026-11-02 WAS @ ORL  over 225.5 -110  L  -1.00u
       OU·E·L          2026-11-02 BOS @ HOU  over 216.5 -108  L  -1.00u
@@ -140,9 +142,15 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
     CLV vs close               +0.33 pts +/- 0.41 (1 SE), toward the bet 56% of 9
     hindsight @ open           no bets
   O/U TEST (registered 2026-10-29T16:13:38Z): the totals model's side at the 5 h lock when |P(over) − q| ≥ 0.05; never pooled with the moneyline and spread tests.
-  OU·L         Games 10+ · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock
+  ou2 (registered 2026-11-03T23:05:00Z): OU·L·ou2 / OU·E·L·ou2 from 2026-10-29; locks before ou2's first native lock (none yet) read their one-time lock-time rescore (data/nba_ou_rescore.csv). ou1 rows OU·L / OU·E·L close before it; never pooled.
+  OU·L·ou2     Games 10+ · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou2
+    ou2 @ 5 h lock (rescore/native) no bets  (0 pending)
+  OU·E·L·ou2   Games 1–9 · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou2
+    ou2 @ 5 h lock (rescore/native) n=12    6-6          -0.47u  ROI   -4.0% +/- 29.0  (null -4.5%, z +0.0)  win 50.0% vs q 49.9%  | fav --  (0 pending)
+    CLV vs close               +0.00 pts +/- 0.35 (1 SE), toward the bet 33% of 12
+  OU·L         Games 10+ · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou1
     native @ 5 h lock          no bets  (0 pending)
-  OU·E·L       Games 1–9 · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock
+  OU·E·L       Games 1–9 · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou1
     native @ 5 h lock          n=13    7-6          +0.47u  ROI   +3.6% +/- 27.7  (null -4.5%, z +0.3)  win 53.8% vs q 49.8%  | fav --  (0 pending)
     CLV vs close               -0.08 pts +/- 0.33 (1 SE), toward the bet 31% of 13
   EARLY HINDSIGHT ONLY: 276 ESPN BET early games, v9 primary P; injury-timing caveat; never native evidence.
