@@ -261,6 +261,36 @@ information only, separate from DraftKings and native evidence.
     feeds nothing back. Yahoo or Sleeper failures never stop a build or
     alter any forecast. The page says the projections are Sleeper's.
 
+- **Stale game-log locks amendment (owner's decision, registered 2026-11-03T07:12:59Z).**
+  Committed on its own before any void or lock code: the native ledger at
+  `2ef14d0` has no lock after 2026-11-02T22:02:34Z and no slate after
+  2026-11-02. Evidence: [stale game-log locks](diagnostics/stale_log_locks/RESULTS.txt).
+  - Eight 5 h locks were taken while a team's saved game log was behind its
+    graded finals (its previous game missing, b2b unset): 2026-10-31 PHI @ CHO
+    (401909897); 2026-11-02 ATL @ IND (401909909), BRK @ NYK (401909910),
+    WAS @ ORL (401909911), BOS @ HOU (401909916), PHO @ GSW (401909919),
+    TOR @ LAC (401909920) and MIA @ LAL (401909921). The list comes from that
+    rule alone (games played at each lock commit against the saved box
+    scores; no result, price or probability read) and covers every lock to date.
+  - **Void.** These eight locks leave every tracked test (H5·3, H2·F·5, H4, OU,
+    each stage and internal superset), its CLV and the public model-prediction
+    record. Their first and lock values stay in `data/nba_ledger.csv`,
+    unchanged, and are listed internally with the bets they made. No game is
+    re-locked or re-priced; the complete-log replay is hindsight, information
+    only. At registration the void removes H5·3·E·L·v11 3–1 (+1.80u),
+    H2·F·5·E·L·v11 1–0 (+0.74u), H4·E·L·v11 0–1 (−1.00u), OU·E·L 0–3 (−3.00u)
+    and model predictions 5–3.
+  - **Lock condition.** From the next slate, the 5 h lock and the O/U lock are
+    each the first pregame snapshot within 5 hours of tip, with its existing
+    requirements, whose game logs are current: neither team's log ends before
+    its latest graded final strictly before the slate. A snapshot with a stale
+    log still refreshes the forecast and may be the first snapshot; it does not
+    lock, and later builds retry. A game with no such snapshot before tip has
+    no tracked bet and counts internally as a missed lock.
+  - Rules, thresholds, prices, stages, model maths and tags are unchanged.
+    Pages carry one dated line that eight locks on October 31 and November 2,
+    2026 were voided for incomplete game logs.
+
 ## Sources of truth and engineering rules
 
 - **Public matchup context (owner request, 2026-11-01).** Today cards show
