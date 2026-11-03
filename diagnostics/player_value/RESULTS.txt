@@ -1,0 +1,142 @@
+Player value for talent (research/player_value.py). ± 95%. Hindsight research only; no model change.
+
+python research/player_value.py > diagnostics/player_value/RESULTS.txt
+
+Rows 4847; dropped 0 with a missing talent term (a team's first game)
+
+Correlation of the talent terms (home − away):
+             talent_diff    bpm  bpm2y  onoff  rankpos_1  rankall_1
+talent_diff        1.000  0.999  0.958  0.544      0.908      0.908
+bpm                0.999  1.000  0.960  0.546      0.904      0.904
+bpm2y              0.958  0.960  1.000  0.538      0.871      0.870
+onoff              0.544  0.546  0.538  1.000      0.439      0.432
+rankpos_1          0.908  0.904  0.871  0.439      1.000      0.998
+rankall_1          0.908  0.904  0.870  0.432      0.998      1.000
+
+Correlation with the final margin: talent_diff +0.396  bpm +0.394  bpm2y +0.374  onoff +0.250  rankpos_1 +0.388  rankall_1 +0.387
+
+== Full-sample fits: talent terms (points per unit; other terms as production)
+  prod     sigma 13.627  delta +0.140  talent_diff +0.300
+  bpm      sigma 13.628  delta +0.141  bpm +0.299
+  rankpos  sigma 13.630  delta +0.153  rankpos_1 +3.439  rankpos_2 -7.657  rankpos_3 +6.175
+           fitted value per full-time player (role 1): pct 0.1: +0.27  pct 0.3: +0.51  pct 0.5: +0.58  pct 0.7: +0.77  pct 0.9: +1.39  pct 1.0: +1.96
+  rankall  sigma 13.629  delta +0.154  rankall_1 +3.564  rankall_2 -8.258  rankall_3 +6.713
+           fitted value per full-time player (role 1): pct 0.1: +0.28  pct 0.3: +0.51  pct 0.5: +0.56  pct 0.7: +0.75  pct 0.9: +1.41  pct 1.0: +2.02
+  bpm2y    sigma 13.649  delta +0.155  bpm2y +0.223
+  onoff    sigma 13.667  delta +0.182  onoff +0.169
+
+== Walk-forward (fits on earlier seasons only): arm − bpm, paired, ± 95% (positive = arm worse)
+  pooled   n  3633  bpm LL 0.5909
+      prod     LL -0.0002 ± 0.0002   margin MSE -0.02 ± 0.11
+      rankpos  LL +0.0004 ± 0.0012   margin MSE +0.12 ± 0.58
+      rankall  LL +0.0004 ± 0.0013   margin MSE +0.07 ± 0.60
+      bpm2y    LL +0.0014 ± 0.0011   margin MSE +0.81 ± 0.53
+      onoff    LL +0.0003 ± 0.0030   margin MSE +0.65 ± 1.44
+  2023-24  n  1215  bpm LL 0.5990
+      prod     LL +0.0000 ± 0.0003   margin MSE +0.03 ± 0.16
+      rankpos  LL +0.0023 ± 0.0024   margin MSE +0.54 ± 1.11
+      rankall  LL +0.0026 ± 0.0027   margin MSE +0.56 ± 1.23
+      bpm2y    LL +0.0033 ± 0.0020   margin MSE +1.63 ± 0.94
+      onoff    LL +0.0006 ± 0.0053   margin MSE +0.88 ± 2.36
+  2024-25  n  1209  bpm LL 0.5917
+      prod     LL -0.0003 ± 0.0004   margin MSE -0.03 ± 0.19
+      rankpos  LL +0.0006 ± 0.0022   margin MSE +0.47 ± 1.05
+      rankall  LL +0.0002 ± 0.0022   margin MSE +0.27 ± 1.05
+      bpm2y    LL +0.0002 ± 0.0021   margin MSE +0.19 ± 1.02
+      onoff    LL -0.0009 ± 0.0059   margin MSE +0.40 ± 2.91
+  2025-26  n  1209  bpm LL 0.5819
+      prod     LL -0.0003 ± 0.0004   margin MSE -0.07 ± 0.20
+      rankpos  LL -0.0018 ± 0.0016   margin MSE -0.66 ± 0.84
+      rankall  LL -0.0017 ± 0.0015   margin MSE -0.61 ± 0.79
+      bpm2y    LL +0.0006 ± 0.0015   margin MSE +0.61 ± 0.76
+      onoff    LL +0.0012 ± 0.0041   margin MSE +0.69 ± 2.17
+
+== Walk-forward (fits on earlier seasons only): arm − prod, paired, ± 95% (positive = arm worse)
+  pooled   n  3633  prod LL 0.5907
+      bpm      LL +0.0002 ± 0.0002   margin MSE +0.02 ± 0.11
+      rankpos  LL +0.0006 ± 0.0012   margin MSE +0.14 ± 0.58
+      rankall  LL +0.0005 ± 0.0013   margin MSE +0.10 ± 0.59
+      bpm2y    LL +0.0016 ± 0.0011   margin MSE +0.83 ± 0.54
+      onoff    LL +0.0005 ± 0.0030   margin MSE +0.68 ± 1.45
+  2023-24  n  1215  prod LL 0.5990
+      bpm      LL -0.0000 ± 0.0003   margin MSE -0.03 ± 0.16
+      rankpos  LL +0.0023 ± 0.0024   margin MSE +0.51 ± 1.09
+      rankall  LL +0.0026 ± 0.0027   margin MSE +0.53 ± 1.20
+      bpm2y    LL +0.0032 ± 0.0020   margin MSE +1.60 ± 0.93
+      onoff    LL +0.0006 ± 0.0053   margin MSE +0.85 ± 2.37
+  2024-25  n  1209  prod LL 0.5914
+      bpm      LL +0.0003 ± 0.0004   margin MSE +0.03 ± 0.19
+      rankpos  LL +0.0009 ± 0.0023   margin MSE +0.50 ± 1.10
+      rankall  LL +0.0005 ± 0.0022   margin MSE +0.30 ± 1.08
+      bpm2y    LL +0.0005 ± 0.0022   margin MSE +0.22 ± 1.08
+      onoff    LL -0.0006 ± 0.0060   margin MSE +0.43 ± 2.93
+  2025-26  n  1209  prod LL 0.5816
+      bpm      LL +0.0003 ± 0.0004   margin MSE +0.07 ± 0.20
+      rankpos  LL -0.0015 ± 0.0015   margin MSE -0.59 ± 0.80
+      rankall  LL -0.0015 ± 0.0015   margin MSE -0.55 ± 0.75
+      bpm2y    LL +0.0009 ± 0.0015   margin MSE +0.67 ± 0.78
+      onoff    LL +0.0015 ± 0.0041   margin MSE +0.75 ± 2.20
+
+== Leave-one-season-out: arm − bpm, paired, ± 95% (positive = arm worse)
+  pooled   n  4847  bpm LL 0.6003
+      prod     LL -0.0001 ± 0.0002   margin MSE -0.03 ± 0.08
+      rankpos  LL +0.0009 ± 0.0010   margin MSE +0.18 ± 0.50
+      rankall  LL +0.0009 ± 0.0010   margin MSE +0.16 ± 0.49
+      bpm2y    LL +0.0009 ± 0.0009   margin MSE +0.55 ± 0.42
+      onoff    LL +0.0014 ± 0.0021   margin MSE +0.94 ± 1.05
+  2022-23  n  1214  bpm LL 0.6318
+      prod     LL -0.0000 ± 0.0002   margin MSE -0.02 ± 0.11
+      rankpos  LL +0.0036 ± 0.0022   margin MSE +0.99 ± 1.09
+      rankall  LL +0.0035 ± 0.0021   margin MSE +1.07 ± 1.06
+      bpm2y    LL +0.0007 ± 0.0021   margin MSE +0.49 ± 0.98
+      onoff    LL +0.0041 ± 0.0042   margin MSE +1.81 ± 1.86
+  2023-24  n  1215  bpm LL 0.5964
+      prod     LL -0.0000 ± 0.0002   margin MSE -0.03 ± 0.12
+      rankpos  LL +0.0022 ± 0.0022   margin MSE +0.37 ± 1.06
+      rankall  LL +0.0022 ± 0.0022   margin MSE +0.38 ± 1.08
+      bpm2y    LL +0.0022 ± 0.0014   margin MSE +0.90 ± 0.66
+      onoff    LL +0.0012 ± 0.0035   margin MSE +0.92 ± 1.66
+  2024-25  n  1209  bpm LL 0.5910
+      prod     LL -0.0002 ± 0.0004   margin MSE +0.01 ± 0.18
+      rankpos  LL -0.0002 ± 0.0020   margin MSE +0.01 ± 0.96
+      rankall  LL -0.0004 ± 0.0019   margin MSE -0.19 ± 0.92
+      bpm2y    LL +0.0002 ± 0.0019   margin MSE +0.19 ± 0.94
+      onoff    LL -0.0009 ± 0.0052   margin MSE +0.33 ± 2.63
+  2025-26  n  1209  bpm LL 0.5819
+      prod     LL -0.0003 ± 0.0004   margin MSE -0.07 ± 0.20
+      rankpos  LL -0.0018 ± 0.0016   margin MSE -0.66 ± 0.84
+      rankall  LL -0.0017 ± 0.0015   margin MSE -0.61 ± 0.79
+      bpm2y    LL +0.0006 ± 0.0015   margin MSE +0.61 ± 0.76
+      onoff    LL +0.0012 ± 0.0041   margin MSE +0.69 ± 2.17
+
+== Leave-one-season-out: arm − prod, paired, ± 95% (positive = arm worse)
+  pooled   n  4847  prod LL 0.6002
+      bpm      LL +0.0001 ± 0.0002   margin MSE +0.03 ± 0.08
+      rankpos  LL +0.0011 ± 0.0010   margin MSE +0.21 ± 0.49
+      rankall  LL +0.0010 ± 0.0010   margin MSE +0.19 ± 0.48
+      bpm2y    LL +0.0011 ± 0.0009   margin MSE +0.57 ± 0.44
+      onoff    LL +0.0016 ± 0.0022   margin MSE +0.96 ± 1.07
+  2022-23  n  1214  prod LL 0.6317
+      bpm      LL +0.0000 ± 0.0002   margin MSE +0.02 ± 0.11
+      rankpos  LL +0.0036 ± 0.0021   margin MSE +1.01 ± 1.07
+      rankall  LL +0.0036 ± 0.0021   margin MSE +1.08 ± 1.04
+      bpm2y    LL +0.0007 ± 0.0022   margin MSE +0.50 ± 1.01
+      onoff    LL +0.0042 ± 0.0043   margin MSE +1.82 ± 1.89
+  2023-24  n  1215  prod LL 0.5964
+      bpm      LL +0.0000 ± 0.0002   margin MSE +0.03 ± 0.12
+      rankpos  LL +0.0022 ± 0.0021   margin MSE +0.40 ± 1.05
+      rankall  LL +0.0023 ± 0.0022   margin MSE +0.41 ± 1.07
+      bpm2y    LL +0.0022 ± 0.0014   margin MSE +0.93 ± 0.66
+      onoff    LL +0.0013 ± 0.0035   margin MSE +0.95 ± 1.67
+  2024-25  n  1209  prod LL 0.5908
+      bpm      LL +0.0002 ± 0.0004   margin MSE -0.01 ± 0.18
+      rankpos  LL +0.0000 ± 0.0020   margin MSE -0.00 ± 0.98
+      rankall  LL -0.0002 ± 0.0019   margin MSE -0.20 ± 0.94
+      bpm2y    LL +0.0004 ± 0.0020   margin MSE +0.19 ± 1.00
+      onoff    LL -0.0007 ± 0.0053   margin MSE +0.32 ± 2.66
+  2025-26  n  1209  prod LL 0.5816
+      bpm      LL +0.0003 ± 0.0004   margin MSE +0.07 ± 0.20
+      rankpos  LL -0.0015 ± 0.0015   margin MSE -0.59 ± 0.80
+      rankall  LL -0.0015 ± 0.0015   margin MSE -0.55 ± 0.75
+      bpm2y    LL +0.0009 ± 0.0015   margin MSE +0.67 ± 0.78
+      onoff    LL +0.0015 ± 0.0041   margin MSE +0.75 ± 2.20
