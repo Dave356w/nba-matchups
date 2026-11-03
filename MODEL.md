@@ -11,7 +11,10 @@ the report's lead before tip. Tags end `_v11`. The model files carry
 amendment"): tracked bets freeze at the first priced snapshot within 5 h of
 tip (`lock_*` columns), in new ·L rows per test × stage × season; the
 first-snapshot rows close with the last slate before the first lock. This
-changes the bet's timing, not prediction maths (no tag).
+changes the bet's timing, not prediction maths (no tag). From 2026-11-03
+(stale game-log locks amendment) a snapshot whose game logs are behind the
+graded finals never locks, and eight earlier such locks are void
+(`analysis.VOID_LOCKS`).
 
 **Edge floors and O/U test** (owner's decision 2026-10-29; CLAUDE.md
 "Edge floors and O/U test amendment"): the public spread and value-favourite

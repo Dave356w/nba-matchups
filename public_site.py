@@ -379,7 +379,8 @@ class PublicSite:
                  "<section data-record-panel='predictions'>" + self.prediction_results() + "</section>"
                  "<section data-record-panel='tracked'><h2 class='sec'>Tracked picks</h2>")
         body += ("<p class='public-note'>Four separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
-                 "Picks lock at the first priced snapshot within 5 hours of tip.</p>" + self.restart_note())
+                 "Picks lock at the first priced snapshot within 5 hours of tip whose game data include every completed game.</p>"
+                 + self.restart_note() + self.void_note())
         if not self.records:
             body += "<div class='public-empty'><h2>The forward record starts here</h2><p>No qualifying picks have been recorded since the record restarted. Today’s forecasts remain available while the tests build their records.</p></div><p><a href='index.html'>View today’s forecasts →</a></p>"
         else:
@@ -536,13 +537,20 @@ class PublicSite:
                 "when the current model version began. Picks recorded under earlier versions are kept "
                 "separately and are not included here.</p>")
 
+    def void_note(self):
+        """The one dated line (stale game-log locks amendment, 2026-11-03):
+        eight locks are void and left out of every record."""
+        return ("<p class='public-note'>Picks and predictions for eight games on October 31 and "
+                "November 2, 2026 are void and not counted: they locked before the previous "
+                "night’s games reached the model’s game data.</p>")
+
     def performance_page(self):
         u = self.ui
         body = self.head("The forward record", "Every v11 model prediction, followed by four separate betting tests. Each season and stage stands on its own.")
         body += self.prediction_performance()
         body += "<h2 class='sec'>Tracked betting tests</h2><p class='public-note'>Four registered tests, each with its own forward record. Every qualifying pick is included, with wins, losses, pushes and pending picks.</p>"
         body += "<p class='public-note'>Returns use a flat 1 unit per pick. ROI is return divided by stakes. The market-price baseline includes the bookmaker’s margin. A small sample can move sharply.</p>"
-        body += self.restart_note()
+        body += self.restart_note() + self.void_note()
         seasons = sorted({self.season}|{r['season'] for r in self.records},reverse=True)
         desc = {"H5·3": "Model margin at least 3 points from the spread.",
                 "H2·F·5": "The market favourite when the model rates it at least 5 points higher.",
@@ -564,7 +572,7 @@ class PublicSite:
 <p><b>Model win chance</b> is the model’s probability for its favoured team. <b>Predicted margin</b> is the expected points difference. Neither guarantees the outcome.</p>
 <p>The prices beside the teams come from DraftKings. The small number below each moneyline is that team’s spread. All times are Pacific (PT).</p>
 <p><b>Total</b> shows the model’s expected combined score beside the DraftKings total, and which side the model leans to: its chance of the over against the market’s after removing the bookmaker’s margin.</p>
-<p><b>Tracked pick</b> means a registered rule qualified at the game’s lock: the first priced snapshot within 5 hours of tip. Until then a game shows its forecast only. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
+<p><b>Tracked pick</b> means a registered rule qualified at the game’s lock: the first priced snapshot within 5 hours of tip whose game data include every completed game. Until then a game shows its forecast only. <b>Forecast only</b> means the game has no qualifying tracked selection. The latest forecast can change before tip; a tracked selection and its recorded price cannot.</p></section>
 <section><h2>Team records and game details</h2><p>The W/L beside each team abbreviation is its current regular-season record before this slate. Four-factor comparisons use completed games strictly before the slate: effective field-goal percentage, turnovers per 100 possessions, offensive rebounding share and free-throw attempts per field-goal attempt, for team offense and opponents. These are season totals without the decay or prior-season blending used by the model. Arrows show the better direction; missing or incomplete inputs are marked unavailable.</p>
 <p>Player injuries come from the captured ESPN pregame list, with each team’s capture time, player status and listed reason. This is display context, separate from the NBA’s official injury report used by the model. Injury lists can change before tip; they freeze afterward and do not rewrite a locked pick.</p></section>
 <section><h2>One model, before the game</h2><p>The model combines prior-game team performance, roster talent, schedule and available NBA injury-report information. It predicts a points margin and converts it to a win probability. Market prices are a comparison, not a model input.</p>
@@ -574,7 +582,7 @@ class PublicSite:
 <p>Performance shows W/L, winner accuracy and pending counts separately for each season and for games 1–9 and games 10+. Opening games and games whose stage is unavailable have their own records when present. Pending predictions do not enter accuracy. The 95% Wilson interval shows uncertainty, including when every prediction has won or lost.</p>
 <p>The closing favourite is a later market benchmark on the same graded games with usable DraftKings closes. Missing closes do not remove games from the model W/L record. Log loss and Brier score compare the locked model probabilities with the closing market probabilities; lower scores are better. Winner accuracy measures predictions, while the four betting tests below measure returns.</p></section>
 <section><h2>Four fixed tracking rules</h2>
-<p>Rules use the probability and DraftKings prices saved at the lock, the first priced snapshot within 5 hours of tip. By then most of each day’s NBA injury report is in, though the price may have moved from its opening. No rule is adjusted to fit later outcomes.</p>
+<p>Rules use the probability and DraftKings prices saved at the lock, the first priced snapshot within 5 hours of tip whose game data include every completed game. By then most of each day’s NBA injury report is in, though the price may have moved from its opening. A game with no such snapshot before tip has no tracked pick. No rule is adjusted to fit later outcomes.</p>
 <h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the locked win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 3 points, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>
 <h3 id='favourite'><span class='rule-number'>02</span>Value favourite</h3><p>The value side is the team whose model probability exceeds the market probability after removing the bookmaker’s margin. Track it when the market also makes that side the favourite (market probability above 50%) and the model rates it at least 5 percentage points higher than the market.</p>
 <h3 id='gap'><span class='rule-number'>03</span>Large probability gap</h3><p>Track the value side when its model probability exceeds the market probability by at least 12 percentage points.</p>

@@ -23,8 +23,9 @@ shift when none is running (build.yml, `--check`). So one delivered run
 covers the rest of the slate, and the chain ends when every game has tipped.
 
 WHAT IT DOES NOT CHANGE. The lock is still the first pregame snapshot within
-five hours of tip (ledger.upsert_pregame), and builds are still safe at any
-time. This only makes a build land in each window. build.yml keeps its own
+five hours of tip with current game logs (ledger.upsert_pregame; a stale-log
+snapshot leaves the game unlocked, so it is retried like a failed build), and
+builds are still safe at any time. This only makes a build land in each window. build.yml keeps its own
 schedule as an independent path; the watcher writes nothing under data/.
 Stdlib only, so a shift costs no install and sleeps almost all of its time.
 """

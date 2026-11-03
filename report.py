@@ -101,7 +101,7 @@ def native_block(native):
                      f"{h['slate_date'].nunique()} slates")
         for price, what in (("first", "first snapshot (earliest priced; model P "
                                       "written then)"),
-                            ("lock", "5 h lock (first snapshot within 5 h of tip)"),
+                            ("lock", "5 h lock (first snapshot within 5 h of tip with current game logs)"),
                             ("pre", "pregame snapshot (last before tip)"),
                             ("close", "close")):
             block = _summary_block(h, price)
@@ -110,6 +110,36 @@ def native_block(native):
                 lines += block
         lines += scoring_lines(analysis.scoring(h), "  ")
     return lines
+
+
+def void_lines(native, indent="  "):
+    """The void locks (stale game-log locks amendment): each game and the bets
+    it made at its frozen lock, which no record, CLV or prediction counts."""
+    if native is None or not len(native):
+        return []
+    have = set(native["game_id"].astype(str)) & set(analysis.VOID_LOCKS)
+    if not have:
+        return []
+    out = [f"{indent}VOID (stale game-log locks amendment, registered {analysis.VOID_REGISTRATION_UTC}): "
+           f"{len(have)} locks taken with a team's game log behind its graded finals; no record, "
+           "CLV or model prediction reads them. Frozen values stay in the ledger."]
+    out += [f"{indent}  {gid}  {analysis.VOID_LOCKS[gid]}" for gid in sorted(have)]
+    bets = analysis.void_lock_bets(native)
+    if not bets:
+        return out + [f"{indent}  bets they made: none"]
+    out.append(f"{indent}  bets they made at the frozen lock (not in any record):")
+    names = native.assign(game_id=native["game_id"].astype(str)).set_index("game_id")
+    for key, d in bets:
+        res = d["result"] if "result" in d else d["won"]
+        for (_, r), x in zip(d.iterrows(), res):
+            n = names.loc[str(r.game_id)]
+            line = r.get("line")
+            line = "" if line is None or pd.isna(line) else f" {line:g}"
+            grade = "pending" if pd.isna(x) else {1.0: "W", 0.5: "P", 0.0: "L"}.get(float(x), "?")
+            units = "" if pd.isna(r.get("units")) else f"  {r.units:+.2f}u"
+            out.append(f"{indent}    {key:<15} {n.slate_date} {n.away} @ {n.home}  {r.side}{line} "
+                       f"{r.ml:+.0f}  {grade}{units}")
+    return out
 
 
 def hypotheses_block(native, recon):
@@ -138,6 +168,7 @@ def hypotheses_block(native, recon):
                      "(no tracked bet).")
     else:
         lines.append("  5 h lock: no lock snapshot yet; the first-snapshot rows stay open.")
+    lines += void_lines(native)
     for hyp, hind, nat in analysis.hypothesis_rows(native, recon, book=book):
         if hyp.get("retired"):
             continue
