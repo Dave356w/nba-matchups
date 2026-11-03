@@ -15,6 +15,14 @@ import sleeper  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
+def no_real_ou_rescore(monkeypatch, tmp_path):
+    """Tests never read the committed ou2 rescore file (O/U model ou2
+    amendment): analysis.with_ou2 sees an empty one unless a test writes it."""
+    import analysis
+    monkeypatch.setattr(analysis, "OU_RESCORE_PATH", tmp_path / "nba_ou_rescore.csv")
+
+
+@pytest.fixture(autouse=True)
 def no_kalshi_network(monkeypatch):
     """Kalshi answers nothing unless a test supplies its own `get`: the build
     no longer fetches Kalshi, but research helpers still can, and tests never
