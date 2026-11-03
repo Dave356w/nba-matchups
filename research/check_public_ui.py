@@ -49,8 +49,8 @@ def fixture():
             lock_away_spread_odds=-110,
             # the O/U test (edge floors and O/U amendment): the model leans over
             pre_ou_line=205.5, pre_ou_over=-110, pre_ou_under=-110, ou_total=212.0,
-            ou_sigma=18.5, ou_p_over=.62, ou_tag='totals_hl25_form5_ou1',
-            lock_ou_snapshot_utc='2026-11-19T23:00:00Z', lock_ou_tag='totals_hl25_form5_ou1',
+            ou_sigma=18.5, ou_p_over=.62, ou_tag='totals_hl25_form5_rep_ou2',
+            lock_ou_snapshot_utc='2026-11-19T23:00:00Z', lock_ou_tag='totals_hl25_form5_rep_ou2',
             lock_ou_total=212.0, lock_ou_p_over=.62, lock_ou_book='dk', lock_ou_line=205.5,
             lock_ou_over=-110, lock_ou_under=-110,
             home_won=np.nan if won is None else won,
