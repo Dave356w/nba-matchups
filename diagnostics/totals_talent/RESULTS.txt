@@ -1,0 +1,187 @@
+Totals: talent and availability (research/totals_talent.py). ± 95%. Hindsight research only; no model change.
+
+python research/totals_talent.py > diagnostics/totals_talent/RESULTS.txt
+
+Rows 10905 (games 1+ 10767); seasons 2016-17 1227, 2017-18 1230, 2018-19 1230, 2020-21 1078, 2021-22 1230, 2022-23 1230, 2023-24 1230, 2024-25 1225, 2025-26 1225
+Inputs (games 1+): mean ± sd  tal_o +14.97±5.36  tal_d +12.96±3.35  av_o -0.71±3.19  av_d -0.46±2.09  av_m -0.29±1.20
+Correlation with (total − league), games 1+: rel +0.362  form +0.148  b2b -0.011  phase +0.034  tal_o +0.092  tal_d -0.063  av_o +0.058  av_d -0.005  av_m -0.002
+
+== Walk-forward squared error, arm − T* (negative = better, ± 95%)
+  tal  last fit {'a': 0.287, 'rel': 0.859, 'form': 0.338, 'b2b': -0.323, 'phase': 0.801, 'tal_o': 0.351, 'tal_d': -0.438}
+    unpriced 2017-18..2022-23, games 1+ (selection)  n  5920  RMSE 18.730 → 18.700  Δ -1.15 ± 1.39  not kept
+    all seasons, games 1–9                           n  1118  RMSE 19.247 → 19.186  Δ -2.38 ± 3.12
+    all seasons, games 10+                           n  8435  RMSE 18.571 → 18.537  Δ -1.23 ± 1.13
+      2017-18 games 1+ n  1214  Δ -0.58 ± 4.18
+      2018-19 games 1+ n  1214  Δ +0.07 ± 3.00
+      2020-21 games 1+ n  1064  Δ -2.64 ± 2.62
+      2021-22 games 1+ n  1214  Δ -2.57 ± 2.70
+      2022-23 games 1+ n  1214  Δ -0.19 ± 2.66
+      2023-24 games 1+ n  1215  Δ -1.39 ± 2.64
+      2024-25 games 1+ n  1209  Δ -3.02 ± 2.33
+      2025-26 games 1+ n  1209  Δ -0.73 ± 3.47
+  avail  last fit {'a': -0.008, 'rel': 0.956, 'form': 0.289, 'b2b': -0.2, 'phase': 0.83, 'av_o': 1.082, 'av_d': -1.304, 'av_m': -0.066}
+    unpriced 2017-18..2022-23, games 1+ (selection)  n  5920  RMSE 18.730 → 18.620  Δ -4.12 ± 2.22  KEPT
+    all seasons, games 1–9                           n  1118  RMSE 19.247 → 19.187  Δ -2.34 ± 4.19
+    all seasons, games 10+                           n  8435  RMSE 18.571 → 18.427  Δ -5.30 ± 1.84
+      2017-18 games 1+ n  1214  Δ -2.32 ± 5.57
+      2018-19 games 1+ n  1214  Δ -2.36 ± 3.63
+      2020-21 games 1+ n  1064  Δ -7.30 ± 4.90
+      2021-22 games 1+ n  1214  Δ -3.70 ± 5.67
+      2022-23 games 1+ n  1214  Δ -5.32 ± 4.76
+      2023-24 games 1+ n  1215  Δ -5.84 ± 4.28
+      2024-25 games 1+ n  1209  Δ -5.58 ± 4.63
+      2025-26 games 1+ n  1209  Δ -7.48 ± 4.66
+  both  last fit {'a': 0.511, 'rel': 0.905, 'form': 0.296, 'b2b': -0.214, 'phase': 1.032, 'tal_o': 0.232, 'tal_d': -0.317, 'av_o': 0.987, 'av_d': -1.18, 'av_m': -0.104}
+    unpriced 2017-18..2022-23, games 1+ (selection)  n  5920  RMSE 18.730 → 18.613  Δ -4.37 ± 2.46  KEPT
+    all seasons, games 1–9                           n  1118  RMSE 19.247 → 19.134  Δ -4.33 ± 4.51
+    all seasons, games 10+                           n  8435  RMSE 18.571 → 18.422  Δ -5.51 ± 2.03
+      2017-18 games 1+ n  1214  Δ -2.09 ± 6.64
+      2018-19 games 1+ n  1214  Δ -1.97 ± 4.14
+      2020-21 games 1+ n  1064  Δ -8.30 ± 5.33
+      2021-22 games 1+ n  1214  Δ -4.96 ± 5.97
+      2022-23 games 1+ n  1214  Δ -5.01 ± 5.05
+      2023-24 games 1+ n  1215  Δ -6.21 ± 4.68
+      2024-25 games 1+ n  1209  Δ -6.96 ± 4.80
+      2025-26 games 1+ n  1209  Δ -7.86 ± 5.15
+
+== Against the books (reconstructed rows; games 10+ unless labelled), each arm, ± 95%
+  T*    dk 2025-26 games 10+
+    T*     @open  n  964  RMSE line 18.79 model 19.01  weight on (T − line) +0.20 ± 0.31  P(over) LL − market +0.0017 ± 0.0103  w +0.46 ± 0.39
+      model side, all             n  964  ROI   +1.4% ±  6.0  null -4.5%  line moved toward it +0.65 ± 0.22 pts
+      model side, |P − q| ≥ 0.05  n  489  ROI   +4.6% ±  8.4  null -4.5%  line moved toward it +1.03 ± 0.33 pts
+    T*     @close n  964  RMSE line 18.46 model 19.01  weight on (T − line) -0.05 ± 0.27  P(over) LL − market +0.0223 ± 0.0123  w -0.10 ± 0.34
+      model side, all             n  964  ROI   -2.0% ±  6.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n  565  ROI   -6.1% ±  7.9  null -4.5%
+  T*    espnbet 2024-25 games 10+
+    T*     @open  n 1015  RMSE line 18.08 model 18.17  weight on (T − line) +0.40 ± 0.29  P(over) LL − market +0.0066 ± 0.0098  w +0.26 ± 0.38
+      model side, all             n 1015  ROI   -5.6% ±  5.9  null -4.5%  line moved toward it +0.81 ± 0.24 pts
+      model side, |P − q| ≥ 0.05  n  537  ROI   -1.9% ±  8.1  null -4.5%  line moved toward it +1.32 ± 0.34 pts
+    T*     @close n 1070  RMSE line 17.55 model 18.24  weight on (T − line) -0.12 ± 0.24  P(over) LL − market +0.0275 ± 0.0117  w -0.22 ± 0.31
+      model side, all             n 1070  ROI   -9.1% ±  5.7  null -4.5%
+      model side, |P − q| ≥ 0.05  n  656  ROI  -10.6% ±  7.3  null -4.5%
+  T*    espnbet 2024-25 games 1–9
+    T*     @open  n   71  RMSE line 20.38 model 20.53  weight on (T − line) +0.33 ± 1.23  P(over) LL − market +0.0110 ± 0.0374  w +0.05 ± 1.47
+      model side, all             n   71  ROI   -8.5% ± 22.4  null -4.6%  line moved toward it +1.30 ± 0.80 pts
+      model side, |P − q| ≥ 0.05  n   39  ROI   +2.9% ± 30.3  null -4.6%  line moved toward it +2.85 ± 1.11 pts
+    T*     @close n  138  RMSE line 18.38 model 18.59  weight on (T − line) +0.24 ± 0.87  P(over) LL − market +0.0120 ± 0.0249  w +0.25 ± 1.16
+      model side, all             n  138  ROI  -14.1% ± 15.9  null -4.5%
+      model side, |P − q| ≥ 0.05  n   69  ROI   -5.7% ± 22.8  null -4.5%
+  T*    espnbet 2025-26 games 10+
+    T*     @open  n  107  RMSE line 19.36 model 19.41  weight on (T − line) +0.31 ± 1.12  P(over) LL − market -0.0023 ± 0.0308  w +0.77 ± 1.35
+      model side, all             n  107  ROI   +7.0% ± 18.0  null -4.5%  line moved toward it +0.47 ± 0.58 pts
+      model side, |P − q| ≥ 0.05  n   62  ROI   +4.8% ± 23.9  null -4.5%  line moved toward it +0.39 ± 0.82 pts
+    T*     @close n  107  RMSE line 18.60 model 19.41  weight on (T − line) -0.41 ± 0.84  P(over) LL − market +0.0190 ± 0.0372  w +0.02 ± 1.04
+      model side, all             n  107  ROI   -5.4% ± 18.2  null -4.5%
+      model side, |P − q| ≥ 0.05  n   58  ROI   -7.8% ± 24.8  null -4.5%
+  T*    espnbet 2025-26 games 1–9
+    T*     @open  n  138  RMSE line 16.75 model 18.20  weight on (T − line) -0.49 ± 0.61  P(over) LL − market +0.0496 ± 0.0421  w -0.43 ± 0.87
+      model side, all             n  138  ROI  -12.8% ± 15.9  null -4.5%  line moved toward it +0.55 ± 0.49 pts
+      model side, |P − q| ≥ 0.05  n   96  ROI  -16.3% ± 19.1  null -4.5%  line moved toward it +0.57 ± 0.53 pts
+    T*     @close n  138  RMSE line 16.93 model 18.20  weight on (T − line) -0.25 ± 0.59  P(over) LL − market +0.0318 ± 0.0425  w -0.11 ± 0.82
+      model side, all             n  138  ROI   +3.9% ± 15.9  null -4.5%
+      model side, |P − q| ≥ 0.05  n   99  ROI   -1.5% ± 18.9  null -4.5%
+  tal   dk 2025-26 games 10+
+    tal    @open  n  964  RMSE line 18.79 model 18.99  weight on (T − line) +0.21 ± 0.32  P(over) LL − market -0.0007 ± 0.0099  w +0.53 ± 0.40
+      model side, all             n  964  ROI   +2.4% ±  6.0  null -4.5%  line moved toward it +0.75 ± 0.22 pts
+      model side, |P − q| ≥ 0.05  n  483  ROI   +4.0% ±  8.5  null -4.5%  line moved toward it +1.22 ± 0.33 pts
+    tal    @close n  964  RMSE line 18.46 model 18.99  weight on (T − line) -0.08 ± 0.28  P(over) LL − market +0.0213 ± 0.0116  w -0.15 ± 0.35
+      model side, all             n  964  ROI   -4.2% ±  6.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n  574  ROI   -5.6% ±  7.8  null -4.5%
+  tal   espnbet 2024-25 games 10+
+    tal    @open  n 1015  RMSE line 18.08 model 18.10  weight on (T − line) +0.49 ± 0.29  P(over) LL − market +0.0042 ± 0.0097  w +0.35 ± 0.38
+      model side, all             n 1015  ROI   -4.0% ±  5.9  null -4.5%  line moved toward it +0.81 ± 0.24 pts
+      model side, |P − q| ≥ 0.05  n  521  ROI   -2.2% ±  8.2  null -4.5%  line moved toward it +1.32 ± 0.34 pts
+    tal    @close n 1070  RMSE line 17.55 model 18.17  weight on (T − line) -0.06 ± 0.24  P(over) LL − market +0.0245 ± 0.0116  w -0.16 ± 0.31
+      model side, all             n 1070  ROI   -5.6% ±  5.7  null -4.5%
+      model side, |P − q| ≥ 0.05  n  649  ROI   -6.4% ±  7.4  null -4.5%
+  tal   espnbet 2024-25 games 1–9
+    tal    @open  n   71  RMSE line 20.38 model 20.31  weight on (T − line) +0.61 ± 1.31  P(over) LL − market +0.0057 ± 0.0351  w +0.24 ± 1.56
+      model side, all             n   71  ROI   -3.1% ± 22.4  null -4.6%  line moved toward it +1.10 ± 0.81 pts
+      model side, |P − q| ≥ 0.05  n   39  ROI   +3.1% ± 30.4  null -4.6%  line moved toward it +2.95 ± 1.03 pts
+    tal    @close n  138  RMSE line 18.38 model 18.45  weight on (T − line) +0.40 ± 0.94  P(over) LL − market +0.0077 ± 0.0231  w +0.43 ± 1.26
+      model side, all             n  138  ROI   -8.7% ± 16.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n   67  ROI   -2.7% ± 23.1  null -4.5%
+  tal   espnbet 2025-26 games 10+
+    tal    @open  n  107  RMSE line 19.36 model 19.52  weight on (T − line) +0.07 ± 1.18  P(over) LL − market +0.0037 ± 0.0278  w +0.44 ± 1.41
+      model side, all             n  107  ROI   +1.7% ± 18.1  null -4.5%  line moved toward it +0.21 ± 0.59 pts
+      model side, |P − q| ≥ 0.05  n   54  ROI   +6.2% ± 25.6  null -4.5%  line moved toward it +0.61 ± 0.86 pts
+    tal    @close n  107  RMSE line 18.60 model 19.52  weight on (T − line) -0.59 ± 0.86  P(over) LL − market +0.0255 ± 0.0352  w -0.24 ± 1.07
+      model side, all             n  107  ROI   -5.4% ± 18.2  null -4.5%
+      model side, |P − q| ≥ 0.05  n   54  ROI   -7.8% ± 25.8  null -4.5%
+  tal   espnbet 2025-26 games 1–9
+    tal    @open  n  138  RMSE line 16.75 model 18.08  weight on (T − line) -0.50 ± 0.63  P(over) LL − market +0.0431 ± 0.0390  w -0.37 ± 0.90
+      model side, all             n  138  ROI   -7.3% ± 16.0  null -4.5%  line moved toward it +0.58 ± 0.49 pts
+      model side, |P − q| ≥ 0.05  n   95  ROI  -17.6% ± 19.1  null -4.5%  line moved toward it +0.89 ± 0.59 pts
+    tal    @close n  138  RMSE line 16.93 model 18.08  weight on (T − line) -0.26 ± 0.60  P(over) LL − market +0.0264 ± 0.0392  w -0.06 ± 0.85
+      model side, all             n  138  ROI   +2.6% ± 16.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n   92  ROI   -4.4% ± 19.7  null -4.5%
+  avail dk 2025-26 games 10+
+    avail  @open  n  964  RMSE line 18.79 model 18.83  weight on (T − line) +0.44 ± 0.31  P(over) LL − market -0.0058 ± 0.0102  w +0.76 ± 0.40
+      model side, all             n  964  ROI   +5.4% ±  6.0  null -4.5%  line moved toward it +1.16 ± 0.21 pts
+      model side, |P − q| ≥ 0.05  n  508  ROI   +7.1% ±  8.2  null -4.5%  line moved toward it +1.76 ± 0.31 pts
+    avail  @close n  964  RMSE line 18.46 model 18.83  weight on (T − line) +0.02 ± 0.31  P(over) LL − market +0.0140 ± 0.0108  w +0.04 ± 0.38
+      model side, all             n  964  ROI   -2.7% ±  6.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n  542  ROI   -4.8% ±  8.1  null -4.5%
+  avail espnbet 2024-25 games 10+
+    avail  @open  n 1015  RMSE line 18.08 model 18.01  weight on (T − line) +0.60 ± 0.29  P(over) LL − market +0.0008 ± 0.0100  w +0.48 ± 0.38
+      model side, all             n 1015  ROI   +0.5% ±  5.9  null -4.5%  line moved toward it +1.40 ± 0.23 pts
+      model side, |P − q| ≥ 0.05  n  494  ROI   +6.8% ±  8.4  null -4.5%  line moved toward it +2.41 ± 0.34 pts
+    avail  @close n 1070  RMSE line 17.55 model 18.08  weight on (T − line) -0.16 ± 0.28  P(over) LL − market +0.0203 ± 0.0099  w -0.24 ± 0.37
+      model side, all             n 1070  ROI   -4.8% ±  5.7  null -4.5%
+      model side, |P − q| ≥ 0.05  n  555  ROI  -12.5% ±  7.9  null -4.5%
+  avail espnbet 2024-25 games 1–9
+    avail  @open  n   71  RMSE line 20.38 model 20.38  weight on (T − line) +0.53 ± 1.19  P(over) LL − market +0.0075 ± 0.0389  w +0.21 ± 1.42
+      model side, all             n   71  ROI   -0.6% ± 22.3  null -4.6%  line moved toward it +1.55 ± 0.77 pts
+      model side, |P − q| ≥ 0.05  n   34  ROI   +1.4% ± 32.6  null -4.6%  line moved toward it +3.21 ± 1.06 pts
+    avail  @close n  138  RMSE line 18.38 model 18.54  weight on (T − line) +0.29 ± 0.94  P(over) LL − market +0.0158 ± 0.0235  w -0.02 ± 1.25
+      model side, all             n  138  ROI  -11.4% ± 16.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n   64  ROI  -13.1% ± 23.6  null -4.5%
+  avail espnbet 2025-26 games 10+
+    avail  @open  n  107  RMSE line 19.36 model 19.15  weight on (T − line) +0.75 ± 1.08  P(over) LL − market -0.0007 ± 0.0322  w +0.61 ± 1.29
+      model side, all             n  107  ROI   +5.1% ± 18.1  null -4.5%  line moved toward it +0.73 ± 0.57 pts
+      model side, |P − q| ≥ 0.05  n   58  ROI  +28.3% ± 23.3  null -4.5%  line moved toward it +1.19 ± 0.76 pts
+    avail  @close n  107  RMSE line 18.60 model 19.15  weight on (T − line) -0.25 ± 0.92  P(over) LL − market +0.0174 ± 0.0343  w -0.06 ± 1.14
+      model side, all             n  107  ROI   -1.8% ± 18.2  null -4.5%
+      model side, |P − q| ≥ 0.05  n   61  ROI   +0.2% ± 24.1  null -4.5%
+  avail espnbet 2025-26 games 1–9
+    avail  @open  n  138  RMSE line 16.75 model 17.89  weight on (T − line) -0.18 ± 0.57  P(over) LL − market +0.0442 ± 0.0427  w -0.25 ± 0.81
+      model side, all             n  138  ROI   -7.3% ± 16.0  null -4.5%  line moved toward it +1.07 ± 0.47 pts
+      model side, |P − q| ≥ 0.05  n   92  ROI  -10.7% ± 19.6  null -4.5%  line moved toward it +1.26 ± 0.57 pts
+    avail  @close n  138  RMSE line 16.93 model 17.89  weight on (T − line) -0.09 ± 0.60  P(over) LL − market +0.0253 ± 0.0409  w -0.02 ± 0.84
+      model side, all             n  138  ROI   +8.1% ± 15.9  null -4.5%
+      model side, |P − q| ≥ 0.05  n   90  ROI   -0.1% ± 19.9  null -4.5%
+  both  dk 2025-26 games 10+
+    both   @open  n  964  RMSE line 18.79 model 18.82  weight on (T − line) +0.44 ± 0.32  P(over) LL − market -0.0071 ± 0.0098  w +0.80 ± 0.40
+      model side, all             n  964  ROI   +3.8% ±  6.0  null -4.5%  line moved toward it +1.21 ± 0.21 pts
+      model side, |P − q| ≥ 0.05  n  496  ROI   +5.8% ±  8.4  null -4.5%  line moved toward it +1.77 ± 0.31 pts
+    both   @close n  964  RMSE line 18.46 model 18.82  weight on (T − line) -0.00 ± 0.32  P(over) LL − market +0.0138 ± 0.0104  w -0.00 ± 0.39
+      model side, all             n  964  ROI   -3.7% ±  6.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n  517  ROI   -6.2% ±  8.2  null -4.5%
+  both  espnbet 2024-25 games 10+
+    both   @open  n 1015  RMSE line 18.08 model 17.98  weight on (T − line) +0.63 ± 0.29  P(over) LL − market -0.0002 ± 0.0100  w +0.52 ± 0.38
+      model side, all             n 1015  ROI   -2.2% ±  5.9  null -4.5%  line moved toward it +1.30 ± 0.23 pts
+      model side, |P − q| ≥ 0.05  n  506  ROI   +6.5% ±  8.3  null -4.5%  line moved toward it +2.36 ± 0.34 pts
+    both   @close n 1070  RMSE line 17.55 model 18.05  weight on (T − line) -0.11 ± 0.28  P(over) LL − market +0.0191 ± 0.0100  w -0.18 ± 0.36
+      model side, all             n 1070  ROI   -5.1% ±  5.7  null -4.5%
+      model side, |P − q| ≥ 0.05  n  568  ROI   -9.8% ±  7.9  null -4.5%
+  both  espnbet 2024-25 games 1–9
+    both   @open  n   71  RMSE line 20.38 model 20.26  weight on (T − line) +0.68 ± 1.25  P(over) LL − market +0.0048 ± 0.0370  w +0.30 ± 1.48
+      model side, all             n   71  ROI   -0.3% ± 22.4  null -4.6%  line moved toward it +1.15 ± 0.81 pts
+      model side, |P − q| ≥ 0.05  n   33  ROI   -1.4% ± 33.2  null -4.6%  line moved toward it +3.15 ± 1.09 pts
+    both   @close n  138  RMSE line 18.38 model 18.45  weight on (T − line) +0.41 ± 1.00  P(over) LL − market +0.0124 ± 0.0222  w +0.11 ± 1.33
+      model side, all             n  138  ROI   -3.2% ± 16.0  null -4.5%
+      model side, |P − q| ≥ 0.05  n   64  ROI  -12.9% ± 23.6  null -4.5%
+  both  espnbet 2025-26 games 10+
+    both   @open  n  107  RMSE line 19.36 model 19.22  weight on (T − line) +0.67 ± 1.16  P(over) LL − market +0.0022 ± 0.0289  w +0.45 ± 1.38
+      model side, all             n  107  ROI   +3.5% ± 18.1  null -4.5%  line moved toward it +0.84 ± 0.57 pts
+      model side, |P − q| ≥ 0.05  n   51  ROI  +12.3% ± 26.1  null -4.5%  line moved toward it +1.35 ± 0.78 pts
+    both   @close n  107  RMSE line 18.60 model 19.22  weight on (T − line) -0.41 ± 0.96  P(over) LL − market +0.0208 ± 0.0319  w -0.26 ± 1.18
+      model side, all             n  107  ROI  -10.9% ± 18.1  null -4.5%
+      model side, |P − q| ≥ 0.05  n   60  ROI   +2.0% ± 24.4  null -4.5%
+  both  espnbet 2025-26 games 1–9
+    both   @open  n  138  RMSE line 16.75 model 17.81  weight on (T − line) -0.22 ± 0.60  P(over) LL − market +0.0399 ± 0.0399  w -0.25 ± 0.85
+      model side, all             n  138  ROI   -4.6% ± 16.0  null -4.5%  line moved toward it +1.00 ± 0.47 pts
+      model side, |P − q| ≥ 0.05  n   91  ROI   -9.7% ± 19.7  null -4.5%  line moved toward it +1.41 ± 0.60 pts
+    both   @close n  138  RMSE line 16.93 model 17.81  weight on (T − line) -0.11 ± 0.63  P(over) LL − market +0.0218 ± 0.0378  w -0.00 ± 0.88
+      model side, all             n  138  ROI   +5.3% ± 15.9  null -4.5%
+      model side, |P − q| ≥ 0.05  n   90  ROI   +4.2% ± 19.8  null -4.5%
