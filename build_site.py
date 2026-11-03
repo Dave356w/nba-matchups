@@ -244,6 +244,80 @@ def fresh_logs(year, today):
     return logs
 
 
+# A stale team's page is refetched at most this often (the daily refresh
+# above has just written every page in the build that runs it).
+REFETCH_AFTER_S = 20 * 60
+
+
+def stale_log_teams(logs, finals, year, today):
+    """Teams whose saved game log ends before their latest graded final of
+    `year` strictly before `today` (the native ledger's ESPN results).
+
+    Compares the latest date, not the count, so a game Basketball-Reference
+    leaves out of every regular-season log can never keep a team stale."""
+    if finals is None or not len(finals):
+        return []
+    day = pd.Timestamp(today)
+    g = finals[pd.to_numeric(finals["season"], errors="coerce").eq(year)
+               & pd.to_numeric(finals["home_won"], errors="coerce").isin([0, 1])]
+    d = pd.to_datetime(g["slate_date"], errors="coerce")
+    g, d = g[d < day], d[d < day]
+    latest = pd.concat([pd.Series(d.to_numpy(), index=g["home"].to_numpy()),
+                        pd.Series(d.to_numpy(), index=g["away"].to_numpy())])
+    out = []
+    for tm, last in latest.groupby(level=0).max().items():
+        lg = logs.get(tm)
+        have = (pd.to_datetime(lg["date"], errors="coerce") if lg is not None and len(lg)
+                else pd.Series(dtype="datetime64[ns]"))
+        have = have[have < day]
+        if not len(have) or have.max() < last:
+            out.append(tm)
+    return sorted(out)
+
+
+def complete_logs(logs, year, today, finals=None, now=None):
+    """Refetch any team whose cached log is behind the graded ledger.
+
+    The once-per-ET-day refresh can run before Basketball-Reference posts the
+    previous night's games, and its pages were then reused all day: on the
+    2026-10-31 and 11-02 slates every team on a back-to-back was snapshotted
+    and locked without its previous game (and with b2b unset). The inputs stay
+    games strictly before the slate; no prediction maths changes. A refetch
+    that fails, or returns fewer games, keeps the cached page and log. A team
+    still behind is logged and scored from what is saved, as before."""
+    stale = stale_log_teams(logs, finals, year, today)
+    if not stale:
+        return logs
+    now = now if now is not None else datetime.now().timestamp()
+    day = pd.Timestamp(today)
+
+    def before(lg):
+        return int((pd.to_datetime(lg["date"], errors="coerce") < day).sum())
+
+    tried, recent = [], []
+    for tm in stale:
+        path = nc.CACHE / f"gl_{tm}_{year}.html"
+        if path.is_file() and now - path.stat().st_mtime < REFETCH_AFTER_S:
+            recent.append(tm)
+            continue
+        tried.append(tm)
+        saved = path.read_bytes() if path.is_file() else None
+        try:
+            new = nc.read_gamelog(tm, year, refresh=True)
+        except Exception as e:  # noqa: BLE001 - never block a build
+            log(f"game log {tm}: refetch failed ({e!r})")
+            new = None
+        if new is not None and len(new) and (tm not in logs or before(new) >= before(logs[tm])):
+            logs[tm] = new
+        elif saved is not None:
+            path.write_bytes(saved)
+    still = stale_log_teams(logs, finals, year, today)
+    log(f"game logs behind graded finals: {' '.join(stale)}; refetched "
+        f"{' '.join(tried) or 'none'}; fetched <20 min ago {' '.join(recent) or 'none'}; "
+        f"still behind {' '.join(still) or 'none'}")
+    return logs
+
+
 def score_game_v8(logs, home, away, date, weights, model, prior_logs=None,
                   avail_model=None, avail=None, opening=None, talent=None,
                   talent0=None, half_life=None):
@@ -400,7 +474,7 @@ def route(row, model):
     return "base"
 
 
-def score_slate(today, weights, model, now=None):
+def score_slate(today, weights, model, now=None, finals=None):
     games = [g for g in market.scoreboard(today)
              if g["season_type"] == market.REGULAR_SEASON
              and g["home"] in market.BBR_TEAMS and g["away"] in market.BBR_TEAMS]
@@ -412,6 +486,9 @@ def score_slate(today, weights, model, now=None):
     if not pre:
         return []
     logs = fresh_logs(season_for(today), today)
+    # finals: the graded native ledger, so a day-old page cannot stand in
+    # for games ESPN has already finished
+    logs = complete_logs(logs, season_for(today), today, finals)
     prior = None
     teams = {t for g in pre for t in (g["home"], g["away"])}
     if is_v8(model) and (teams - set(logs) or any(
@@ -3431,7 +3508,7 @@ def main(argv=None):
         log(f"graded {n} game(s)")
         if model_ok:
             try:
-                rows = score_slate(today, weights, model)
+                rows = score_slate(today, weights, model, finals=native)
             except Exception as e:  # noqa: BLE001 - keep grading + pages alive
                 log(f"slate scoring failed ({e!r}); pages render from the ledger")
                 rows = []
