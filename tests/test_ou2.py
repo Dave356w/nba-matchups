@@ -138,11 +138,11 @@ def test_public_pages_show_only_the_ou2_rows_and_the_dated_line(monkeypatch, tmp
     assert "OU·L" not in site.hypotheses and "OU·L·ou2" in site.hypotheses
     ou = [r for r in site.records if r["hyp"].get("market") == "ou"]
     assert {r["row"].game_id for r in ou} == {"o1", "o2"} and {r["signal"].side for r in ou} == {"under", "over"}
-    note = "Over/under picks through October 29, 2026 were scored with the current totals model"
-    assert note in site.results_page() and note in site.performance_page()
-    assert "injury report" in site.guide_page()
+    note = "Picks through October 29, 2026 were scored with this model"
+    assert note in site.guide_page() and "injury report" in site.guide_page()
+    assert note not in site.results_page() and note not in site.performance_page()   # owner: guide only
     monkeypatch.setattr(analysis, "OU_RESCORE_PATH", tmp_path / "none.csv")
-    assert "Over/under picks through" not in PublicSite(build_site, g, "2026-10-30", "built").results_page()
+    assert "Picks through" not in PublicSite(build_site, g, "2026-10-30", "built").guide_page()
 
 
 # ---------------------------------------------------------------- rescore --

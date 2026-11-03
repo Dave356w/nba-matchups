@@ -331,6 +331,9 @@ information only, separate from DraftKings and native evidence.
     totals model from the information available at each lock. How it works
     describes ou2. The margin model, its tests and their records are
     unchanged.
+  - Presentation (owner's decision, 2026-11-03, before activation): that
+    dated line appears once, as a clause in How it works' O/U rule, not on
+    Results or Performance.
 
 ## Sources of truth and engineering rules
 
