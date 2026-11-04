@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-11-03T02:55:51Z; latest graded slate 2026-11-02 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-11-04T06:09:58Z; latest graded slate 2026-11-02 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_avail_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_neutral_avail_v11
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -8,7 +8,7 @@ Bases, books and seasons are never pooled. Price bands are descriptive, not filt
 Market: DraftKings, native and reconstructed rows alike. Historical Kalshi columns remain without new writes. The hypotheses stay on the sportsbook prices they were registered on.
 Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of 2024-25 and 2025-26 before 25 Nov are left out; their rows stay in data/nba_reconstructed.csv.
 
-== NATIVE (pregame-locked, forward): 107 rows, 107 graded, 0 pending
+== NATIVE (pregame-locked, forward): 121 rows, 107 graded, 14 pending
 -- DraftKings close, 2026-27: 92 graded on 12 slates
   at the first snapshot (earliest priced; model P written then):
     Lean — the model's favourite
