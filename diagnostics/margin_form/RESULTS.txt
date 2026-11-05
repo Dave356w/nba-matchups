@@ -1,0 +1,54 @@
+Margin form term, walk-forward under production routing (v10h25, report route D),
+folds 2017-2026 for the rule; 2026-27 information only. Arm - B, ± 95%.
+
+== 1. Against outcomes (log loss / Brier / margin MSE)
+  games 1+               n 10767  B log loss 0.6115
+    F5   +0.0004 ± 0.0004  Brier +0.00019  MSE +0.27 ± 0.17  better in 0 of 9
+    F10  +0.0004 ± 0.0004  Brier +0.00018  MSE +0.26 ± 0.17  better in 1 of 9
+  games 1-9              n  1258  B log loss 0.6318
+    F5   -0.0003 ± 0.0013  Brier -0.00009  MSE +0.16 ± 0.50  better in 2 of 9
+    F10  -0.0004 ± 0.0015  Brier -0.00014  MSE +0.18 ± 0.58  better in 2 of 9
+  games 10+              n  9509  B log loss 0.6088
+    F5   +0.0005 ± 0.0004  Brier +0.00023  MSE +0.29 ± 0.18  better in 2 of 9
+    F10  +0.0005 ± 0.0004  Brier +0.00023  MSE +0.27 ± 0.18  better in 3 of 9
+  route base, games 1+   n  7134  B log loss 0.6226
+    F5   +0.0005 ± 0.0006  Brier +0.00024  MSE +0.30 ± 0.23  better in 0 of 6
+    F10  +0.0005 ± 0.0006  Brier +0.00023  MSE +0.28 ± 0.23  better in 1 of 6
+  route avail, games 1+  n  3633  B log loss 0.5897
+    F5   +0.0001 ± 0.0005  Brier +0.00009  MSE +0.21 ± 0.24  better in 0 of 3
+    F10  +0.0001 ± 0.0006  Brier +0.00009  MSE +0.21 ± 0.25  better in 0 of 3
+  By fold, games 1+ (log loss arm - B):
+    2017 n 1214  F5 +0.0003 ± 0.0029  F10 +0.0007 ± 0.0030
+    2018 n 1214  F5 +0.0026 ± 0.0016  F10 +0.0022 ± 0.0015
+    2019 n 1214  F5 +0.0000 ± 0.0001  F10 +0.0000 ± 0.0000
+    2021 n 1064  F5 +0.0001 ± 0.0004  F10 +0.0000 ± 0.0003
+    2022 n 1214  F5 +0.0000 ± 0.0002  F10 -0.0000 ± 0.0001
+    2023 n 1214  F5 +0.0001 ± 0.0002  F10 +0.0001 ± 0.0003
+    2024 n 1215  F5 +0.0002 ± 0.0014  F10 +0.0002 ± 0.0015
+    2025 n 1209  F5 +0.0001 ± 0.0006  F10 +0.0001 ± 0.0007
+    2026 n 1209  F5 +0.0001 ± 0.0001  F10 +0.0001 ± 0.0001
+    2027 n  105  F5 -0.0003 ± 0.0011  F10 -0.0002 ± 0.0009
+
+== 2. Against the close, each basis x book x season x stage (arm - close; [arm - B, Brier])
+  rebuilt       dk      2027 games 1-9  n   91  B +0.0467 ± 0.0296
+      F5   +0.0462  [-0.0005 ± 0.0012, Brier -0.00026]
+      F10  +0.0464  [-0.0003 ± 0.0010, Brier -0.00016]
+  reconstructed dk      2026 games 10+  n  964  B +0.0153 ± 0.0106
+      F5   +0.0154  [+0.0001 ± 0.0001, Brier +0.00004]
+      F10  +0.0155  [+0.0001 ± 0.0001, Brier +0.00005]
+  reconstructed espnbet 2025 games 1-9  n  138  B -0.0185 ± 0.0251
+      F5   -0.0189  [-0.0004 ± 0.0015, Brier -0.00016]
+      F10  -0.0185  [-0.0000 ± 0.0022, Brier +0.00001]
+  reconstructed espnbet 2025 games 10+  n 1071  B +0.0134 ± 0.0093
+      F5   +0.0136  [+0.0002 ± 0.0007, Brier +0.00012]
+      F10  +0.0135  [+0.0001 ± 0.0007, Brier +0.00011]
+  reconstructed espnbet 2026 games 1-9  n  138  B +0.0046 ± 0.0269
+      F5   +0.0047  [+0.0001 ± 0.0003, Brier +0.00002]
+      F10  +0.0047  [+0.0001 ± 0.0007, Brier +0.00001]
+  reconstructed espnbet 2026 games 10+  n  107  B -0.0095 ± 0.0319
+      F5   -0.0095  [+0.0000 ± 0.0001, Brier +0.00001]
+      F10  -0.0095  [+0.0000 ± 0.0004, Brier -0.00001]
+
+== 3. Decision rule (set before the run; the G7 gate as v10 applied it)
+  F5   priced books DK 2025-26 +0.0001 / ESPN BET 2024-25 +0.0002 (Brier +0.00004 / +0.00012): fail; games 1+ +0.0004: fail; tripwire (best fold +0.0000): pass -> not a candidate
+  F10  priced books DK 2025-26 +0.0001 / ESPN BET 2024-25 +0.0001 (Brier +0.00005 / +0.00011): fail; games 1+ +0.0004: fail; tripwire (best fold -0.0000): pass -> not a candidate
