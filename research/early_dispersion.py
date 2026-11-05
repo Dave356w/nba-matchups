@@ -114,7 +114,8 @@ def games(t, wts):
                    if fh is not None and fa is not None else 0.0)
     g["delta_now"] = now
     g["e"] = np.clip(1.0 - (g["gp_home"] + g["gp_away"]) / 20.0, 0.0, 1.0)
-    g["tal_e"] = g["talent_diff"] * g["e"]
+    # a missing talent term is neutral (0) in prediction, as B fills it
+    g["tal_e"] = (g["talent_diff"] * g["e"]).where(g["talent_diff"].notna(), 0.0)
     g["now_e"] = g["delta_now"] * g["e"]
     g["delta_e"] = g["delta"] * g["e"]
     return g
