@@ -98,7 +98,11 @@ def season_corrections(y):
     """{(date, team): (s, {lam: c (8,)}), f (8,)} for every team before each
     of its games in season y: this season's share of the faded window, the
     correction per LAMBDA and the raw faded features."""
-    logs, prior = nc.load_logs(y), nc.load_logs(y - 1) if y - 1 != 2020 else {}
+    logs = nc.load_logs(y)
+    try:                     # the prior season as fade_v8_games reads it (2020 included)
+        prior = nc.load_logs(y - 1)
+    except Exception:        # noqa: BLE001
+        prior = {}
     teams = sorted(logs)
     ix = {t: k for k, t in enumerate(teams)}
     rows = []
