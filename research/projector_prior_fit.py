@@ -157,8 +157,10 @@ def load_all():
     return data
 
 
-def fit(train):
-    """Grid over blend, offence share and K; then the linear calibration."""
+def fit(train, margin_intercept=True):
+    """Grid over blend, offence share and K; then the linear calibration
+    (through the origin for the margin when margin_intercept is False: no
+    added home-court constant)."""
     best = None
     for wts, w, K in itertools.product(BLENDS, OFF_SHARES, KS):
         ms, ts, am, at = [], [], [], []
@@ -168,7 +170,8 @@ def fit(train):
             ms.append(mg[ok]); ts.append(tt[ok])
             am.append(D["actual_margin"].to_numpy()[ok]); at.append(D["actual_total"].to_numpy()[ok])
         mg, tt, am, at = map(np.concatenate, (ms, ts, am, at))
-        bm = np.polyfit(mg, am, 1)
+        bm = np.polyfit(mg, am, 1) if margin_intercept else \
+            np.array([float(mg @ am / (mg @ mg)), 0.0])
         bt = np.polyfit(tt, at, 1)
         loss = np.mean((am - np.polyval(bm, mg)) ** 2) + np.mean((at - np.polyval(bt, tt)) ** 2)
         if best is None or loss < best[0]:
@@ -235,7 +238,60 @@ def report_block(G, label):
     return L
 
 
+def posthoc_no_hca():
+    """Owner's request after the run (2026-11-05): P2 without the added
+    home-court constant (margin calibrated through the origin), beside P2,
+    walk-forward on the same games. Post-hoc; descriptive."""
+    data = load_all()
+    L = ["POST-HOC (requested after the run): P2 without the added home-court constant (P2b:",
+         "margin' = b x margin, refitted through the origin with its own grid choice), beside P2.",
+         "Same games: both teams with >= 1 prior game; walk-forward; ROI ± 95%.", ""]
+    for y in SCORED:
+        D = data[y].copy()
+        out = {}
+        for nm, icpt in (("P2", True), ("P2b", False)):
+            loss, wts, w, K, bm, bt = fit([data[t] for t in SEASONS if 2017 <= t < y], icpt)
+            mg, tt = project(D, wts, w, K)
+            D[f"m_{nm}"], D[f"t_{nm}"] = np.polyval(bm, mg), np.polyval(bt, tt)
+            out[nm] = f"blend {wts}, offence {w}, K {K}, margin' = {bm[1]:+.2f} + {bm[0]:.3f} x margin"
+        D = D[np.fmin(D["n_h"], D["n_a"]) >= 1]
+        D = D.merge(pb.odds_and_production(y), on=["game_date", "home_abbr", "away_abbr"], how="left")
+        D = D.drop_duplicates(["game_date", "home_abbr", "away_abbr"])
+        L.append(f"== {y - 1}-{str(y)[2:]}" + (" (information only)" if y == 2027 else "") +
+                 f"  games {len(D)}")
+        for nm in ("P2", "P2b"):
+            L.append(f"  {nm:4s} fitted: {out[nm]}")
+        am = D["actual_margin"]
+        for nm, mg in (("P2", D["m_P2"]), ("P2b", D["m_P2b"]), ("production v11", D["prod_margin"]),
+                       ("closing spread", -D["close_spread"])):
+            ok = mg.notna() & am.notna()
+            L.append(f"  {nm:15s} n {ok.sum():4d} margin RMSE {rmse((mg - am)[ok]):6.2f} winner "
+                     f"{((mg[ok] > 0) == (am[ok] > 0)).mean():.3f} bias {(mg - am)[ok].mean():+.2f} "
+                     f"home share of projected wins {(mg[ok] > 0).mean():.3f} (actual {(am[ok] > 0).mean():.3f})")
+        for lo, hi in ((-99, -3), (-3, 0), (0, 3), (3, 99)):
+            row = []
+            for nm in ("P2", "P2b"):
+                sel = (D[f"m_{nm}"] > lo) & (D[f"m_{nm}"] <= hi)
+                row.append(f"{nm} n {sel.sum():4d} proj {D.loc[sel, f'm_{nm}'].mean():+6.2f} actual "
+                           f"{am[sel].mean():+6.2f} home win {(am[sel] > 0).mean():.3f}")
+            L.append(f"    projected ({lo:+d}, {hi:+d}]: " + " | ".join(row))
+        for book in [b for b in D["close_book"].dropna().unique()]:
+            B = D[D["close_book"] == book].dropna(subset=["close_spread"])
+            r = (B["actual_margin"] + B["close_spread"]).to_numpy()
+            for nm in ("P2", "P2b"):
+                e = (B[f"m_{nm}"] + B["close_spread"]).to_numpy()
+                L.append(f"  {book} {nm:4s} ATS  " + "  ".join(bets(
+                    e, r, B["close_home_spread_odds"].to_numpy(float),
+                    B["close_away_spread_odds"].to_numpy(float))))
+        L.append("")
+    text = "\n".join(L) + "\n"
+    (OUT / "RESULTS_prior_fit_no_hca.txt").write_text(text)
+    print(text)
+
+
 def main():
+    if "--no-hca" in sys.argv:
+        return posthoc_no_hca()
     data = load_all()
     L = ["Projector with last season as a prior (P1) and with fitted weights (P2), point-in-time,",
          "walk-forward fits on earlier seasons. Arms and readings fixed before the run. ROI ± 95%.", ""]

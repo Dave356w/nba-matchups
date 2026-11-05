@@ -42,6 +42,9 @@ BACKTEST_SEASON = 2026       # 2025-26; set None to skip the backtest
 PREDICT_DATE = None          # "YYYY-MM-DD" (ET slate date); None = today
 SLATE_GAMES = None           # optional [("HOME", "AWAY"), ...] in BBR codes, e.g.
                              # [("PHO", "ORL"), ("GSW", "MIA")]; skips the schedule page
+HOME_COURT = False           # False: no added home-court constant (margin calibrated
+                             # through the origin; the home/away split carries home
+                             # advantage). True: the fitted constant (about +1.9 pts).
 REFRESH_HOURS = 6            # refresh the current season's pages after this many hours
 REQUEST_DELAY = 4.0          # seconds between Basketball-Reference requests (15 a minute)
 SEED_ZIP = "/content/drive/MyDrive/nba_p2/p2_logs_seed.zip"  # optional: parsed logs to
@@ -326,7 +329,8 @@ def fit(train):
             mg_.append(mg[ok]); tt_.append(tt[ok])
             am_.append(D["actual_margin"].to_numpy()[ok]); at_.append(D["actual_total"].to_numpy()[ok])
         mg, tt, am, at = map(np.concatenate, (mg_, tt_, am_, at_))
-        bm, bt = np.polyfit(mg, am, 1), np.polyfit(tt, at, 1)
+        bm = np.polyfit(mg, am, 1) if HOME_COURT else np.array([float(mg @ am / (mg @ mg)), 0.0])
+        bt = np.polyfit(tt, at, 1)
         loss = np.mean((am - np.polyval(bm, mg)) ** 2) + np.mean((at - np.polyval(bt, tt)) ** 2)
         if best is None or loss < best["loss"]:
             best = dict(loss=float(loss), blend=wts, off_share=w, prior_k=K,
