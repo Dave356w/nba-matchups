@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -227,7 +228,31 @@ def report(G):
     return L
 
 
+def posthoc_roll(roll=30):
+    """Owner's request after the run (2026-11-05): the rolling intercept over
+    the last `roll` games instead of 300. Post-hoc; the registered grid and
+    verdict are unchanged."""
+    global GRID, ROLL
+    keep_grid, keep_roll = GRID, ROLL
+    GRID = [v for v in keep_grid if v[0] == "roll"]
+    ROLL = roll
+    try:
+        G = walk(features(games()))
+        L = report(G)
+    finally:
+        GRID, ROLL = keep_grid, keep_roll
+    head = [f"POST-HOC (requested after the run): rolling intercept over the last {roll} games",
+            "instead of 300; the 8 rolling variants only. Descriptive; the registered rule and",
+            "verdict are unchanged (the rule text below is reported for comparison).", ""]
+    return head + L
+
+
 def main():
+    if "--roll30" in sys.argv:
+        text = "\n".join(posthoc_roll(30)) + "\n"
+        open(os.path.join(OUT, "RESULTS_line_adjust_roll30.txt"), "w").write(text)
+        print(text)
+        return
     G = walk(features(games()))
     os.makedirs(OUT, exist_ok=True)
     text = "\n".join(report(G)) + "\n"

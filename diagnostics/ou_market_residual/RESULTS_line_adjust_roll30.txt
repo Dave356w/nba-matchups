@@ -1,0 +1,59 @@
+POST-HOC (requested after the run): rolling intercept over the last 30 games
+instead of 300; the 8 rolling variants only. Descriptive; the registered rule and
+verdict are unchanged (the rule text below is reported for comparison).
+
+Adjusted closing totals: total' = close + a + b x matchup, 24 variants, walk-forward.
+Research only (G9 excludes the market residual as a production target). Grid and
+rule fixed before the run. Baseline: the closing total. Squared error vs close in pts^2
+(negative = better); ROI ± 95% at |adjustment| >= 0.5, closing prices.
+
+== espnbet 2024-25 (scored)  n 721  mean(total - close) +0.98
+  roll-sum-hl5-cap10       vs close  +5.49 ±  6.85  |adj|>=0.5: n  609  won  50.6%  ROI   -3.5% ±   7.6  null -4.5%  overs  66%
+  roll-sum-hl5-cap15       vs close  +5.63 ±  6.83  |adj|>=0.5: n  611  won  50.7%  ROI   -3.2% ±   7.6  null -4.5%  overs  66%
+  roll-sum-hl25-cap10      vs close  +6.54 ±  6.76  |adj|>=0.5: n  620  won  50.8%  ROI   -3.1% ±   7.5  null -4.5%  overs  67%
+  roll-sum-hl25-cap15      vs close  +6.45 ±  6.77  |adj|>=0.5: n  619  won  50.6%  ROI   -3.5% ±   7.5  null -4.5%  overs  67%
+  roll-split-hl5-cap10     vs close  +6.87 ±  7.66  |adj|>=0.5: n  634  won  50.5%  ROI   -3.6% ±   7.4  null -4.5%  overs  64%
+  roll-split-hl5-cap15     vs close  +6.98 ±  7.64  |adj|>=0.5: n  619  won  49.8%  ROI   -5.0% ±   7.5  null -4.5%  overs  64%
+  roll-split-hl25-cap10    vs close  +6.96 ±  7.15  |adj|>=0.5: n  612  won  49.8%  ROI   -4.9% ±   7.6  null -4.5%  overs  66%
+  roll-split-hl25-cap15    vs close  +6.82 ±  7.15  |adj|>=0.5: n  616  won  49.5%  ROI   -5.5% ±   7.5  null -4.5%  overs  66%
+
+== dk 2025-26 (scored)  n 964  mean(total - close) +0.21
+  roll-sum-hl5-cap10       vs close  +9.54 ± 10.18  |adj|>=0.5: n  859  won  51.0%  ROI   -2.6% ±   6.4  null -4.5%  overs  51%
+  roll-sum-hl5-cap15       vs close  +9.38 ± 10.20  |adj|>=0.5: n  862  won  51.2%  ROI   -2.3% ±   6.4  null -4.5%  overs  51%
+  roll-sum-hl25-cap10      vs close +10.75 ± 10.52  |adj|>=0.5: n  849  won  51.1%  ROI   -2.4% ±   6.4  null -4.5%  overs  51%
+  roll-sum-hl25-cap15      vs close +10.72 ± 10.52  |adj|>=0.5: n  844  won  50.8%  ROI   -3.0% ±   6.4  null -4.5%  overs  51%
+  roll-split-hl5-cap10     vs close +10.04 ± 10.26  |adj|>=0.5: n  862  won  50.9%  ROI   -2.8% ±   6.4  null -4.5%  overs  51%
+  roll-split-hl5-cap15     vs close  +9.88 ± 10.29  |adj|>=0.5: n  863  won  51.3%  ROI   -2.0% ±   6.4  null -4.5%  overs  51%
+  roll-split-hl25-cap10    vs close +11.36 ± 10.58  |adj|>=0.5: n  864  won  50.8%  ROI   -3.0% ±   6.4  null -4.5%  overs  51%
+  roll-split-hl25-cap15    vs close +11.33 ± 10.57  |adj|>=0.5: n  858  won  50.6%  ROI   -3.4% ±   6.4  null -4.5%  overs  51%
+
+== espnbet 2025-26 (information only)  n 260  mean(total - close) +1.39
+  roll-sum-hl5-cap10       vs close  +2.83 ± 13.30  |adj|>=0.5: n  195  won  53.8%  ROI   +3.1% ±  13.4  null -4.5%  overs  82%
+  roll-sum-hl5-cap15       vs close  +2.49 ± 13.04  |adj|>=0.5: n  191  won  53.9%  ROI   +3.2% ±  13.6  null -4.5%  overs  81%
+  roll-sum-hl25-cap10      vs close  +2.60 ± 13.37  |adj|>=0.5: n  180  won  52.8%  ROI   +1.0% ±  14.0  null -4.5%  overs  87%
+  roll-sum-hl25-cap15      vs close  +2.30 ± 13.13  |adj|>=0.5: n  180  won  52.2%  ROI   -0.1% ±  14.0  null -4.5%  overs  87%
+  roll-split-hl5-cap10     vs close  +4.01 ± 13.37  |adj|>=0.5: n  208  won  53.8%  ROI   +3.2% ±  13.0  null -4.5%  overs  75%
+  roll-split-hl5-cap15     vs close  +3.62 ± 13.07  |adj|>=0.5: n  199  won  53.8%  ROI   +3.0% ±  13.3  null -4.5%  overs  75%
+  roll-split-hl25-cap10    vs close  +3.23 ± 13.45  |adj|>=0.5: n  205  won  52.2%  ROI   -0.1% ±  13.1  null -4.5%  overs  78%
+  roll-split-hl25-cap15    vs close  +2.92 ± 13.15  |adj|>=0.5: n  206  won  51.5%  ROI   -1.4% ±  13.1  null -4.5%  overs  77%
+
+== dk 2026-27 (information only)  n 121  mean(total - close) -3.04
+  roll-sum-hl5-cap10       vs close +23.71 ± 28.13  |adj|>=0.5: n  121  won  48.8%  ROI   -6.8% ±  17.1  null -4.5%  overs  36%
+  roll-sum-hl5-cap15       vs close +23.94 ± 28.48  |adj|>=0.5: n  121  won  48.8%  ROI   -6.8% ±  17.1  null -4.5%  overs  36%
+  roll-sum-hl25-cap10      vs close +23.72 ± 28.84  |adj|>=0.5: n  121  won  48.8%  ROI   -6.8% ±  17.1  null -4.5%  overs  36%
+  roll-sum-hl25-cap15      vs close +24.69 ± 29.49  |adj|>=0.5: n  121  won  48.8%  ROI   -6.8% ±  17.1  null -4.5%  overs  36%
+  roll-split-hl5-cap10     vs close +24.14 ± 28.12  |adj|>=0.5: n  119  won  47.9%  ROI   -8.5% ±  17.2  null -4.5%  overs  35%
+  roll-split-hl5-cap15     vs close +24.42 ± 28.50  |adj|>=0.5: n  120  won  48.3%  ROI   -7.7% ±  17.2  null -4.5%  overs  36%
+  roll-split-hl25-cap10    vs close +23.98 ± 28.83  |adj|>=0.5: n  121  won  48.8%  ROI   -6.8% ±  17.1  null -4.5%  overs  36%
+  roll-split-hl25-cap15    vs close +24.89 ± 29.48  |adj|>=0.5: n  121  won  48.8%  ROI   -6.8% ±  17.1  null -4.5%  overs  36%
+
+== Decision rule (set before the run; z = 3.08 for 24 variants)
+  roll-sum-hl5-cap10       squared error  +5.49 /  +9.54, combined +6.76 ± 8.93: fail; ROI vs null pass -> not a candidate
+  roll-sum-hl5-cap15       squared error  +5.63 /  +9.38, combined +6.79 ± 8.92: fail; ROI vs null pass -> not a candidate
+  roll-sum-hl25-cap10      squared error  +6.54 / +10.75, combined +7.77 ± 8.94: fail; ROI vs null pass -> not a candidate
+  roll-sum-hl25-cap15      squared error  +6.45 / +10.72, combined +7.70 ± 8.95: fail; ROI vs null pass -> not a candidate
+  roll-split-hl5-cap10     squared error  +6.87 / +10.04, combined +8.01 ± 9.65: fail; ROI vs null pass -> not a candidate
+  roll-split-hl5-cap15     squared error  +6.98 /  +9.88, combined +8.01 ± 9.64: fail; ROI vs null fail -> not a candidate
+  roll-split-hl25-cap10    squared error  +6.96 / +11.36, combined +8.34 ± 9.31: fail; ROI vs null fail -> not a candidate
+  roll-split-hl25-cap15    squared error  +6.82 / +11.33, combined +8.24 ± 9.31: fail; ROI vs null fail -> not a candidate
+  variants beating the close on squared error in both scored seasons: 0 of 8 (about 2 expected by chance)
