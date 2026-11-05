@@ -1,0 +1,44 @@
+POST-HOC (requested after the run): exponentially weighted intercept, half-life h
+games, alone and with the summed matchup (hl 5, cap 15). Descriptive; the registered
+grid and verdict are unchanged. Baseline: the closing total.
+
+== espnbet 2024-25  n 721  mean(total - close) +0.98
+  ewma50-only      adj -1.06..+2.84  vs close  +0.68 ±  3.37  |adj|>=0.5: n  536  won  51.3%  ROI   -2.3% ±   8.1  overs  86%
+  ewma50-match     adj -2.53..+3.79  vs close  +0.54 ±  3.21  |adj|>=0.5: n  522  won  51.1%  ROI   -2.6% ±   8.2  overs  82%
+  ewma100-only     adj -0.53..+2.01  vs close  -0.13 ±  2.57  |adj|>=0.5: n  469  won  51.8%  ROI   -1.3% ±   8.6  overs  98%
+  ewma100-match    adj -2.04..+2.95  vs close  -0.04 ±  2.52  |adj|>=0.5: n  493  won  51.7%  ROI   -1.5% ±   8.4  overs  86%
+  ewma200-only     adj -0.23..+1.43  vs close  -0.49 ±  1.95  |adj|>=0.5: n  433  won  51.7%  ROI   -1.5% ±   9.0  overs 100%
+  ewma200-match    adj -1.79..+2.51  vs close  -0.25 ±  2.06  |adj|>=0.5: n  442  won  53.2%  ROI   +1.4% ±   8.9  overs  85%
+  ewma400-only     adj -0.07..+1.10  vs close  -0.58 ±  1.55  |adj|>=0.5: n  407  won  53.1%  ROI   +1.1% ±   9.2  overs 100%
+  ewma400-match    adj -1.67..+2.54  vs close  -0.26 ±  1.80  |adj|>=0.5: n  399  won  52.1%  ROI   -0.6% ±   9.4  overs  82%
+
+== dk 2025-26  n 964  mean(total - close) +0.21
+  ewma50-only      adj -4.86..+4.15  vs close  +1.06 ±  4.58  |adj|>=0.5: n  778  won  52.4%  ROI   +0.1% ±   6.7  overs  53%
+  ewma50-match     adj -5.76..+4.40  vs close  +0.85 ±  4.41  |adj|>=0.5: n  779  won  52.2%  ROI   -0.2% ±   6.7  overs  53%
+  ewma100-only     adj -2.89..+2.75  vs close  +0.28 ±  3.16  |adj|>=0.5: n  611  won  52.0%  ROI   -0.6% ±   7.6  overs  52%
+  ewma100-match    adj -3.10..+3.11  vs close  +0.39 ±  3.02  |adj|>=0.5: n  658  won  51.5%  ROI   -1.6% ±   7.3  overs  51%
+  ewma200-only     adj -1.71..+1.60  vs close  +0.43 ±  2.01  |adj|>=0.5: n  689  won  50.9%  ROI   -2.7% ±   7.1  overs  57%
+  ewma200-match    adj -1.89..+2.43  vs close  +0.81 ±  2.03  |adj|>=0.5: n  608  won  49.7%  ROI   -5.2% ±   7.6  overs  52%
+  ewma400-only     adj -0.70..+1.26  vs close  +0.64 ±  1.40  |adj|>=0.5: n  462  won  48.1%  ROI   -8.3% ±   8.7  overs  87%
+  ewma400-match    adj -1.02..+2.56  vs close  +1.19 ±  1.65  |adj|>=0.5: n  381  won  44.4%  ROI  -15.2% ±   9.5  overs  81%
+
+== espnbet 2025-26  n 260  mean(total - close) +1.39
+  ewma50-only      adj +0.16..+4.04  vs close  +0.19 ± 10.14  |adj|>=0.5: n  250  won  52.0%  ROI   -0.5% ±  11.9  overs 100%
+  ewma50-match     adj -0.98..+5.29  vs close  -1.93 ±  8.68  |adj|>=0.5: n  218  won  52.3%  ROI   +0.0% ±  12.7  overs  99%
+  ewma100-only     adj +0.90..+2.84  vs close  -0.65 ±  8.83  |adj|>=0.5: n  260  won  52.3%  ROI   +0.1% ±  11.6  overs 100%
+  ewma100-match    adj -1.02..+4.33  vs close  -2.32 ±  7.87  |adj|>=0.5: n  234  won  53.4%  ROI   +2.2% ±  12.3  overs  99%
+  ewma200-only     adj +1.19..+2.04  vs close  -1.13 ±  7.32  |adj|>=0.5: n  260  won  52.3%  ROI   +0.1% ±  11.6  overs 100%
+  ewma200-match    adj -1.16..+3.67  vs close  -2.32 ±  6.77  |adj|>=0.5: n  229  won  53.3%  ROI   +1.9% ±  12.4  overs  99%
+  ewma400-only     adj +1.06..+1.51  vs close  -1.36 ±  5.82  |adj|>=0.5: n  260  won  52.3%  ROI   +0.1% ±  11.6  overs 100%
+  ewma400-match    adj -1.29..+3.34  vs close  -2.19 ±  5.57  |adj|>=0.5: n  203  won  53.7%  ROI   +2.7% ±  13.2  overs  97%
+
+== dk 2026-27  n 121  mean(total - close) -3.04
+  ewma50-only      adj -1.90..+3.24  vs close  +7.72 ±  9.11  |adj|>=0.5: n  109  won  46.8%  ROI  -10.5% ±  18.0  overs  51%
+  ewma50-match     adj -1.97..+3.24  vs close  +7.97 ±  9.25  |adj|>=0.5: n  102  won  46.1%  ROI  -11.9% ±  18.6  overs  51%
+  ewma100-only     adj -0.59..+2.56  vs close  +9.05 ±  7.70  |adj|>=0.5: n   82  won  45.1%  ROI  -13.8% ±  20.7  overs  83%
+  ewma100-match    adj -0.85..+2.56  vs close  +9.50 ±  8.17  |adj|>=0.5: n   81  won  43.2%  ROI  -17.7% ±  20.7  overs  90%
+  ewma200-only     adj +0.06..+1.64  vs close  +7.09 ±  5.97  |adj|>=0.5: n   81  won  44.4%  ROI  -15.4% ±  20.7  overs 100%
+  ewma200-match    adj -0.29..+1.73  vs close  +7.61 ±  6.63  |adj|>=0.5: n   86  won  44.2%  ROI  -15.8% ±  20.1  overs 100%
+  ewma400-only     adj +0.22..+0.98  vs close  +4.66 ±  4.09  |adj|>=0.5: n   81  won  44.4%  ROI  -15.4% ±  20.7  overs 100%
+  ewma400-match    adj -0.18..+1.47  vs close  +5.15 ±  4.85  |adj|>=0.5: n   84  won  44.0%  ROI  -16.0% ±  20.4  overs 100%
+

@@ -247,7 +247,67 @@ def posthoc_roll(roll=30):
     return head + L
 
 
+def posthoc_ewma(half_lives=(50, 100, 200, 400)):
+    """Owner's request after the run (2026-11-05): an exponentially weighted
+    intercept, a = sum(w * (total - close)) / sum(w) over every priced game
+    before the slate, w = 0.5 ** (games ago / h); alone (b = 0) and with the
+    summed matchup (half-life 5, cap 15) fitted on what remains. Post-hoc."""
+    G = features(games())
+    order = G["slate_date"].to_numpy()
+    tres = G["tres"].to_numpy(float)
+    rec = (G["basis"] == "reconstructed").to_numpy()
+    col = "m_sum_5_15"
+    names = []
+    for h in half_lives:
+        for kind in ("only", "match"):
+            names.append(f"ewma{h}-{kind}")
+            G[f"adj_ewma{h}-{kind}"] = np.nan
+    for d, idx in G.groupby("slate_date").groups.items():
+        tr = rec & (order < d)
+        if tr.sum() < MIN_TRAIN:
+            continue
+        prior = np.flatnonzero(order < d)
+        X = G.loc[tr, col].to_numpy(float)
+        Xc = G.loc[idx, col].to_numpy(float)
+        # each training game's own EWMA intercept as of its slate, so b is
+        # fitted on what the intercept left, as it would have been live
+        for h in half_lives:
+            w = 0.5 ** (np.arange(len(prior))[::-1] / h)
+            a = float((w * tres[prior]).sum() / w.sum())
+            G.loc[idx, f"adj_ewma{h}-only"] = a
+            b = float((X @ (tres[tr] - a)) / (X @ X))
+            G.loc[idx, f"adj_ewma{h}-match"] = a + b * Xc
+    global GRID
+    keep = GRID
+    try:
+        GRID = []
+        L = ["POST-HOC (requested after the run): exponentially weighted intercept, half-life h",
+             "games, alone and with the summed matchup (hl 5, cap 15). Descriptive; the registered",
+             "grid and verdict are unchanged. Baseline: the closing total.", ""]
+        for (Y, book) in SCORED + INFO:
+            g = G[(G["season"] == Y) & (G["close_book"] == book) & G[f"adj_{names[0]}"].notna()]
+            L.append(f"== {book} {Y - 1}-{str(Y)[2:]}  n {len(g)}  mean(total - close) "
+                     f"{g['tres'].mean():+.2f}")
+            for nm in names:
+                r = readings(g, f"adj_{nm}")
+                c = g[f"adj_{nm}"]
+                side = (f"n {r['n']:4d}  won {r['win'] * 100:5.1f}%  ROI {r['roi'] * 100:+6.1f}% ± "
+                        f"{r['roi_h'] * 100:5.1f}  overs {r['overs'] * 100:3.0f}%") if "roi" in r \
+                    else f"n {r['n']:4d}"
+                L.append(f"  {nm:16s} adj {c.min():+.2f}..{c.max():+.2f}  vs close {r['mse']:+6.2f} ± "
+                         f"{1.96 * np.sqrt(r['var']):5.2f}  |adj|>=0.5: {side}")
+            L.append("")
+    finally:
+        GRID = keep
+    return L
+
+
 def main():
+    if "--ewma" in sys.argv:
+        text = "\n".join(posthoc_ewma()) + "\n"
+        open(os.path.join(OUT, "RESULTS_line_adjust_ewma.txt"), "w").write(text)
+        print(text)
+        return
     if "--roll30" in sys.argv:
         text = "\n".join(posthoc_roll(30)) + "\n"
         open(os.path.join(OUT, "RESULTS_line_adjust_roll30.txt"), "w").write(text)
