@@ -1,0 +1,93 @@
+Rolling margin calibration on B's walk-forward predictions (2026-11-05).
+Arms and rule fixed before the run (research/rolling_calibration.py). Fold 2027 is information only.
+
+== 1. Against outcomes, folds 2019-2026: arm - B (log loss / Brier / margin MSE, ± 95%; negative = arm better)
+  game 0     n   111  B log loss 0.6244
+    R300 +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00  better in 0 of 7
+    R600 +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00  better in 0 of 7
+    RW  +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00  better in 0 of 7
+  games 1-9  n   979  B log loss 0.6286
+    R300 +0.0005 ± 0.0040  Brier +0.0004 ± 0.0018  MSE +0.85 ± 2.02  better in 3 of 7
+    R600 +0.0003 ± 0.0037  Brier +0.0002 ± 0.0017  MSE +0.08 ± 1.66  better in 4 of 7
+    RW  +0.0007 ± 0.0032  Brier +0.0003 ± 0.0014  MSE +0.23 ± 1.46  better in 3 of 7
+  games 10+  n  7360  B log loss 0.6097
+    R300 +0.0010 ± 0.0017  Brier +0.0005 ± 0.0007  MSE +0.43 ± 0.89  better in 2 of 7
+    R600 +0.0012 ± 0.0014  Brier +0.0005 ± 0.0006  MSE +0.19 ± 0.68  better in 1 of 7
+    RW  +0.0003 ± 0.0012  Brier +0.0002 ± 0.0005  MSE -0.19 ± 0.61  better in 2 of 7
+
+  By fold, games 1-9 (log loss arm - B, ± 95%):
+    season    n               R300               R600                 RW
+    2017   140  +0.0000 ± 0.0000  +0.0000 ± 0.0000  +0.0000 ± 0.0000
+    2018   139  -0.0107 ± 0.0155  -0.0100 ± 0.0126  -0.0094 ± 0.0125
+    2019   140  +0.0082 ± 0.0109  +0.0039 ± 0.0101  +0.0062 ± 0.0099
+    2021   140  -0.0069 ± 0.0114  -0.0094 ± 0.0087  -0.0068 ± 0.0080
+    2022   141  -0.0027 ± 0.0149  -0.0009 ± 0.0186  -0.0016 ± 0.0155
+    2023   141  +0.0004 ± 0.0040  +0.0074 ± 0.0085  +0.0055 ± 0.0060
+    2024   141  +0.0041 ± 0.0125  -0.0007 ± 0.0046  +0.0001 ± 0.0043
+    2025   138  +0.0032 ± 0.0025  +0.0042 ± 0.0048  +0.0027 ± 0.0026
+    2026   138  -0.0026 ± 0.0120  -0.0021 ± 0.0051  -0.0010 ± 0.0062
+    2027   105  -0.0020 ± 0.0106  -0.0134 ± 0.0121  -0.0091 ± 0.0088
+
+== 2. Dispersion on games 1-9, folds 2019-2026 (actual margin = a + b·arm margin, ± 95%; b > 1 = arm compressed)
+  B   SD margin 5.32  slope 1.061 ± 0.156  intercept -0.20
+  R300 SD margin 6.07  slope 0.923 ± 0.137  intercept +0.69
+  R600 SD margin 5.82  slope 0.972 ± 0.142  intercept +0.62
+  RW  SD margin 5.76  slope 0.978 ± 0.144  intercept +0.53
+
+== 3. Against the close, each basis x book x season x stage alone (hindsight; arm - close log loss, ± 95%; [arm - B])
+  rebuilt       dk      2027 games 1-9  n   91  B +0.0407 ± 0.0298
+      R300 +0.0400 ± 0.0345  [-0.0006, Brier +0.0003]
+      R600 +0.0281 ± 0.0318  [-0.0126, Brier -0.0054]
+      RW  +0.0322 ± 0.0309  [-0.0085, Brier -0.0036]
+  reconstructed dk      2026 games 10+  n  964  B +0.0223 ± 0.0120
+      R300 +0.0218 ± 0.0126  [-0.0005, Brier +0.0008]
+      R600 +0.0258 ± 0.0122  [+0.0034, Brier +0.0017]
+      RW  +0.0226 ± 0.0121  [+0.0002, Brier +0.0004]
+  reconstructed espnbet 2025 games 1-9  n  138  B -0.0187 ± 0.0263
+      R300 -0.0156 ± 0.0269  [+0.0032, Brier +0.0012]
+      R600 -0.0145 ± 0.0275  [+0.0042, Brier +0.0014]
+      RW  -0.0160 ± 0.0269  [+0.0027, Brier +0.0009]
+  reconstructed espnbet 2025 games 10+  n 1071  B +0.0185 ± 0.0112
+      R300 +0.0189 ± 0.0116  [+0.0004, Brier +0.0001]
+      R600 +0.0197 ± 0.0112  [+0.0012, Brier +0.0005]
+      RW  +0.0186 ± 0.0113  [+0.0001, Brier -0.0000]
+  reconstructed espnbet 2026 games 1-9  n  138  B +0.0053 ± 0.0286
+      R300 +0.0027 ± 0.0296  [-0.0026, Brier -0.0001]
+      R600 +0.0031 ± 0.0285  [-0.0021, Brier -0.0005]
+      RW  +0.0043 ± 0.0285  [-0.0010, Brier +0.0000]
+  reconstructed espnbet 2026 games 10+  n  107  B -0.0033 ± 0.0309
+      R300 -0.0137 ± 0.0352  [-0.0103, Brier -0.0038]
+      R600 -0.0099 ± 0.0327  [-0.0065, Brier -0.0025]
+      RW  -0.0107 ± 0.0321  [-0.0073, Brier -0.0027]
+
+== 4. Decision rule (set before the run), folds 2019-2026
+  (the rule's '6 of 8 folds' miscounted: 2019-2026 holds 7 folds; read 6 of 7)
+  R300 1 games 1-9 +0.0005 ± 0.0040, Brier +0.0004, 3/7 folds: fail; 2 games 10+ +0.0010: fail; 3 priced books: fail; 4 tripwire (best fold -0.0016): pass -> not a candidate
+  R600 1 games 1-9 +0.0003 ± 0.0037, Brier +0.0002, 4/7 folds: fail; 2 games 10+ +0.0012: fail; 3 priced books: fail; 4 tripwire (best fold -0.0016): pass -> not a candidate
+  RW  1 games 1-9 +0.0007 ± 0.0032, Brier +0.0003, 3/7 folds: fail; 2 games 10+ +0.0003: fail; 3 priced books: fail; 4 tripwire (best fold -0.0011): pass -> not a candidate
+
+== 5. Fitted stretch k (and intercept c) by season: mean over slates [min, max]
+  2017  R300 k 0.911 [0.74, 1.08] c +0.75  R600 k 0.934 [0.81, 1.04] c +0.66  RW k 0.934 [0.83, 1.08] c +0.64
+  2018  R300 k 0.914 [0.62, 1.27] c -0.39  R600 k 0.880 [0.79, 1.05] c -0.17  RW k 0.891 [0.76, 1.05] c -0.08
+  2019  R300 k 1.083 [0.75, 1.34] c -0.25  R600 k 1.113 [1.00, 1.27] c -0.41  RW k 1.073 [0.95, 1.22] c -0.39
+  2021  R300 k 1.085 [0.83, 1.29] c -1.81  R600 k 1.044 [0.92, 1.22] c -1.37  RW k 1.063 [0.98, 1.20] c -1.27
+  2022  R300 k 1.054 [0.79, 1.29] c -1.03  R600 k 1.059 [0.93, 1.19] c -1.17  RW k 1.065 [0.93, 1.17] c -1.20
+  2023  R300 k 0.979 [0.68, 1.21] c +0.86  R600 k 1.002 [0.80, 1.20] c +0.62  RW k 1.016 [0.91, 1.15] c +0.39
+  2024  R300 k 1.144 [0.90, 1.40] c -0.52  R600 k 1.151 [1.01, 1.29] c -0.38  RW k 1.128 [1.02, 1.25] c -0.26
+  2025  R300 k 1.033 [0.85, 1.25] c -0.25  R600 k 1.026 [0.97, 1.13] c -0.25  RW k 1.036 [0.97, 1.18] c -0.25
+  2026  R300 k 1.129 [0.74, 1.40] c -0.95  R600 k 1.109 [0.90, 1.29] c -0.79  RW k 1.112 [0.98, 1.26] c -0.76
+  2027  R300 k 1.288 [1.26, 1.32] c -0.28  R600 k 1.284 [1.27, 1.31] c -1.44  RW k 1.228 [1.21, 1.24] c -1.02
+
+  2027 slate by slate:
+    2026-10-23  R300 k 1.28 c +0.29  R600 k 1.27 c -1.22  RW k 1.24 c -0.67
+    2026-10-24  R300 k 1.28 c +0.09  R600 k 1.27 c -1.43  RW k 1.24 c -0.97
+    2026-10-25  R300 k 1.32 c +0.10  R600 k 1.28 c -1.46  RW k 1.24 c -1.03
+    2026-10-26  R300 k 1.31 c -0.19  R600 k 1.27 c -1.57  RW k 1.23 c -1.11
+    2026-10-27  R300 k 1.28 c -0.33  R600 k 1.28 c -1.60  RW k 1.23 c -1.14
+    2026-10-28  R300 k 1.28 c -0.37  R600 k 1.29 c -1.55  RW k 1.23 c -1.14
+    2026-10-29  R300 k 1.28 c -0.74  R600 k 1.28 c -1.40  RW k 1.22 c -1.14
+    2026-10-30  R300 k 1.27 c -0.72  R600 k 1.28 c -1.41  RW k 1.22 c -1.16
+    2026-10-31  R300 k 1.26 c -0.33  R600 k 1.28 c -1.40  RW k 1.21 c -0.99
+    2026-11-01  R300 k 1.28 c -0.21  R600 k 1.29 c -1.37  RW k 1.22 c -0.94
+    2026-11-02  R300 k 1.31 c -0.25  R600 k 1.29 c -1.28  RW k 1.22 c -0.96
+    2026-11-04  R300 k 1.31 c -0.66  R600 k 1.31 c -1.54  RW k 1.23 c -1.04
