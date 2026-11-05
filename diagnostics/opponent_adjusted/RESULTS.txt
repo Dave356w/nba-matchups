@@ -1,0 +1,70 @@
+Opponent-adjusted four factors: walk-forward, base route, v10h25 build (2026-11-05).
+Arms and rule fixed before the run (research/opponent_adjusted.py). Fold 2027 is information only.
+
+== 1. Against outcomes, folds 2017-2026: arm - B (log loss / Brier / margin MSE, ± 95%; negative = arm better)
+  games 1+   n 10767  B log loss 0.6132
+    A5   -0.0001 ± 0.0004  Brier -0.0000 ± 0.0002  MSE -0.09 ± 0.19  better in 3 of 9
+    A20  -0.0001 ± 0.0002  Brier -0.0000 ± 0.0001  MSE -0.11 ± 0.11  better in 5 of 9
+    S5   -0.0000 ± 0.0002  Brier -0.0000 ± 0.0001  MSE +0.01 ± 0.09  better in 5 of 9
+  game 0     n   143  B log loss 0.6194
+    A5   -0.0005 ± 0.0009  Brier -0.0002 ± 0.0004  MSE -0.16 ± 0.38  better in 7 of 9
+    A20  -0.0003 ± 0.0007  Brier -0.0001 ± 0.0003  MSE -0.10 ± 0.28  better in 8 of 9
+    S5   +0.0003 ± 0.0008  Brier +0.0001 ± 0.0003  MSE +0.13 ± 0.33  better in 4 of 9
+  games 1-9  n  1258  B log loss 0.6332
+    A5   -0.0009 ± 0.0014  Brier -0.0003 ± 0.0006  MSE +0.07 ± 0.57  better in 8 of 9
+    A20  -0.0004 ± 0.0006  Brier -0.0001 ± 0.0003  MSE +0.01 ± 0.24  better in 8 of 9
+    S5   -0.0001 ± 0.0007  Brier -0.0000 ± 0.0003  MSE +0.11 ± 0.29  better in 4 of 9
+  games 10+  n  9509  B log loss 0.6105
+    A5   +0.0001 ± 0.0004  Brier +0.0000 ± 0.0002  MSE -0.11 ± 0.20  better in 3 of 9
+    A20  -0.0001 ± 0.0003  Brier -0.0000 ± 0.0001  MSE -0.13 ± 0.12  better in 4 of 9
+    S5   -0.0000 ± 0.0002  Brier -0.0000 ± 0.0001  MSE +0.00 ± 0.09  better in 5 of 9
+
+  By fold, games 1+ / games 1-9 (log loss arm - B, ± 95%):
+    2017 n 1214  A5 +0.0001 ± 0.0014 / -0.0014 ± 0.0048  A20 +0.0001 ± 0.0008 / -0.0007 ± 0.0021  S5 +0.0000 ± 0.0007 / +0.0009 ± 0.0026
+    2018 n 1214  A5 +0.0008 ± 0.0011 / -0.0014 ± 0.0038  A20 +0.0004 ± 0.0006 / -0.0006 ± 0.0017  S5 -0.0000 ± 0.0001 / +0.0001 ± 0.0003
+    2019 n 1214  A5 +0.0001 ± 0.0014 / -0.0007 ± 0.0050  A20 +0.0002 ± 0.0008 / -0.0002 ± 0.0022  S5 +0.0001 ± 0.0003 / +0.0004 ± 0.0012
+    2021 n 1064  A5 -0.0009 ± 0.0011 / -0.0021 ± 0.0052  A20 -0.0006 ± 0.0006 / -0.0007 ± 0.0022  S5 +0.0002 ± 0.0002 / +0.0004 ± 0.0011
+    2022 n 1214  A5 -0.0006 ± 0.0011 / -0.0003 ± 0.0039  A20 -0.0005 ± 0.0006 / -0.0002 ± 0.0017  S5 -0.0002 ± 0.0003 / -0.0002 ± 0.0012
+    2023 n 1214  A5 +0.0009 ± 0.0010 / +0.0014 ± 0.0035  A20 +0.0004 ± 0.0006 / +0.0007 ± 0.0016  S5 +0.0004 ± 0.0005 / +0.0007 ± 0.0023
+    2024 n 1215  A5 -0.0011 ± 0.0013 / -0.0016 ± 0.0035  A20 -0.0007 ± 0.0008 / -0.0006 ± 0.0015  S5 -0.0005 ± 0.0005 / -0.0009 ± 0.0018
+    2025 n 1209  A5 +0.0001 ± 0.0014 / -0.0014 ± 0.0038  A20 -0.0000 ± 0.0009 / -0.0006 ± 0.0016  S5 -0.0001 ± 0.0009 / -0.0015 ± 0.0033
+    2026 n 1209  A5 +0.0001 ± 0.0014 / -0.0002 ± 0.0039  A20 -0.0002 ± 0.0009 / -0.0004 ± 0.0017  S5 -0.0001 ± 0.0009 / -0.0005 ± 0.0031
+    2027 n  105  A5 +0.0007 ± 0.0043 / +0.0007 ± 0.0043  A20 +0.0001 ± 0.0018 / +0.0001 ± 0.0018  S5 +0.0004 ± 0.0027 / +0.0004 ± 0.0027
+
+== 2. Dispersion on games 1-9, folds 2017-2026 (actual = a + b·arm margin, ± 95%; b > 1 = compressed)
+  B    SD margin 5.39  slope 1.010 ± 0.135
+  A5   SD margin 5.39  slope 1.010 ± 0.135
+  A20  SD margin 5.40  slope 1.008 ± 0.135
+  S5   SD margin 5.39  slope 1.010 ± 0.135
+  adjustment size, games 1-9: SD(delta_5 - delta) 3.27, games 10+ 2.49 (win-% points; SD delta 22.49)
+
+== 3. Against the close, each basis x book x season x stage alone (hindsight; arm - close log loss, ± 95%; [arm - B, Brier])
+  rebuilt       dk      2027 games 1-9  n   91  B +0.0407 ± 0.0298
+      A5   +0.0406 ± 0.0295  [-0.0001, +0.0001]
+      A20  +0.0404 ± 0.0296  [-0.0002, -0.0000]
+      S5   +0.0406 ± 0.0295  [-0.0001, +0.0001]
+  reconstructed dk      2026 games 10+  n  964  B +0.0223 ± 0.0120
+      A5   +0.0224 ± 0.0119  [+0.0001, +0.0000]
+      A20  +0.0222 ± 0.0119  [-0.0001, -0.0000]
+      S5   +0.0223 ± 0.0119  [-0.0000, -0.0000]
+  reconstructed espnbet 2025 games 1-9  n  138  B -0.0187 ± 0.0263
+      A5   -0.0202 ± 0.0268  [-0.0014, -0.0007]
+      A20  -0.0193 ± 0.0264  [-0.0006, -0.0003]
+      S5   -0.0202 ± 0.0267  [-0.0015, -0.0007]
+  reconstructed espnbet 2025 games 10+  n 1071  B +0.0185 ± 0.0112
+      A5   +0.0188 ± 0.0112  [+0.0003, +0.0001]
+      A20  +0.0185 ± 0.0112  [+0.0001, -0.0000]
+      S5   +0.0185 ± 0.0112  [+0.0001, -0.0000]
+  reconstructed espnbet 2026 games 1-9  n  138  B +0.0053 ± 0.0286
+      A5   +0.0051 ± 0.0279  [-0.0002, -0.0002]
+      A20  +0.0049 ± 0.0282  [-0.0004, -0.0002]
+      S5   +0.0048 ± 0.0280  [-0.0005, -0.0003]
+  reconstructed espnbet 2026 games 10+  n  107  B -0.0033 ± 0.0309
+      A5   -0.0030 ± 0.0311  [+0.0004, +0.0003]
+      A20  -0.0037 ± 0.0308  [-0.0004, -0.0001]
+      S5   -0.0033 ± 0.0308  [+0.0000, +0.0001]
+
+== 4. Decision rule (set before the run), folds 2017-2026
+  A5   1 games 1+ -0.0001 ± 0.0004, Brier -0.0000, 3/9 folds: fail; 2 games 1-9 -0.0009, 10+ +0.0001: fail; 3 priced books: fail; 4 tripwire (best fold -0.0011): pass -> not a candidate
+  A20  1 games 1+ -0.0001 ± 0.0002, Brier -0.0000, 5/9 folds: fail; 2 games 1-9 -0.0004, 10+ -0.0001: pass; 3 priced books: fail; 4 tripwire (best fold -0.0007): pass -> not a candidate
+  S5   1 games 1+ -0.0000 ± 0.0002, Brier -0.0000, 5/9 folds: fail; 2 games 1-9 -0.0001, 10+ -0.0000: pass; 3 priced books: fail; 4 tripwire (best fold -0.0005): pass -> not a candidate
