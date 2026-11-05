@@ -1,0 +1,97 @@
+Step 2. Market-residual features, walk-forward (arms and rule fixed before the run).
+Each book x season alone, games 1+; arm - M0 paired, ± 95%. Base-model comparison (no injury stage).
+
+== espnbet 2024-25 (scored)  n 1209
+  M0 RMSE 18.36; close line RMSE 17.64
+  M1 squared error -0.04 ± 1.26  (games 1-9 +0.19 ± 6.96; games 10+ -0.07 ± 1.10)
+  M2 squared error +1.08 ± 1.94  (games 1-9 +1.12 ± 6.09; games 10+ +1.08 ± 2.05)
+  M3 squared error +3.07 ± 2.31  (games 1-9 +0.34 ± 6.86; games 10+ +3.43 ± 2.46)
+  M4 squared error +2.51 ± 2.17  (games 1-9 -0.33 ± 8.15; games 10+ +2.88 ± 2.21)
+  M5 squared error +3.04 ± 1.94  (games 1-9 +0.14 ± 6.24; games 10+ +3.41 ± 2.04)
+  @open n 1209  M0 LL - market +0.0080 ± 0.0096
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0080  weight on (T - line) +0.59 ± 0.22  |P-q|>=0.05: n 676 won 51.6% ROI -1.3% ± 7.3 null -4.6%
+    M1 LL - M0 +0.0007 ± 0.0015  Brier +0.0004  LL - market +0.0086  weight on (T - line) +0.55 ± 0.22  |P-q|>=0.05: n 667 won 51.4% ROI -1.8% ± 7.4 null -4.6%
+    M2 LL - M0 +0.0024 ± 0.0023  Brier +0.0011  LL - market +0.0104  weight on (T - line) +0.54 ± 0.21  |P-q|>=0.05: n 696 won 51.9% ROI -1.1% ± 7.2 null -4.6%
+    M3 LL - M0 +0.0040 ± 0.0028  Brier +0.0018  LL - market +0.0120  weight on (T - line) +0.49 ± 0.20  |P-q|>=0.05: n 711 won 52.0% ROI -0.8% ± 7.1 null -4.6%
+    M4 LL - M0 +0.0032 ± 0.0026  Brier +0.0015  LL - market +0.0111  weight on (T - line) +0.48 ± 0.21  |P-q|>=0.05: n 683 won 52.0% ROI -0.9% ± 7.3 null -4.6%
+    M5 LL - M0 +0.0034 ± 0.0023  Brier +0.0016  LL - market +0.0114  weight on (T - line) +0.49 ± 0.21  |P-q|>=0.05: n 707 won 52.1% ROI -1.1% ± 7.1 null -4.6%
+  @close n 1209  M0 LL - market +0.0298 ± 0.0113
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0298  weight on (T - line) -0.09 ± 0.23  |P-q|>=0.05: n 757 won 45.7% ROI -12.6% ± 6.8 null -4.5%
+    M1 LL - M0 +0.0004 ± 0.0016  Brier +0.0002  LL - market +0.0302  weight on (T - line) -0.13 ± 0.23  |P-q|>=0.05: n 746 won 46.1% ROI -11.9% ± 6.8 null -4.5%
+    M2 LL - M0 +0.0019 ± 0.0024  Brier +0.0009  LL - market +0.0317  weight on (T - line) -0.08 ± 0.22  |P-q|>=0.05: n 770 won 45.6% ROI -12.9% ± 6.7 null -4.5%
+    M3 LL - M0 +0.0040 ± 0.0029  Brier +0.0018  LL - market +0.0337  weight on (T - line) -0.11 ± 0.21  |P-q|>=0.05: n 762 won 44.8% ROI -14.4% ± 6.8 null -4.5%
+    M4 LL - M0 +0.0032 ± 0.0027  Brier +0.0014  LL - market +0.0330  weight on (T - line) -0.15 ± 0.22  |P-q|>=0.05: n 748 won 45.3% ROI -13.4% ± 6.8 null -4.5%
+    M5 LL - M0 +0.0037 ± 0.0024  Brier +0.0017  LL - market +0.0335  weight on (T - line) -0.15 ± 0.22  |P-q|>=0.05: n 749 won 45.1% ROI -13.7% ± 6.8 null -4.5%
+
+== dk 2025-26 (scored)  n 966
+  M0 RMSE 19.00; close line RMSE 18.46
+  M1 squared error +3.30 ± 4.40  (games 10+ +3.30 ± 4.40)
+  M2 squared error +0.50 ± 0.86  (games 10+ +0.50 ± 0.86)
+  M3 squared error +0.40 ± 0.95  (games 10+ +0.40 ± 0.95)
+  M4 squared error +3.32 ± 4.52  (games 10+ +3.32 ± 4.52)
+  M5 squared error +2.51 ± 4.17  (games 10+ +2.51 ± 4.17)
+  @open n 966  M0 LL - market +0.0017 ± 0.0104
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0017  weight on (T - line) +0.21 ± 0.31  |P-q|>=0.05: n 490 won 54.3% ROI +3.6% ± 8.4 null -4.5%
+    M1 LL - M0 +0.0018 ± 0.0052  Brier +0.0010  LL - market +0.0035  weight on (T - line) +0.16 ± 0.30  |P-q|>=0.05: n 539 won 53.1% ROI +1.3% ± 8.1 null -4.5%
+    M2 LL - M0 -0.0001 ± 0.0010  Brier -0.0001  LL - market +0.0016  weight on (T - line) +0.21 ± 0.30  |P-q|>=0.05: n 506 won 54.9% ROI +4.9% ± 8.3 null -4.5%
+    M3 LL - M0 -0.0002 ± 0.0011  Brier -0.0001  LL - market +0.0015  weight on (T - line) +0.21 ± 0.31  |P-q|>=0.05: n 507 won 55.0% ROI +5.1% ± 8.3 null -4.5%
+    M4 LL - M0 +0.0019 ± 0.0053  Brier +0.0010  LL - market +0.0036  weight on (T - line) +0.16 ± 0.30  |P-q|>=0.05: n 532 won 52.8% ROI +0.8% ± 8.1 null -4.5%
+    M5 LL - M0 +0.0014 ± 0.0049  Brier +0.0008  LL - market +0.0031  weight on (T - line) +0.17 ± 0.31  |P-q|>=0.05: n 519 won 52.6% ROI +0.4% ± 8.2 null -4.5%
+  @close n 966  M0 LL - market +0.0224 ± 0.0124
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0224  weight on (T - line) -0.04 ± 0.27  |P-q|>=0.05: n 564 won 49.1% ROI -6.3% ± 7.9 null -4.5%
+    M1 LL - M0 +0.0010 ± 0.0053  Brier +0.0005  LL - market +0.0234  weight on (T - line) -0.07 ± 0.26  |P-q|>=0.05: n 601 won 49.9% ROI -4.7% ± 7.6 null -4.5%
+    M2 LL - M0 +0.0000 ± 0.0010  Brier -0.0000  LL - market +0.0225  weight on (T - line) -0.03 ± 0.26  |P-q|>=0.05: n 579 won 49.1% ROI -6.4% ± 7.8 null -4.5%
+    M3 LL - M0 -0.0001 ± 0.0011  Brier -0.0001  LL - market +0.0223  weight on (T - line) -0.03 ± 0.26  |P-q|>=0.05: n 580 won 50.2% ROI -4.3% ± 7.8 null -4.5%
+    M4 LL - M0 +0.0009 ± 0.0054  Brier +0.0004  LL - market +0.0233  weight on (T - line) -0.07 ± 0.26  |P-q|>=0.05: n 601 won 50.9% ROI -2.9% ± 7.6 null -4.5%
+    M5 LL - M0 +0.0003 ± 0.0050  Brier +0.0002  LL - market +0.0227  weight on (T - line) -0.07 ± 0.27  |P-q|>=0.05: n 597 won 50.3% ROI -4.1% ± 7.7 null -4.5%
+
+== espnbet 2025-26 (information only)  n 234
+  M0 RMSE 18.65; close line RMSE 17.63
+  M1 squared error +11.23 ± 9.31  (games 1-9 +17.25 ± 15.04; games 10+ +2.58 ± 6.62)
+  M2 squared error +1.99 ± 1.98  (games 1-9 +1.67 ± 2.40; games 10+ +2.46 ± 3.38)
+  M3 squared error +2.11 ± 1.88  (games 1-9 +1.67 ± 2.21; games 10+ +2.75 ± 3.32)
+  M4 squared error +11.36 ± 9.23  (games 1-9 +17.23 ± 14.91; games 10+ +2.91 ± 6.65)
+  M5 squared error +7.17 ± 6.44  (games 1-9 +10.98 ± 10.50; games 10+ +1.70 ± 4.13)
+  @open n 234  M0 LL - market +0.0304 ± 0.0298
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0304  weight on (T - line) -0.34 ± 0.54  |P-q|>=0.05: n 155 won 47.1% ROI -10.0% ± 15.1 null -4.5%
+    M1 LL - M0 +0.0139 ± 0.0106  Brier +0.0055  LL - market +0.0443  weight on (T - line) -0.32 ± 0.50  |P-q|>=0.05: n 170 won 50.0% ROI -4.5% ± 14.4 null -4.5%
+    M2 LL - M0 +0.0026 ± 0.0024  Brier +0.0012  LL - market +0.0330  weight on (T - line) -0.35 ± 0.53  |P-q|>=0.05: n 153 won 47.1% ROI -10.1% ± 15.2 null -4.5%
+    M3 LL - M0 +0.0029 ± 0.0023  Brier +0.0013  LL - market +0.0333  weight on (T - line) -0.36 ± 0.54  |P-q|>=0.05: n 155 won 47.1% ROI -10.0% ± 15.1 null -4.5%
+    M4 LL - M0 +0.0142 ± 0.0105  Brier +0.0056  LL - market +0.0446  weight on (T - line) -0.33 ± 0.50  |P-q|>=0.05: n 168 won 49.4% ROI -5.6% ± 14.5 null -4.5%
+    M5 LL - M0 +0.0086 ± 0.0073  Brier +0.0034  LL - market +0.0390  weight on (T - line) -0.33 ± 0.51  |P-q|>=0.05: n 164 won 50.0% ROI -4.5% ± 14.7 null -4.5%
+  @close n 234  M0 LL - market +0.0244 ± 0.0307
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0244  weight on (T - line) -0.34 ± 0.49  |P-q|>=0.05: n 153 won 51.6% ROI -1.5% ± 15.2 null -4.5%
+    M1 LL - M0 +0.0117 ± 0.0104  Brier +0.0048  LL - market +0.0361  weight on (T - line) -0.34 ± 0.46  |P-q|>=0.05: n 165 won 50.3% ROI -3.9% ± 14.6 null -4.5%
+    M2 LL - M0 +0.0026 ± 0.0023  Brier +0.0012  LL - market +0.0270  weight on (T - line) -0.35 ± 0.48  |P-q|>=0.05: n 158 won 51.3% ROI -2.2% ± 14.9 null -4.5%
+    M3 LL - M0 +0.0028 ± 0.0023  Brier +0.0013  LL - market +0.0272  weight on (T - line) -0.36 ± 0.48  |P-q|>=0.05: n 159 won 50.9% ROI -2.8% ± 14.9 null -4.5%
+    M4 LL - M0 +0.0118 ± 0.0104  Brier +0.0049  LL - market +0.0362  weight on (T - line) -0.34 ± 0.46  |P-q|>=0.05: n 164 won 50.6% ROI -3.3% ± 14.7 null -4.5%
+    M5 LL - M0 +0.0070 ± 0.0072  Brier +0.0029  LL - market +0.0315  weight on (T - line) -0.34 ± 0.47  |P-q|>=0.05: n 160 won 51.2% ROI -2.1% ± 14.9 null -4.5%
+
+== dk 2026-27 (information only)  n 102
+  M0 RMSE 19.33; close line RMSE 18.34
+  M1 squared error -1.03 ± 6.86  (games 1-9 -1.03 ± 6.86)
+  M2 squared error -0.04 ± 0.64  (games 1-9 -0.04 ± 0.64)
+  M3 squared error -0.06 ± 1.00  (games 1-9 -0.06 ± 1.00)
+  M4 squared error -1.39 ± 7.67  (games 1-9 -1.39 ± 7.67)
+  M5 squared error -0.70 ± 5.74  (games 1-9 -0.70 ± 5.74)
+  @open n 102  M0 LL - market +0.0117 ± 0.0364
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0117  weight on (T - line) -0.09 ± 0.95  |P-q|>=0.05: n 54 won 48.1% ROI -8.1% ± 25.7 null -4.5%
+    M1 LL - M0 +0.0010 ± 0.0082  Brier +0.0004  LL - market +0.0126  weight on (T - line) -0.12 ± 0.95  |P-q|>=0.05: n 61 won 54.1% ROI +3.2% ± 24.1 null -4.5%
+    M2 LL - M0 +0.0002 ± 0.0006  Brier +0.0001  LL - market +0.0119  weight on (T - line) -0.09 ± 0.96  |P-q|>=0.05: n 56 won 46.4% ROI -11.4% ± 25.2 null -4.5%
+    M3 LL - M0 +0.0004 ± 0.0010  Brier +0.0002  LL - market +0.0121  weight on (T - line) -0.10 ± 0.96  |P-q|>=0.05: n 57 won 47.4% ROI -9.6% ± 25.0 null -4.5%
+    M4 LL - M0 +0.0019 ± 0.0091  Brier +0.0008  LL - market +0.0136  weight on (T - line) -0.13 ± 0.97  |P-q|>=0.05: n 62 won 53.2% ROI +1.5% ± 23.9 null -4.5%
+    M5 LL - M0 +0.0021 ± 0.0070  Brier +0.0010  LL - market +0.0138  weight on (T - line) -0.15 ± 0.98  |P-q|>=0.05: n 62 won 51.6% ROI -1.5% ± 23.9 null -4.5%
+  @close n 102  M0 LL - market +0.0302 ± 0.0345
+    M0 LL - M0 +0.0000 ± 0.0000  Brier +0.0000  LL - market +0.0302  weight on (T - line) -0.86 ± 0.91  |P-q|>=0.05: n 52 won 46.2% ROI -11.9% ± 26.1 null -4.5%
+    M1 LL - M0 +0.0001 ± 0.0083  Brier -0.0000  LL - market +0.0304  weight on (T - line) -0.90 ± 0.92  |P-q|>=0.05: n 63 won 47.6% ROI -9.2% ± 23.7 null -4.5%
+    M2 LL - M0 -0.0001 ± 0.0007  Brier -0.0000  LL - market +0.0302  weight on (T - line) -0.86 ± 0.91  |P-q|>=0.05: n 52 won 46.2% ROI -11.9% ± 26.1 null -4.5%
+    M3 LL - M0 -0.0000 ± 0.0011  Brier -0.0000  LL - market +0.0302  weight on (T - line) -0.86 ± 0.91  |P-q|>=0.05: n 53 won 47.2% ROI -10.0% ± 25.9 null -4.5%
+    M4 LL - M0 -0.0002 ± 0.0091  Brier -0.0002  LL - market +0.0301  weight on (T - line) -0.90 ± 0.92  |P-q|>=0.05: n 59 won 47.5% ROI -9.5% ± 24.5 null -4.5%
+    M5 LL - M0 +0.0003 ± 0.0069  Brier +0.0001  LL - market +0.0305  weight on (T - line) -0.93 ± 0.92  |P-q|>=0.05: n 61 won 47.5% ROI -9.4% ± 24.1 null -4.5%
+
+== Decision rule (set before the run), scored book-seasons ESPN BET 2024-25 and DraftKings 2025-26
+  M1 1 squared error -0.04 / +3.30, combined +0.21 ± 1.21: fail; 2 close LL +0.0004 / +0.0010: fail; 3 tripwire: pass -> not a candidate
+  M2 1 squared error +1.08 / +0.50, combined +0.60 ± 0.79: fail; 2 close LL +0.0019 / +0.0000: fail; 3 tripwire: pass -> not a candidate
+  M3 1 squared error +3.07 / +0.40, combined +0.78 ± 0.88: fail; 2 close LL +0.0040 / -0.0001: fail; 3 tripwire: pass -> not a candidate
+  M4 1 squared error +2.51 / +3.32, combined +2.66 ± 1.96: fail; 2 close LL +0.0032 / +0.0009: fail; 3 tripwire: pass -> not a candidate
+  M5 1 squared error +3.04 / +2.51, combined +2.95 ± 1.76: fail; 2 close LL +0.0037 / +0.0003: fail; 3 tripwire: pass -> not a candidate

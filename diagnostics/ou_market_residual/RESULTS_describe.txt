@@ -1,0 +1,116 @@
+Step 1. O/U terms against the market (hindsight, information only; ± 1 SE).
+Weights per point of each term's T* contribution (c_*) or per point of a residual feature.
+market: line - lg_total; outcome: total - lg_total; residual: total - line (residual ≠ 0 = the market misprices the term).
+
+== espnbet 2023-24 @open  n 1210
+  T* terms
+    market   a +1.23 ± 0.31; c_rel +1.02 ± 0.02, c_form +0.62 ± 0.10, c_b2b +0.57 ± 1.08, c_phase -2.48 ± 0.30
+    outcome  a +1.64 ± 1.22; c_rel +1.01 ± 0.07, c_form +1.25 ± 0.40, c_b2b -0.48 ± 4.20, c_phase -2.47 ± 1.19
+    residual a +0.41 ± 1.22; c_rel -0.01 ± 0.07, c_form +0.63 ± 0.40, c_b2b -1.04 ± 4.22, c_phase +0.01 ± 1.19
+  T* terms + residual features
+    market   a -0.39 ± 0.38; c_rel +1.08 ± 0.02, c_form +1.06 ± 0.13, c_b2b +0.69 ± 1.03, c_phase -1.23 ± 0.33, lg_res +2.53 ± 0.48, team_res -0.15 ± 0.16, form_res -0.67 ± 0.14
+    outcome  a +1.22 ± 1.55; c_rel +1.10 ± 0.10, c_form +0.55 ± 0.52, c_b2b -0.70 ± 4.19, c_phase -2.52 ± 1.35, lg_res +2.59 ± 1.94, team_res -1.04 ± 0.66, form_res +1.20 ± 0.57
+    residual a +1.60 ± 1.55; c_rel +0.02 ± 0.10, c_form -0.51 ± 0.52, c_b2b -1.38 ± 4.20, c_phase -1.29 ± 1.35, lg_res +0.05 ± 1.95, team_res -0.89 ± 0.66, form_res +1.88 ± 0.58
+
+== espnbet 2023-24 @close  n 1211
+  T* terms
+    market   a +0.77 ± 0.26; c_rel +1.03 ± 0.02, c_form +1.22 ± 0.09, c_b2b +2.12 ± 0.91, c_phase -1.57 ± 0.26
+    outcome  a +1.64 ± 1.21; c_rel +1.01 ± 0.07, c_form +1.25 ± 0.40, c_b2b -0.46 ± 4.19, c_phase -2.47 ± 1.19
+    residual a +0.87 ± 1.19; c_rel -0.02 ± 0.07, c_form +0.02 ± 0.39, c_b2b -2.58 ± 4.10, c_phase -0.91 ± 1.16
+  T* terms + residual features
+    market   a -0.98 ± 0.33; c_rel +1.06 ± 0.02, c_form +1.30 ± 0.11, c_b2b +2.10 ± 0.88, c_phase -0.35 ± 0.28, lg_res +3.14 ± 0.41, team_res -0.09 ± 0.14, form_res -0.34 ± 0.12
+    outcome  a +1.22 ± 1.54; c_rel +1.10 ± 0.10, c_form +0.55 ± 0.52, c_b2b -0.69 ± 4.19, c_phase -2.52 ± 1.35, lg_res +2.60 ± 1.94, team_res -1.04 ± 0.66, form_res +1.21 ± 0.57
+    residual a +2.19 ± 1.51; c_rel +0.03 ± 0.10, c_form -0.75 ± 0.51, c_b2b -2.78 ± 4.09, c_phase -2.17 ± 1.32, lg_res -0.54 ± 1.89, team_res -0.95 ± 0.65, form_res +1.55 ± 0.56
+
+== espnbet 2024-25 @open  n 1209
+  T* terms
+    market   a +0.80 ± 0.28; c_rel +0.98 ± 0.02, c_form +0.31 ± 0.10, c_b2b +1.45 ± 1.31, c_phase -1.36 ± 0.71
+    outcome  a +1.82 ± 1.16; c_rel +1.07 ± 0.07, c_form +0.53 ± 0.40, c_b2b +8.70 ± 5.38, c_phase -0.64 ± 2.93
+    residual a +1.02 ± 1.16; c_rel +0.09 ± 0.07, c_form +0.22 ± 0.40, c_b2b +7.25 ± 5.41, c_phase +0.73 ± 2.95
+  T* terms + residual features
+    market   a +2.29 ± 0.55; c_rel +1.06 ± 0.02, c_form +0.86 ± 0.13, c_b2b +1.22 ± 1.29, c_phase -3.55 ± 0.78, lg_res -2.12 ± 1.41, team_res -0.20 ± 0.16, form_res -0.55 ± 0.18
+    outcome  a +8.11 ± 2.29; c_rel +1.10 ± 0.10, c_form +1.57 ± 0.56, c_b2b +7.60 ± 5.37, c_phase -6.23 ± 3.23, lg_res -15.96 ± 5.89, team_res +0.64 ± 0.66, form_res -1.57 ± 0.73
+    residual a +5.82 ± 2.31; c_rel +0.04 ± 0.10, c_form +0.71 ± 0.56, c_b2b +6.38 ± 5.42, c_phase -2.68 ± 3.26, lg_res -13.84 ± 5.94, team_res +0.85 ± 0.66, form_res -1.02 ± 0.74
+
+== espnbet 2024-25 @close  n 1209
+  T* terms
+    market   a +1.63 ± 0.27; c_rel +1.04 ± 0.02, c_form +0.68 ± 0.09, c_b2b +3.03 ± 1.25, c_phase -3.37 ± 0.68
+    outcome  a +1.82 ± 1.16; c_rel +1.07 ± 0.07, c_form +0.53 ± 0.40, c_b2b +8.70 ± 5.38, c_phase -0.64 ± 2.93
+    residual a +0.19 ± 1.12; c_rel +0.02 ± 0.07, c_form -0.14 ± 0.39, c_b2b +5.68 ± 5.20, c_phase +2.74 ± 2.83
+  T* terms + residual features
+    market   a +3.33 ± 0.52; c_rel +1.13 ± 0.02, c_form +1.05 ± 0.13, c_b2b +2.65 ± 1.23, c_phase -5.36 ± 0.74, lg_res -3.06 ± 1.35, team_res -0.41 ± 0.15, form_res -0.22 ± 0.17
+    outcome  a +8.11 ± 2.29; c_rel +1.10 ± 0.10, c_form +1.57 ± 0.56, c_b2b +7.60 ± 5.37, c_phase -6.23 ± 3.23, lg_res -15.96 ± 5.89, team_res +0.64 ± 0.66, form_res -1.57 ± 0.73
+    residual a +4.78 ± 2.22; c_rel -0.03 ± 0.10, c_form +0.52 ± 0.54, c_b2b +4.95 ± 5.21, c_phase -0.87 ± 3.13, lg_res -12.90 ± 5.70, team_res +1.05 ± 0.64, form_res -1.35 ± 0.71
+
+== dk 2025-26 @open  n 974
+  T* terms
+    market   a -1.78 ± 0.35; c_rel +0.99 ± 0.02, c_form +0.36 ± 0.08, c_b2b +0.85 ± 0.59, c_phase +3.02 ± 1.07
+    outcome  a -6.22 ± 1.80; c_rel +1.15 ± 0.10, c_form +0.24 ± 0.42, c_b2b -0.53 ± 3.06, c_phase +19.31 ± 5.54
+    residual a -4.44 ± 1.79; c_rel +0.16 ± 0.10, c_form -0.13 ± 0.41, c_b2b -1.38 ± 3.02, c_phase +16.29 ± 5.48
+  T* terms + residual features
+    market   a -2.50 ± 0.37; c_rel +1.13 ± 0.02, c_form +0.77 ± 0.13, c_b2b +0.65 ± 0.56, c_phase +6.48 ± 1.33, lg_res +2.67 ± 0.59, team_res -0.64 ± 0.14, form_res -0.38 ± 0.14
+    outcome  a -7.90 ± 2.04; c_rel +1.29 ± 0.14, c_form +0.23 ± 0.70, c_b2b -0.80 ± 3.06, c_phase +27.64 ± 7.32, lg_res +5.98 ± 3.22, team_res -0.65 ± 0.74, form_res -0.19 ± 0.78
+    residual a -5.40 ± 2.02; c_rel +0.16 ± 0.13, c_form -0.54 ± 0.69, c_b2b -1.44 ± 3.03, c_phase +21.15 ± 7.26, lg_res +3.31 ± 3.19, team_res -0.01 ± 0.74, form_res +0.18 ± 0.78
+
+== dk 2025-26 @close  n 966
+  T* terms
+    market   a -1.53 ± 0.41; c_rel +1.02 ± 0.02, c_form +0.68 ± 0.09, c_b2b +2.79 ± 0.70, c_phase +4.55 ± 1.27
+    outcome  a -6.14 ± 1.83; c_rel +1.14 ± 0.10, c_form +0.24 ± 0.42, c_b2b -1.23 ± 3.08, c_phase +18.82 ± 5.62
+    residual a -4.61 ± 1.78; c_rel +0.13 ± 0.10, c_form -0.44 ± 0.41, c_b2b -4.02 ± 2.99, c_phase +14.27 ± 5.46
+  T* terms + residual features
+    market   a -2.33 ± 0.44; c_rel +1.18 ± 0.03, c_form +0.89 ± 0.15, c_b2b +2.54 ± 0.67, c_phase +8.50 ± 1.59, lg_res +3.49 ± 0.70, team_res -0.90 ± 0.16, form_res -0.09 ± 0.17
+    outcome  a -7.85 ± 2.05; c_rel +1.28 ± 0.14, c_form +0.29 ± 0.70, c_b2b -1.56 ± 3.08, c_phase +27.47 ± 7.33, lg_res +6.22 ± 3.23, team_res -0.61 ± 0.75, form_res -0.30 ± 0.79
+    residual a -5.52 ± 2.00; c_rel +0.10 ± 0.13, c_form -0.60 ± 0.68, c_b2b -4.10 ± 3.00, c_phase +18.96 ± 7.15, lg_res +2.73 ± 3.15, team_res +0.29 ± 0.73, form_res -0.21 ± 0.77
+
+== espnbet 2025-26 @open  n 234
+  T* terms
+    market   a -4.50 ± 0.55; c_rel +0.77 ± 0.05, c_form -0.75 ± 0.34, c_b2b +2.03 ± 1.29, c_phase +42.71 ± 9.37
+    outcome  a -1.07 ± 2.77; c_rel +0.20 ± 0.26, c_form +2.08 ± 1.72, c_b2b +10.66 ± 6.49, c_phase +37.45 ± 47.14
+    residual a +3.43 ± 2.68; c_rel -0.57 ± 0.25, c_form +2.84 ± 1.66, c_b2b +8.62 ± 6.26, c_phase -5.26 ± 45.51
+  T* terms + residual features
+    market   a -2.05 ± 1.66; c_rel +0.75 ± 0.05, c_form -0.75 ± 0.37, c_b2b +1.81 ± 1.29, c_phase +22.08 ± 15.38, lg_res -2.73 ± 1.58, team_res +0.47 ± 0.43, form_res -0.32 ± 0.50
+    outcome  a +11.36 ± 8.37; c_rel +0.27 ± 0.27, c_form +1.68 ± 1.89, c_b2b +11.27 ± 6.50, c_phase -49.87 ± 77.76, lg_res -12.10 ± 7.97, team_res -3.29 ± 2.20, form_res +3.61 ± 2.53
+    residual a +13.41 ± 8.07; c_rel -0.48 ± 0.26, c_form +2.44 ± 1.83, c_b2b +9.45 ± 6.27, c_phase -71.95 ± 75.02, lg_res -9.37 ± 7.69, team_res -3.76 ± 2.12, form_res +3.93 ± 2.44
+
+== espnbet 2025-26 @close  n 234
+  T* terms
+    market   a -4.27 ± 0.64; c_rel +0.89 ± 0.06, c_form -0.86 ± 0.40, c_b2b +3.82 ± 1.50, c_phase +45.61 ± 10.92
+    outcome  a -1.07 ± 2.77; c_rel +0.20 ± 0.26, c_form +2.08 ± 1.72, c_b2b +10.66 ± 6.49, c_phase +37.45 ± 47.14
+    residual a +3.20 ± 2.64; c_rel -0.69 ± 0.24, c_form +2.94 ± 1.63, c_b2b +6.84 ± 6.18, c_phase -8.17 ± 44.87
+  T* terms + residual features
+    market   a -3.79 ± 1.94; c_rel +0.88 ± 0.06, c_form -1.22 ± 0.44, c_b2b +3.89 ± 1.51, c_phase +45.22 ± 18.01, lg_res -0.67 ± 1.85, team_res -0.72 ± 0.51, form_res +1.03 ± 0.59
+    outcome  a +11.36 ± 8.37; c_rel +0.27 ± 0.27, c_form +1.68 ± 1.89, c_b2b +11.27 ± 6.50, c_phase -49.87 ± 77.76, lg_res -12.10 ± 7.97, team_res -3.29 ± 2.20, form_res +3.61 ± 2.53
+    residual a +15.15 ± 7.97; c_rel -0.61 ± 0.26, c_form +2.90 ± 1.80, c_b2b +7.37 ± 6.19, c_phase -95.08 ± 74.06, lg_res -11.42 ± 7.59, team_res -2.58 ± 2.09, form_res +2.58 ± 2.41
+
+== dk 2026-27 @open  n 105
+  T* terms
+    market   a +5.47 ± 0.98; c_rel +1.02 ± 0.06, c_form -1.59 ± 0.49, c_b2b +1.69 ± 1.51, c_phase -39.80 ± 13.64
+    outcome  a +0.80 ± 5.75; c_rel +0.71 ± 0.37, c_form +1.51 ± 2.86, c_b2b -2.64 ± 8.88, c_phase -64.35 ± 80.14
+    residual a -4.67 ± 5.61; c_rel -0.31 ± 0.36, c_form +3.10 ± 2.79, c_b2b -4.33 ± 8.66, c_phase -24.55 ± 78.13
+  T* terms + residual features
+    market   a +2.08 ± 1.35; c_rel +1.10 ± 0.06, c_form -1.68 ± 0.46, c_b2b +2.55 ± 1.43, c_phase -78.89 ± 17.39, lg_res -7.51 ± 2.37, team_res -0.60 ± 1.04, form_res +0.16 ± 1.14
+    outcome  a -13.93 ± 8.40; c_rel +0.71 ± 0.40, c_form +0.97 ± 2.83, c_b2b +1.42 ± 8.88, c_phase -251.51 ± 108.06, lg_res -36.40 ± 14.75, team_res -5.06 ± 6.49, form_res +5.42 ± 7.09
+    residual a -16.01 ± 8.28; c_rel -0.39 ± 0.39, c_form +2.64 ± 2.79, c_b2b -1.13 ± 8.75, c_phase -172.62 ± 106.43, lg_res -28.89 ± 14.53, team_res -4.46 ± 6.39, form_res +5.26 ± 6.99
+
+== dk 2026-27 @close  n 102
+  T* terms
+    market   a +5.03 ± 1.04; c_rel +1.02 ± 0.07, c_form -0.57 ± 0.52, c_b2b +2.72 ± 1.68, c_phase -62.55 ± 14.49
+    outcome  a +0.75 ± 5.82; c_rel +0.70 ± 0.38, c_form +1.46 ± 2.90, c_b2b -2.74 ± 9.39, c_phase -64.73 ± 80.97
+    residual a -4.29 ± 5.51; c_rel -0.32 ± 0.36, c_form +2.03 ± 2.75, c_b2b -5.46 ± 8.88, c_phase -2.18 ± 76.59
+  T* terms + residual features
+    market   a +3.06 ± 1.50; c_rel +1.03 ± 0.07, c_form -0.73 ± 0.51, c_b2b +3.66 ± 1.66, c_phase -97.42 ± 19.35, lg_res -5.57 ± 2.63, team_res -2.71 ± 1.17, form_res +2.90 ± 1.28
+    outcome  a -13.82 ± 8.48; c_rel +0.71 ± 0.41, c_form +0.87 ± 2.87, c_b2b +1.80 ± 9.41, c_phase -255.16 ± 109.51, lg_res -36.47 ± 14.90, team_res -5.75 ± 6.63, form_res +6.14 ± 7.24
+    residual a -16.88 ± 8.08; c_rel -0.32 ± 0.39, c_form +1.60 ± 2.74, c_b2b -1.86 ± 8.98, c_phase -157.74 ± 104.43, lg_res -30.89 ± 14.21, team_res -3.04 ± 6.33, form_res +3.24 ± 6.90
+
+== League level by month (total - lg_total, close - lg_total; means)
+  espnbet 2024: 10 -2.6/-0.6  11 +2.5/+0.3  12 +4.8/+3.0  01 +0.3/+1.7  02 -3.1/+0.1  03 -7.1/-7.2  04 -4.2/-7.0
+  espnbet 2025: 10 -1.5/-2.4  11 -0.9/-0.9  12 +0.2/-0.4  01 +0.6/+0.5  02 +3.3/+2.7  03 +2.4/+0.7  04 +1.3/-0.7
+  dk 2026: 11 -1.7/-0.4  12 +0.4/-0.2  01 -5.8/-2.4  02 -2.2/-3.6  03 +0.1/-0.9  04 +4.8/+0.4
+  espnbet 2026: 10 -1.8/-2.3  11 +0.2/-1.0
+  dk 2027: 10 -1.2/+1.4  11 -3.0/-1.1
+
+== Injury report (ou2 adjustment = ou2 total - T*), native DraftKings 2026-27 locks, n 53; slope per point of adjustment (± 1 SE)
+  adjustment SD 1.08, mean -0.34
+  line move first -> lock  n  53  slope +0.21 ± 0.21
+  line move lock -> close  n  53  slope +0.03 ± 0.15
+  total - lock line       n  53  slope +0.63 ± 2.38
