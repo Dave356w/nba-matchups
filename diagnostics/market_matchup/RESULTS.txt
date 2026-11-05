@@ -1,0 +1,42 @@
+Market-line adjustment from team matchup residuals (2026-11-05). Research only;
+the target is the margin against the closing spread (G9 excludes it for the
+production model). Arms and rule fixed before the run. ± 95%.
+
+== espnbet 2024-25 (scored)  n 721  residual SD 13.87
+  S0  squared error vs S0 +0.00 ± 0.00  |pred|>=1.5: n    0 cover   nan%  ROI  +nan% ±  nan  null +nan%  SD pred 0.16
+  S1  squared error vs S0 -0.40 ± 1.26  |pred|>=1.5: n   26 cover  57.7%  ROI +10.9% ± 37.2  null -4.5%  SD pred 0.69
+  S2  squared error vs S0 -0.58 ± 1.23  |pred|>=1.5: n   32 cover  53.1%  ROI  +1.5% ± 33.6  null -4.5%  SD pred 0.69
+  S3  squared error vs S0 -0.41 ± 1.29  |pred|>=1.5: n   37 cover  51.4%  ROI  -1.7% ± 31.3  null -4.5%  SD pred 0.72
+  S4  squared error vs S0 -0.43 ± 1.14  |pred|>=1.5: n    9 cover  66.7%  ROI +27.0% ± 62.3  null -4.5%  SD pred 0.60
+
+== dk 2025-26 (scored)  n 964  residual SD 14.14
+  S0  squared error vs S0 +0.00 ± 0.00  |pred|>=1.5: n    0 cover   nan%  ROI  +nan% ±  nan  null +nan%  SD pred 0.08
+  S1  squared error vs S0 +0.32 ± 1.06  |pred|>=1.5: n   26 cover  38.5%  ROI -26.5% ± 36.5  null -4.5%  SD pred 0.62
+  S2  squared error vs S0 +0.19 ± 1.14  |pred|>=1.5: n   34 cover  50.0%  ROI  -4.6% ± 32.6  null -4.5%  SD pred 0.67
+  S3  squared error vs S0 -0.42 ± 1.36  |pred|>=1.5: n   84 cover  54.8%  ROI  +5.0% ± 20.5  null -4.5%  SD pred 0.83
+  S4  squared error vs S0 +0.22 ± 0.91  |pred|>=1.5: n   11 cover  45.5%  ROI -12.9% ± 59.1  null -4.5%  SD pred 0.54
+
+== espnbet 2025-26 (information only)  n 260  residual SD 13.19
+  S0  squared error vs S0 +0.00 ± 0.00  |pred|>=1.5: n    0 cover   nan%  ROI  +nan% ±  nan  null +nan%  SD pred 0.06
+  S1  squared error vs S0 -0.96 ± 2.22  |pred|>=1.5: n   12 cover  50.0%  ROI  -4.2% ± 56.7  null -4.9%  SD pred 0.76
+  S2  squared error vs S0 -1.11 ± 2.45  |pred|>=1.5: n   22 cover  54.5%  ROI  +4.4% ± 40.8  null -4.7%  SD pred 0.86
+  S3  squared error vs S0 -1.22 ± 2.56  |pred|>=1.5: n   23 cover  52.2%  ROI  +0.0% ± 40.0  null -4.7%  SD pred 0.90
+  S4  squared error vs S0 -0.63 ± 2.57  |pred|>=1.5: n   27 cover  48.1%  ROI  -8.3% ± 36.6  null -4.6%  SD pred 0.90
+
+== dk 2026-27 (information only)  n 121  residual SD 13.92
+  S0  squared error vs S0 +0.00 ± 0.00  |pred|>=1.5: n    0 cover   nan%  ROI  +nan% ±  nan  null +nan%  SD pred 0.00
+  S1  squared error vs S0 -0.96 ± 2.29  |pred|>=1.5: n    0 cover   nan%  ROI  +nan% ±  nan  null +nan%  SD pred 0.50
+  S2  squared error vs S0 -0.89 ± 2.84  |pred|>=1.5: n    2 cover  50.0%  ROI  -6.5% ± 183.2  null -4.5%  SD pred 0.61
+  S3  squared error vs S0 -1.61 ± 4.37  |pred|>=1.5: n   15 cover  46.7%  ROI -11.9% ± 49.4  null -4.5%  SD pred 0.93
+  S4  squared error vs S0 -1.12 ± 2.71  |pred|>=1.5: n    1 cover   0.0%  ROI -100.0% ±  nan  null -4.5%  SD pred 0.59
+
+== Fitted coefficients at each season's last slate (intercept, then features)
+  2025: S0 [-0.212]  S1 [-0.236, +0.408]  S2 [-0.238, +0.379]  S3 [-0.237, +0.386, -0.766]  S4 [-0.223, +0.329]
+  2026: S0 [-0.194]  S1 [-0.204, +0.302]  S2 [-0.207, +0.307]  S3 [-0.204, +0.320, -3.352]  S4 [-0.197, +0.254]
+  2027: S0 [-0.179]  S1 [-0.189, +0.289]  S2 [-0.192, +0.296]  S3 [-0.188, +0.310, -3.356]  S4 [-0.181, +0.247]
+
+== Decision rule (set before the run), scored ESPN BET 2024-25 and DraftKings 2025-26
+  S1 1 squared error -0.40 / +0.32, combined +0.02 ± 0.81: fail; 2 ROI +10.9% / -26.5% vs null: fail; 3 tripwire: pass -> not a candidate
+  S2 1 squared error -0.58 / +0.19, combined -0.17 ± 0.84: fail; 2 ROI +1.5% / -4.6% vs null: fail; 3 tripwire: pass -> not a candidate
+  S3 1 squared error -0.41 / -0.42, combined -0.42 ± 0.94: fail; 2 ROI -1.7% / +5.0% vs null: pass; 3 tripwire: pass -> not a candidate
+  S4 1 squared error -0.43 / +0.22, combined -0.03 ± 0.71: fail; 2 ROI +27.0% / -12.9% vs null: fail; 3 tripwire: pass -> not a candidate
