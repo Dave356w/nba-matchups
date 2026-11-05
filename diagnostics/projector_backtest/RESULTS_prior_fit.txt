@@ -1,0 +1,107 @@
+Projector with last season as a prior (P1) and with fitted weights (P2), point-in-time,
+walk-forward fits on earlier seasons. Arms and readings fixed before the run. ROI ± 95%.
+
+P2 fitted for 2024-25 on 2016-17..2023-24: blend season/split/last10 (0.4, 0.1, 0.5), offence share 0.55, prior K 5.0, margin' = +2.00 + 1.477 x margin, total' = -28.2 + 1.133 x total
+== 2024-25 espnbet, both teams >= 5 games (P0's games)  games 1146
+  P0 supplied          margin RMSE  14.49 winner 0.665 bias -1.10 SD 4.54 | total RMSE  18.69 bias -0.87 SD 4.90
+  P1 + prior           margin RMSE  14.64 winner 0.673 bias -1.29 SD 3.72 | total RMSE  18.77 bias -0.42 SD 3.88
+  P2 + prior, fitted   margin RMSE  14.17 winner 0.659 bias +0.44 SD 6.25 | total RMSE  18.59 bias +1.72 SD 5.19
+  production v11       margin RMSE  13.86 winner 0.685 bias +0.34 SD 7.85
+  closing spread       margin RMSE  13.55 winner 0.698 bias +0.10 SD 7.91
+  T* production totals total RMSE  18.26 bias -0.98 SD 7.83
+  closing total        total RMSE  17.59 bias -0.69 SD 8.88
+  P0 ATS  |edge|>=0: n 1145 won  50.2% ROI   -4.1% ±  5.5 null -4.5%  |edge|>=3: n  654 won  48.9% ROI   -6.6% ±  7.3 null -4.5%  |edge|>=6: n  270 won  45.9% ROI  -12.4% ± 11.4 null -4.5%
+  P0 O/U  |edge|>=0: n 1146 won  48.1% ROI   -8.2% ±  5.5 null -4.5%  |edge|>=3: n  712 won  47.1% ROI  -10.3% ±  7.0 null -4.5%  |edge|>=6: n  350 won  44.9% ROI  -14.6% ±  9.9 null -4.5%
+  P1 ATS  |edge|>=0: n 1145 won  49.3% ROI   -5.8% ±  5.5 null -4.5%  |edge|>=3: n  726 won  49.3% ROI   -6.0% ±  6.9 null -4.5%  |edge|>=6: n  294 won  44.6% ROI  -15.1% ± 10.8 null -4.5%
+  P1 O/U  |edge|>=0: n 1146 won  49.0% ROI   -6.4% ±  5.5 null -4.5%  |edge|>=3: n  732 won  48.6% ROI   -7.1% ±  6.9 null -4.5%  |edge|>=6: n  379 won  45.9% ROI  -12.6% ±  9.6 null -4.5%
+  P2 ATS  |edge|>=0: n 1145 won  50.9% ROI   -2.8% ±  5.5 null -4.5%  |edge|>=3: n  520 won  48.7% ROI   -7.1% ±  8.2 null -4.5%  |edge|>=6: n  160 won  48.8% ROI   -6.8% ± 14.9 null -4.5%
+  P2 O/U  |edge|>=0: n 1146 won  51.5% ROI   -1.8% ±  5.5 null -4.5%  |edge|>=3: n  719 won  50.1% ROI   -4.5% ±  7.0 null -4.5%  |edge|>=6: n  354 won  46.6% ROI  -11.2% ±  9.9 null -4.5%
+== 2024-25 espnbet, games 1-4 (P1 / P2 only; P0 abstains)  games 63
+  P0 supplied          margin RMSE    nan winner 0.508 bias +nan SD nan | total RMSE    nan bias +nan SD nan
+  P1 + prior           margin RMSE  12.75 winner 0.619 bias -0.87 SD 3.30 | total RMSE  18.81 bias +1.16 SD 2.90
+  P2 + prior, fitted   margin RMSE  12.48 winner 0.587 bias +0.70 SD 5.83 | total RMSE  19.09 bias +3.10 SD 3.73
+  production v11       margin RMSE  12.86 winner 0.635 bias +0.48 SD 6.50
+  closing spread       margin RMSE  12.87 winner 0.635 bias +0.48 SD 7.41
+  T* production totals total RMSE  18.74 bias -2.31 SD 5.25
+  closing total        total RMSE  18.53 bias -1.72 SD 5.73
+  P0 ATS  |edge|>=0: n 0  |edge|>=3: n 0  |edge|>=6: n 0
+  P0 O/U  |edge|>=0: n 0  |edge|>=3: n 0  |edge|>=6: n 0
+  P1 ATS  |edge|>=0: n   63 won  55.6% ROI   +5.8% ± 23.6 null -4.6%  |edge|>=3: n   40 won  60.0% ROI  +14.2% ± 29.3 null -4.6%  |edge|>=6: n   13 won  69.2% ROI  +31.2% ± 49.6 null -4.6%
+  P1 O/U  |edge|>=0: n   63 won  52.4% ROI   +0.3% ± 23.8 null -4.5%  |edge|>=3: n   31 won  48.4% ROI   -7.5% ± 34.2 null -4.5%  |edge|>=6: n   17 won  47.1% ROI   -9.6% ± 47.0 null -4.5%
+  P2 ATS  |edge|>=0: n   63 won  55.6% ROI   +6.1% ± 23.6 null -4.6%  |edge|>=3: n   28 won  60.7% ROI  +16.3% ± 35.3 null -4.6%  |edge|>=6: n   12 won  66.7% ROI  +26.4% ± 52.9 null -4.6%
+  P2 O/U  |edge|>=0: n   63 won  50.8% ROI   -3.1% ± 23.7 null -4.5%  |edge|>=3: n   44 won  50.0% ROI   -4.3% ± 28.6 null -4.5%  |edge|>=6: n   21 won  42.9% ROI  -17.7% ± 41.7 null -4.5%
+
+P2 fitted for 2025-26 on 2016-17..2024-25: blend season/split/last10 (0.4, 0.1, 0.5), offence share 0.55, prior K 5.0, margin' = +1.93 + 1.518 x margin, total' = -28.3 + 1.132 x total
+== 2025-26 espnbet, both teams >= 5 games (P0's games)  games 193
+  P0 supplied          margin RMSE  13.55 winner 0.699 bias -1.15 SD 6.09 | total RMSE  18.15 bias +1.48 SD 4.46
+  P1 + prior           margin RMSE  13.89 winner 0.725 bias -1.53 SD 4.02 | total RMSE  17.89 bias -1.72 SD 2.71
+  P2 + prior, fitted   margin RMSE  13.21 winner 0.699 bias +0.07 SD 7.21 | total RMSE  17.95 bias +1.56 SD 3.37
+  production v11       margin RMSE  12.69 winner 0.699 bias -0.20 SD 8.12
+  closing spread       margin RMSE  12.77 winner 0.694 bias -0.35 SD 8.11
+  T* production totals total RMSE  17.89 bias +1.66 SD 4.89
+  closing total        total RMSE  16.90 bias -0.48 SD 6.24
+  P0 ATS  |edge|>=0: n  193 won  49.7% ROI   -5.4% ± 13.5 null -4.6%  |edge|>=3: n   95 won  49.5% ROI   -6.1% ± 19.2 null -4.5%  |edge|>=6: n   37 won  43.2% ROI  -17.8% ± 30.8 null -4.5%
+  P0 O/U  |edge|>=0: n  182 won  47.8% ROI   -8.8% ± 13.9 null -4.5%  |edge|>=3: n  100 won  51.0% ROI   -3.1% ± 18.7 null -4.5%  |edge|>=6: n   46 won  50.0% ROI   -4.9% ± 27.8 null -4.5%
+  P1 ATS  |edge|>=0: n  193 won  50.3% ROI   -4.4% ± 13.5 null -4.6%  |edge|>=3: n  124 won  49.2% ROI   -6.5% ± 16.8 null -4.6%  |edge|>=6: n   47 won  44.7% ROI  -14.8% ± 27.4 null -4.5%
+  P1 O/U  |edge|>=0: n  182 won  53.8% ROI   +2.7% ± 13.9 null -4.5%  |edge|>=3: n   97 won  53.6% ROI   +2.1% ± 19.0 null -4.5%  |edge|>=6: n   42 won  52.4% ROI   -0.4% ± 29.1 null -4.5%
+  P2 ATS  |edge|>=0: n  193 won  45.1% ROI  -14.2% ± 13.4 null -4.6%  |edge|>=3: n   78 won  50.0% ROI   -5.0% ± 21.2 null -4.5%  |edge|>=6: n   19 won  52.6% ROI   +0.3% ± 44.0 null -4.5%
+  P2 O/U  |edge|>=0: n  182 won  49.5% ROI   -5.8% ± 13.9 null -4.5%  |edge|>=3: n   91 won  48.4% ROI   -8.2% ± 19.6 null -4.5%  |edge|>=6: n   31 won  58.1% ROI  +10.0% ± 33.5 null -4.5%
+== 2025-26 espnbet, games 1-4 (P1 / P2 only; P0 abstains)  games 63
+  P0 supplied          margin RMSE    nan winner 0.413 bias +nan SD nan | total RMSE    nan bias +nan SD nan
+  P1 + prior           margin RMSE  14.61 winner 0.635 bias -2.56 SD 2.56 | total RMSE  20.68 bias -3.35 SD 2.73
+  P2 + prior, fitted   margin RMSE  14.22 winner 0.683 bias -0.78 SD 4.37 | total RMSE  20.65 bias +0.01 SD 3.61
+  production v11       margin RMSE  13.52 winner 0.714 bias -0.68 SD 5.42
+  closing spread       margin RMSE  13.99 winner 0.651 bias -1.15 SD 6.52
+  T* production totals total RMSE  21.29 bias +2.97 SD 5.30
+  closing total        total RMSE  19.75 bias -1.02 SD 5.28
+  P0 ATS  |edge|>=0: n 0  |edge|>=3: n 0  |edge|>=6: n 0
+  P0 O/U  |edge|>=0: n 0  |edge|>=3: n 0  |edge|>=6: n 0
+  P1 ATS  |edge|>=0: n   63 won  54.0% ROI   +3.1% ± 23.7 null -4.5%  |edge|>=3: n   43 won  60.5% ROI  +15.6% ± 28.3 null -4.5%  |edge|>=6: n   15 won  53.3% ROI   +1.9% ± 50.0 null -4.5%
+  P1 O/U  |edge|>=0: n   63 won  49.2% ROI   -6.1% ± 23.8 null -4.5%  |edge|>=3: n   32 won  53.1% ROI   +0.9% ± 33.4 null -4.5%  |edge|>=6: n   12 won  50.0% ROI   -5.5% ± 55.8 null -4.5%
+  P2 ATS  |edge|>=0: n   63 won  58.7% ROI  +12.2% ± 23.4 null -4.5%  |edge|>=3: n   34 won  67.6% ROI  +29.0% ± 30.5 null -4.5%  |edge|>=6: n   15 won  46.7% ROI  -10.9% ± 49.9 null -4.6%
+  P2 O/U  |edge|>=0: n   63 won  52.4% ROI   -0.0% ± 23.7 null -4.5%  |edge|>=3: n   34 won  47.1% ROI  -10.4% ± 32.4 null -4.5%  |edge|>=6: n   13 won  30.8% ROI  -41.9% ± 49.3 null -4.5%
+== 2025-26 dk, both teams >= 5 games (P0's games)  games 1001
+  P0 supplied          margin RMSE  15.26 winner 0.690 bias -0.91 SD 4.30 | total RMSE  19.48 bias +1.28 SD 3.82
+  P1 + prior           margin RMSE  15.36 winner 0.684 bias -1.04 SD 3.74 | total RMSE  19.45 bias +0.40 SD 3.23
+  P2 + prior, fitted   margin RMSE  14.85 winner 0.674 bias +0.57 SD 6.41 | total RMSE  19.46 bias +2.45 SD 4.69
+  production v11       margin RMSE  14.44 winner 0.700 bias +0.63 SD 7.69
+  closing spread       margin RMSE  14.06 winner 0.691 bias +0.41 SD 8.51
+  T* production totals total RMSE  19.08 bias +0.38 SD 6.95
+  closing total        total RMSE  18.46 bias -0.21 SD 8.07
+  P0 ATS  |edge|>=0: n 1001 won  49.7% ROI   -5.3% ±  5.9 null -4.5%  |edge|>=3: n  612 won  48.4% ROI   -7.8% ±  7.6 null -4.5%  |edge|>=6: n  267 won  48.7% ROI   -7.2% ± 11.5 null -4.5%
+  P0 O/U  |edge|>=0: n  964 won  48.9% ROI   -6.8% ±  6.0 null -4.5%  |edge|>=3: n  576 won  45.3% ROI  -13.6% ±  7.8 null -4.5%  |edge|>=6: n  304 won  46.4% ROI  -11.5% ± 10.7 null -4.5%
+  P1 ATS  |edge|>=0: n 1001 won  49.7% ROI   -5.3% ±  5.9 null -4.5%  |edge|>=3: n  639 won  48.7% ROI   -7.2% ±  7.4 null -4.5%  |edge|>=6: n  303 won  50.2% ROI   -4.4% ± 10.8 null -4.5%
+  P1 O/U  |edge|>=0: n  964 won  49.6% ROI   -5.3% ±  6.0 null -4.5%  |edge|>=3: n  570 won  47.7% ROI   -9.0% ±  7.8 null -4.5%  |edge|>=6: n  303 won  46.9% ROI  -10.5% ± 10.7 null -4.5%
+  P2 ATS  |edge|>=0: n 1001 won  51.1% ROI   -2.5% ±  5.9 null -4.5%  |edge|>=3: n  485 won  48.7% ROI   -7.2% ±  8.5 null -4.5%  |edge|>=6: n  163 won  51.5% ROI   -1.6% ± 14.7 null -4.5%
+  P2 O/U  |edge|>=0: n  964 won  46.0% ROI  -12.3% ±  6.0 null -4.5%  |edge|>=3: n  576 won  46.7% ROI  -10.9% ±  7.8 null -4.5%  |edge|>=6: n  279 won  47.3% ROI   -9.8% ± 11.2 null -4.5%
+
+P2 fitted for 2026-27 on 2016-17..2025-26: blend season/split/last10 (0.4, 0.1, 0.5), offence share 0.55, prior K 5.0, margin' = +1.88 + 1.560 x margin, total' = -23.9 + 1.111 x total
+== 2026-27 dk, both teams >= 5 games (P0's games) (information only)  games 29
+  P0 supplied          margin RMSE  14.16 winner 0.724 bias -3.69 SD 7.27 | total RMSE  22.06 bias +5.37 SD 7.14
+  P1 + prior           margin RMSE  14.77 winner 0.586 bias -4.33 SD 3.31 | total RMSE  23.31 bias +7.67 SD 3.53
+  P2 + prior, fitted   margin RMSE  13.56 winner 0.724 bias -2.25 SD 6.20 | total RMSE  23.50 bias +8.59 SD 4.92
+  production v11       margin RMSE  13.65 winner 0.690 bias -1.91 SD 5.53
+  closing spread       margin RMSE  13.84 winner 0.621 bias -2.47 SD 7.15
+  T* production totals total RMSE  21.89 bias +5.29 SD 7.54
+  closing total        total RMSE  21.96 bias +4.64 SD 8.08
+  P0 ATS  |edge|>=0: n   29 won  65.5% ROI  +23.8% ± 33.3 null -4.5%  |edge|>=3: n   19 won  63.2% ROI  +20.0% ± 42.4 null -4.5%  |edge|>=6: n    7 won  71.4% ROI  +37.1% ± 69.4 null -4.5%
+  P0 O/U  |edge|>=0: n   29 won  65.5% ROI  +25.5% ± 33.7 null -4.5%  |edge|>=3: n   12 won  50.0% ROI   -3.8% ± 56.8 null -4.5%  |edge|>=6: n    4 won  25.0% ROI  -52.3% ± 93.5 null -4.5%
+  P1 ATS  |edge|>=0: n   29 won  51.7% ROI   -1.5% ± 35.3 null -4.5%  |edge|>=3: n   12 won  50.0% ROI   -4.7% ± 56.3 null -4.5%  |edge|>=6: n    6 won  50.0% ROI   -3.3% ± 84.8 null -4.6%
+  P1 O/U  |edge|>=0: n   29 won  48.3% ROI   -7.4% ± 35.5 null -4.5%  |edge|>=3: n   19 won  52.6% ROI   +1.0% ± 44.3 null -4.5%  |edge|>=6: n    8 won  50.0% ROI   -4.8% ± 70.5 null -4.5%
+  P2 ATS  |edge|>=0: n   29 won  65.5% ROI  +23.9% ± 33.3 null -4.5%  |edge|>=3: n   14 won  64.3% ROI  +21.4% ± 49.2 null -4.5%  |edge|>=6: n    6 won  83.3% ROI  +59.5% ± 62.6 null -4.6%
+  P2 O/U  |edge|>=0: n   29 won  44.8% ROI  -14.2% ± 35.3 null -4.5%  |edge|>=3: n   19 won  47.4% ROI   -9.0% ± 44.3 null -4.5%  |edge|>=6: n   13 won  53.8% ROI   +3.6% ± 54.3 null -4.5%
+== 2026-27 dk, games 1-4 (P1 / P2 only; P0 abstains)  games 62
+  P0 supplied          margin RMSE    nan winner 0.548 bias +nan SD nan | total RMSE    nan bias +nan SD nan
+  P1 + prior           margin RMSE  14.40 winner 0.694 bias +1.93 SD 3.36 | total RMSE  18.59 bias +1.48 SD 2.90
+  P2 + prior, fitted   margin RMSE  14.65 winner 0.661 bias +3.56 SD 6.11 | total RMSE  18.93 bias +2.97 SD 3.75
+  production v11       margin RMSE  14.59 winner 0.661 bias +4.26 SD 5.50
+  closing spread       margin RMSE  13.51 winner 0.710 bias +3.95 SD 7.46
+  T* production totals total RMSE  19.06 bias +0.25 SD 6.07
+  closing total        total RMSE  14.57 bias +2.00 SD 5.46
+  P0 ATS  |edge|>=0: n 0  |edge|>=3: n 0  |edge|>=6: n 0
+  P0 O/U  |edge|>=0: n 0  |edge|>=3: n 0  |edge|>=6: n 0
+  P1 ATS  |edge|>=0: n   62 won  54.8% ROI   +4.6% ± 23.8 null -4.5%  |edge|>=3: n   37 won  62.2% ROI  +18.2% ± 30.2 null -4.5%  |edge|>=6: n   15 won  73.3% ROI  +39.4% ± 44.0 null -4.5%
+  P1 O/U  |edge|>=0: n   10 won  60.0% ROI  +13.7% ± 60.7 null -4.5%  |edge|>=3: n    5 won  60.0% ROI  +13.3% ± 90.7 null -4.5%  |edge|>=6: n 0
+  P2 ATS  |edge|>=0: n   62 won  59.7% ROI  +14.0% ± 23.5 null -4.5%  |edge|>=3: n   32 won  59.4% ROI  +13.2% ± 33.0 null -4.5%  |edge|>=6: n   16 won  56.2% ROI   +6.8% ± 47.7 null -4.5%
+  P2 O/U  |edge|>=0: n   10 won  70.0% ROI  +32.6% ± 56.7 null -4.5%  |edge|>=3: n    4 won  50.0% ROI   -4.7% ± 107.9 null -4.6%  |edge|>=6: n 0
+
