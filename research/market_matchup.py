@@ -229,8 +229,35 @@ def report(G, C):
     return L
 
 
+def posthoc(G):
+    """Owner's request after the run (2026-11-05): the side records at other
+    thresholds. Post-hoc and descriptive; the registered rule (EDGE 1.5)
+    and its verdict are unchanged."""
+    global EDGE
+    L = ["POST-HOC (requested after the run; descriptive only, not the registered rule).",
+         "Side the arm favours when |adjustment| >= threshold, at closing spread prices;",
+         "ROI ± 95%, null = the no-vig expectation. Registered threshold: 1.5.", ""]
+    keep = EDGE
+    for edge in (0.5, 1.0, 1.5):
+        EDGE = edge
+        L.append(f"== |adjustment| >= {edge}")
+        for (Y, book) in SCORED + INFO:
+            g = G[(G["season"] == Y) & (G["close_book"] == book) & G["p_S0"].notna()]
+            tag = "scored" if (Y, book) in SCORED else "info"
+            for arm in list(ARMS)[1:]:
+                n, cov, roi, rh, null = side_record(g, arm)
+                L.append(f"  {book:7s} {Y - 1}-{str(Y)[2:]} ({tag:6s}) {arm}: n {n:4d}  cover "
+                         f"{cov * 100:5.1f}%  ROI {roi * 100:+6.1f}% ± {rh * 100:5.1f}  "
+                         f"null {null * 100:+.1f}%")
+        L.append("")
+    EDGE = keep
+    return L
+
+
 def main():
     G, C = walk(features(games()))
+    os.makedirs(OUT, exist_ok=True)
+    open(os.path.join(OUT, "RESULTS_posthoc.txt"), "w").write("\n".join(posthoc(G)) + "\n")
     os.makedirs(OUT, exist_ok=True)
     text = "\n".join(report(G, C)) + "\n"
     open(os.path.join(OUT, "RESULTS.txt"), "w").write(text)

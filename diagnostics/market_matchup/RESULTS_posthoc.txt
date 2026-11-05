@@ -1,0 +1,58 @@
+POST-HOC (requested after the run; descriptive only, not the registered rule).
+Side the arm favours when |adjustment| >= threshold, at closing spread prices;
+ROI ± 95%, null = the no-vig expectation. Registered threshold: 1.5.
+
+== |adjustment| >= 0.5
+  espnbet 2024-25 (scored) S1: n  345  cover  53.0%  ROI   +1.3% ±  10.1  null -4.5%
+  espnbet 2024-25 (scored) S2: n  331  cover  55.3%  ROI   +5.6% ±  10.3  null -4.5%
+  espnbet 2024-25 (scored) S3: n  339  cover  54.6%  ROI   +4.3% ±  10.1  null -4.5%
+  espnbet 2024-25 (scored) S4: n  282  cover  52.5%  ROI   +0.4% ±  11.2  null -4.5%
+  dk      2025-26 (scored) S1: n  420  cover  48.3%  ROI   -7.6% ±   9.2  null -4.5%
+  dk      2025-26 (scored) S2: n  471  cover  48.8%  ROI   -6.7% ±   8.6  null -4.5%
+  dk      2025-26 (scored) S3: n  486  cover  52.1%  ROI   -0.6% ±   8.5  null -4.5%
+  dk      2025-26 (scored) S4: n  379  cover  49.1%  ROI   -6.0% ±   9.7  null -4.5%
+  espnbet 2025-26 (info  ) S1: n  138  cover  49.3%  ROI   -6.1% ±  16.0  null -4.5%
+  espnbet 2025-26 (info  ) S2: n  146  cover  51.4%  ROI   -2.4% ±  15.5  null -4.5%
+  espnbet 2025-26 (info  ) S3: n  140  cover  51.4%  ROI   -2.1% ±  15.8  null -4.6%
+  espnbet 2025-26 (info  ) S4: n  146  cover  53.4%  ROI   +1.9% ±  15.5  null -4.5%
+  dk      2026-27 (info  ) S1: n   39  cover  66.7%  ROI  +27.4% ±  28.7  null -4.5%
+  dk      2026-27 (info  ) S2: n   47  cover  59.6%  ROI  +14.1% ±  27.2  null -4.5%
+  dk      2026-27 (info  ) S3: n   63  cover  61.9%  ROI  +18.1% ±  23.1  null -4.5%
+  dk      2026-27 (info  ) S4: n   45  cover  68.9%  ROI  +31.7% ±  26.2  null -4.5%
+
+== |adjustment| >= 1.0
+  espnbet 2024-25 (scored) S1: n   96  cover  51.0%  ROI   -2.5% ±  19.2  null -4.5%
+  espnbet 2024-25 (scored) S2: n  102  cover  53.9%  ROI   +3.3% ±  18.6  null -4.5%
+  espnbet 2024-25 (scored) S3: n  113  cover  53.1%  ROI   +1.5% ±  17.7  null -4.5%
+  espnbet 2024-25 (scored) S4: n   77  cover  42.9%  ROI  -17.9% ±  21.3  null -4.5%
+  dk      2025-26 (scored) S1: n  120  cover  40.8%  ROI  -21.8% ±  16.9  null -4.5%
+  dk      2025-26 (scored) S2: n  144  cover  46.5%  ROI  -11.0% ±  15.6  null -4.5%
+  dk      2025-26 (scored) S3: n  207  cover  49.8%  ROI   -4.8% ±  13.1  null -4.5%
+  dk      2025-26 (scored) S4: n   83  cover  48.2%  ROI   -7.8% ±  20.7  null -4.5%
+  espnbet 2025-26 (info  ) S1: n   44  cover  52.3%  ROI   -0.2% ±  28.5  null -4.6%
+  espnbet 2025-26 (info  ) S2: n   67  cover  50.7%  ROI   -3.7% ±  22.9  null -4.6%
+  espnbet 2025-26 (info  ) S3: n   61  cover  52.5%  ROI   -0.3% ±  24.0  null -4.6%
+  espnbet 2025-26 (info  ) S4: n   69  cover  50.7%  ROI   -3.3% ±  22.7  null -4.6%
+  dk      2026-27 (info  ) S1: n    8  cover  75.0%  ROI  +42.9% ±  61.2  null -4.5%
+  dk      2026-27 (info  ) S2: n   15  cover  66.7%  ROI  +27.1% ±  47.1  null -4.5%
+  dk      2026-27 (info  ) S3: n   31  cover  61.3%  ROI  +16.5% ±  33.1  null -4.5%
+  dk      2026-27 (info  ) S4: n   12  cover  66.7%  ROI  +27.3% ±  53.2  null -4.5%
+
+== |adjustment| >= 1.5
+  espnbet 2024-25 (scored) S1: n   26  cover  57.7%  ROI  +10.9% ±  37.2  null -4.5%
+  espnbet 2024-25 (scored) S2: n   32  cover  53.1%  ROI   +1.5% ±  33.6  null -4.5%
+  espnbet 2024-25 (scored) S3: n   37  cover  51.4%  ROI   -1.7% ±  31.3  null -4.5%
+  espnbet 2024-25 (scored) S4: n    9  cover  66.7%  ROI  +27.0% ±  62.3  null -4.5%
+  dk      2025-26 (scored) S1: n   26  cover  38.5%  ROI  -26.5% ±  36.5  null -4.5%
+  dk      2025-26 (scored) S2: n   34  cover  50.0%  ROI   -4.6% ±  32.6  null -4.5%
+  dk      2025-26 (scored) S3: n   84  cover  54.8%  ROI   +5.0% ±  20.5  null -4.5%
+  dk      2025-26 (scored) S4: n   11  cover  45.5%  ROI  -12.9% ±  59.1  null -4.5%
+  espnbet 2025-26 (info  ) S1: n   12  cover  50.0%  ROI   -4.2% ±  56.7  null -4.9%
+  espnbet 2025-26 (info  ) S2: n   22  cover  54.5%  ROI   +4.4% ±  40.8  null -4.7%
+  espnbet 2025-26 (info  ) S3: n   23  cover  52.2%  ROI   +0.0% ±  40.0  null -4.7%
+  espnbet 2025-26 (info  ) S4: n   27  cover  48.1%  ROI   -8.3% ±  36.6  null -4.6%
+  dk      2026-27 (info  ) S1: n    0  cover   nan%  ROI   +nan% ±   nan  null +nan%
+  dk      2026-27 (info  ) S2: n    2  cover  50.0%  ROI   -6.5% ± 183.2  null -4.5%
+  dk      2026-27 (info  ) S3: n   15  cover  46.7%  ROI  -11.9% ±  49.4  null -4.5%
+  dk      2026-27 (info  ) S4: n    1  cover   0.0%  ROI -100.0% ±   nan  null -4.5%
+
