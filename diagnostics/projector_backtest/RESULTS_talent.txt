@@ -1,0 +1,62 @@
+Availability skipped at the owner's request (2026-11-05): CTA equals CT; the rule stated for CTA is applied to CT.
+P2c with roster talent (CT) and injury-report availability (CTA), walk-forward; arms and
+readings fixed before the run. Production rows are hindsight. ROI ± 95%.
+
+2024-25 fit: grid blend (0.3, 0.2, 0.5), offence 0.55, K 5.0; C: 1 + 1.489 raw; CT: 1 + 0.927 raw + 0.479 talent; CTA: no earlier report season
+== 2024-25 espnbet (scored)  games 1208  (report covers 0)
+  C (P2c)                margin RMSE  14.09 bias -0.33 winner 0.656
+  CT (+ talent)          margin RMSE  14.01 bias -0.58 winner 0.676
+  CTA (+ availability)   margin RMSE  14.01 bias -0.58 winner 0.676
+  production v11         margin RMSE  13.81 bias +0.34 winner 0.683
+  closing spread         margin RMSE  13.51 bias +0.12 winner 0.695
+  CT (+ talent) closes 28% of C's 0.28-pt RMSE gap to production
+  CTA (+ availability) closes 28% of C's 0.28-pt RMSE gap to production
+  ATS C          |edge|>=0: n 1208 won  51.0% ROI   -2.7% ±  5.4 null -4.5%  |edge|>=3: n  547 won  50.5% ROI   -3.7% ±  8.0 null -4.5%
+  ATS CT         |edge|>=0: n 1208 won  48.9% ROI   -6.7% ±  5.4 null -4.5%  |edge|>=3: n  432 won  49.3% ROI   -6.0% ±  9.0 null -4.5%
+  ATS CTA        |edge|>=0: n 1208 won  48.9% ROI   -6.7% ±  5.4 null -4.5%  |edge|>=3: n  432 won  49.3% ROI   -6.0% ±  9.0 null -4.5%
+  ATS production |edge|>=0: n 1208 won  50.7% ROI   -3.2% ±  5.4 null -4.5%  |edge|>=3: n  294 won  48.3% ROI   -7.9% ± 10.9 null -4.5%
+  CTA deciles (all books): actual -10.8, -5.9, -3.7, -1.7, -0.4, +2.2, +5.4, +10.0, +8.8, +14.1; decreasing steps 1 of 9; slope 1.07 (production 0.99)
+
+2025-26 fit: grid blend (0.3, 0.2, 0.5), offence 0.55, K 5.0; C: 1 + 1.528 raw; CT: 1 + 0.988 raw + 0.456 talent; CTA: no earlier report season
+== 2025-26 espnbet (information only)  games 245  (report covers 0)
+  C (P2c)                margin RMSE  13.38 bias -0.76 winner 0.722
+  CT (+ talent)          margin RMSE  12.99 bias -1.08 winner 0.690
+  CTA (+ availability)   margin RMSE  12.99 bias -1.08 winner 0.690
+  production v11         margin RMSE  12.84 bias -0.21 winner 0.706
+  closing spread         margin RMSE  13.03 bias -0.47 winner 0.690
+  CT (+ talent) closes 73% of C's 0.55-pt RMSE gap to production
+  CTA (+ availability) closes 73% of C's 0.55-pt RMSE gap to production
+  ATS C          |edge|>=0: n  245 won  49.4% ROI   -5.9% ± 12.0 null -4.5%  |edge|>=3: n  109 won  54.1% ROI   +2.9% ± 17.9 null -4.5%
+  ATS CT         |edge|>=0: n  245 won  52.2% ROI   -0.4% ± 12.0 null -4.5%  |edge|>=3: n   83 won  55.4% ROI   +5.3% ± 20.4 null -4.5%
+  ATS CTA        |edge|>=0: n  245 won  52.2% ROI   -0.4% ± 12.0 null -4.5%  |edge|>=3: n   83 won  55.4% ROI   +5.3% ± 20.4 null -4.5%
+  ATS production |edge|>=0: n  245 won  50.6% ROI   -3.5% ± 12.0 null -4.5%  |edge|>=3: n   71 won  53.5% ROI   +1.8% ± 22.2 null -4.6%
+== 2025-26 dk (scored)  games 964  (report covers 0)
+  C (P2c)                margin RMSE  14.94 bias -0.18 winner 0.673
+  CT (+ talent)          margin RMSE  14.82 bias -0.33 winner 0.683
+  CTA (+ availability)   margin RMSE  14.82 bias -0.33 winner 0.683
+  production v11         margin RMSE  14.52 bias +0.53 winner 0.700
+  closing spread         margin RMSE  14.14 bias +0.32 winner 0.693
+  CT (+ talent) closes 29% of C's 0.43-pt RMSE gap to production
+  CTA (+ availability) closes 29% of C's 0.43-pt RMSE gap to production
+  ATS C          |edge|>=0: n  964 won  49.7% ROI   -5.3% ±  6.0 null -4.5%  |edge|>=3: n  484 won  49.4% ROI   -5.8% ±  8.5 null -4.5%
+  ATS CT         |edge|>=0: n  964 won  49.2% ROI   -6.3% ±  6.0 null -4.5%  |edge|>=3: n  374 won  47.6% ROI   -9.3% ±  9.7 null -4.5%
+  ATS CTA        |edge|>=0: n  964 won  49.2% ROI   -6.3% ±  6.0 null -4.5%  |edge|>=3: n  374 won  47.6% ROI   -9.3% ±  9.7 null -4.5%
+  ATS production |edge|>=0: n  964 won  49.7% ROI   -5.3% ±  6.0 null -4.5%  |edge|>=3: n  308 won  48.4% ROI   -8.0% ± 10.6 null -4.5%
+  CTA deciles (all books): actual -12.5, -7.4, -4.2, -1.8, +3.2, +1.9, +5.5, +6.4, +11.1, +15.2; decreasing steps 1 of 9; slope 1.15 (production 1.09)
+
+2026-27 fit: grid blend (0.3, 0.2, 0.5), offence 0.55, K 5.0; C: 1 + 1.568 raw; CT: 1 + 1.028 raw + 0.456 talent; CTA: no earlier report season
+== 2026-27 dk (information only)  games 91  (report covers 0)
+  C (P2c)                margin RMSE  14.28 bias +0.92 winner 0.681
+  CT (+ talent)          margin RMSE  13.98 bias +1.17 winner 0.637
+  CTA (+ availability)   margin RMSE  13.98 bias +1.17 winner 0.637
+  production v11         margin RMSE  14.30 bias +2.29 winner 0.670
+  closing spread         margin RMSE  13.62 bias +1.91 winner 0.681
+  CT (+ talent) closes nan% of C's -0.02-pt RMSE gap to production
+  CTA (+ availability) closes nan% of C's -0.02-pt RMSE gap to production
+  ATS C          |edge|>=0: n   91 won  58.2% ROI  +10.8% ± 19.4 null -4.5%  |edge|>=3: n   46 won  60.9% ROI  +16.2% ± 27.2 null -4.5%
+  ATS CT         |edge|>=0: n   91 won  57.1% ROI   +8.8% ± 19.5 null -4.5%  |edge|>=3: n   35 won  62.9% ROI  +18.8% ± 30.7 null -4.5%
+  ATS CTA        |edge|>=0: n   91 won  57.1% ROI   +8.8% ± 19.5 null -4.5%  |edge|>=3: n   35 won  62.9% ROI  +18.8% ± 30.7 null -4.5%
+  ATS production |edge|>=0: n   91 won  46.2% ROI  -12.4% ± 19.6 null -4.5%  |edge|>=3: n   36 won  44.4% ROI  -15.8% ± 31.2 null -4.5%
+  CTA deciles (all books): actual -10.4, -11.7, +1.1, +0.3, -4.7, -0.7, +3.1, +8.0, +4.7, +14.2; decreasing steps 4 of 9; slope 1.01 (production 1.21)
+
+== Stated before the run: CT closes the gap if its margin RMSE is at or below production's in both scored book-seasons -> NO (espnbet 2025: 14.01 vs production 13.81; dk 2026: 14.82 vs production 14.52)

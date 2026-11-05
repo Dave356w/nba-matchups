@@ -59,6 +59,7 @@ import projector_prior_fit as pf                  # noqa: E402
 
 OUT = pb.OUT
 REPORT_SEASONS = [2023, 2024, 2025, 2026, 2027]
+USE_AVAILABILITY = "--no-availability" not in sys.argv
 SCORED = [(2025, "espnbet"), (2026, "dk")]
 INFO = [(2026, "espnbet"), (2027, "dk")]
 
@@ -70,7 +71,7 @@ def add_terms(data):
         ta = np.array([tal(a, d) for a, d in zip(D["away_abbr"], D["game_date"])], float)
         D["talent"] = np.nan_to_num(th - ta)
         path = os.path.join(pav.DEFAULT_CACHE, f"av_terms_{y}.csv")
-        if y in REPORT_SEASONS and os.path.exists(path):
+        if USE_AVAILABILITY and y in REPORT_SEASONS and os.path.exists(path):
             av = pd.read_csv(path).rename(columns={"slate_date": "game_date", "home": "home_abbr",
                                                    "away": "away_abbr"})
             D.drop(columns=[c for c in ("av_min", "av_bpm") if c in D], inplace=True)
@@ -182,13 +183,18 @@ def main():
                  f"{np.polyfit(H['m_CTA'], H['actual_margin'], 1)[0]:.2f} (production "
                  f"{np.polyfit(H['prod_margin'], H['actual_margin'], 1)[0]:.2f})")
         L.append("")
-    ok = all(r["CTA (+ availability)"] <= r["production v11"] for r in scored.values())
-    L.append("== Stated before the run: CTA closes the gap if its margin RMSE is at or below "
-             f"production's in both scored book-seasons -> {'YES' if ok else 'NO'} ("
-             + "; ".join(f"{b} {Y}: CTA {r['CTA (+ availability)']:.2f} vs production "
-                         f"{r['production v11']:.2f}" for (Y, b), r in scored.items()) + ")")
+    arm = "CTA (+ availability)" if USE_AVAILABILITY else "CT (+ talent)"
+    ok = all(r[arm] <= r["production v11"] for r in scored.values())
+    if not USE_AVAILABILITY:
+        L.insert(0, "Availability skipped at the owner's request (2026-11-05): CTA equals CT; the "
+                    "rule stated for CTA is applied to CT.")
+    L.append(f"== Stated before the run: {arm.split()[0]} closes the gap if its margin RMSE is at "
+             f"or below production's in both scored book-seasons -> {'YES' if ok else 'NO'} ("
+             + "; ".join(f"{b} {Y}: {r[arm]:.2f} vs production {r['production v11']:.2f}"
+                         for (Y, b), r in scored.items()) + ")")
     text = "\n".join(L) + "\n"
-    (OUT / "RESULTS_talent_avail.txt").write_text(text)
+    name = "RESULTS_talent_avail.txt" if USE_AVAILABILITY else "RESULTS_talent.txt"
+    (OUT / name).write_text(text)
     print(text)
 
 
