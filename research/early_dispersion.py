@@ -47,7 +47,9 @@ Decision rule, set before the run (with the G7 gate,
 docs/model_guidelines.md): an arm is a candidate for a new model tag only if,
 on folds 2019-2026,
   1. games 1-9 log loss arm - B is below 0 with its 95% interval excluding 0,
-     Brier agreeing in sign, better in at least 6 of the 8 folds;
+     Brier agreeing in sign, better in at least 6 of the 8 folds (as
+     registered; 2019-2026 holds 7 folds, no 2019-20 season: read as 6 of 7,
+     noted after the run, no verdict depends on it);
   2. games 10+ log loss arm - B is not above 0 (point estimate), Brier agreeing;
   3. on the large priced book-seasons (reconstructed DraftKings 2025-26 and
      ESPN BET 2024-25, games 10+), arm - B is not above 0, Brier agreeing;
@@ -161,6 +163,8 @@ def add_stretch(P):
             b, *_ = np.linalg.lstsq(X, tr["margin"].to_numpy(float), rcond=None)
             sigma = float(np.std(tr["margin"].to_numpy(float) - X @ b, ddof=2))
             idx = cur & (P["stage"] == s)
+            if not idx.any():
+                continue
             m = b[0] + b[1] * P.loc[idx, "m_B"].to_numpy(float)
             P.loc[idx, "m_K"], P.loc[idx, "p_K"] = m, _PHI(m / sigma)
             dyn.log(f"K fold {Y} {s}: c {b[0]:+.2f} k {b[1]:.3f} sigma {sigma:.2f} "
@@ -283,7 +287,8 @@ def market_lines(P):
 
 
 def rule_lines(P, gate):
-    L = ["", "== 4. Decision rule (set before the run), folds 2019-2026"]
+    L = ["", "== 4. Decision rule (set before the run), folds 2019-2026",
+         "  (the rule's '6 of 8 folds' miscounted: 2019-2026 holds 7 folds; read 6 of 7)"]
     R = P[P["season"].isin(RULE_FOLDS)]
     for arm in ALL[1:]:
         e = R[R["stage"] == "games 1-9"]
@@ -301,7 +306,7 @@ def rule_lines(P, gate):
         r4 = best >= -0.008
         verdict = "CANDIDATE" if r1 and r2 and r3 and r4 else "not a candidate"
         L.append(f"  {arm:3s} 1 games 1-9 {m:+.4f} ± {h:.4f}, Brier {d_br.mean():+.4f}, "
-                 f"{wins}/8 folds: {'pass' if r1 else 'fail'}; 2 games 10+ "
+                 f"{wins}/{e['season'].nunique()} folds: {'pass' if r1 else 'fail'}; 2 games 10+ "
                  f"{l_ll.mean():+.4f}: {'pass' if r2 else 'fail'}; 3 priced books: "
                  f"{'pass' if r3 else 'fail'}; 4 tripwire (best fold {best:+.4f}): "
                  f"{'pass' if r4 else 'fail'} -> {verdict}")

@@ -1,0 +1,78 @@
+Early-season dispersion: walk-forward, base route, v10h25 build (2026-11-05).
+Arms and rule fixed before the run (see research/early_dispersion.py). Fold 2027 is information only.
+
+== 1. Against outcomes, folds 2019-2026: arm - B (log loss / Brier / margin MSE, ± 95%; negative = arm better)
+  game 0     n   111  B log loss 0.6244
+    E1  +0.0001 ± 0.0048  Brier -0.0001 ± 0.0019  MSE +0.76 ± 2.35  better in 3 of 7
+    E2  -0.0007 ± 0.0077  Brier -0.0005 ± 0.0029  MSE +1.01 ± 3.87  better in 3 of 7
+    E3  -0.0000 ± 0.0080  Brier +0.0000 ± 0.0036  MSE +2.09 ± 3.11  better in 3 of 7
+    K   +0.0000 ± 0.0000  Brier +0.0000 ± 0.0000  MSE +0.00 ± 0.00  better in 0 of 7
+  games 1-9  n   979  B log loss 0.6286
+    E1  -0.0001 ± 0.0008  Brier -0.0000 ± 0.0003  MSE -0.02 ± 0.39  better in 5 of 7
+    E2  -0.0009 ± 0.0028  Brier -0.0004 ± 0.0012  MSE -0.59 ± 1.13  better in 3 of 7
+    E3  -0.0001 ± 0.0029  Brier -0.0000 ± 0.0013  MSE -0.51 ± 1.23  better in 2 of 7
+    K   +0.0032 ± 0.0041  Brier +0.0012 ± 0.0018  MSE +1.16 ± 1.61  better in 2 of 7
+  games 10+  n  7360  B log loss 0.6097
+    E1  -0.0000 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.03 ± 0.03  better in 4 of 7
+    E2  -0.0000 ± 0.0001  Brier -0.0000 ± 0.0000  MSE -0.03 ± 0.04  better in 4 of 7
+    E3  -0.0000 ± 0.0001  Brier -0.0000 ± 0.0001  MSE -0.03 ± 0.06  better in 5 of 7
+    K   +0.0001 ± 0.0005  Brier +0.0001 ± 0.0002  MSE -0.03 ± 0.23  better in 4 of 7
+
+  By fold, games 1-9 (log loss arm - B, ± 95%):
+    season    n                 E1                 E2                 E3                  K
+    2017   140  +0.0038 ± 0.0056  +0.0034 ± 0.0060  +0.0049 ± 0.0095                 --
+    2018   139  -0.0029 ± 0.0056  -0.0023 ± 0.0060  -0.0018 ± 0.0051                 --
+    2019   140  +0.0011 ± 0.0023  +0.0010 ± 0.0023  +0.0013 ± 0.0028  +0.0121 ± 0.0128
+    2021   140  -0.0005 ± 0.0014  -0.0027 ± 0.0051  +0.0003 ± 0.0066  -0.0148 ± 0.0104
+    2022   141  -0.0003 ± 0.0017  -0.0057 ± 0.0079  -0.0053 ± 0.0079  -0.0018 ± 0.0156
+    2023   141  -0.0001 ± 0.0026  +0.0013 ± 0.0081  +0.0013 ± 0.0087  +0.0113 ± 0.0117
+    2024   141  -0.0005 ± 0.0018  +0.0000 ± 0.0084  -0.0016 ± 0.0082  +0.0061 ± 0.0096
+    2025   138  +0.0002 ± 0.0022  -0.0008 ± 0.0077  +0.0010 ± 0.0090  +0.0041 ± 0.0063
+    2026   138  -0.0007 ± 0.0027  +0.0010 ± 0.0095  +0.0023 ± 0.0093  +0.0051 ± 0.0043
+    2027   105  -0.0041 ± 0.0050  +0.0031 ± 0.0124  +0.0007 ± 0.0127  -0.0032 ± 0.0028
+
+== 2. Dispersion on games 1-9, folds 2019-2026 (actual margin = a + b·arm margin, ± 95%; b > 1 = arm compressed)
+  B   SD margin 5.32  slope 1.061 ± 0.156  intercept -0.20
+  E1  SD margin 5.41  slope 1.042 ± 0.153  intercept -0.16
+  E2  SD margin 5.31  slope 1.073 ± 0.156  intercept -0.25
+  E3  SD margin 5.30  slope 1.075 ± 0.156  intercept -0.28
+  K   SD margin 4.95  slope 1.138 ± 0.168  intercept +0.59
+
+== 3. Against the close, each basis x book x season x stage alone (hindsight; arm - close log loss, ± 95%; [arm - B])
+  rebuilt       dk      2027 games 1-9  n   91  B +0.0407 ± 0.0298
+      E1  +0.0364 ± 0.0319  [-0.0043, Brier -0.0018]
+      E2  +0.0446 ± 0.0357  [+0.0039, Brier +0.0019]
+      E3  +0.0418 ± 0.0364  [+0.0012, Brier +0.0005]
+      K   +0.0376 ± 0.0295  [-0.0031, Brier -0.0014]
+  reconstructed dk      2026 games 10+  n  964  B +0.0223 ± 0.0120
+      E1  +0.0220 ± 0.0120  [-0.0003, Brier -0.0001]
+      E2  +0.0223 ± 0.0119  [-0.0000, Brier -0.0000]
+      E3  +0.0225 ± 0.0119  [+0.0001, Brier +0.0000]
+      K   +0.0218 ± 0.0119  [-0.0005, Brier -0.0002]
+  reconstructed espnbet 2025 games 1-9  n  138  B -0.0187 ± 0.0263
+      E1  -0.0185 ± 0.0257  [+0.0002, Brier +0.0003]
+      E2  -0.0195 ± 0.0281  [-0.0008, Brier -0.0003]
+      E3  -0.0177 ± 0.0276  [+0.0010, Brier +0.0005]
+      K   -0.0146 ± 0.0278  [+0.0041, Brier +0.0013]
+  reconstructed espnbet 2025 games 10+  n 1071  B +0.0185 ± 0.0112
+      E1  +0.0184 ± 0.0112  [-0.0001, Brier -0.0000]
+      E2  +0.0184 ± 0.0111  [-0.0001, Brier -0.0000]
+      E3  +0.0183 ± 0.0111  [-0.0002, Brier -0.0001]
+      K   +0.0178 ± 0.0112  [-0.0006, Brier -0.0003]
+  reconstructed espnbet 2026 games 1-9  n  138  B +0.0053 ± 0.0286
+      E1  +0.0045 ± 0.0278  [-0.0007, Brier -0.0001]
+      E2  +0.0062 ± 0.0282  [+0.0010, Brier +0.0003]
+      E3  +0.0076 ± 0.0274  [+0.0023, Brier +0.0009]
+      K   +0.0104 ± 0.0289  [+0.0051, Brier +0.0019]
+  reconstructed espnbet 2026 games 10+  n  107  B -0.0033 ± 0.0309
+      E1  -0.0019 ± 0.0311  [+0.0015, Brier +0.0006]
+      E2  -0.0042 ± 0.0309  [-0.0008, Brier -0.0004]
+      E3  -0.0053 ± 0.0308  [-0.0020, Brier -0.0009]
+      K   -0.0056 ± 0.0304  [-0.0023, Brier -0.0009]
+
+== 4. Decision rule (set before the run), folds 2019-2026
+  (the rule's '6 of 8 folds' miscounted: 2019-2026 holds 7 folds; read 6 of 7)
+  E1  1 games 1-9 -0.0001 ± 0.0008, Brier -0.0000, 5/7 folds: fail; 2 games 10+ -0.0000: pass; 3 priced books: pass; 4 tripwire (best fold -0.0002): pass -> not a candidate
+  E2  1 games 1-9 -0.0009 ± 0.0028, Brier -0.0004, 3/7 folds: fail; 2 games 10+ -0.0000: pass; 3 priced books: pass; 4 tripwire (best fold -0.0007): pass -> not a candidate
+  E3  1 games 1-9 -0.0001 ± 0.0029, Brier -0.0000, 2/7 folds: fail; 2 games 10+ -0.0000: pass; 3 priced books: fail; 4 tripwire (best fold -0.0006): pass -> not a candidate
+  K   1 games 1-9 +0.0032 ± 0.0041, Brier +0.0012, 2/7 folds: fail; 2 games 10+ +0.0001: fail; 3 priced books: pass; 4 tripwire (best fold -0.0017): pass -> not a candidate
