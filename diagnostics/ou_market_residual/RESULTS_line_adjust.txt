@@ -1,0 +1,135 @@
+Adjusted closing totals: total' = close + a + b x matchup, 24 variants, walk-forward.
+Research only (G9 excludes the market residual as a production target). Grid and
+rule fixed before the run. Baseline: the closing total. Squared error vs close in pts^2
+(negative = better); ROI ± 95% at |adjustment| >= 0.5, closing prices.
+
+== espnbet 2024-25 (scored)  n 721  mean(total - close) +0.98
+  none-sum-hl5-cap10       vs close  +0.40 ±  1.64  |adj|>=0.5: n  308  won  51.0%  ROI   -2.6% ±  10.7  null -4.5%  overs  35%
+  none-sum-hl5-cap15       vs close  +0.52 ±  1.48  |adj|>=0.5: n  280  won  48.9%  ROI   -6.4% ±  11.2  null -4.5%  overs  34%
+  none-sum-hl25-cap10      vs close  +0.69 ±  0.79  |adj|>=0.5: n  105  won  49.5%  ROI   -5.3% ±  18.4  null -4.5%  overs  39%
+  none-sum-hl25-cap15      vs close  +0.65 ±  0.72  |adj|>=0.5: n   95  won  50.5%  ROI   -3.5% ±  19.3  null -4.5%  overs  41%
+  none-split-hl5-cap10     vs close  +1.78 ±  3.71  |adj|>=0.5: n  500  won  50.6%  ROI   -3.4% ±   8.4  null -4.5%  overs  45%
+  none-split-hl5-cap15     vs close  +1.86 ±  3.63  |adj|>=0.5: n  516  won  51.4%  ROI   -1.9% ±   8.2  null -4.5%  overs  44%
+  none-split-hl25-cap10    vs close  +1.00 ±  2.18  |adj|>=0.5: n  375  won  51.2%  ROI   -2.2% ±   9.7  null -4.5%  overs  46%
+  none-split-hl25-cap15    vs close  +0.88 ±  2.10  |adj|>=0.5: n  386  won  51.3%  ROI   -2.0% ±   9.5  null -4.5%  overs  46%
+  fit-sum-hl5-cap10        vs close  -0.42 ±  1.84  |adj|>=0.5: n  396  won  52.3%  ROI   -0.2% ±   9.4  null -4.5%  overs  80%
+  fit-sum-hl5-cap15        vs close  -0.28 ±  1.70  |adj|>=0.5: n  383  won  52.7%  ROI   +0.6% ±   9.6  null -4.5%  overs  82%
+  fit-sum-hl25-cap10       vs close  +0.11 ±  1.37  |adj|>=0.5: n  359  won  50.1%  ROI   -4.5% ±   9.9  null -4.5%  overs  95%
+  fit-sum-hl25-cap15       vs close  +0.09 ±  1.34  |adj|>=0.5: n  360  won  50.8%  ROI   -3.1% ±   9.9  null -4.5%  overs  95%
+  fit-split-hl5-cap10      vs close  +0.95 ±  3.78  |adj|>=0.5: n  517  won  53.6%  ROI   +2.2% ±   8.2  null -4.5%  overs  65%
+  fit-split-hl5-cap15      vs close  +1.04 ±  3.70  |adj|>=0.5: n  517  won  53.0%  ROI   +1.1% ±   8.2  null -4.5%  overs  64%
+  fit-split-hl25-cap10     vs close  +0.39 ±  2.45  |adj|>=0.5: n  475  won  54.3%  ROI   +3.6% ±   8.6  null -4.5%  overs  77%
+  fit-split-hl25-cap15     vs close  +0.28 ±  2.38  |adj|>=0.5: n  452  won  53.1%  ROI   +1.2% ±   8.8  null -4.5%  overs  78%
+  roll-sum-hl5-cap10       vs close  -0.21 ±  2.50  |adj|>=0.5: n  473  won  52.2%  ROI   -0.5% ±   8.6  null -4.5%  overs  83%
+  roll-sum-hl5-cap15       vs close  -0.09 ±  2.39  |adj|>=0.5: n  481  won  52.4%  ROI   -0.1% ±   8.5  null -4.5%  overs  86%
+  roll-sum-hl25-cap10      vs close  +0.41 ±  2.31  |adj|>=0.5: n  497  won  50.7%  ROI   -3.4% ±   8.4  null -4.5%  overs  92%
+  roll-sum-hl25-cap15      vs close  +0.37 ±  2.30  |adj|>=0.5: n  511  won  51.1%  ROI   -2.6% ±   8.3  null -4.5%  overs  92%
+  roll-split-hl5-cap10     vs close  +1.16 ±  4.11  |adj|>=0.5: n  547  won  52.1%  ROI   -0.6% ±   8.0  null -4.5%  overs  71%
+  roll-split-hl5-cap15     vs close  +1.25 ±  4.04  |adj|>=0.5: n  548  won  51.1%  ROI   -2.6% ±   8.0  null -4.5%  overs  70%
+  roll-split-hl25-cap10    vs close  +0.72 ±  3.05  |adj|>=0.5: n  540  won  52.2%  ROI   -0.5% ±   8.0  null -4.5%  overs  81%
+  roll-split-hl25-cap15    vs close  +0.59 ±  3.01  |adj|>=0.5: n  522  won  53.1%  ROI   +1.2% ±   8.2  null -4.5%  overs  81%
+
+== dk 2025-26 (scored)  n 964  mean(total - close) +0.21
+  none-sum-hl5-cap10       vs close  +0.63 ±  1.00  |adj|>=0.5: n  241  won  45.6%  ROI  -12.8% ±  12.0  null -4.5%  overs  57%
+  none-sum-hl5-cap15       vs close  +0.55 ±  0.90  |adj|>=0.5: n  192  won  44.3%  ROI  -15.5% ±  13.4  null -4.5%  overs  55%
+  none-sum-hl25-cap10      vs close  +0.27 ±  0.33  |adj|>=0.5: n    2  won   0.0%  ROI -100.0% ±   0.0  null -4.5%  overs 100%
+  none-sum-hl25-cap15      vs close  +0.25 ±  0.31  |adj|>=0.5: n    2  won   0.0%  ROI -100.0% ±   0.0  null -4.5%  overs 100%
+  none-split-hl5-cap10     vs close  +1.22 ±  1.48  |adj|>=0.5: n  413  won  49.4%  ROI   -5.6% ±   9.2  null -4.5%  overs  53%
+  none-split-hl5-cap15     vs close  +1.15 ±  1.46  |adj|>=0.5: n  409  won  49.4%  ROI   -5.7% ±   9.3  null -4.5%  overs  51%
+  none-split-hl25-cap10    vs close  +0.99 ±  1.12  |adj|>=0.5: n  220  won  46.8%  ROI  -10.6% ±  12.6  null -4.5%  overs  60%
+  none-split-hl25-cap15    vs close  +1.00 ±  1.12  |adj|>=0.5: n  226  won  46.5%  ROI  -11.2% ±  12.5  null -4.5%  overs  57%
+  fit-sum-hl5-cap10        vs close  +1.38 ±  1.89  |adj|>=0.5: n  537  won  46.9%  ROI  -10.4% ±   8.1  null -4.5%  overs  99%
+  fit-sum-hl5-cap15        vs close  +1.29 ±  1.86  |adj|>=0.5: n  529  won  46.7%  ROI  -10.8% ±   8.1  null -4.5%  overs  99%
+  fit-sum-hl25-cap10       vs close  +0.94 ±  1.54  |adj|>=0.5: n  561  won  45.3%  ROI  -13.5% ±   7.9  null -4.5%  overs 100%
+  fit-sum-hl25-cap15       vs close  +0.91 ±  1.54  |adj|>=0.5: n  561  won  45.1%  ROI  -13.8% ±   7.9  null -4.5%  overs 100%
+  fit-split-hl5-cap10      vs close  +1.98 ±  2.10  |adj|>=0.5: n  574  won  45.5%  ROI  -13.1% ±   7.8  null -4.5%  overs  93%
+  fit-split-hl5-cap15      vs close  +1.92 ±  2.12  |adj|>=0.5: n  561  won  46.5%  ROI  -11.1% ±   7.9  null -4.5%  overs  93%
+  fit-split-hl25-cap10     vs close  +1.71 ±  1.86  |adj|>=0.5: n  515  won  47.0%  ROI  -10.2% ±   8.3  null -4.5%  overs  98%
+  fit-split-hl25-cap15     vs close  +1.73 ±  1.89  |adj|>=0.5: n  509  won  47.7%  ROI   -8.8% ±   8.3  null -4.5%  overs  97%
+  roll-sum-hl5-cap10       vs close  +0.64 ±  2.88  |adj|>=0.5: n  706  won  51.3%  ROI   -2.2% ±   7.0  null -4.5%  overs  46%
+  roll-sum-hl5-cap15       vs close  +0.58 ±  2.87  |adj|>=0.5: n  682  won  51.5%  ROI   -1.8% ±   7.2  null -4.5%  overs  45%
+  roll-sum-hl25-cap10      vs close  +0.71 ±  2.98  |adj|>=0.5: n  674  won  50.9%  ROI   -2.9% ±   7.2  null -4.5%  overs  47%
+  roll-sum-hl25-cap15      vs close  +0.72 ±  2.99  |adj|>=0.5: n  669  won  50.5%  ROI   -3.6% ±   7.2  null -4.5%  overs  46%
+  roll-split-hl5-cap10     vs close  +1.22 ±  3.05  |adj|>=0.5: n  715  won  50.6%  ROI   -3.4% ±   7.0  null -4.5%  overs  45%
+  roll-split-hl5-cap15     vs close  +1.16 ±  3.03  |adj|>=0.5: n  722  won  50.8%  ROI   -3.0% ±   7.0  null -4.5%  overs  44%
+  roll-split-hl25-cap10    vs close  +1.39 ±  3.12  |adj|>=0.5: n  744  won  50.8%  ROI   -3.0% ±   6.9  null -4.5%  overs  47%
+  roll-split-hl25-cap15    vs close  +1.41 ±  3.10  |adj|>=0.5: n  743  won  50.3%  ROI   -3.9% ±   6.9  null -4.5%  overs  46%
+
+== espnbet 2025-26 (information only)  n 260  mean(total - close) +1.39
+  none-sum-hl5-cap10       vs close  -0.05 ±  2.74  |adj|>=0.5: n  112  won  54.5%  ROI   +4.0% ±  17.7  null -4.5%  overs  29%
+  none-sum-hl5-cap15       vs close  +0.05 ±  2.37  |adj|>=0.5: n   92  won  52.2%  ROI   -0.2% ±  19.6  null -4.5%  overs  23%
+  none-sum-hl25-cap10      vs close  +0.08 ±  0.58  |adj|>=0.5: n    1
+  none-sum-hl25-cap15      vs close  +0.23 ±  0.45  |adj|>=0.5: n    0
+  none-split-hl5-cap10     vs close  +1.05 ±  4.30  |adj|>=0.5: n  166  won  54.8%  ROI   +4.7% ±  14.5  null -4.5%  overs  39%
+  none-split-hl5-cap15     vs close  +1.16 ±  4.25  |adj|>=0.5: n  158  won  52.5%  ROI   +0.6% ±  15.0  null -4.5%  overs  36%
+  none-split-hl25-cap10    vs close  +0.66 ±  3.66  |adj|>=0.5: n  144  won  54.2%  ROI   +3.5% ±  15.6  null -4.5%  overs  44%
+  none-split-hl25-cap15    vs close  +0.88 ±  3.87  |adj|>=0.5: n  148  won  54.1%  ROI   +3.4% ±  15.4  null -4.5%  overs  45%
+  fit-sum-hl5-cap10        vs close  -1.99 ±  4.94  |adj|>=0.5: n  177  won  53.7%  ROI   +2.6% ±  14.1  null -4.5%  overs  95%
+  fit-sum-hl5-cap15        vs close  -1.98 ±  4.54  |adj|>=0.5: n  168  won  53.6%  ROI   +2.4% ±  14.5  null -4.5%  overs  96%
+  fit-sum-hl25-cap10       vs close  -2.02 ±  4.08  |adj|>=0.5: n  232  won  53.0%  ROI   +1.4% ±  12.3  null -4.5%  overs 100%
+  fit-sum-hl25-cap15       vs close  -1.89 ±  3.92  |adj|>=0.5: n  226  won  53.1%  ROI   +1.6% ±  12.5  null -4.5%  overs 100%
+  fit-split-hl5-cap10      vs close  -0.89 ±  5.71  |adj|>=0.5: n  189  won  58.7%  ROI  +12.4% ±  13.5  null -4.5%  overs  81%
+  fit-split-hl5-cap15      vs close  -0.90 ±  5.40  |adj|>=0.5: n  189  won  57.1%  ROI   +9.3% ±  13.5  null -4.5%  overs  83%
+  fit-split-hl25-cap10     vs close  -1.50 ±  5.22  |adj|>=0.5: n  188  won  56.9%  ROI   +8.9% ±  13.6  null -4.5%  overs  89%
+  fit-split-hl25-cap15     vs close  -1.35 ±  5.15  |adj|>=0.5: n  185  won  58.9%  ROI  +12.8% ±  13.6  null -4.5%  overs  89%
+  roll-sum-hl5-cap10       vs close  -1.82 ±  8.75  |adj|>=0.5: n  248  won  52.8%  ROI   +1.1% ±  11.9  null -4.5%  overs  99%
+  roll-sum-hl5-cap15       vs close  -1.98 ±  8.35  |adj|>=0.5: n  246  won  53.3%  ROI   +1.9% ±  12.0  null -4.5%  overs  99%
+  roll-sum-hl25-cap10      vs close  -2.36 ±  8.48  |adj|>=0.5: n  255  won  52.5%  ROI   +0.5% ±  11.8  null -4.5%  overs 100%
+  roll-sum-hl25-cap15      vs close  -2.37 ±  8.23  |adj|>=0.5: n  257  won  52.5%  ROI   +0.5% ±  11.7  null -4.5%  overs 100%
+  roll-split-hl5-cap10     vs close  -0.72 ±  9.02  |adj|>=0.5: n  220  won  54.1%  ROI   +3.6% ±  12.6  null -4.5%  overs  97%
+  roll-split-hl5-cap15     vs close  -0.93 ±  8.58  |adj|>=0.5: n  215  won  55.3%  ROI   +6.0% ±  12.8  null -4.5%  overs  97%
+  roll-split-hl25-cap10    vs close  -1.86 ±  8.84  |adj|>=0.5: n  230  won  53.9%  ROI   +3.2% ±  12.4  null -4.5%  overs  99%
+  roll-split-hl25-cap15    vs close  -1.89 ±  8.53  |adj|>=0.5: n  223  won  54.7%  ROI   +4.7% ±  12.5  null -4.5%  overs  98%
+
+== dk 2026-27 (information only)  n 121  mean(total - close) -3.04
+  none-sum-hl5-cap10       vs close  +0.69 ±  2.01  |adj|>=0.5: n   11  won  27.3%  ROI  -47.5% ±  53.1  null -4.6%  overs  82%
+  none-sum-hl5-cap15       vs close  +0.34 ±  1.62  |adj|>=0.5: n    6  won  50.0%  ROI   -3.8% ±  84.3  null -4.6%  overs 100%
+  none-sum-hl25-cap10      vs close  +0.09 ±  0.30  |adj|>=0.5: n    0
+  none-sum-hl25-cap15      vs close  +0.03 ±  0.16  |adj|>=0.5: n    0
+  none-split-hl5-cap10     vs close  +1.09 ±  2.13  |adj|>=0.5: n   15  won  40.0%  ROI  -23.7% ±  48.9  null -4.6%  overs  80%
+  none-split-hl5-cap15     vs close  +0.78 ±  2.00  |adj|>=0.5: n   14  won  64.3%  ROI  +22.4% ±  49.6  null -4.5%  overs  79%
+  none-split-hl25-cap10    vs close  +0.32 ±  0.59  |adj|>=0.5: n    0
+  none-split-hl25-cap15    vs close  +0.19 ±  0.50  |adj|>=0.5: n    0
+  fit-sum-hl5-cap10        vs close  +5.14 ±  5.07  |adj|>=0.5: n   92  won  45.7%  ROI  -12.9% ±  19.5  null -4.5%  overs 100%
+  fit-sum-hl5-cap15        vs close  +4.80 ±  4.98  |adj|>=0.5: n   97  won  45.4%  ROI  -13.5% ±  19.0  null -4.5%  overs 100%
+  fit-sum-hl25-cap10       vs close  +4.33 ±  4.16  |adj|>=0.5: n  112  won  43.8%  ROI  -16.5% ±  17.6  null -4.5%  overs 100%
+  fit-sum-hl25-cap15       vs close  +4.29 ±  4.23  |adj|>=0.5: n  111  won  44.1%  ROI  -15.8% ±  17.7  null -4.5%  overs 100%
+  fit-split-hl5-cap10      vs close  +5.54 ±  5.20  |adj|>=0.5: n   85  won  44.7%  ROI  -14.7% ±  20.3  null -4.5%  overs 100%
+  fit-split-hl5-cap15      vs close  +5.25 ±  5.17  |adj|>=0.5: n   88  won  43.2%  ROI  -17.7% ±  19.8  null -4.5%  overs 100%
+  fit-split-hl25-cap10     vs close  +4.58 ±  4.25  |adj|>=0.5: n  103  won  43.7%  ROI  -16.6% ±  18.4  null -4.5%  overs 100%
+  fit-split-hl25-cap15     vs close  +4.46 ±  4.29  |adj|>=0.5: n  110  won  45.5%  ROI  -13.3% ±  17.8  null -4.5%  overs 100%
+  roll-sum-hl5-cap10       vs close +17.30 ± 13.70  |adj|>=0.5: n  116  won  44.0%  ROI  -16.1% ±  17.3  null -4.5%  overs 100%
+  roll-sum-hl5-cap15       vs close +16.97 ± 13.74  |adj|>=0.5: n  117  won  44.4%  ROI  -15.2% ±  17.3  null -4.5%  overs 100%
+  roll-sum-hl25-cap10      vs close +16.55 ± 13.22  |adj|>=0.5: n  119  won  44.5%  ROI  -15.0% ±  17.1  null -4.5%  overs 100%
+  roll-sum-hl25-cap15      vs close +16.51 ± 13.38  |adj|>=0.5: n  119  won  44.5%  ROI  -15.0% ±  17.1  null -4.5%  overs 100%
+  roll-split-hl5-cap10     vs close +17.70 ± 13.82  |adj|>=0.5: n  116  won  44.0%  ROI  -16.1% ±  17.3  null -4.5%  overs 100%
+  roll-split-hl5-cap15     vs close +17.42 ± 13.89  |adj|>=0.5: n  117  won  44.4%  ROI  -15.2% ±  17.3  null -4.5%  overs 100%
+  roll-split-hl25-cap10    vs close +16.81 ± 13.29  |adj|>=0.5: n  118  won  44.9%  ROI  -14.3% ±  17.2  null -4.5%  overs 100%
+  roll-split-hl25-cap15    vs close +16.71 ± 13.43  |adj|>=0.5: n  118  won  44.9%  ROI  -14.3% ±  17.2  null -4.5%  overs 100%
+
+== Decision rule (set before the run; z = 3.08 for 24 variants)
+  none-sum-hl5-cap10       squared error  +0.40 /  +0.63, combined +0.57 ± 1.34: fail; ROI vs null fail -> not a candidate
+  none-sum-hl5-cap15       squared error  +0.52 /  +0.55, combined +0.54 ± 1.21: fail; ROI vs null fail -> not a candidate
+  none-sum-hl25-cap10      squared error  +0.69 /  +0.27, combined +0.33 ± 0.48: fail; ROI vs null fail -> not a candidate
+  none-sum-hl25-cap15      squared error  +0.65 /  +0.25, combined +0.32 ± 0.45: fail; ROI vs null fail -> not a candidate
+  none-split-hl5-cap10     squared error  +1.78 /  +1.22, combined +1.30 ± 2.16: fail; ROI vs null fail -> not a candidate
+  none-split-hl5-cap15     squared error  +1.86 /  +1.15, combined +1.25 ± 2.13: fail; ROI vs null fail -> not a candidate
+  none-split-hl25-cap10    squared error  +1.00 /  +0.99, combined +0.99 ± 1.56: fail; ROI vs null fail -> not a candidate
+  none-split-hl25-cap15    squared error  +0.88 /  +1.00, combined +0.97 ± 1.56: fail; ROI vs null fail -> not a candidate
+  fit-sum-hl5-cap10        squared error  -0.42 /  +1.38, combined +0.46 ± 2.07: fail; ROI vs null fail -> not a candidate
+  fit-sum-hl5-cap15        squared error  -0.28 /  +1.29, combined +0.44 ± 1.97: fail; ROI vs null fail -> not a candidate
+  fit-sum-hl25-cap10       squared error  +0.11 /  +0.94, combined +0.48 ± 1.61: fail; ROI vs null fail -> not a candidate
+  fit-sum-hl25-cap15       squared error  +0.09 /  +0.91, combined +0.44 ± 1.59: fail; ROI vs null fail -> not a candidate
+  fit-split-hl5-cap10      squared error  +0.95 /  +1.98, combined +1.74 ± 2.89: fail; ROI vs null fail -> not a candidate
+  fit-split-hl5-cap15      squared error  +1.04 /  +1.92, combined +1.70 ± 2.89: fail; ROI vs null fail -> not a candidate
+  fit-split-hl25-cap10     squared error  +0.39 /  +1.71, combined +1.23 ± 2.32: fail; ROI vs null fail -> not a candidate
+  fit-split-hl25-cap15     squared error  +0.28 /  +1.73, combined +1.17 ± 2.33: fail; ROI vs null fail -> not a candidate
+  roll-sum-hl5-cap10       squared error  -0.21 /  +0.64, combined +0.16 ± 2.97: fail; ROI vs null pass -> not a candidate
+  roll-sum-hl5-cap15       squared error  -0.09 /  +0.58, combined +0.19 ± 2.89: fail; ROI vs null pass -> not a candidate
+  roll-sum-hl25-cap10      squared error  +0.41 /  +0.71, combined +0.52 ± 2.87: fail; ROI vs null pass -> not a candidate
+  roll-sum-hl25-cap15      squared error  +0.37 /  +0.72, combined +0.50 ± 2.86: fail; ROI vs null pass -> not a candidate
+  roll-split-hl5-cap10     squared error  +1.16 /  +1.22, combined +1.20 ± 3.85: fail; ROI vs null pass -> not a candidate
+  roll-split-hl5-cap15     squared error  +1.25 /  +1.16, combined +1.19 ± 3.81: fail; ROI vs null pass -> not a candidate
+  roll-split-hl25-cap10    squared error  +0.72 /  +1.39, combined +1.05 ± 3.43: fail; ROI vs null pass -> not a candidate
+  roll-split-hl25-cap15    squared error  +0.59 /  +1.41, combined +0.99 ± 3.39: fail; ROI vs null pass -> not a candidate
+  variants beating the close on squared error in both scored seasons: 0 of 24 (about 6 expected by chance)
