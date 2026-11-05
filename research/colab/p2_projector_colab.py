@@ -7,10 +7,16 @@
 #
 # * **Data:** Basketball-Reference team game logs (the `nba_api` / stats.nba.com
 #   pipeline is unreliable from cloud machines). Each page is fetched once,
-#   politely (one request every 3.5 s; the site allows about 20 a minute), and
+#   politely (one request every 4 s; the site allows about 20 a minute), and
 #   cached on Google Drive with the parsed CSV. Completed seasons are never
 #   fetched again; the current season is refreshed when its cache is older than
 #   `REFRESH_HOURS`.
+# * **If the site answers 403 / 429** (Sports Reference temporarily blocks
+#   addresses that send many automated requests; Colab's shared addresses are
+#   often already flagged): wait about an hour and rerun; every page already on
+#   Drive is kept. Or upload `p2_logs_seed.zip` (parsed logs, from the
+#   repository's PR #147) to `SEED_ZIP`: the notebook then loads the seasons
+#   from it and only fetches the slate's schedule page.
 # * **Model (P2):** per team, offensive rating, defensive rating and pace as a
 #   blend of season-to-date, home/away split and last-10 means over games
 #   strictly before the game, shrunk toward last season (regressed 40% to the
@@ -34,8 +40,12 @@ FIRST_SEASON = 2016          # season end year; the first one only supplies the 
 SKIP_SEASONS = {2020}        # bubble season, left out as in the repository backtest
 BACKTEST_SEASON = 2026       # 2025-26; set None to skip the backtest
 PREDICT_DATE = None          # "YYYY-MM-DD" (ET slate date); None = today
+SLATE_GAMES = None           # optional [("HOME", "AWAY"), ...] in BBR codes, e.g.
+                             # [("PHO", "ORL"), ("GSW", "MIA")]; skips the schedule page
 REFRESH_HOURS = 6            # refresh the current season's pages after this many hours
-REQUEST_DELAY = 3.5          # seconds between Basketball-Reference requests
+REQUEST_DELAY = 4.0          # seconds between Basketball-Reference requests (15 a minute)
+SEED_ZIP = "/content/drive/MyDrive/nba_p2/p2_logs_seed.zip"  # optional: parsed logs to
+                             # load instead of fetching (see the repository's PR #147)
 ODDS_CSV = None              # optional Drive path: game_date, home, away, close_spread,
                              # close_total [, home_spread_odds, away_spread_odds,
                              #   over_odds, under_odds] (BBR codes, home spread sign:
@@ -44,6 +54,7 @@ ODDS_CSV = None              # optional Drive path: game_date, home, away, close
 # %% Imports and Drive
 import io
 import itertools
+import zipfile
 import json
 import os
 import re
@@ -68,7 +79,27 @@ OUT.mkdir(parents=True, exist_ok=True)
 print("cache:", CACHE.resolve(), "| outputs:", OUT.resolve())
 
 BBR = "https://www.basketball-reference.com"
-HEADERS = {"User-Agent": "Mozilla/5.0 (research backtest; cached, rate-limited)"}
+HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/124.0 Safari/537.36",
+           "Accept": "text/html,application/xhtml+xml", "Accept-Language": "en-US,en;q=0.9"}
+# Basketball-Reference codes and names since 2015-16 (no relocations since).
+TEAMS = {
+    "ATL": "Atlanta Hawks", "BOS": "Boston Celtics", "BRK": "Brooklyn Nets",
+    "CHI": "Chicago Bulls", "CHO": "Charlotte Hornets", "CLE": "Cleveland Cavaliers",
+    "DAL": "Dallas Mavericks", "DEN": "Denver Nuggets", "DET": "Detroit Pistons",
+    "GSW": "Golden State Warriors", "HOU": "Houston Rockets", "IND": "Indiana Pacers",
+    "LAC": "Los Angeles Clippers", "LAL": "Los Angeles Lakers", "MEM": "Memphis Grizzlies",
+    "MIA": "Miami Heat", "MIL": "Milwaukee Bucks", "MIN": "Minnesota Timberwolves",
+    "NOP": "New Orleans Pelicans", "NYK": "New York Knicks", "OKC": "Oklahoma City Thunder",
+    "ORL": "Orlando Magic", "PHI": "Philadelphia 76ers", "PHO": "Phoenix Suns",
+    "POR": "Portland Trail Blazers", "SAC": "Sacramento Kings", "SAS": "San Antonio Spurs",
+    "TOR": "Toronto Raptors", "UTA": "Utah Jazz", "WAS": "Washington Wizards",
+}
+NAME_TO_CODE = {v: k for k, v in TEAMS.items()} | {"LA Clippers": "LAC"}
+
+
+class SiteBlocked(RuntimeError):
+    pass
 STATS = ["FG", "FGA", "3P", "FT", "FTA", "ORB", "DRB", "TOV"]
 _last_request = [0.0]
 
@@ -89,26 +120,28 @@ def fetch(url, path, max_age_hours=None):
     wait = REQUEST_DELAY - (time.time() - _last_request[0])
     if wait > 0:
         time.sleep(wait)
-    for attempt in range(4):
+    for attempt in range(2):
         r = requests.get(url, headers=HEADERS, timeout=60)
         _last_request[0] = time.time()
-        if r.status_code == 429:                       # rate limited: back off
-            time.sleep(60 * (attempt + 1))
-            continue
+        if r.status_code in (403, 429):                # blocked / rate limited
+            if attempt == 0:
+                print(f"\n  {r.status_code} from Basketball-Reference; waiting 90 s and retrying once")
+                time.sleep(90)
+                continue
+            raise SiteBlocked(
+                f"Basketball-Reference answered {r.status_code} for {url}. The site temporarily "
+                "blocks addresses that send many automated requests (Colab's shared addresses "
+                "often are). Wait about an hour and rerun this cell: every page already cached on "
+                "Drive is kept. Or upload p2_logs_seed.zip to SEED_ZIP to skip fetching.")
         r.raise_for_status()
         path.write_text(r.text, encoding="utf-8")
         return r.text
-    raise RuntimeError(f"rate limited fetching {url}")
 
 
 def uncomment(html):
     return re.sub(r"<!--|-->", "", html)
 
 
-def team_codes(y, max_age):
-    html = fetch(f"{BBR}/leagues/NBA_{y}.html", CACHE / f"season_{y}.html", max_age)
-    pairs = re.findall(r'href="/teams/([A-Z]{3})/%d\.html">([^<]+)<' % y, html)
-    return {name.strip(): code for code, name in pairs}
 
 
 def parse_gamelog(html):
@@ -142,10 +175,11 @@ def season_logs(y):
     current = y >= current_season_end_year()
     max_age = REFRESH_HOURS if current else None
     parsed = CACHE / f"logs_{y}.csv"
-    if parsed.exists() and not current:
+    fresh = parsed.exists() and (time.time() - parsed.stat().st_mtime) / 3600 < REFRESH_HOURS
+    if parsed.exists() and (not current or fresh):
         df = pd.read_csv(parsed, parse_dates=["date"])
         return {t: g.drop(columns="team").reset_index(drop=True) for t, g in df.groupby("team")}
-    codes = sorted(set(team_codes(y, max_age).values()))
+    codes = sorted(TEAMS)
     logs = {}
     for i, tm in enumerate(codes):
         html = fetch(f"{BBR}/teams/{tm}/{y}/gamelog/", CACHE / f"gl_{tm}_{y}.html", max_age)
@@ -160,7 +194,7 @@ def season_logs(y):
 
 def schedule(y, date):
     """[(home, away)] on date from the month's schedule page (refreshed)."""
-    names = team_codes(y, REFRESH_HOURS)
+    names = NAME_TO_CODE
     month = pd.Timestamp(date).strftime("%B").lower()
     html = fetch(f"{BBR}/leagues/NBA_{y}_games-{month}.html", CACHE / f"sched_{y}_{month}.html",
                  max_age_hours=1)
@@ -311,6 +345,13 @@ def predict(D, p):
 
 
 # %% Load every season (cached after the first run)
+if SEED_ZIP and Path(SEED_ZIP).exists():
+    with zipfile.ZipFile(SEED_ZIP) as z:
+        for n in z.namelist():
+            if re.fullmatch(r"logs_\d{4}\.csv", n) and not (CACHE / n).exists():
+                z.extract(n, CACHE)
+                os.utime(CACHE / n)                     # extracted now: counts as fresh
+    print("seeded parsed logs from", SEED_ZIP)
 SEASONS = [y for y in range(FIRST_SEASON, current_season_end_year() + 1) if y not in SKIP_SEASONS]
 TG, DATA = {}, {}
 for y in SEASONS:
@@ -370,9 +411,19 @@ if BACKTEST_SEASON:
 # %% Projections for a slate
 y_now = current_season_end_year()
 date = pd.Timestamp(PREDICT_DATE or datetime.now(timezone.utc).astimezone().date())
-games = schedule(y_now, date)
-if not games:
+if SLATE_GAMES:
+    games = [(h.upper(), a.upper()) for h, a in SLATE_GAMES]
+else:
+    try:
+        games = schedule(y_now, date)
+    except SiteBlocked as e:
+        print(e)
+        print("Slate skipped: set SLATE_GAMES to project it without the schedule page.")
+        games = None
+if games == []:
     print(f"no games on {date.date()}")
+if not games:
+    pass
 else:
     params_now = fit(training(y_now))
     D = add_prior(windows(TG[y_now], extra_games=[(date, h, a) for h, a in games]),
@@ -380,7 +431,7 @@ else:
     D = predict(D, params_now)
     slate = D[D["date"] == date][["date", "away", "home", "n_a", "n_h", "pred_away_score",
                                   "pred_home_score", "pred_margin_home", "pred_total"]]
-    print(slate.round(1).to_string(index=False))
+    print(slate.to_string(index=False, float_format=lambda x: f"{x:.1f}"))
     slate.to_csv(OUT / f"p2_slate_{date.date()}.csv", index=False, float_format="%.2f")
     (OUT / f"p2_params_{y_now}.json").write_text(json.dumps(params_now, indent=2))
     print("saved to", OUT)
