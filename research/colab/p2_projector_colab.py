@@ -45,6 +45,7 @@ SLATE_GAMES = None           # optional [("HOME", "AWAY"), ...] in BBR codes, e.
 HOME_COURT = False           # False: no added home-court constant (margin calibrated
                              # through the origin; the home/away split carries home
                              # advantage). True: the fitted constant (about +1.9 pts).
+                             # A number (e.g. 1.0): that many points, fixed.
 REFRESH_HOURS = 6            # refresh the current season's pages after this many hours
 REQUEST_DELAY = 4.0          # seconds between Basketball-Reference requests (15 a minute)
 SEED_ZIP = "/content/drive/MyDrive/nba_p2/p2_logs_seed.zip"  # optional: parsed logs to
@@ -329,7 +330,11 @@ def fit(train):
             mg_.append(mg[ok]); tt_.append(tt[ok])
             am_.append(D["actual_margin"].to_numpy()[ok]); at_.append(D["actual_total"].to_numpy()[ok])
         mg, tt, am, at = map(np.concatenate, (mg_, tt_, am_, at_))
-        bm = np.polyfit(mg, am, 1) if HOME_COURT else np.array([float(mg @ am / (mg @ mg)), 0.0])
+        if HOME_COURT is True:
+            bm = np.polyfit(mg, am, 1)
+        else:
+            h = 0.0 if HOME_COURT is False else float(HOME_COURT)
+            bm = np.array([float(mg @ (am - h) / (mg @ mg)), h])
         bt = np.polyfit(tt, at, 1)
         loss = np.mean((am - np.polyval(bm, mg)) ** 2) + np.mean((at - np.polyval(bt, tt)) ** 2)
         if best is None or loss < best["loss"]:

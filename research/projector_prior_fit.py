@@ -157,7 +157,7 @@ def load_all():
     return data
 
 
-def fit(train, margin_intercept=True):
+def fit(train, margin_intercept=True, fixed_hca=None):
     """Grid over blend, offence share and K; then the linear calibration
     (through the origin for the margin when margin_intercept is False: no
     added home-court constant)."""
@@ -170,8 +170,12 @@ def fit(train, margin_intercept=True):
             ms.append(mg[ok]); ts.append(tt[ok])
             am.append(D["actual_margin"].to_numpy()[ok]); at.append(D["actual_total"].to_numpy()[ok])
         mg, tt, am, at = map(np.concatenate, (ms, ts, am, at))
-        bm = np.polyfit(mg, am, 1) if margin_intercept else \
-            np.array([float(mg @ am / (mg @ mg)), 0.0])
+        if fixed_hca is not None:              # a fixed home-court constant
+            bm = np.array([float(mg @ (am - fixed_hca) / (mg @ mg)), float(fixed_hca)])
+        elif margin_intercept:
+            bm = np.polyfit(mg, am, 1)
+        else:
+            bm = np.array([float(mg @ am / (mg @ mg)), 0.0])
         bt = np.polyfit(tt, at, 1)
         loss = np.mean((am - np.polyval(bm, mg)) ** 2) + np.mean((at - np.polyval(bt, tt)) ** 2)
         if best is None or loss < best[0]:
@@ -244,13 +248,14 @@ def posthoc_no_hca():
     walk-forward on the same games. Post-hoc; descriptive."""
     data = load_all()
     L = ["POST-HOC (requested after the run): P2 without the added home-court constant (P2b:",
-         "margin' = b x margin, refitted through the origin with its own grid choice), beside P2.",
+         "margin' = b x margin, refitted through the origin with its own grid choice) and with a",
+         "fixed +1 point (P2c: margin' = 1 + b x margin), beside P2.",
          "Same games: both teams with >= 1 prior game; walk-forward; ROI ± 95%.", ""]
     for y in SCORED:
         D = data[y].copy()
         out = {}
-        for nm, icpt in (("P2", True), ("P2b", False)):
-            loss, wts, w, K, bm, bt = fit([data[t] for t in SEASONS if 2017 <= t < y], icpt)
+        for nm, icpt, hca in (("P2", True, None), ("P2b", False, None), ("P2c", True, 1.0)):
+            loss, wts, w, K, bm, bt = fit([data[t] for t in SEASONS if 2017 <= t < y], icpt, hca)
             mg, tt = project(D, wts, w, K)
             D[f"m_{nm}"], D[f"t_{nm}"] = np.polyval(bm, mg), np.polyval(bt, tt)
             out[nm] = f"blend {wts}, offence {w}, K {K}, margin' = {bm[1]:+.2f} + {bm[0]:.3f} x margin"
@@ -259,10 +264,11 @@ def posthoc_no_hca():
         D = D.drop_duplicates(["game_date", "home_abbr", "away_abbr"])
         L.append(f"== {y - 1}-{str(y)[2:]}" + (" (information only)" if y == 2027 else "") +
                  f"  games {len(D)}")
-        for nm in ("P2", "P2b"):
+        for nm in ("P2", "P2b", "P2c"):
             L.append(f"  {nm:4s} fitted: {out[nm]}")
         am = D["actual_margin"]
-        for nm, mg in (("P2", D["m_P2"]), ("P2b", D["m_P2b"]), ("production v11", D["prod_margin"]),
+        for nm, mg in (("P2", D["m_P2"]), ("P2b", D["m_P2b"]), ("P2c", D["m_P2c"]),
+                       ("production v11", D["prod_margin"]),
                        ("closing spread", -D["close_spread"])):
             ok = mg.notna() & am.notna()
             L.append(f"  {nm:15s} n {ok.sum():4d} margin RMSE {rmse((mg - am)[ok]):6.2f} winner "
@@ -270,7 +276,7 @@ def posthoc_no_hca():
                      f"home share of projected wins {(mg[ok] > 0).mean():.3f} (actual {(am[ok] > 0).mean():.3f})")
         for lo, hi in ((-99, -3), (-3, 0), (0, 3), (3, 99)):
             row = []
-            for nm in ("P2", "P2b"):
+            for nm in ("P2", "P2b", "P2c"):
                 sel = (D[f"m_{nm}"] > lo) & (D[f"m_{nm}"] <= hi)
                 row.append(f"{nm} n {sel.sum():4d} proj {D.loc[sel, f'm_{nm}'].mean():+6.2f} actual "
                            f"{am[sel].mean():+6.2f} home win {(am[sel] > 0).mean():.3f}")
@@ -278,7 +284,7 @@ def posthoc_no_hca():
         for book in [b for b in D["close_book"].dropna().unique()]:
             B = D[D["close_book"] == book].dropna(subset=["close_spread"])
             r = (B["actual_margin"] + B["close_spread"]).to_numpy()
-            for nm in ("P2", "P2b"):
+            for nm in ("P2", "P2b", "P2c"):
                 e = (B[f"m_{nm}"] + B["close_spread"]).to_numpy()
                 L.append(f"  {book} {nm:4s} ATS  " + "  ".join(bets(
                     e, r, B["close_home_spread_odds"].to_numpy(float),

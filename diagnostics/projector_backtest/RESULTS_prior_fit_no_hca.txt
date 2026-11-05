@@ -1,48 +1,59 @@
 POST-HOC (requested after the run): P2 without the added home-court constant (P2b:
-margin' = b x margin, refitted through the origin with its own grid choice), beside P2.
+margin' = b x margin, refitted through the origin with its own grid choice) and with a
+fixed +1 point (P2c: margin' = 1 + b x margin), beside P2.
 Same games: both teams with >= 1 prior game; walk-forward; ROI ± 95%.
 
 == 2024-25  games 1209
   P2   fitted: blend (0.4, 0.1, 0.5), offence 0.55, K 5.0, margin' = +2.00 + 1.477 x margin
   P2b  fitted: blend (0.1, 0.4, 0.5), offence 0.55, K 5.0, margin' = +0.00 + 1.498 x margin
+  P2c  fitted: blend (0.3, 0.2, 0.5), offence 0.55, K 5.0, margin' = +1.00 + 1.489 x margin
   P2              n 1209 margin RMSE  14.09 winner 0.655 bias +0.46 home share of projected wins 0.636 (actual 0.548)
   P2b             n 1209 margin RMSE  14.13 winner 0.653 bias -0.86 home share of projected wins 0.570 (actual 0.548)
+  P2c             n 1209 margin RMSE  14.09 winner 0.655 bias -0.31 home share of projected wins 0.598 (actual 0.548)
   production v11  n 1209 margin RMSE  13.81 winner 0.682 bias +0.35 home share of projected wins 0.612 (actual 0.548)
   closing spread  n 1208 margin RMSE  13.51 winner 0.695 bias +0.12 home share of projected wins 0.600 (actual 0.548)
-    projected (-99, -3]: P2 n  242 proj  -6.47 actual  -8.75 home win 0.256 | P2b n  342 proj  -6.78 actual  -7.04 home win 0.310
-    projected (-3, +0]: P2 n  198 proj  -1.55 actual  -1.17 home win 0.470 | P2b n  178 proj  -1.50 actual  +0.07 home win 0.506
-    projected (+0, +3]: P2 n  215 proj  +1.52 actual  -0.73 home win 0.488 | P2b n  221 proj  +1.42 actual  +0.37 home win 0.529
-    projected (+3, +99]: P2 n  554 proj  +7.71 actual  +8.44 home win 0.726 | P2b n  468 proj  +7.27 actual  +9.57 home win 0.746
+    projected (-99, -3]: P2 n  242 proj  -6.47 actual  -8.75 home win 0.256 | P2b n  342 proj  -6.78 actual  -7.04 home win 0.310 | P2c n  290 proj  -6.72 actual  -7.90 home win 0.272
+    projected (-3, +0]: P2 n  198 proj  -1.55 actual  -1.17 home win 0.470 | P2b n  178 proj  -1.50 actual  +0.07 home win 0.506 | P2c n  196 proj  -1.63 actual  -0.18 home win 0.505
+    projected (+0, +3]: P2 n  215 proj  +1.52 actual  -0.73 home win 0.488 | P2b n  221 proj  +1.42 actual  +0.37 home win 0.529 | P2c n  221 proj  +1.47 actual  -0.52 home win 0.507
+    projected (+3, +99]: P2 n  554 proj  +7.71 actual  +8.44 home win 0.726 | P2b n  468 proj  +7.27 actual  +9.57 home win 0.746 | P2c n  502 proj  +7.43 actual  +9.19 home win 0.741
   espnbet P2   ATS  |edge|>=0: n 1208 won  51.2% ROI   -2.3% ±  5.4 null -4.5%  |edge|>=3: n  548 won  49.3% ROI   -5.9% ±  8.0 null -4.5%  |edge|>=6: n  172 won  50.0% ROI   -4.5% ± 14.3 null -4.5%
   espnbet P2b  ATS  |edge|>=0: n 1208 won  50.5% ROI   -3.6% ±  5.4 null -4.5%  |edge|>=3: n  570 won  50.4% ROI   -3.9% ±  7.8 null -4.5%  |edge|>=6: n  195 won  47.7% ROI   -9.1% ± 13.4 null -4.5%
+  espnbet P2c  ATS  |edge|>=0: n 1208 won  51.0% ROI   -2.7% ±  5.4 null -4.5%  |edge|>=3: n  547 won  50.5% ROI   -3.7% ±  8.0 null -4.5%  |edge|>=6: n  179 won  48.6% ROI   -7.3% ± 14.0 null -4.5%
 
 == 2025-26  games 1209
   P2   fitted: blend (0.4, 0.1, 0.5), offence 0.55, K 5.0, margin' = +1.93 + 1.518 x margin
   P2b  fitted: blend (0.2, 0.3, 0.5), offence 0.55, K 5.0, margin' = +0.00 + 1.549 x margin
+  P2c  fitted: blend (0.3, 0.2, 0.5), offence 0.55, K 5.0, margin' = +1.00 + 1.528 x margin
   P2              n 1209 margin RMSE  14.64 winner 0.677 bias +0.41 home share of projected wins 0.638 (actual 0.553)
   P2b             n 1209 margin RMSE  14.68 winner 0.677 bias -1.06 home share of projected wins 0.536 (actual 0.553)
+  P2c             n 1209 margin RMSE  14.64 winner 0.683 bias -0.30 home share of projected wins 0.584 (actual 0.553)
   production v11  n 1209 margin RMSE  14.19 winner 0.701 bias +0.38 home share of projected wins 0.610 (actual 0.553)
   closing spread  n 1209 margin RMSE  13.92 winner 0.692 bias +0.16 home share of projected wins 0.583 (actual 0.553)
-    projected (-99, -3]: P2 n  259 proj  -6.63 actual  -8.94 home win 0.255 | P2b n  349 proj  -7.14 actual  -7.50 home win 0.301
-    projected (-3, +0]: P2 n  179 proj  -1.46 actual  -2.84 home win 0.436 | P2b n  212 proj  -1.40 actual  -0.76 home win 0.476
-    projected (+0, +3]: P2 n  238 proj  +1.46 actual  +1.00 home win 0.538 | P2b n  224 proj  +1.49 actual  +3.76 home win 0.629
-    projected (+3, +99]: P2 n  533 proj  +7.93 actual  +8.80 home win 0.745 | P2b n  424 proj  +7.73 actual  +9.53 home win 0.759
+    projected (-99, -3]: P2 n  259 proj  -6.63 actual  -8.94 home win 0.255 | P2b n  349 proj  -7.14 actual  -7.50 home win 0.301 | P2c n  305 proj  -6.78 actual  -7.89 home win 0.285
+    projected (-3, +0]: P2 n  179 proj  -1.46 actual  -2.84 home win 0.436 | P2b n  212 proj  -1.40 actual  -0.76 home win 0.476 | P2c n  198 proj  -1.32 actual  -2.82 home win 0.434
+    projected (+0, +3]: P2 n  238 proj  +1.46 actual  +1.00 home win 0.538 | P2b n  224 proj  +1.49 actual  +3.76 home win 0.629 | P2c n  234 proj  +1.55 actual  +3.18 home win 0.603
+    projected (+3, +99]: P2 n  533 proj  +7.93 actual  +8.80 home win 0.745 | P2b n  424 proj  +7.73 actual  +9.53 home win 0.759 | P2c n  472 proj  +7.87 actual  +9.16 home win 0.752
   espnbet P2   ATS  |edge|>=0: n  245 won  49.0% ROI   -6.6% ± 12.0 null -4.5%  |edge|>=3: n  108 won  55.6% ROI   +5.7% ± 17.9 null -4.5%  |edge|>=6: n   33 won  51.5% ROI   -1.7% ± 33.0 null -4.6%
   espnbet P2b  ATS  |edge|>=0: n  245 won  50.2% ROI   -4.4% ± 11.9 null -4.5%  |edge|>=3: n  113 won  54.0% ROI   +2.7% ± 17.6 null -4.5%  |edge|>=6: n   38 won  50.0% ROI   -5.1% ± 30.6 null -4.5%
+  espnbet P2c  ATS  |edge|>=0: n  245 won  49.4% ROI   -5.9% ± 12.0 null -4.5%  |edge|>=3: n  109 won  54.1% ROI   +2.9% ± 17.9 null -4.5%  |edge|>=6: n   34 won  47.1% ROI  -10.1% ± 32.5 null -4.6%
   dk P2   ATS  |edge|>=0: n  964 won  50.7% ROI   -3.3% ±  6.0 null -4.5%  |edge|>=3: n  469 won  48.2% ROI   -8.0% ±  8.6 null -4.5%  |edge|>=6: n  157 won  50.3% ROI   -3.9% ± 15.0 null -4.5%
   dk P2b  ATS  |edge|>=0: n  964 won  49.2% ROI   -6.2% ±  6.0 null -4.5%  |edge|>=3: n  506 won  46.8% ROI  -10.6% ±  8.3 null -4.5%  |edge|>=6: n  172 won  50.6% ROI   -3.5% ± 14.3 null -4.5%
+  dk P2c  ATS  |edge|>=0: n  964 won  49.7% ROI   -5.3% ±  6.0 null -4.5%  |edge|>=3: n  484 won  49.4% ROI   -5.8% ±  8.5 null -4.5%  |edge|>=6: n  165 won  49.1% ROI   -6.5% ± 14.6 null -4.5%
 
 == 2026-27 (information only)  games 105
   P2   fitted: blend (0.4, 0.1, 0.5), offence 0.55, K 5.0, margin' = +1.88 + 1.560 x margin
   P2b  fitted: blend (0.2, 0.3, 0.5), offence 0.55, K 5.0, margin' = +0.00 + 1.587 x margin
+  P2c  fitted: blend (0.3, 0.2, 0.5), offence 0.55, K 5.0, margin' = +1.00 + 1.568 x margin
   P2              n  105 margin RMSE  13.97 winner 0.667 bias +1.75 home share of projected wins 0.600 (actual 0.495)
   P2b             n  105 margin RMSE  13.95 winner 0.657 bias +0.08 home share of projected wins 0.514 (actual 0.495)
+  P2c             n  105 margin RMSE  13.94 winner 0.667 bias +0.97 home share of projected wins 0.543 (actual 0.495)
   production v11  n   91 margin RMSE  14.30 winner 0.670 bias +2.29 home share of projected wins 0.670 (actual 0.495)
   closing spread  n   91 margin RMSE  13.62 winner 0.681 bias +1.91 home share of projected wins 0.637 (actual 0.495)
-    projected (-99, -3]: P2 n   23 proj  -6.01 actual  -7.87 home win 0.217 | P2b n   33 proj  -6.75 actual  -6.18 home win 0.273
-    projected (-3, +0]: P2 n   19 proj  -1.43 actual  -1.63 home win 0.368 | P2b n   18 proj  -1.96 actual  -0.33 home win 0.444
-    projected (+0, +3]: P2 n   18 proj  +1.55 actual  +0.11 home win 0.611 | P2b n   15 proj  +1.23 actual  -2.53 home win 0.533
-    projected (+3, +99]: P2 n   45 proj  +8.17 actual  +5.69 home win 0.644 | P2b n   39 proj  +7.54 actual  +7.54 home win 0.692
+    projected (-99, -3]: P2 n   23 proj  -6.01 actual  -7.87 home win 0.217 | P2b n   33 proj  -6.75 actual  -6.18 home win 0.273 | P2c n   30 proj  -6.02 actual  -6.50 home win 0.267
+    projected (-3, +0]: P2 n   19 proj  -1.43 actual  -1.63 home win 0.368 | P2b n   18 proj  -1.96 actual  -0.33 home win 0.444 | P2c n   18 proj  -1.37 actual  -1.44 home win 0.389
+    projected (+0, +3]: P2 n   18 proj  +1.55 actual  +0.11 home win 0.611 | P2b n   15 proj  +1.23 actual  -2.53 home win 0.533 | P2c n   16 proj  +1.64 actual  -1.75 home win 0.562
+    projected (+3, +99]: P2 n   45 proj  +8.17 actual  +5.69 home win 0.644 | P2b n   39 proj  +7.54 actual  +7.54 home win 0.692 | P2c n   41 proj  +7.98 actual  +7.20 home win 0.683
   dk P2   ATS  |edge|>=0: n   91 won  61.5% ROI  +17.2% ± 19.1 null -4.5%  |edge|>=3: n   46 won  60.9% ROI  +15.7% ± 27.1 null -4.5%  |edge|>=6: n   22 won  63.6% ROI  +21.2% ± 39.2 null -4.5%
   dk P2b  ATS  |edge|>=0: n   91 won  56.0% ROI   +6.7% ± 19.5 null -4.5%  |edge|>=3: n   45 won  60.0% ROI  +14.8% ± 27.7 null -4.5%  |edge|>=6: n   23 won  69.6% ROI  +32.4% ± 36.6 null -4.5%
+  dk P2c  ATS  |edge|>=0: n   91 won  58.2% ROI  +10.8% ± 19.4 null -4.5%  |edge|>=3: n   46 won  60.9% ROI  +16.2% ± 27.2 null -4.5%  |edge|>=6: n   18 won  61.1% ROI  +16.2% ± 44.1 null -4.5%
 
