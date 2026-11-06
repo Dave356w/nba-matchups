@@ -105,6 +105,15 @@ jobs:
           python player_availability.py fit --${{ inputs.version }} --years ${{ inputs.avail_years }} \
             ${{ inputs.version == 'v11' && '--q-rates diagnostics/questionable_weight/q_rates.json' || '' }}
       - name: Fit totals (O/U) model
+        id: totals
+        # Completed seasons' report terms are read from model/totals_report_terms.csv
+        # (written by the first fit that computes them, committed below), so a
+        # refit fetches no NBA report unless a season or its inputs changed; the
+        # report server throttles GitHub runners. If a fetch still stalls, this
+        # step stops at its limit and the other refits are committed anyway
+        # (model/totals.json then stays as it was).
+        timeout-minutes: 45
+        continue-on-error: true
         # CLAUDE.md edge floors and O/U amendment (2026-10-29): the totals
         # fit on the completed game-log seasons (totals.py; 2019-20 left out
         # as in its research), written to model/totals.json. ou2 (CLAUDE.md
@@ -114,6 +123,17 @@ jobs:
         # amendment 2026-11-06): the fit includes both teams' days of rest,
         # so the first run after it activates ou3's tags and rows.
         run: python totals.py fit --years "2017-2019 2021-2026" --report-years "2023-2026"
+      - name: Keep fetched injury reports even if a step failed
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}-fit
+      - name: Report a failed totals fit
+        if: steps.totals.outcome == 'failure'
+        run: echo "::warning::Totals fit failed or timed out; model/totals.json was not refitted (see the 'Fit totals' step)."
       - name: Check DFS uncertainty on native pregame errors
         # This is separate from the tracked game model. Failed or thin
         # chronological holdouts update diagnostics and retain the last

@@ -1065,7 +1065,7 @@ def game_statuses(box, tips, archive, lead_minutes):
     played = {(r.game_id, r.player_id): r.minutes > 0
               for r in box.itertuples(index=False)}
     out, stats = [], dict(games=0, with_report=0, listed=0, matched=0, lags=[],
-                          reports=0, reports_rows=0, covered=set())
+                          reports=0, reports_rows=0, parse_failed=0, covered=set())
     parsed, coverage = {}, {}
     home_of = dict(box[box["home"].astype(bool)].drop_duplicates("game_id")
                    [["game_id", "team"]].itertuples(index=False))
@@ -1088,6 +1088,7 @@ def game_statuses(box, tips, archive, lead_minutes):
                 parsed[path] = parse_report(path)
             except Exception as e:  # noqa: BLE001
                 print(f"parse failed {os.path.basename(path)}: {e!r}", flush=True)
+                stats["parse_failed"] += 1
                 parsed[path] = pd.DataFrame(columns=["game_date", "team", "player",
                                                      "status"])
             stats["reports"] += 1
@@ -1344,10 +1345,13 @@ def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
     return out
 
 
-def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None):
+def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None, health=None):
     """(slate date, home, away) -> dict(av_o, av_d, av_m) for every game of
     season t from the last report at least `lead` minutes before tip (the
-    ou2 fit; research/totals_report.py arm rep5h). Uncovered games get 0."""
+    ou2 fit; research/totals_report.py arm rep5h). Uncovered games get 0.
+    `health` (a dict, optional) receives parse_failed: reports that could not
+    be read, whose games fell back to 0 (totals.report_terms stores no season
+    with any)."""
     box = fetch_box(t, cache_dir=cache_dir)
     tips = fetch_tips(t, cache_dir)
     archive = archive or ReportArchive(REPORT_DIR)
@@ -1359,6 +1363,8 @@ def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None)
     archive.prefetch(cut)
     st, s = game_statuses(box, tips, archive, lead)
     archive.save()
+    if health is not None:
+        health["parse_failed"] = int(s["parse_failed"])
     present = present_map(st, "q", lead_rates(q_table, lead))
     values = stat_values(box, t - 1)
     team = {}
