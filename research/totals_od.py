@@ -44,7 +44,7 @@ TESTS = ERA[1:]
 COMPLETED = tuple(t for t in TESTS if t <= 2026)
 REPORT = (2023, 2024, 2025, 2026, 2027)
 TERMS = ["av_o", "av_d", "av_m"]
-BASE = list(totals.FEATURES)
+BASE = list(totals.FEATURES_OU2)
 ARMS = {"base": BASE, "ODT": BASE + ["off_t", "offt_phase"]}
 TRIPWIRE = 10.0
 Z90 = 1.645

@@ -73,9 +73,9 @@ def test_fit_recovers_its_coefficients_and_reads_p_over():
     rows["total"] = rows["lg_total"] + 0.5 + 0.9 * rows["rel"] + 0.3 * rows["form"] \
         - 0.4 * rows["b2b"] + 1.0 * rows["phase"] + rng.normal(0, 18, n)
     rows.loc[:199, ["gp_home", "gp_away"]] = 3
-    m = totals.fit(rows)
-    # the base fit alone is ou2's neutral route; fit_report adds the report stage
-    assert m["tag"] == totals.TAG_NEUTRAL and m["tag"].endswith(analysis.OU2_TAG_SUFFIX)
+    m = totals.fit(rows, totals.FEATURES_OU2)
+    # the base fit alone (ou2's terms) is ou2's neutral route; fit_report adds the report stage
+    assert m["tag"] == totals.TAG_NEUTRAL_OU2 and m["tag"].endswith(analysis.OU2_TAG_SUFFIX)
     assert abs(m["coef"]["rel"] - 0.9) < 0.1 and abs(m["coef"]["form"] - 0.3) < 0.3
     f = dict(rel=0.0, form=0.0, b2b=0.0, phase=0.0, lg_total=225.0, gp_home=12, gp_away=12)
     T, s = totals.predict(m, f)
@@ -86,14 +86,17 @@ def test_fit_recovers_its_coefficients_and_reads_p_over():
 
 def test_committed_fit_is_the_registered_model():
     m = totals.load()
-    assert m["tag"] == "totals_hl25_form5_rep_ou2"            # O/U model ou2 amendment
+    # O/U model ou2 amendment; ou3 (amendment 2026-11-06) once Fit model writes it
+    ou3 = "rest_tot" in m["coef"]
+    assert m["tag"] == (totals.TAG if ou3 else "totals_hl25_form5_rep_ou2")
     rep = m["report"]
     assert rep["lead"] == 300 and rep["seasons"] == [2023, 2024, 2025, 2026]
     assert set(rep["coef"]) == {"intercept", *totals.REPORT_TERMS}
     assert rep["coef"]["av_o"] > 0 > rep["coef"]["av_d"]
     assert (m["half_life"], m["form_half_life"], m["shrink"], m["lg_prior"], m["regress"]) == \
         (25.0, 5.0, 10.0, 30.0, 0.6)
-    assert 2020 not in m["seasons"] and set(m["coef"]) == {"intercept", *totals.FEATURES}
+    assert 2020 not in m["seasons"] and set(m["coef"]) == \
+        {"intercept", *(totals.FEATURES if ou3 else totals.FEATURES_OU2)}
 
 
 # ----------------------------------------------------------------- market --
@@ -120,7 +123,7 @@ def _row(**kw):
              model_tag=build_site.MODEL_TAG_V11, home="GSW", away="UTA", p_home=0.62,
              pre_book="dk", pre_home_ml=-150, pre_away_ml=130, pre_q_home=0.585,
              pre_ou_line=228.5, pre_ou_over=-110, pre_ou_under=-110, ou_total=234.0,
-             ou_sigma=18.5, ou_p_over=0.62, ou_tag=totals.TAG)
+             ou_sigma=18.5, ou_p_over=0.62, ou_tag=totals.TAG_OU2)
     r.update(kw)
     return r
 
@@ -128,7 +131,7 @@ def _row(**kw):
 def test_ou_first_and_lock_are_write_once_and_need_a_main_line():
     led, _, _ = ledger.upsert_pregame(ledger.empty(), [_row()], now=TIP_DT - timedelta(hours=18))
     r = led.iloc[0]
-    assert r["first_ou_line"] == 228.5 and r["first_ou_tag"] == totals.TAG
+    assert r["first_ou_line"] == 228.5 and r["first_ou_tag"] == totals.TAG_OU2
     assert pd.isna(r["lock_ou_snapshot_utc"])
     # refreshed inside the window: lock_ou written once, first_ou kept
     led, _, _ = ledger.upsert_pregame(led, [_row(pre_ou_line=230.5, ou_p_over=0.55)],
@@ -239,7 +242,7 @@ def test_ou_test_membership_grading_and_clv():
 
 
 def test_pages_show_the_total_and_four_tests():
-    g = _ou_ledger().assign(lock_ou_tag=totals.TAG)       # native ou2 locks: the public rows
+    g = _ou_ledger().assign(lock_ou_tag=totals.TAG_OU2)       # native ou2 locks: the public rows
     g["pre_book"], g["pre_ou_line"], g["pre_ou_over"], g["pre_ou_under"] = "dk", 220.5, -110, -110
     g["ou_total"], g["ou_p_over"] = [226.0, 214.0, 221.0], [0.60, 0.40, 0.52]
     site = PublicSite(build_site, g, "2026-10-29", "built")
