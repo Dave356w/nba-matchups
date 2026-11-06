@@ -341,7 +341,8 @@ def report_terms(years, q_table, lead=REPORT_LEAD, path=TERMS_PATH, compute=None
     """{(date, home, away): {av_o, av_d, av_m}} for the report seasons `years`:
     from the stored terms when a season's rows match the fingerprint, else
     computed from the NBA reports (player_availability.season_totals_terms)
-    and, for a completed season, stored for the next fit."""
+    and, for a completed season whose reports all parsed, stored for the
+    next fit."""
     if compute is None:
         import player_availability as pav
         compute = pav.season_totals_terms
@@ -359,10 +360,16 @@ def report_terms(years, q_table, lead=REPORT_LEAD, path=TERMS_PATH, compute=None
                 out[(r.date, r.home, r.away)] = {k: float(getattr(r, k)) for k in REPORT_TERMS}
             log(f"report terms {y}: {len(have)} games from {path.name}")
             continue
-        got = compute(y, lead, q_table)
+        health = {}
+        got = compute(y, lead, q_table, health=health)
         out.update(got)
-        log(f"report terms {y}: {len(got)} games computed from the NBA reports")
-        if y < current_season(today):            # completed: store now, so a later stall keeps it
+        failed = int(health.get("parse_failed", 0))
+        log(f"report terms {y}: {len(got)} games computed from the NBA reports"
+            + (f"; {failed} report(s) unreadable, not stored" if failed else ""))
+        # a completed season is stored now (a later stall keeps it), unless a
+        # report could not be read: its games fell back to 0, and the next fit
+        # should try again rather than reuse that
+        if y < current_season(today) and not failed:
             new = pd.DataFrame([dict(season=y, date=d, home=h, away=w,
                                      **{k: v[k] for k in REPORT_TERMS}, lead=int(lead), key=key)
                                 for (d, h, w), v in got.items()], columns=TERMS_COLUMNS)

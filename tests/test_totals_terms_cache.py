@@ -8,9 +8,11 @@ import totals
 Q = {"300": {"Questionable": 0.6, "Doubtful": 0.2, "Probable": 0.9}}
 
 
-def _compute(calls):
-    def f(y, lead, q):
+def _compute(calls, failed=0):
+    def f(y, lead, q, health=None):
         calls.append(y)
+        if health is not None:
+            health["parse_failed"] = failed
         return {(f"{y - 1}-11-01", "AAA", "BBB"): dict(av_o=1.0 * y, av_d=-0.5, av_m=2.0)}
     return f
 
@@ -60,3 +62,11 @@ def test_the_committed_file_matches_the_deployed_play_rates():
     assert set(d["key"]) == {totals.terms_key(q)} and set(d["lead"]) == {totals.REPORT_LEAD}
     assert set(d["season"]) == set(totals._years(totals.REPORT_YEARS))
     assert not d.duplicated(["date", "home", "away"]).any()
+
+
+def test_a_season_with_an_unreadable_report_is_not_stored(tmp_path):
+    path, calls = tmp_path / "t.csv", []
+    for _ in range(2):
+        totals.report_terms([2026], Q, path=path, compute=_compute(calls, failed=1),
+                            today="2026-11-06", log=lambda m: None)
+    assert calls == [2026, 2026] and not path.exists()     # retried, never reused
