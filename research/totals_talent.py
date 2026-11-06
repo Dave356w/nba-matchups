@@ -46,7 +46,7 @@ from model_review import mean_ci  # noqa: E402
 
 SEASONS = (2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026)
 UNPRICED = (2018, 2019, 2021, 2022, 2023)       # scored seasons before any priced one
-BASE = list(totals.FEATURES)
+BASE = list(totals.FEATURES_OU2)
 ARMS = {"T*": BASE,
         "tal": BASE + ["tal_o", "tal_d"],
         "avail": BASE + ["av_o", "av_d", "av_m"],

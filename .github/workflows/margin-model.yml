@@ -5,6 +5,12 @@ name: Margin model
 # (research/margin_model.py). Writes nothing to the repo; results are the job
 # summary and an artifact. The push trigger runs it from the research branch
 # before it exists on main; caches restore from main's.
+# study: interaction_weight runs research/interaction_weight.py instead (home/
+# away and offence/defence weighting on the production model, walk-forward),
+# its folds in parallel, then one report job; od_weights runs the registered
+# offence/defence test (research/od_weights.py, diagnostics/od_weights/
+# REGISTRATION.md) the same way, refreshing this season's pages first;
+# totals_od runs the registered totals test (research/totals_od.py) in one job.
 
 on:
   workflow_dispatch:
@@ -12,9 +18,19 @@ on:
       seasons:
         description: 'Test seasons (BBR years; 2026 = 2025-26)'
         default: '2017-2019 2021-2026'
+      study:
+        description: 'Study to run'
+        type: choice
+        options: [margin_model, interaction_weight, od_weights, totals_od]
+        default: margin_model
   push:
     branches: [claude/pensive-bell-0h7sge]
-    paths: [research/margin_model.py, .github/workflows/margin-model.yml]
+    paths:
+      - research/margin_model.py
+      - research/interaction_weight.py
+      - research/od_weights.py
+      - research/totals_od.py
+      - .github/workflows/margin-model.yml
 
 permissions:
   contents: read
@@ -25,6 +41,7 @@ concurrency:
 
 jobs:
   margin:
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'totals_od' || 'margin_model')) == 'margin_model'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
@@ -68,3 +85,250 @@ jobs:
           path: |
             margin_model.txt
             diagnostics/margin_model/
+
+  interaction:
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'totals_od' || 'margin_model')) == 'interaction_weight'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['2017 2018 2019 2021', '2022 2023 2024', '2025', '2026']
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_interaction_weight.py -q
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2026
+      - name: Folds ${{ matrix.part }}
+        run: python research/interaction_weight.py --run --seasons ${{ matrix.part }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interaction-${{ strategy.job-index }}
+          path: |
+            diagnostics/interaction_weight/predictions_*.csv
+            diagnostics/interaction_weight/coefs_*.json
+
+  interaction-report:
+    needs: interaction
+    if: always() && needs.interaction.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: interaction-*
+          path: diagnostics/interaction_weight
+          merge-multiple: true
+      - name: Report
+        run: |
+          set -o pipefail
+          python research/interaction_weight.py --report | tee interaction_weight.txt
+          { echo '```'; cat diagnostics/interaction_weight/RESULTS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interaction-weight
+          path: |
+            interaction_weight.txt
+            diagnostics/interaction_weight/
+
+  od:
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'totals_od' || 'margin_model')) == 'od_weights'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['2018 2019 2022', '2023 2024', '2025', '2026', '2027']
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_od_weights.py tests/test_interaction_weight.py -q
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped; this season refreshed)
+        run: |
+          python nba_composite.py download --years 2015-2026
+          python nba_composite.py download --years 2027 --refresh
+          rm -f research/output/tips_2027.csv
+      - name: Folds ${{ matrix.part }}
+        run: python research/od_weights.py --run --seasons ${{ matrix.part }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: od-${{ strategy.job-index }}
+          path: |
+            diagnostics/od_weights/predictions_*.csv
+            diagnostics/od_weights/coefs_*.json
+
+  od-report:
+    needs: od
+    if: always() && needs.od.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: od-*
+          path: diagnostics/od_weights
+          merge-multiple: true
+      - name: Report
+        run: |
+          set -o pipefail
+          python research/od_weights.py --report | tee od_weights.txt
+          { echo '```'; cat diagnostics/od_weights/RESULTS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: od-weights
+          path: |
+            od_weights.txt
+            diagnostics/od_weights/
+
+  totals-od:
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'totals_od' || 'margin_model')) == 'totals_od'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_totals_od.py -q
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped; this season refreshed)
+        run: |
+          python nba_composite.py download --years 2015-2026
+          python nba_composite.py download --years 2027 --refresh
+          rm -f research/output/tips_2027.csv
+      - name: Probe the report, scoreboard and BBR hosts from this runner
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          for u in \
+            https://ak-static.cms.nba.com/referee/injury/Injury-Report_2023-01-15_01PM.pdf \
+            https://ak-static.cms.nba.com/referee/injury/Injury-Report_2023-01-15_01_15PM.pdf \
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20230115" \
+            https://www.basketball-reference.com/leagues/NBA_2022_advanced.html; do
+            curl -sS -o /dev/null -m 20 -A "Mozilla/5.0" -w "%{http_code} %{time_total}s %{size_download}B  $u\n" "$u" || echo "FAILED $u"
+          done
+          ls research/output/injury_reports 2>/dev/null | grep -c '\.pdf$' || true
+          ls research/output/injury_reports 2>/dev/null | grep -c '\.csv$' || true
+          ls research/output/tips_*.csv 2>/dev/null || true
+      - name: Features (every game)
+        timeout-minutes: 30
+        run: python research/totals_od.py --frame
+      - name: Report terms 2023
+        timeout-minutes: 15
+        run: python research/totals_od.py --terms 2023
+      - name: Report terms 2024
+        timeout-minutes: 15
+        run: python research/totals_od.py --terms 2024
+      - name: Report terms 2025
+        timeout-minutes: 15
+        run: python research/totals_od.py --terms 2025
+      - name: Report terms 2026
+        timeout-minutes: 15
+        run: python research/totals_od.py --terms 2026
+      - name: Report terms 2027
+        timeout-minutes: 15
+        run: python research/totals_od.py --terms 2027
+      - name: Keep fetched injury reports even if a step failed
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}-totals-od
+      - name: Fit and report
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          python research/totals_od.py --walk --report | tee totals_od.txt
+          { echo '```'; cat diagnostics/totals_od/RESULTS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: totals-od
+          path: |
+            totals_od.txt
+            diagnostics/totals_od/

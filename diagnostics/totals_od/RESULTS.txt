@@ -1,0 +1,56 @@
+Totals offence/defence weights (ODT) on ou2: the registered test (diagnostics/totals_od/REGISTRATION.md).
+Run 2026-11-06 in the Claude Code session container (code at ffa7524), not on a GitHub runner:
+the NBA report server throttled the runner's parallel fetches (runs 42273148292, 42281414501, 42284334270).
+Same code, data sources and registered rule.
+
+Completed test seasons [2018, 2019, 2022, 2023, 2024, 2025, 2026]: 8489 games 1+.
+
+== New era, completed seasons (the rule's evidence): squared error on the total, ODT - base (points², negative = ODT better)
+  games 1+   n  8489  RMSE base 18.597  ODT 18.598  Δ +0.031 ± 0.505 (95%)  one-sided p 0.547  better in 2 of 7
+  games 1-9  n   978  RMSE base 19.027  ODT 19.037  Δ +0.413 ± 0.905 (95%)  one-sided p 0.814  better in 1 of 7
+  games 10+  n  7511  RMSE base 18.541  ODT 18.540  Δ -0.019 ± 0.558 (95%)  one-sided p 0.473  better in 3 of 7
+  By season, games 1+:
+    2018  n  1214  Δ +0.027 ± 2.172   base bias -0.34  ODT bias -0.34
+    2019  n  1214  Δ -0.206 ± 1.533   base bias -0.17  ODT bias -0.16
+    2022  n  1214  Δ +0.990 ± 1.484   base bias -1.11  ODT bias -1.21
+    2023  n  1214  Δ +0.124 ± 0.843   base bias +1.13  ODT bias +1.12
+    2024  n  1215  Δ +0.150 ± 1.010   base bias -0.29  ODT bias -0.28
+    2025  n  1209  Δ +0.185 ± 0.925   base bias -2.20  ODT bias -2.20
+    2026  n  1209  Δ -1.059 ± 0.781   base bias +0.34  ODT bias +0.35
+
+== 2026-27 to date (apart, not counted): squared error on the total, ODT - base (points², negative = ODT better)
+  games 1+   n   107  RMSE base 18.959  ODT 18.965  Δ +0.224 ± 2.136 (95%)  one-sided p 0.581  better in 0 of 1
+  games 1-9  n   107  RMSE base 18.959  ODT 18.965  Δ +0.224 ± 2.136 (95%)  one-sided p 0.581  better in 0 of 1
+  By season, games 1+:
+    2027  n   107  Δ +0.224 ± 2.136   base bias +1.66  ODT bias +1.62
+
+== Against the book, P(over) log loss (reconstructed rows, main lines; ± 95%)
+   arm - no-vig market; [ODT - base]
+  close dk      2026 games 10+ n  964  base +0.0174 ± 0.0109  ODT +0.0161 ± 0.0109  [-0.0013 ± 0.0011]
+  close espnbet 2025 games 10+ n 1070  base +0.0301 ± 0.0114  ODT +0.0301 ± 0.0113  [-0.0000 ± 0.0013]
+  close espnbet 2025 games 1-9 n  138  base +0.0139 ± 0.0268  ODT +0.0143 ± 0.0270  [+0.0004 ± 0.0013]
+  close espnbet 2026 games 10+ n  107  base +0.0230 ± 0.0359  ODT +0.0223 ± 0.0354  [-0.0007 ± 0.0013]
+  close espnbet 2026 games 1-9 n  138  base +0.0330 ± 0.0441  ODT +0.0339 ± 0.0442  [+0.0009 ± 0.0007]
+  open  dk      2026 games 10+ n  964  base -0.0035 ± 0.0098  ODT -0.0046 ± 0.0098  [-0.0010 ± 0.0011]
+  open  espnbet 2025 games 10+ n 1015  base +0.0087 ± 0.0105  ODT +0.0083 ± 0.0104  [-0.0004 ± 0.0014]
+  open  espnbet 2025 games 1-9 n   71  base +0.0085 ± 0.0420  ODT +0.0096 ± 0.0425  [+0.0011 ± 0.0018]
+  open  espnbet 2026 games 10+ n  107  base +0.0001 ± 0.0304  ODT -0.0006 ± 0.0302  [-0.0006 ± 0.0013]
+  open  espnbet 2026 games 1-9 n  138  base +0.0506 ± 0.0454  ODT +0.0516 ± 0.0455  [+0.0010 ± 0.0008]
+
+== Decision rule (registered 2026-11-06, commit 8301d50)
+  1. squared error, games 1+, completed seasons: +0.031 (90% upper bound +0.454; one-sided p 0.547), better in 2 of 7  -> FAIL
+  2. P(over) log loss at the close, games 10+, ODT - base: dk 2026 -0.0013; espnbet 2025 -0.0000  -> pass
+  3. largest season gain 1.06 points² (tripwire 10)  -> pass
+  Power: SE 0.257; minimum effect detectable with 80% power (one-sided 5%) 0.64 points²
+  ODT: NOT a candidate
+
+== ODT fitted weights by fold (T* stage; off_share 0.5 = production's equal split)
+    2018  rel +0.995  off_t +0.231  offt_phase -0.693  off_share 0.5 0.469  1.0 0.349
+    2019  rel +0.956  off_t +0.054  offt_phase -0.394  off_share 0.5 0.459  1.0 0.392
+    2022  rel +0.953  off_t +0.124  offt_phase -0.458  off_share 0.5 0.471  1.0 0.394
+    2023  rel +0.941  off_t +0.030  offt_phase -0.240  off_share 0.5 0.475  1.0 0.437
+    2024  rel +0.927  off_t -0.068  offt_phase -0.085  off_share 0.5 0.468  1.0 0.455
+    2025  rel +0.931  off_t -0.014  offt_phase -0.149  off_share 0.5 0.475  1.0 0.452
+    2026  rel +0.935  off_t -0.009  offt_phase -0.124  off_share 0.5 0.480  1.0 0.462
+    2027  rel +0.941  off_t -0.067  offt_phase -0.109  off_share 0.5 0.466  1.0 0.449
+  base T* rel slope by fold: 2018 +0.971  2019 +0.921  2022 +0.925  2023 +0.918  2024 +0.902  2025 +0.910  2026 +0.917  2027 +0.914

@@ -19,7 +19,7 @@ REPORT = dict(coef=dict(intercept=0.3, av_o=0.9, av_d=-1.2, av_m=0.3),
 
 
 def _model(report=True):
-    m = dict(tag=totals.TAG if report else totals.TAG_NEUTRAL,
+    m = dict(tag=totals.TAG_OU2 if report else totals.TAG_NEUTRAL_OU2,
              coef=dict(intercept=0.0, rel=1.0, form=0.0, b2b=0.0, phase=0.0),
              sigma_early=19.0, sigma_late=18.4)
     if report:
@@ -33,21 +33,21 @@ F = dict(rel=2.0, form=0.0, b2b=0.0, phase=0.0, lg_total=224.0, gp_home=12, gp_a
 # ------------------------------------------------------------------ model --
 def test_forecast_adds_the_report_stage_or_stays_neutral():
     T, s, tag = totals.forecast(_model(), F, dict(av_o=-2.0, av_d=1.0, av_m=0.5))
-    assert tag == totals.TAG and s == 18.5
+    assert tag == totals.TAG_OU2 and s == 18.5
     assert abs(T - (226.0 + 0.3 - 1.8 - 1.2 + 0.15)) < 1e-9
     T0, s0, tag0 = totals.forecast(_model(), F, None)          # no report terms
-    assert (T0, s0, tag0) == (226.0, 18.4, totals.TAG_NEUTRAL)
-    assert totals.forecast(_model(), F, dict(av_o=np.nan, av_d=0, av_m=0))[2] == totals.TAG_NEUTRAL
-    assert totals.forecast(_model(report=False), F, dict(av_o=1, av_d=1, av_m=1))[2] == totals.TAG_NEUTRAL
+    assert (T0, s0, tag0) == (226.0, 18.4, totals.TAG_NEUTRAL_OU2)
+    assert totals.forecast(_model(), F, dict(av_o=np.nan, av_d=0, av_m=0))[2] == totals.TAG_NEUTRAL_OU2
+    assert totals.forecast(_model(report=False), F, dict(av_o=1, av_d=1, av_m=1))[2] == totals.TAG_NEUTRAL_OU2
     early = dict(F, gp_home=4)
     assert totals.forecast(_model(), early, dict(av_o=0, av_d=0, av_m=0))[1] == 18.0
-    assert totals.TAG.endswith(analysis.OU2_TAG_SUFFIX) and totals.TAG_NEUTRAL.endswith("_ou2")
+    assert totals.TAG_OU2.endswith(analysis.OU2_TAG_SUFFIX) and totals.TAG_NEUTRAL_OU2.endswith("_ou2")
 
 
 def test_adjust_starts_from_a_recorded_base_total():
     T, s, tag = totals.adjust(_model(), 230.0, 5, dict(av_o=1.0, av_d=0.0, av_m=0.0))
-    assert (round(T, 6), s, tag) == (231.2, 18.0, totals.TAG)
-    assert totals.adjust(_model(), 230.0, 12, None) == (230.0, 18.4, totals.TAG_NEUTRAL)
+    assert (round(T, 6), s, tag) == (231.2, 18.0, totals.TAG_OU2)
+    assert totals.adjust(_model(), 230.0, 12, None) == (230.0, 18.4, totals.TAG_NEUTRAL_OU2)
 
 
 def test_fit_report_recovers_the_stage_on_the_base_residual():
@@ -60,7 +60,7 @@ def test_fit_report_recovers_the_stage_on_the_base_residual():
         + rng.normal(0, 17, n)
     m = totals.fit_report(_model(report=False), rows)
     c = m["report"]["coef"]
-    assert m["tag"] == totals.TAG and abs(c["av_o"] - 1.0) < 0.15 and abs(c["av_d"] + 1.3) < 0.2
+    assert m["tag"] == totals.TAG_OU2 and abs(c["av_o"] - 1.0) < 0.15 and abs(c["av_d"] + 1.3) < 0.2
     assert abs(m["report"]["sigma_late"] - 17) < 0.6 and m["report"]["lead"] == 300
 
 
@@ -71,9 +71,9 @@ def test_add_totals_records_the_route_tag():
         def features(self, h, a, d):
             return dict(F)
     build_site.add_totals(r, _model(), S(), dict(av_o=0.0, av_d=0.0, av_m=0.0))
-    assert r["ou_tag"] == totals.TAG and abs(r["ou_total"] - 226.3) < 1e-9
+    assert r["ou_tag"] == totals.TAG_OU2 and abs(r["ou_total"] - 226.3) < 1e-9
     build_site.add_totals(r, _model(), S(), None)
-    assert r["ou_tag"] == totals.TAG_NEUTRAL and r["ou_total"] == 226.0
+    assert r["ou_tag"] == totals.TAG_NEUTRAL_OU2 and r["ou_total"] == 226.0
 
 
 def test_totals_terms_need_a_covering_report():
@@ -87,7 +87,7 @@ def test_totals_terms_need_a_covering_report():
 # ---------------------------------------------------------------- records --
 def _rescore(g, p):
     return pd.DataFrame(dict(game_id=g["game_id"].astype(str), slate_date=g["slate_date"].astype(str),
-                             lock_ou_snapshot_utc=g["lock_ou_snapshot_utc"], rescore_ou_tag=totals.TAG,
+                             lock_ou_snapshot_utc=g["lock_ou_snapshot_utc"], rescore_ou_tag=totals.TAG_OU2,
                              rescore_ou_total=[230.0] * len(g), rescore_ou_sigma=18.0,
                              rescore_ou_p_over=p, rescore_ou_report_utc="2026-10-29T20:45:00Z",
                              rescored_utc="2026-11-04T00:00:00Z"))[ou_rescore.COLUMNS]
@@ -101,8 +101,8 @@ def test_with_ou2_reads_the_rescore_for_ou1_locks_and_never_changes_native_colum
     pd.testing.assert_frame_equal(w[before.columns], before)
     assert list(w["ou2_p_over"].iloc[:2]) == [0.30, 0.70] and pd.isna(w["ou2_p_over"].iloc[2])
     assert list(w["ou2_line"].iloc[:2]) == [220.5, 220.5] and pd.isna(w["ou2_line"].iloc[2])
-    assert set(w["ou2_tag"].iloc[:2]) == {totals.TAG} and list(w["ou2_total"].iloc[:2]) == [230.0, 230.0]
-    native = analysis.with_ou2(g.assign(lock_ou_tag=totals.TAG), rs)   # native ou2: as recorded
+    assert set(w["ou2_tag"].iloc[:2]) == {totals.TAG_OU2} and list(w["ou2_total"].iloc[:2]) == [230.0, 230.0]
+    native = analysis.with_ou2(g.assign(lock_ou_tag=totals.TAG_OU2), rs)   # native ou2: as recorded
     assert list(native["ou2_p_over"]) == [0.60, 0.40, 0.52]
 
 
@@ -118,7 +118,7 @@ def test_ou2_rows_read_the_rescore_and_the_ou1_rows_close_at_activation(monkeypa
     assert list(d["result"]) == [0.0, 0.0] and list(d["line"]) == [220.5, 220.5]
     assert set(analysis.ou_signals(g, ou1)["game_id"]) == {"o1", "o2"}   # ou1 before activation
     # a later slate locks natively under ou2: activation; ou1 closes before it
-    later = g.iloc[[2]].assign(game_id="o4", slate_date="2026-11-05", lock_ou_tag=totals.TAG,
+    later = g.iloc[[2]].assign(game_id="o4", slate_date="2026-11-05", lock_ou_tag=totals.TAG_OU2,
                                lock_ou_p_over=0.7)
     h = pd.concat([g, later], ignore_index=True)
     assert analysis.ou2_activation_slate(h) == "2026-11-05"
@@ -174,7 +174,7 @@ def test_rescore_reads_only_lock_time_information(monkeypatch):
     out = ou_rescore.rescore_row(row, _model(), box, {}, None, arch)
     assert arch.cutoffs == [datetime(2026, 10, 30, 14, 32, 40)]          # the lock, in ET
     assert seen["box_max"] == pd.Timestamp("2026-10-28")                 # strictly before the slate
-    assert out["rescore_ou_tag"] == totals.TAG and abs(out["rescore_ou_total"] - 223.4) < 1e-9
+    assert out["rescore_ou_tag"] == totals.TAG_OU2 and abs(out["rescore_ou_total"] - 223.4) < 1e-9
     assert out["rescore_ou_report_utc"] == "2026-10-30T18:00:00Z"
     assert pd.Timestamp(out["rescore_ou_report_utc"]) <= pd.Timestamp(out["lock_ou_snapshot_utc"])
 
@@ -196,7 +196,7 @@ def test_rescore_is_written_once_and_never_raises(monkeypatch, tmp_path):
     assert ou_rescore.update(g.assign(game_id=["x1", "x2", "x3"]), log=lambda m: None,
                              path=tmp_path / "bad" / "r.csv", model=dict(tag="t")) == 0   # no report stage
     assert ou_rescore.update("not a frame", log=lambda m: None, path=path) == 0              # never raises
-    native_ou2 = g.assign(lock_ou_tag=totals.TAG)
+    native_ou2 = g.assign(lock_ou_tag=totals.TAG_OU2)
     assert ou_rescore.pending(native_ou2, ou_rescore.load(tmp_path / "none.csv")).empty
 
 

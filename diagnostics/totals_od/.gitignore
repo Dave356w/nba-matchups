@@ -1,0 +1,4 @@
+# Intermediate outputs of research/totals_od.py; RESULTS.txt and coefs.json are kept.
+terms_*.csv
+frame.csv
+predictions.csv

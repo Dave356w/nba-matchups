@@ -27,13 +27,14 @@ PREDICTION_STAGES = (("early", "Early · games 1–9"),
                      ("opener", "Opening games · game 0"), ("unknown", "Stage unavailable"))
 
 
-def rule_key(root, early):
+def rule_key(root, early, ou="ou2"):
     """The public row of a test and stage (CLAUDE.md amendments of
     2026-10-29): the floored v11-family rows (H5·3, H2·F·5) and H4's at the
-    5 h lock, e.g. H5·3·E·L·v11, and the O/U test's ou2 rows OU·L·ou2 /
-    OU·E·L·ou2 (O/U model ou2 amendment, 2026-11-03)."""
+    5 h lock, e.g. H5·3·E·L·v11, and the O/U test's rows of the live totals
+    model `ou`: OU·L·ou2 / OU·E·L·ou2 (ou2 amendment, 2026-11-03), OU·L·ou3 /
+    OU·E·L·ou3 once ou3 is active (ou3 amendment, 2026-11-06)."""
     if root == "OU":
-        return "OU" + ("·E" if early else "") + "·L·ou2"
+        return "OU" + ("·E" if early else "") + "·L·" + ou
     return root + ("·E" if early else "") + "·L·v11"
 
 CSS = """
@@ -155,7 +156,11 @@ class PublicSite:
                 injuries = pd.DataFrame(columns=ledger.INJURY_COLUMNS)
         self.injuries = injuries
         self.predictions = analysis.model_predictions(self.native)
-        self.hypotheses = {h["key"]: h for h in analysis.public_hypotheses() + analysis.OU2_TESTS}
+        # the O/U rows of the live totals model: ou3's once Fit model has
+        # written it (or a native lock carries it), else ou2's
+        self.ou = "ou3" if analysis.ou3_active(self.native) else "ou2"
+        self.hypotheses = {h["key"]: h for h in analysis.public_hypotheses()
+                           + analysis.public_ou_tests(self.native)}
         self.records = []
         # Model-family reset and edge floors (CLAUDE.md amendments 2026-10-29):
         # the floored v11-family rows (H5·3, H2·F·5), H4's and the O/U test, at
@@ -164,7 +169,7 @@ class PublicSite:
         by_id = self.native.set_index("game_id", drop=False)
         for key, name, slug in RULES:
             for early in (True, False):
-                hyp = self.hypotheses[rule_key(key, early)]
+                hyp = self.hypotheses[rule_key(key, early, self.ou)]
                 # the whole ledger: the graders drop ungraded games themselves
                 if hyp.get("market") == "ou":
                     signals = analysis.ou_signals(self.native, hyp)
@@ -540,10 +545,13 @@ class PublicSite:
 
     def ou2_txt(self):
         """'November 3, 2026': the last slate whose O/U picks were scored by
-        the one-time ou2 rescore (the slate before ou2's first native lock;
-        the latest rescored slate before activation)."""
-        act = analysis.ou2_activation_slate(self.native)
-        rs = analysis.load_ou_rescore()
+        the live totals model's one-time rescore (the slate before its first
+        native lock; the latest rescored slate before activation): ou2's, or
+        ou3's once active."""
+        if self.ou == "ou3":
+            act, rs = analysis.ou3_activation_slate(self.native), analysis.load_ou3_rescore()
+        else:
+            act, rs = analysis.ou2_activation_slate(self.native), analysis.load_ou_rescore()
         dates = rs["slate_date"].astype(str) if len(rs) and "slate_date" in rs else pd.Series(dtype=str)
         if act is not None:
             dates = dates[dates < act]
@@ -585,8 +593,8 @@ class PublicSite:
             body += f"<h2 class='sec'>{u.season_txt(season)} · DraftKings · 5 h lock</h2><div class='rule-grid'>"
             for key,name,slug in RULES:
                 body += f"<article class='rule-panel'><h2>{name}</h2><p>{desc[key]} <a href='how-it-works.html#{slug}'>Rule →</a></p>"
-                body += self.stage(self.hypotheses[rule_key(key, True)], season) + \
-                    self.stage(self.hypotheses[rule_key(key, False)], season) + "</article>"
+                body += self.stage(self.hypotheses[rule_key(key, True, self.ou)], season) + \
+                    self.stage(self.hypotheses[rule_key(key, False, self.ou)], season) + "</article>"
             body += "</div>"
         body += "<p class='public-note'>These tests can select the same game. There is no combined portfolio return. All qualifying results remain in <a href='results.html'>Results</a>, including losses. Forecast-only games do not enter these records.</p>"
         return self.page("Performance · NBA Composite", "performance.html", body)
@@ -611,7 +619,7 @@ class PublicSite:
 <h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the locked win probability to a home margin using 13.5 × Φ⁻¹(P). Track the model’s side when it differs from the market spread by at least 3 points, with both spread prices between −135 and +115. This fixed tracking conversion can differ from the model margin displayed on Today.</p>
 <h3 id='favourite'><span class='rule-number'>02</span>Value favourite</h3><p>The value side is the team whose model probability exceeds the market probability after removing the bookmaker’s margin. Track it when the market also makes that side the favourite (market probability above 50%) and the model rates it at least 5 percentage points higher than the market.</p>
 <h3 id='gap'><span class='rule-number'>03</span>Large probability gap</h3><p>Track the value side when its model probability exceeds the market probability by at least 12 percentage points.</p>
-<h3 id='total'><span class='rule-number'>04</span>Total (over/under)</h3><p>A separate totals model predicts the combined score from each team’s recent pace and scoring and allowing per 100 possessions (with a short recent-form term, last season as an early-season prior, back-to-backs and the point in the season), adjusts it for players the NBA injury report lists (each status counted by how often players with it have played), valuing each player’s offence and defence from last season, and converts the gap to the line into a chance of the over. Track the model’s side when that chance differs from the market’s by at least 5 percentage points, on a main-line DraftKings total. A push returns the stake.""" + self.ou2_clause() + """</p>
+<h3 id='total'><span class='rule-number'>04</span>Total (over/under)</h3><p>A separate totals model predicts the combined score from each team’s recent pace and scoring and allowing per 100 possessions (with a short recent-form term, last season as an early-season prior, back-to-backs""" + (", both teams’ days of rest" if self.ou == "ou3" else "") + """ and the point in the season), adjusts it for players the NBA injury report lists (each status counted by how often players with it have played), valuing each player’s offence and defence from last season, and converts the gap to the line into a chance of the over. Track the model’s side when that chance differs from the market’s by at least 5 percentage points, on a main-line DraftKings total. A push returns the stake.""" + self.ou2_clause() + """</p>
 <p>The minimum gaps cover the bookmaker’s margin: the model’s disagreement with the market is only partly right, so small gaps are not tracked.</p>
 <p>All four rules have separate early (games 1–9) and established (games 10+) records. Stage follows the team with fewer games played. Every selection requires a lock from the current model version; predictions saved by earlier versions stay historical. These registrations began at different dates; the early segments were registered on October 23, 2026, the 5-hour lock on October 28, 2026, and the current record, its minimum gaps and the total began with the """ + self.restart_txt() + """ games.</p></section>
 <section><h2>Read the results fairly</h2><p>Each result uses the selection and price recorded before play. Wins, losses and pushes stay visible. Pending picks have no return until graded. A push returns the stake and produces zero profit.</p>

@@ -29,6 +29,14 @@ seasons at the 300-minute lead (research/totals_report.py arm rep5h):
 with sigma by stage the stage's residual sd. A game without terms (the report
 does not cover it, an input failed) keeps T* and its sigma under TAG_NEUTRAL.
 
+ou3 (CLAUDE.md O/U model ou3 amendment, registered 2026-11-06T21:10:26Z):
+ou2 plus rest_tot, both teams' days of rest (days since the previous game
+minus 1, capped at 3; a first game counts 3), in T*'s least-squares stage
+(research/totals_dow.py arm REST); the report stage is refitted on ou3's T*
+residual. A model file scores with the terms in its own "coef", and its tags
+follow it (model_tags): the ou2 file keeps ou2's tags until Fit model
+writes ou3.
+
   python totals.py fit [--years ...] [--report-years 2023-2026]
 """
 from __future__ import annotations
@@ -43,9 +51,11 @@ import pandas as pd
 
 import nba_composite as nc
 
-TAG = "totals_hl25_form5_rep_ou2"                # ou2 with report terms
-TAG_NEUTRAL = "totals_hl25_form5_rep_neutral_ou2"  # ou2, no report terms for the game
-TAG_SUFFIX = "_ou2"
+TAG = "totals_hl25_form5_rep_rest_ou3"           # ou3 with report terms
+TAG_NEUTRAL = "totals_hl25_form5_rep_rest_neutral_ou3"  # ou3, no report terms for the game
+TAG_SUFFIX = "_ou3"
+TAG_OU2 = "totals_hl25_form5_rep_ou2"            # ou2 (history; until Fit model writes ou3)
+TAG_NEUTRAL_OU2 = "totals_hl25_form5_rep_neutral_ou2"
 TAG_OU1 = "totals_hl25_form5_ou1"                # the closed first O/U model (history)
 REPORT_TERMS = ("av_o", "av_d", "av_m")
 REPORT_LEAD = 300            # minutes before tip: the fit's report (the 5 h lock)
@@ -56,7 +66,12 @@ SHRINK = 10.0          # prior weight in games
 LG_PRIOR = 30.0        # last season's league level, in team-games
 REGRESS = 0.6          # share of last season's distance from its league kept
 SEASON_DAYS = 175.0
-FEATURES = ("rel", "form", "b2b", "phase")
+FEATURES_OU2 = ("rel", "form", "b2b", "phase")
+# ou3 (CLAUDE.md O/U model ou3 amendment, 2026-11-06): plus both teams' days
+# of rest (rest_tot) in the T* stage. Model files carry their own terms in
+# "coef"; predict() reads them, so an ou2 file scores exactly as before.
+FEATURES = FEATURES_OU2 + ("rest_tot",)
+REST_CAP = 3                 # days of rest counted at most; a first game counts REST_CAP
 MODEL_PATH = Path(__file__).resolve().parent / "model" / "totals.json"
 FIT_YEARS = "2017-2019 2021-2026"
 
@@ -85,6 +100,15 @@ def _decayed(poss, pts, opp, n, half_life):
     w = 0.5 ** (np.arange(n)[::-1] / half_life)
     wp = (w * poss[:n]).sum()
     return wp / w.sum(), 100 * (w * pts[:n]).sum() / wp, 100 * (w * opp[:n]).sum() / wp
+
+
+def rest_days(last, date):
+    """Days of rest before a game on `date` after the team's previous game on
+    `last` (days between them minus 1), capped at REST_CAP; a team's first
+    game of the season (last None) counts REST_CAP."""
+    if last is None:
+        return REST_CAP
+    return int(min(max((pd.Timestamp(date) - pd.Timestamp(last)).days - 1, 0), REST_CAP))
 
 
 class Season:
@@ -142,8 +166,9 @@ class Season:
         return tuple(out), n, (pd.Timestamp(d["dates"][n - 1]) if n else None)
 
     def features(self, home, away, date):
-        """dict(rel, form, b2b, phase, lg_total, gp_home, gp_away) for a game
-        on `date`, or None when a team has no log or the league no level."""
+        """dict(rel, form, b2b, phase, rest_tot, lg_total, gp_home, gp_away)
+        for a game on `date`, or None when a team has no log or the league no
+        level. Every input reads games strictly before `date`."""
         if home not in self.teams or away not in self.teams or self.opening is None:
             return None
         date = pd.Timestamp(date)
@@ -160,6 +185,7 @@ class Season:
         lg_total = 2 * lg[0] * lg[1] / 100
         return dict(rel=naive[HALF_LIFE] - lg_total, form=naive[FORM_HALF_LIFE] - naive[HALF_LIFE],
                     b2b=float(b2b), phase=min((date - self.opening).days / SEASON_DAYS, 1.0),
+                    rest_tot=float(rest_days(last_h, date) + rest_days(last_a, date)),
                     lg_total=lg_total, gp_home=gp["home"], gp_away=gp["away"])
 
     def end(self):
@@ -187,15 +213,17 @@ def training_rows(seasons_logs):
     return pd.DataFrame(out)
 
 
-def fit(rows):
-    """Least squares on games 1+ relative to the league's level."""
+def fit(rows, feats=FEATURES):
+    """Least squares on games 1+ relative to the league's level (ou3's terms
+    by default; feats=FEATURES_OU2 fits ou2's T*)."""
     tr = rows[np.fmin(rows["gp_home"], rows["gp_away"]) >= 1]
-    X = np.column_stack([np.ones(len(tr)), tr[list(FEATURES)].to_numpy(float)])
+    X = np.column_stack([np.ones(len(tr)), tr[list(feats)].to_numpy(float)])
     y = (tr["total"] - tr["lg_total"]).to_numpy(float)
     b = np.linalg.lstsq(X, y, rcond=None)[0]
     res = y - X @ b
     early = (np.fmin(tr["gp_home"], tr["gp_away"]) < 10).to_numpy()
-    return dict(tag=TAG_NEUTRAL, coef=dict(zip(("intercept",) + FEATURES, map(float, b))),
+    return dict(tag=model_tags(dict(coef=dict.fromkeys(feats)))[1],
+                coef=dict(zip(("intercept",) + tuple(feats), map(float, b))),
                 sigma_early=float(res[early].std()), sigma_late=float(res[~early].std()),
                 n_games=int(len(tr)), seasons=sorted(int(s) for s in tr["season"].unique()),
                 half_life=HALF_LIFE, form_half_life=FORM_HALF_LIFE, shrink=SHRINK,
@@ -215,7 +243,7 @@ def fit_report(model, rows):
     b = np.linalg.lstsq(X, res, rcond=None)[0]
     r2 = res - X @ b
     early = (np.fmin(tr["gp_home"], tr["gp_away"]) < 10).to_numpy()
-    out = dict(model, tag=TAG)
+    out = dict(model, tag=model_tags(model)[0])
     out["report"] = dict(coef=dict(zip(("intercept",) + REPORT_TERMS, map(float, b))),
                          sigma_early=float(r2[early].std()), sigma_late=float(r2[~early].std()),
                          n_games=int(len(tr)), lead=REPORT_LEAD,
@@ -234,7 +262,7 @@ def load(path=MODEL_PATH):
 def predict(model, f):
     """(model total, sigma) for a features dict."""
     c = model["coef"]
-    T = f["lg_total"] + c["intercept"] + sum(c[k] * f[k] for k in FEATURES)
+    T = f["lg_total"] + c["intercept"] + sum(v * f[k] for k, v in c.items() if k != "intercept")
     sigma = model["sigma_early"] if min(f["gp_home"], f["gp_away"]) < 10 else model["sigma_late"]
     return float(T), float(sigma)
 
@@ -259,10 +287,19 @@ def adjust(model, T, gp, av, sigma=None):
     rep = model["report"]
     if av is None or not all(np.isfinite(float(av.get(k, np.nan))) for k in REPORT_TERMS):
         base = sigma if sigma is not None else (model["sigma_early"] if early else model["sigma_late"])
-        return float(T), float(base), TAG_NEUTRAL
+        return float(T), float(base), model_tags(model)[1]
     c = rep["coef"]
     T = T + c["intercept"] + sum(c[k] * float(av[k]) for k in REPORT_TERMS)
-    return float(T), float(rep["sigma_early"] if early else rep["sigma_late"]), TAG
+    return float(T), float(rep["sigma_early"] if early else rep["sigma_late"]), model_tags(model)[0]
+
+
+def model_tags(model):
+    """(full tag, neutral tag) of a model file with a report stage: ou3's for
+    a file fitted with rest_tot, ou2's for the ou2 file (so the deployed ou2
+    model keeps its tags until Fit model writes ou3)."""
+    if "rest_tot" in model.get("coef", {}) or str(model.get("tag", "")).endswith(TAG_SUFFIX):
+        return TAG, TAG_NEUTRAL
+    return TAG_OU2, TAG_NEUTRAL_OU2
 
 
 def p_over(T, sigma, line):
@@ -312,7 +349,7 @@ def main():
             rr[k] = [terms.get((d, h, w), {}).get(k, 0.0)
                      for d, h, w in zip(rr["date"], rr["home"], rr["away"])]
         m = fit_report(m, rr)
-        print(f"ou2 report stage on {m['report']['n_games']} games: {m['report']['coef']}, "
+        print(f"report stage on {m['report']['n_games']} games: {m['report']['coef']}, "
               f"sigma {m['report']['sigma_early']:.2f} / {m['report']['sigma_late']:.2f}")
     Path(a.out).write_text(json.dumps(m, indent=1) + "\n")
     print(f"totals fit on {m['n_games']} games, seasons {m['seasons']}: {m['coef']}, "

@@ -856,6 +856,42 @@ scores before the slate and last season's BPM. The ledger's lock_ou_*
 columns are never changed. The ou1 rows close with the last slate before
 ou2's first native lock.
 
+## Totals ou3 (owner's decision, 2026-11-06)
+
+CLAUDE.md "O/U model ou3 amendment" (registered 2026-11-06T21:10:26Z). ou3
+is ou2 with both teams' days of rest in T*:
+
+    total − league = a + b rel + c form + d b2b + e phase + f rest_tot
+
+rest_tot is the home team's plus the away team's days of rest, each the days
+since its previous regular-season game minus 1, capped at 3, a team's first
+game of the season counting 3 (`totals.rest_days`, from game logs strictly
+before the slate). ou2's report stage is then refitted on ou3's T* residual
+(same terms, lead and seasons). A model file scores with the terms in its own
+"coef"; `totals.model_tags` gives ou3 tags only to a file fitted with
+rest_tot, so the ou2 file keeps its tags until Fit model writes ou3.
+Tags `totals_hl25_form5_rep_rest_ou3` and `totals_hl25_form5_rep_rest_neutral_ou3`.
+
+Evidence (research/totals_dow.py, arm REST against ou2, games 1+, new era
+2017-18 .. 2025-26 minus the COVID seasons): squared error −0.25 ± 0.71
+points², better in 4 of 7; rest slope +0.8 to +1.1 points per day of rest in
+every fold from 2018-19. Adopted by the owner knowingly: the expected gain is
+about 0.03 points of RMSE, below what a season of forward games can detect. A
+full fit on Fit model's seasons (2017-19, 2021-26) gives f +0.75 per day; d
+turns +0.62 because a back-to-back already has rest 0 (net about −0.13 against
+one day of rest).
+
+The O/U test's ou3 rows (`analysis.OU3_TESTS`, OU·L·ou3 / OU·E·L·ou3, from
+2026-10-29) read price "lock3" (`analysis.with_ou3`): a native ou3 lock as
+recorded, and each earlier ou1 / ou2 lock (voided locks excluded) at its
+one-time rescore (`ou3_rescore.py`, `data/nba_ou3_rescore.csv`). Unlike ou2's
+rescore it rebuilds T* from game logs strictly before the slate (ou3 changes
+T*), then applies the report stage from the latest report at or before the
+lock snapshot; line, prices and book are the lock's. The ou2 rows close with
+the last slate before ou3's first native lock. Public pages show the ou3
+rows once ou3 is active (`analysis.ou3_active`: an ou3 model file or a
+native ou3 lock), the ou2 rows until then.
+
 ## Version rule
 
 Any change to prediction math (features, weights protocol, half-life, logit

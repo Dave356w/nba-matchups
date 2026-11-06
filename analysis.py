@@ -857,7 +857,7 @@ def early_hindsight(recon):
     return out
 
 PRICE_NAMES = {"pre": "pregame", "first": "first snapshot", "lock": "5 h lock",
-               "lock2": "5 h lock", "open": "open", "close": "close"}
+               "lock2": "5 h lock", "lock3": "5 h lock", "open": "open", "close": "close"}
 
 
 def _hypothesis_members(d, hyp):
@@ -1112,17 +1112,35 @@ OU_TESTS = tuple(dict(key=key, early=early, market="ou", native="lock", min_edge
 OU2_REGISTRATION_UTC = "2026-11-03T23:05:00Z"
 OU2_TAG_SUFFIX = "_ou2"
 OU_RESCORE_PATH = Path(__file__).resolve().parent / "data" / "nba_ou_rescore.csv"
+# The ou2 rows close with the last slate before ou3's first native lock
+# (closes="ou3"); public until ou3 is active (public_ou_tests).
 OU2_TESTS = tuple(dict(key=key, early=early, market="ou", native="lock2", min_edge=OU_FLOOR,
                        rule=f"Games {'1–9' if early else '10+'} · O/U: model side, "
                             f"|P(over) − q| ≥ {OU_FLOOR:.2f} · 5 h lock · ou2",
                        registered_utc=OU2_REGISTRATION_UTC, public=True,
-                       tag_suffix=OU2_TAG_SUFFIX)
+                       tag_suffix=OU2_TAG_SUFFIX, closes="ou3")
                   for key, early in (("OU·L·ou2", False), ("OU·E·L·ou2", True)))
-ALL_OU_TESTS = OU2_TESTS + OU_TESTS
+# ou3 (CLAUDE.md O/U model ou3 amendment, registered 2026-11-06T21:10:26Z): ou2
+# plus both teams' days of rest, the same rule at the 5 h lock, in new rows
+# from the 2026-10-29 slate. Locks before activation (ou1 / ou2 tags) read
+# their one-time lock-time rescore (data/nba_ou3_rescore.csv; price "lock3",
+# with_ou3), later locks their native ou3 values.
+OU3_REGISTRATION_UTC = "2026-11-06T21:10:26Z"
+OU3_TAG_SUFFIX = "_ou3"
+OU3_RESCORE_PATH = Path(__file__).resolve().parent / "data" / "nba_ou3_rescore.csv"
+OU3_TESTS = tuple(dict(key=key, early=early, market="ou", native="lock3", min_edge=OU_FLOOR,
+                       rule=f"Games {'1–9' if early else '10+'} · O/U: model side, "
+                            f"|P(over) − q| ≥ {OU_FLOOR:.2f} · 5 h lock · ou3",
+                       registered_utc=OU3_REGISTRATION_UTC, public=True,
+                       tag_suffix=OU3_TAG_SUFFIX)
+                  for key, early in (("OU·L·ou3", False), ("OU·E·L·ou3", True)))
+ALL_OU_TESTS = OU3_TESTS + OU2_TESTS + OU_TESTS
 OU_PRICE_COLUMNS = {"lock": ("lock_ou_line", "lock_ou_over", "lock_ou_under", "lock_ou_p_over",
                              "lock_ou_tag", "lock_ou_book", "lock_ou_total"),
                     "lock2": ("ou2_line", "ou2_over", "ou2_under", "ou2_p_over",
                               "ou2_tag", "ou2_book", "ou2_total"),
+                    "lock3": ("ou3_line", "ou3_over", "ou3_under", "ou3_p_over",
+                              "ou3_tag", "ou3_book", "ou3_total"),
                     "first": ("first_ou_line", "first_ou_over", "first_ou_under",
                               "first_ou_p_over", "first_ou_tag", "first_ou_book",
                               "first_ou_total"),
@@ -1139,12 +1157,80 @@ def load_ou_rescore(path=None):
                                      "rescore_ou_p_over"])
 
 
-def ou2_activation_slate(g):
-    """The first slate with a native ou2 O/U lock, or None before activation."""
+def ou2_activation_slate(g, suffix=OU2_TAG_SUFFIX):
+    """The first slate with a native O/U lock whose tag ends `suffix` (ou2 by
+    default), or None before that model's activation."""
     if g is None or not len(g) or "lock_ou_tag" not in g:
         return None
-    on = g["lock_ou_tag"].astype(str).str.endswith(OU2_TAG_SUFFIX)
+    on = g["lock_ou_tag"].astype(str).str.endswith(suffix)
     return str(g.loc[on, "slate_date"].astype(str).min()) if on.any() else None
+
+
+def ou3_activation_slate(g):
+    """The first slate with a native ou3 O/U lock, or None before activation."""
+    return ou2_activation_slate(g, OU3_TAG_SUFFIX)
+
+
+ACTIVATION_SUFFIX = {"ou2": OU2_TAG_SUFFIX, "ou3": OU3_TAG_SUFFIX}
+
+
+def ou3_active(native=None, model=None):
+    """ou3 is live once model/totals.json is an ou3 file (Fit model) or a
+    native lock carries an ou3 tag."""
+    if ou3_activation_slate(native) is not None:
+        return True
+    if model is None:
+        try:
+            import totals
+            model = totals.load()
+        except Exception:  # noqa: BLE001
+            model = None
+    if not model:
+        return False
+    import totals
+    return model.get("report") is not None and totals.model_tags(model)[0] == totals.TAG
+
+
+def public_ou_tests(native=None, model=None):
+    """The O/U rows the public pages show: ou3's once active, else ou2's."""
+    return OU3_TESTS if ou3_active(native, model) else OU2_TESTS
+
+
+def load_ou3_rescore(path=None):
+    """The one-time ou3 rescore of earlier locks (ou3_rescore.py), or empty."""
+    try:
+        return pd.read_csv(path or OU3_RESCORE_PATH, dtype={"game_id": str})
+    except (OSError, ValueError):
+        return pd.DataFrame(columns=["game_id", "rescore_ou_tag", "rescore_ou_total",
+                                     "rescore_ou_p_over"])
+
+
+def with_ou3(g, rescore=None):
+    """g with the ou3 lock columns (OU_PRICE_COLUMNS["lock3"]): a native lock
+    whose tag ends _ou3 as recorded; an earlier (ou1 / ou2) lock with its
+    book, line and prices from lock_ou_* and its model total, P(over) and tag
+    from the one-time ou3 rescore; blank otherwise. Native columns are not
+    changed."""
+    if g is None or not len(g) or "ou3_line" in g.columns or "lock_ou_tag" not in g:
+        return g
+    rs = load_ou3_rescore() if rescore is None else rescore
+    g = g.copy()
+    lock, new = OU_PRICE_COLUMNS["lock"], OU_PRICE_COLUMNS["lock3"]
+    tag = g["lock_ou_tag"].astype(str)
+    native = tag.str.endswith(OU3_TAG_SUFFIX).to_numpy()
+    rs = rs.drop_duplicates("game_id").set_index(rs["game_id"].astype(str)) if len(rs) else rs
+    gid = g["game_id"].astype(str)
+    have = (gid.isin(rs.index) if len(rs) else pd.Series(False, index=g.index)).to_numpy() \
+        & ~native & tag.str.endswith((OU_TAG_SUFFIX, OU2_TAG_SUFFIX)).to_numpy()
+    for src, dst in zip(lock, new):
+        g[dst] = g[src].where(native | have) if src not in ("lock_ou_p_over", "lock_ou_tag",
+                                                              "lock_ou_total") else g[src].where(native)
+    if have.any():
+        r = rs.loc[gid[have]]
+        g.loc[have, "ou3_p_over"] = r["rescore_ou_p_over"].to_numpy()
+        g.loc[have, "ou3_tag"] = r["rescore_ou_tag"].astype(str).to_numpy()
+        g.loc[have, "ou3_total"] = r["rescore_ou_total"].to_numpy()
+    return g
 
 
 def with_ou2(g, rescore=None):
@@ -1218,11 +1304,14 @@ def ou_signals(g, test, price=None):
     """The O/U test's selections at `price` (default: the test's own),
     graded or not."""
     price = price or test["native"]
-    if price in ("lock", "lock2"):
+    if price in ("lock", "lock2", "lock3"):
         g = drop_void_locks(g)                  # stale game-log locks: void
-    closed_from = ou2_activation_slate(g) if test.get("closes") == "ou2" else None
+    closes = test.get("closes")
+    closed_from = ou2_activation_slate(g, ACTIVATION_SUFFIX[closes]) if closes else None
     if price == "lock2":
         g = with_ou2(g)
+    elif price == "lock3":
+        g = with_ou3(g)
     return _ou_members(ou_sides(g, price), test, closed_from)
 
 
@@ -1233,6 +1322,8 @@ def ou_picks(g, test, price=None):
     price = price or test["native"]
     if price == "lock2":
         g = with_ou2(g)
+    elif price == "lock3":
+        g = with_ou3(g)
     d = ou_signals(g, test, price)
     if not len(d):
         return d
