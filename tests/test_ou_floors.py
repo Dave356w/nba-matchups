@@ -241,7 +241,9 @@ def test_ou_test_membership_grading_and_clv():
     assert pd_.set_index("game_id").loc["o1", "units"] == 0.0
 
 
-def test_pages_show_the_total_and_four_tests():
+def test_pages_show_the_total_and_four_tests(monkeypatch):
+    from conftest import pin_ou2_model
+    pin_ou2_model(monkeypatch)
     g = _ou_ledger().assign(lock_ou_tag=totals.TAG_OU2)       # native ou2 locks: the public rows
     g["pre_book"], g["pre_ou_line"], g["pre_ou_over"], g["pre_ou_under"] = "dk", 220.5, -110, -110
     g["ou_total"], g["ou_p_over"] = [226.0, 214.0, 221.0], [0.60, 0.40, 0.52]

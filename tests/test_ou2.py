@@ -128,6 +128,8 @@ def test_ou2_rows_read_the_rescore_and_the_ou1_rows_close_at_activation(monkeypa
 
 
 def test_public_pages_show_only_the_ou2_rows_and_the_dated_line(monkeypatch, tmp_path):
+    from conftest import pin_ou2_model
+    pin_ou2_model(monkeypatch)                      # before ou3's activation
     g = _ou_ledger()
     g["pre_book"], g["pre_ou_line"], g["pre_ou_over"], g["pre_ou_under"] = "dk", 220.5, -110, -110
     path = tmp_path / "rescore.csv"

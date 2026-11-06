@@ -91,3 +91,17 @@ def write_research(*args, **kwargs):
     """Render the backend workbench into the test's dedicated output folder."""
     import build_site
     return build_site.write_research(*args, **kwargs, out_dir=build_site.OUT_DIR)
+
+
+OU2_MODEL_FILE = dict(tag="totals_hl25_form5_rep_ou2", sigma_early=19.0, sigma_late=18.4,
+                      coef=dict(intercept=0.0, rel=1.0, form=0.0, b2b=0.0, phase=0.0),
+                      report=dict(coef=dict(intercept=0.0, av_o=1.0, av_d=-1.0, av_m=0.0),
+                                  sigma_early=18.0, sigma_late=18.5, n_games=1, lead=300,
+                                  seasons=[2023]))
+
+
+def pin_ou2_model(monkeypatch):
+    """Pages read the deployed model/totals.json to choose the public O/U rows
+    (analysis.ou3_active); pin an ou2 file for tests of the ou2 rows."""
+    import totals
+    monkeypatch.setattr(totals, "load", lambda path=None: OU2_MODEL_FILE)

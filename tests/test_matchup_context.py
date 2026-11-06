@@ -8,7 +8,7 @@ import ledger
 import nba_composite as nc
 from matchup_context import MatchupContext
 from public_site import PublicSite, RULES, rule_key
-from conftest import make_log
+from conftest import make_log, pin_ou2_model
 from test_public_site import rows
 
 
@@ -97,7 +97,8 @@ def test_cards_show_records_factors_and_distinct_injury_source_with_safe_missing
     assert 'No pregame injury list was captured' in empty
 
 
-def test_all_four_public_test_records_match_every_registered_signal_and_grade():
+def test_all_four_public_test_records_match_every_registered_signal_and_grade(monkeypatch):
+    pin_ou2_model(monkeypatch)                      # the ou2 public rows
     g = rows().iloc[1:5].copy()
     g['lock_ou_p_over'] = .8
     g['lock_ou_total'] = 220.
