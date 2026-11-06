@@ -23,6 +23,12 @@ import dfs  # noqa: E402
 import ledger  # noqa: E402
 from matchup_context import MatchupContext  # noqa: E402
 import nba_composite as nc  # noqa: E402
+import totals  # noqa: E402
+
+# the O/U locks carry the deployed totals model's tag (ou2 until Fit model
+# wrote ou3, ou3 since), so the fixture's picks enter the public O/U rows
+_TOTALS = totals.load()
+OU_TAG = totals.model_tags(_TOTALS)[0] if _TOTALS and _TOTALS.get("report") else totals.TAG_OU2
 from public_site import PublicSite  # noqa: E402
 
 
@@ -49,8 +55,8 @@ def fixture():
             lock_away_spread_odds=-110,
             # the O/U test (edge floors and O/U amendment): the model leans over
             pre_ou_line=205.5, pre_ou_over=-110, pre_ou_under=-110, ou_total=212.0,
-            ou_sigma=18.5, ou_p_over=.62, ou_tag='totals_hl25_form5_rep_ou2',
-            lock_ou_snapshot_utc='2026-11-19T23:00:00Z', lock_ou_tag='totals_hl25_form5_rep_ou2',
+            ou_sigma=18.5, ou_p_over=.62, ou_tag=OU_TAG,
+            lock_ou_snapshot_utc='2026-11-19T23:00:00Z', lock_ou_tag=OU_TAG,
             lock_ou_total=212.0, lock_ou_p_over=.62, lock_ou_book='dk', lock_ou_line=205.5,
             lock_ou_over=-110, lock_ou_under=-110,
             home_won=np.nan if won is None else won,
