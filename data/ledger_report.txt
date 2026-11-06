@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-11-06T22:02:27Z; latest graded slate 2026-11-05 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-11-06T22:15:26Z; latest graded slate 2026-11-05 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_avail_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_neutral_avail_v11
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -147,7 +147,8 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
   OU·L·ou3     Games 10+ · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou3
     ou3 @ 5 h lock (rescore/native) no bets  (0 pending)
   OU·E·L·ou3   Games 1–9 · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou3
-    ou3 @ 5 h lock (rescore/native) no bets  (0 pending)
+    ou3 @ 5 h lock (rescore/native) n=21    9-12         -3.83u  ROI  -18.2% +/- 21.1  (null -4.5%, z -0.6)  win 42.9% vs q 50.1%  | fav --  (6 pending)
+    CLV vs close               +0.10 pts +/- 0.22 (1 SE), toward the bet 33% of 21
   OU·L·ou2     Games 10+ · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou2
     ou2 @ 5 h lock (rescore/native) no bets  (0 pending)
   OU·E·L·ou2   Games 1–9 · O/U: model side, |P(over) − q| ≥ 0.05 · 5 h lock · ou2
