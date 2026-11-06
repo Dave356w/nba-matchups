@@ -53,7 +53,12 @@ its log loss is not worse than base on either large priced book-season
 agreeing, and it is better on games 1+ beyond the 95% interval and in at
 least 7 of the folds; a gain over 0.008 in a season is a leakage tripwire.
 Passing makes it a candidate for a new model tag, the owner's decision, not
-a change. Research only: nothing here touches the ledgers, the pages or
+a change. Sensitivity (owner's note 2026-11-06, added before any result was
+read; the rule above is unchanged): games 1+ without the 2021 fold
+(2020-21, mostly empty arenas, a smaller home edge) and without 2021 and
+2022 (2021-22, the health-and-safety protocol absences). 2020 (the bubble)
+is in no fit or fold; 2018-19 predates COVID. Those seasons still train the
+later folds, as they train production. Research only: nothing here touches the ledgers, the pages or
 model/*.json.
 """
 from __future__ import annotations
@@ -306,6 +311,21 @@ def gate_lines(W, gate):
     return L
 
 
+def sensitivity_lines(W):
+    L = ["", "== 3b. Sensitivity (description, not the rule): games 1+ without COVID-affected folds"]
+    G = W[W["stage"] != "game 0"]
+    for label, drop in (("all folds", []), ("without 2021", [2021]),
+                        ("without 2021, 2022", [2021, 2022])):
+        g = G[~G["season"].isin(drop)]
+        L.append(f"  {label:20s} n {len(g):5d}")
+        for arm in others():
+            (m, e, _), (bm, be, _), (mm, me, _) = diff(g, arm)
+            wins = sum(diff(x, arm)[0][0] < 0 for _, x in g.groupby("season"))
+            L.append(f"    {arm:5s} {m:+.4f} ± {e:.4f}  Brier {bm:+.4f} ± {be:.4f}  "
+                     f"MSE {mm:+.2f} ± {me:.2f}  better in {wins} of {g['season'].nunique()}")
+    return L
+
+
 def coef_lines():
     C = []
     for f in sorted(glob.glob(os.path.join(OUT, "coefs_*.json"))):
@@ -335,7 +355,7 @@ def report():
          "Each row: arm - base (negative = arm better), ± 95%.", ""]
     L += outcome_lines(W)
     m, gate = market_lines(W)
-    L += m + gate_lines(W, gate) + coef_lines()
+    L += m + gate_lines(W, gate) + sensitivity_lines(W) + coef_lines()
     with open(os.path.join(OUT, "RESULTS.txt"), "w") as f:
         f.write("\n".join(L) + "\n")
     print("\n".join(L))
