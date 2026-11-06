@@ -279,10 +279,37 @@ jobs:
           python nba_composite.py download --years 2015-2026
           python nba_composite.py download --years 2027 --refresh
           rm -f research/output/tips_2027.csv
-      - name: Run and report
+      - name: Features (every game)
+        timeout-minutes: 30
+        run: python research/totals_od.py --frame
+      - name: Report terms 2023
+        timeout-minutes: 60
+        run: python research/totals_od.py --terms 2023
+      - name: Report terms 2024
+        timeout-minutes: 60
+        run: python research/totals_od.py --terms 2024
+      - name: Report terms 2025
+        timeout-minutes: 60
+        run: python research/totals_od.py --terms 2025
+      - name: Report terms 2026
+        timeout-minutes: 60
+        run: python research/totals_od.py --terms 2026
+      - name: Report terms 2027
+        timeout-minutes: 60
+        run: python research/totals_od.py --terms 2027
+      - name: Keep fetched injury reports even if a step failed
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}-totals-od
+      - name: Fit and report
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          python research/totals_od.py --run --report | tee totals_od.txt
+          python research/totals_od.py --walk --report | tee totals_od.txt
           { echo '```'; cat diagnostics/totals_od/RESULTS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()

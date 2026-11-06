@@ -73,3 +73,14 @@ def test_offence_share_and_era():
     k = -0.2 + 0.1
     assert np.isclose(out["off_share_1.0"], (0.9 + k) / (1.8 + k))
     assert 2020 not in tod.ERA and 2021 not in tod.ERA and 2027 not in tod.COMPLETED
+
+
+def test_attach_terms_sums_both_teams_and_is_neutral_when_missing():
+    rows = pd.DataFrame(dict(slate_date=["2024-01-01", "2024-01-02"], home=["AAA", "BBB"],
+                             away=["BBB", "CCC"]))
+    terms = pd.DataFrame(dict(slate_date=["2024-01-01", "2024-01-01", "2024-01-02"],
+                              team=["AAA", "BBB", "BBB"], av_o=[1.0, 2.0, 3.0],
+                              av_d=[0.5, 0.5, 1.0], av_m=[10.0, 20.0, 30.0]))
+    out = tod.attach_terms(rows, terms)
+    assert out.loc[0, ["av_o", "av_d", "av_m"]].tolist() == [3.0, 1.0, 30.0]
+    assert out.loc[1, ["av_o", "av_d", "av_m"]].tolist() == [0.0, 0.0, 0.0]

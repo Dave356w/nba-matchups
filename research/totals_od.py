@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Totals offence/defence weights (ODT) on ou2: the registered test (diagnostics/totals_od/REGISTRATION.md).
 
-  python research/totals_od.py --run       # writes predictions and coefficients
-  python research/totals_od.py --report    # RESULTS.txt from them
+  python research/totals_od.py --frame            # features of every game -> frame.csv
+  python research/totals_od.py --terms 2023 ...    # report terms per season -> terms_<t>.csv
+  python research/totals_od.py --walk              # predictions and coefficients
+  python research/totals_od.py --report            # RESULTS.txt from them
+  (--run does all four stages in turn.)
 
 Registered 2026-11-06 (commit 8301d50) before this code. Arms:
   base  ou2: T* (rel, form, b2b, phase on total - league total), then the
@@ -19,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from math import erf, sqrt
 from pathlib import Path
@@ -106,24 +108,29 @@ def implied(feats, b):
 
 
 # ------------------------------------------------------------ report terms --
-def report_terms(rows):
-    """rows with av_o / av_d / av_m (both teams' sums; 0 where the report does
-    not cover the game) for the report seasons, as research/totals_report.py."""
+def season_terms(t):
+    """{(date, team): {av_o, av_d, av_m}} for report season t (0 where the
+    report does not cover the game), as research/totals_report.py."""
     import totals_report as trp
     model = json.load(open(ROOT / "model" / "logit_avail.json"))
     rates = pav.lead_rates(model["q_rates"], totals.REPORT_LEAD)
+    terms, _ = trp.report_terms(t, totals.REPORT_LEAD, rates)
+    return pd.DataFrame([dict(slate_date=d, team=tm, **{k: v[k] for k in TERMS})
+                         for (d, tm), v in terms.items()])
+
+
+def attach_terms(rows, terms):
+    """rows with av_o / av_d / av_m, both teams' sums (0 when missing)."""
     rows = rows.copy()
     for k in TERMS:
         rows[k] = 0.0
-    for t in REPORT:
-        terms, _ = trp.report_terms(t, totals.REPORT_LEAD, rates)
-        m = (rows["season"] == t).to_numpy()
-        for k in TERMS:
-            h = [terms.get((d, tm), {}).get(k, np.nan) for d, tm in
-                 zip(rows.loc[m, "slate_date"], rows.loc[m, "home"])]
-            a = [terms.get((d, tm), {}).get(k, np.nan) for d, tm in
-                 zip(rows.loc[m, "slate_date"], rows.loc[m, "away"])]
-            rows.loc[m, k] = np.nan_to_num(np.array(h, float) + np.array(a, float))
+    if not len(terms):
+        return rows
+    T = terms.set_index(["slate_date", "team"])
+    for k in TERMS:
+        h = T[k].reindex(pd.MultiIndex.from_arrays([rows["slate_date"], rows["home"]])).to_numpy(float)
+        a = T[k].reindex(pd.MultiIndex.from_arrays([rows["slate_date"], rows["away"]])).to_numpy(float)
+        rows[k] = np.nan_to_num(h + a)
     return rows
 
 
@@ -171,12 +178,47 @@ def walk(rows):
     return rows[rows["season"].isin(TESTS)][keep], coefs
 
 
-def run():
-    rows = report_terms(frame())
-    P, C = walk(rows)
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+
+def stage_frame():
+    import time
     OUT.mkdir(parents=True, exist_ok=True)
+    logs, t0 = {}, time.time()
+    for y in LOAD:
+        logs[y] = nc.load_logs(y)
+        log(f"logs {y}: {len(logs[y])} teams ({time.time() - t0:.0f} s)")
+    rows = frame(logs)
+    log(f"features built ({time.time() - t0:.0f} s)")
+    rows.to_csv(OUT / "frame.csv", index=False)
+    log(f"frame: {len(rows)} games, seasons {sorted(rows['season'].unique())}")
+
+
+def stage_terms(seasons):
+    OUT.mkdir(parents=True, exist_ok=True)
+    import time
+    for t in seasons:
+        t0 = time.time()
+        log(f"terms {t}: fetching and reading reports ...")
+        d = season_terms(t)
+        log(f"terms {t}: done in {time.time() - t0:.0f} s")
+        d.to_csv(OUT / f"terms_{t}.csv", index=False)
+        log(f"terms {t}: {len(d)} team-games, covered (any term non-zero) "
+            f"{(d[TERMS].abs().sum(axis=1) > 0).mean() if len(d) else 0:.1%}")
+
+
+def stage_walk():
+    rows = pd.read_csv(OUT / "frame.csv")
+    parts = [pd.read_csv(OUT / f"terms_{t}.csv") for t in REPORT if (OUT / f"terms_{t}.csv").exists()]
+    missing = [t for t in REPORT if not (OUT / f"terms_{t}.csv").exists()]
+    if missing:
+        raise SystemExit(f"report terms missing for {missing}: run --terms first")
+    rows = attach_terms(rows, pd.concat(parts, ignore_index=True))
+    P, C = walk(rows)
     P.to_csv(OUT / "predictions.csv", index=False, float_format="%.5g")
     (OUT / "coefs.json").write_text(json.dumps(C, indent=1))
+    log(f"walk: {len(P)} predictions")
 
 
 # ----------------------------------------------------------------- report --
@@ -322,12 +364,19 @@ def report():
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--run", action="store_true")
+    ap.add_argument("--frame", action="store_true")
+    ap.add_argument("--terms", nargs="+", type=int)
+    ap.add_argument("--walk", action="store_true")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--run", action="store_true", help="all four stages")
     a = ap.parse_args()
-    if a.run:
-        run()
-    if a.report:
+    if a.frame or a.run:
+        stage_frame()
+    if a.terms or a.run:
+        stage_terms(a.terms or REPORT)
+    if a.walk or a.run:
+        stage_walk()
+    if a.report or a.run:
         report()
 
 
