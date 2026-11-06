@@ -279,23 +279,37 @@ jobs:
           python nba_composite.py download --years 2015-2026
           python nba_composite.py download --years 2027 --refresh
           rm -f research/output/tips_2027.csv
+      - name: Probe the report, scoreboard and BBR hosts from this runner
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          for u in \
+            https://ak-static.cms.nba.com/referee/injury/Injury-Report_2023-01-15_01PM.pdf \
+            https://ak-static.cms.nba.com/referee/injury/Injury-Report_2023-01-15_01_15PM.pdf \
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20230115" \
+            https://www.basketball-reference.com/leagues/NBA_2022_advanced.html; do
+            curl -sS -o /dev/null -m 20 -A "Mozilla/5.0" -w "%{http_code} %{time_total}s %{size_download}B  $u\n" "$u" || echo "FAILED $u"
+          done
+          ls research/output/injury_reports 2>/dev/null | grep -c '\.pdf$' || true
+          ls research/output/injury_reports 2>/dev/null | grep -c '\.csv$' || true
+          ls research/output/tips_*.csv 2>/dev/null || true
       - name: Features (every game)
         timeout-minutes: 30
         run: python research/totals_od.py --frame
       - name: Report terms 2023
-        timeout-minutes: 60
+        timeout-minutes: 15
         run: python research/totals_od.py --terms 2023
       - name: Report terms 2024
-        timeout-minutes: 60
+        timeout-minutes: 15
         run: python research/totals_od.py --terms 2024
       - name: Report terms 2025
-        timeout-minutes: 60
+        timeout-minutes: 15
         run: python research/totals_od.py --terms 2025
       - name: Report terms 2026
-        timeout-minutes: 60
+        timeout-minutes: 15
         run: python research/totals_od.py --terms 2026
       - name: Report terms 2027
-        timeout-minutes: 60
+        timeout-minutes: 15
         run: python research/totals_od.py --terms 2027
       - name: Keep fetched injury reports even if a step failed
         if: always()
