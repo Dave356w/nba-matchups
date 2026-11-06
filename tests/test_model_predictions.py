@@ -96,7 +96,7 @@ def test_pages_show_forecast_only_games_and_keep_betting_records_separate():
     assert 'data-result-row ' not in html
     assert "class='prediction-badge'>Loss" in html
     perf = site.performance_page()
-    assert "class='record'>0–1" in perf and 'Closing favourite:' in perf
+    assert "class='record'>0–1" in perf and 'Closing favorite:' in perf
     assert 'Log loss' in perf and 'Brier score' in perf and '95% Wilson interval' in perf
     card = site.card(g.iloc[0])
     assert 'Model pick · 5 h lock' in card and 'Loss' in card and '51.0%' in card
