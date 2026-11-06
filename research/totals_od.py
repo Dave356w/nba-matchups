@@ -172,14 +172,15 @@ def attach_terms(rows, terms):
 
 
 # -------------------------------------------------------------------- run --
-def walk(rows):
+def walk(rows, arms=None):
     """Per arm and test season: T* walk-forward on era seasons before Y, then
     the report stage on the report seasons before Y (on each arm's own
     out-of-sample T* residual). Returns predictions and coefficients."""
     rows = rows[rows["season"].isin(ERA)].copy()
     early_all = (rows["stage_gp"] < 10).to_numpy()
     coefs = []
-    for arm, feats in ARMS.items():
+    arms = arms or ARMS
+    for arm, feats in arms.items():
         rows[f"Ts_{arm}"] = np.nan
         rows[f"sig_{arm}"] = np.nan
         for Y in TESTS:
@@ -211,7 +212,7 @@ def walk(rows):
             coefs.append(dict(arm=arm, season=Y, stage="report", sigma_late=float(sl),
                               **dict(zip(["intercept"] + TERMS, map(float, b)))))
     keep = ["season", "slate_date", "home", "away", "stage_gp", "total", "lg_total",
-            "off_t", "def_t"] + [f"{p}_{a}" for a in ARMS for p in ("Ts", "T", "sig")]
+            "off_t", "def_t"] + [f"{p}_{a}" for a in arms for p in ("Ts", "T", "sig")]
     return rows[rows["season"].isin(TESTS)][keep], coefs
 
 
