@@ -73,6 +73,13 @@ FEATURES_OU2 = ("rel", "form", "b2b", "phase")
 FEATURES = FEATURES_OU2 + ("rest_tot",)
 REST_CAP = 3                 # days of rest counted at most; a first game counts REST_CAP
 MODEL_PATH = Path(__file__).resolve().parent / "model" / "totals.json"
+# The report stage's per-game terms for completed seasons, kept so a refit
+# reads them instead of fetching and parsing every NBA report again (the
+# report server throttles GitHub runners). Keyed by a fingerprint of what
+# they depend on beyond the committed box scores: the lead, that lead's
+# play-rate table and the report parser's version.
+TERMS_PATH = Path(__file__).resolve().parent / "model" / "totals_report_terms.csv"
+TERMS_COLUMNS = ["season", "date", "home", "away", *REPORT_TERMS, "lead", "key"]
 FIT_YEARS = "2017-2019 2021-2026"
 
 
@@ -314,6 +321,57 @@ def season_inputs(logs, prev_logs=None):
     return Season(logs, prev)
 
 
+def terms_key(q_table, lead=REPORT_LEAD):
+    """Fingerprint of the report terms' inputs beyond the box scores."""
+    import hashlib
+    import player_availability as pav
+    rates = pav.lead_rates(q_table, lead)
+    blob = json.dumps(dict(lead=int(lead), rates=rates, parser=pav.PARSER_VERSION), sort_keys=True)
+    return hashlib.sha1(blob.encode()).hexdigest()[:12]
+
+
+def current_season(today=None):
+    """The season (BBR year) in progress on `today`: 2027 for 2026-27."""
+    d = pd.Timestamp(today) if today is not None else pd.Timestamp.now()
+    return d.year + 1 if d.month >= 8 else d.year
+
+
+def report_terms(years, q_table, lead=REPORT_LEAD, path=TERMS_PATH, compute=None, today=None,
+                 log=print):
+    """{(date, home, away): {av_o, av_d, av_m}} for the report seasons `years`:
+    from the stored terms when a season's rows match the fingerprint, else
+    computed from the NBA reports (player_availability.season_totals_terms)
+    and, for a completed season, stored for the next fit."""
+    if compute is None:
+        import player_availability as pav
+        compute = pav.season_totals_terms
+    key = terms_key(q_table, lead)
+    path = Path(path)
+    try:
+        stored = pd.read_csv(path, dtype={"key": str})
+    except (OSError, ValueError):
+        stored = pd.DataFrame(columns=TERMS_COLUMNS)
+    out = {}
+    for y in years:
+        have = stored[(stored["season"] == y) & (stored["key"] == key)]
+        if len(have):
+            for r in have.itertuples(index=False):
+                out[(r.date, r.home, r.away)] = {k: float(getattr(r, k)) for k in REPORT_TERMS}
+            log(f"report terms {y}: {len(have)} games from {path.name}")
+            continue
+        got = compute(y, lead, q_table)
+        out.update(got)
+        log(f"report terms {y}: {len(got)} games computed from the NBA reports")
+        if y < current_season(today):            # completed: store now, so a later stall keeps it
+            new = pd.DataFrame([dict(season=y, date=d, home=h, away=w,
+                                     **{k: v[k] for k in REPORT_TERMS}, lead=int(lead), key=key)
+                                for (d, h, w), v in got.items()], columns=TERMS_COLUMNS)
+            stored = pd.concat([stored[stored["season"] != y], new],   # replace stale rows
+                               ignore_index=True)[TERMS_COLUMNS]
+            stored.sort_values(["season", "date", "home"]).to_csv(path, index=False)
+    return out
+
+
 def _years(spec):
     out = []
     for part in spec.split():
@@ -337,13 +395,10 @@ def main():
     rows = training_rows({y: nc.load_logs(y) for y in years})
     m = fit(rows)
     if a.report_years:
-        import player_availability as pav
         q = json.loads(Path(a.q_rates).read_text())
         q = q.get("q_rates", q)
         ry = _years(a.report_years)
-        terms = {}
-        for y in ry:
-            terms.update(pav.season_totals_terms(y, REPORT_LEAD, q))
+        terms = report_terms(ry, q)
         rr = rows[rows["season"].isin(ry)].copy()
         for k in REPORT_TERMS:
             rr[k] = [terms.get((d, h, w), {}).get(k, 0.0)

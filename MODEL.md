@@ -892,6 +892,16 @@ the last slate before ou3's first native lock. Public pages show the ou3
 rows once ou3 is active (`analysis.ou3_active`: an ou3 model file or a
 native ou3 lock), the ou2 rows until then.
 
+The report stage's per-game terms for completed seasons are stored in
+`model/totals_report_terms.csv` (`totals.report_terms`), keyed by a
+fingerprint of the lead, that lead's play-rate table and the report parser's
+version. Fit model reads them instead of fetching and parsing every NBA
+report again (the report server throttles GitHub runners); a season that is
+missing or whose fingerprint changed is recomputed and stored. A fit from
+the stored terms reproduces the fit from the reports (coefficients equal to
+about 15 significant digits). Fit model gives the totals step 45 minutes and
+commits the other refits even if it fails.
+
 ## Version rule
 
 Any change to prediction math (features, weights protocol, half-life, logit
