@@ -334,13 +334,12 @@ def coef_lines():
     L = ["", "== 4. Fitted weights by fold (base route, season-start fit; report route static fit)",
          "   home_w: weight on the home team's rating (P2's w; 0.5 = production);",
          "   off_share: weight on offence vs defence (0.5 = the composite's split)."]
-    cols = [c for c in C.columns if c.startswith(("home_w", "off_share"))] + ["c_sum", "delta_off",
-                                                                              "o_sum", "mx"]
+    cols = ["delta", "d_phase"] + [c for c in C.columns if c.startswith(("home_w", "off_share"))] \
+        + ["c_sum", "delta_off", "o_sum", "mx"]
     for (arm, route), g in C[C["arm"] != BASE].groupby(["arm", "route"], sort=False):
         L.append(f"  {arm} {route}")
-        for r in g.itertuples(index=False):
-            d = r._asdict()
-            L.append(f"    {d['season']}  " + "  ".join(
+        for d in g.to_dict("records"):
+            L.append(f"    {int(d['season'])}  " + "  ".join(
                 f"{c} {d[c]:+.3f}" for c in cols if c in d and pd.notna(d[c])))
     return L
 
@@ -350,7 +349,7 @@ def report():
         os.path.join(OUT, "predictions_*.csv")))], ignore_index=True)
     W = P.dropna(subset=[f"p_{a}" for a in ARMS]).reset_index(drop=True)
     L = [__doc__.strip().splitlines()[0], "",
-         f"Games scored by every arm: {len(W)} (seasons {sorted(W['season'].unique())}); "
+         f"Games scored by every arm: {len(W)} (seasons {', '.join(str(int(x)) for x in sorted(W['season'].unique()))}); "
          f"report route on {(W[f'route_{BASE}'] == 'avail').sum()}. "
          "Each row: arm - base (negative = arm better), ± 95%.", ""]
     L += outcome_lines(W)
