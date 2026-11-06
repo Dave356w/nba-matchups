@@ -110,7 +110,9 @@ jobs:
         # as in its research), written to model/totals.json. ou2 (CLAUDE.md
         # amendment 2026-11-03): plus the injury-report stage on the report
         # seasons at the 300-minute lead, from the cached report archive and
-        # v11's play-rate table in model/logit_avail.json.
+        # v11's play-rate table in model/logit_avail.json. ou3 (CLAUDE.md
+        # amendment 2026-11-06): the fit includes both teams' days of rest,
+        # so the first run after it activates ou3's tags and rows.
         run: python totals.py fit --years "2017-2019 2021-2026" --report-years "2023-2026"
       - name: Check DFS uncertainty on native pregame errors
         # This is separate from the tracked game model. Failed or thin

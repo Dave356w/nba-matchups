@@ -51,6 +51,7 @@ import report
 import sleeper
 import public_site
 import ou_rescore
+import ou3_rescore
 import totals
 
 ET = ZoneInfo("America/New_York")
@@ -2874,14 +2875,18 @@ def _ou_table(native):
             cells = ["0", "—", "—"]
         rows.append([f"<b>{test['key']}</b>", esc(test["rule"]), *cells,
                      f"{c['mean']:+.2f} pts ± {se_txt(c['se'])}" if c else "—"])
-    return ("<h3>O/U test · 5 h lock</h3><p class='note'>Totals model (totals.py, ou2 tags "
-            f"{esc(totals.TAG)} / {esc(totals.TAG_NEUTRAL)}): the model's side when |P(over) − q| ≥ "
+    return ("<h3>O/U test · 5 h lock</h3><p class='note'>Totals model (totals.py; ou3 tags "
+            f"{esc(totals.TAG)} / {esc(totals.TAG_NEUTRAL)}, ou2 tags {esc(totals.TAG_OU2)} / "
+            f"{esc(totals.TAG_NEUTRAL_OU2)}): the model's side when |P(over) − q| ≥ "
             f"{analysis.OU_FLOOR:.2f}, DraftKings main-line totals. Its own record, never pooled "
             "with the moneyline and spread tests; amendment registered "
             f"{esc(analysis.FLOOR_REGISTRATION_UTC)}. ou2 rows (registered "
             f"{esc(analysis.OU2_REGISTRATION_UTC)}): locks before ou2's first native lock read "
             "their one-time rescore from lock-time information (data/nba_ou_rescore.csv); the "
-            f"closed ou1 rows ({esc(totals.TAG_OU1)}) end before it. Never pooled.</p>"
+            f"closed ou1 rows ({esc(totals.TAG_OU1)}) end before it. ou3 rows (registered "
+            f"{esc(analysis.OU3_REGISTRATION_UTC)}; ou2 plus both teams' days of rest): locks "
+            "before ou3's first native lock read their one-time rescore "
+            "(data/nba_ou3_rescore.csv); the ou2 rows close before it. Never pooled.</p>"
             + table(["", "Rule", "Native n · W–L", "ROI", "vs null (± 1 SE)", "CLV (± 1 SE)"],
                     rows, left=(0, 1)))
 
@@ -3545,6 +3550,9 @@ def main(argv=None):
         # ou2 amendment (2026-11-03): rescore each earlier ou1 O/U lock once,
         # from lock-time information, to data/nba_ou_rescore.csv; never raises
         ou_rescore.update(native, log)
+        # ou3 amendment (2026-11-06): once model/totals.json is ou3, rescore
+        # each earlier ou1 / ou2 lock once to data/nba_ou3_rescore.csv; never raises
+        ou3_rescore.update(native, log)
         dfs.snapshot(log)   # Yahoo salaries for the DFS page; never raises
     text = write_pages(native, recon, today, model_ok)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)

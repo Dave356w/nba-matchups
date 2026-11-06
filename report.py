@@ -247,17 +247,22 @@ def hypotheses_block(native, recon):
 
 
 def ou_block(native, book):
-    """The O/U test's rows (analysis.ALL_OU_TESTS): the ou2 rows (earlier
-    locks at their one-time lock-time rescore) and the closed ou1 rows;
-    record, ROI beside its null and CLV, games 10+ and 1-9 apart."""
+    """The O/U test's rows (analysis.ALL_OU_TESTS): the ou3 rows and the ou2
+    rows (earlier locks at their one-time lock-time rescore), and the closed
+    ou1 rows; record, ROI beside its null and CLV, games 10+ and 1-9 apart."""
     act = analysis.ou2_activation_slate(native)
+    act3 = analysis.ou3_activation_slate(native)
     lines = [f"  O/U TEST (registered {analysis.FLOOR_REGISTRATION_UTC}): the totals model's side at "
              f"the 5 h lock when |P(over) − q| ≥ {analysis.OU_FLOOR:.2f}; never pooled with the "
              "moneyline and spread tests.",
              f"  ou2 (registered {analysis.OU2_REGISTRATION_UTC}): OU·L·ou2 / OU·E·L·ou2 from "
              f"{analysis.FAMILY_SLATE}; locks before ou2's first native lock "
              f"({act or 'none yet'}) read their one-time lock-time rescore "
-             "(data/nba_ou_rescore.csv). ou1 rows OU·L / OU·E·L close before it; never pooled."]
+             "(data/nba_ou_rescore.csv). ou1 rows OU·L / OU·E·L close before it; never pooled.",
+             f"  ou3 (registered {analysis.OU3_REGISTRATION_UTC}; ou2 plus both teams' days of "
+             f"rest): OU·L·ou3 / OU·E·L·ou3 from {analysis.FAMILY_SLATE}; locks before ou3's "
+             f"first native lock ({act3 or 'none yet'}) read their one-time lock-time rescore "
+             "(data/nba_ou3_rescore.csv). The ou2 rows close before it; never pooled."]
     for test in analysis.ALL_OU_TESTS:
         d = analysis.ou_picks(native, test) if native is not None and len(native) else None
         r = analysis.ou_row("", d) if d is not None and len(d) else None
@@ -265,8 +270,8 @@ def ou_block(native, book):
             r["z"] = analysis.z_vs_null(r)
         pending = analysis.ou_signals(native, test) if native is not None and len(native) else []
         lines.append(f"  {test['key']:<12} {test['rule']}")
-        where = ("ou2 @ 5 h lock (rescore/native)" if test["native"] == "lock2"
-                 else "native @ 5 h lock")
+        where = {"lock2": "ou2 @ 5 h lock (rescore/native)",
+                 "lock3": "ou3 @ 5 h lock (rescore/native)"}.get(test["native"], "native @ 5 h lock")
         lines.append("    " + roi_line(where, r, 26)
                      + f"  ({len(pending) - (r['n'] if r else 0)} pending)")
         c = analysis.ou_clv(native, test) if native is not None and len(native) else None
