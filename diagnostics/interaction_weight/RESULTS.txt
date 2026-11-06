@@ -1,0 +1,173 @@
+Interaction weighting: home/away and offence/defence weights on the production model, walk-forward.
+
+Games scored by every arm: 10910 (seasons 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025, 2026); report route on 3633. Each row: arm - base (negative = arm better), ± 95%.
+
+== 1. Against outcomes: arm - base (log loss / Brier / margin MSE, ± 95%)
+  games 1+       n 10767  base log loss 0.6114
+    HA    -0.0004 ± 0.0004  Brier -0.0002 ± 0.0002  MSE -0.06 ± 0.20  better in 6 of 9
+    OD    -0.0004 ± 0.0005  Brier -0.0002 ± 0.0002  MSE -0.31 ± 0.25  better in 6 of 9
+    HAOD  -0.0003 ± 0.0010  Brier -0.0002 ± 0.0004  MSE -0.20 ± 0.43  better in 6 of 9
+    MX    +0.0005 ± 0.0004  Brier +0.0002 ± 0.0002  MSE +0.26 ± 0.18  better in 3 of 9
+  game 0         n   143  base log loss 0.6195
+    HA    +0.0015 ± 0.0039  Brier +0.0005 ± 0.0018  MSE +0.70 ± 1.90  better in 2 of 9
+    OD    -0.0020 ± 0.0040  Brier -0.0010 ± 0.0018  MSE -0.08 ± 1.67  better in 7 of 9
+    HAOD  +0.0014 ± 0.0077  Brier +0.0006 ± 0.0035  MSE +1.72 ± 3.10  better in 5 of 9
+    MX    +0.0006 ± 0.0048  Brier +0.0003 ± 0.0020  MSE +1.08 ± 2.07  better in 4 of 9
+  games 1-9      n  1258  base log loss 0.6318
+    HA    -0.0007 ± 0.0015  Brier -0.0003 ± 0.0007  MSE -0.05 ± 0.62  better in 5 of 9
+    OD    +0.0004 ± 0.0017  Brier +0.0002 ± 0.0008  MSE -0.25 ± 0.74  better in 3 of 9
+    HAOD  -0.0006 ± 0.0033  Brier -0.0003 ± 0.0015  MSE -0.17 ± 1.42  better in 6 of 9
+    MX    +0.0015 ± 0.0016  Brier +0.0006 ± 0.0007  MSE +0.44 ± 0.66  better in 2 of 9
+  games 10+      n  9509  base log loss 0.6087
+    HA    -0.0003 ± 0.0004  Brier -0.0002 ± 0.0002  MSE -0.06 ± 0.21  better in 6 of 9
+    OD    -0.0005 ± 0.0006  Brier -0.0002 ± 0.0003  MSE -0.32 ± 0.27  better in 6 of 9
+    HAOD  -0.0003 ± 0.0010  Brier -0.0001 ± 0.0005  MSE -0.20 ± 0.45  better in 6 of 9
+    MX    +0.0003 ± 0.0004  Brier +0.0001 ± 0.0002  MSE +0.23 ± 0.19  better in 4 of 9
+  avail route    n  3633  base log loss 0.5896
+    HA    -0.0002 ± 0.0009  Brier -0.0001 ± 0.0004  MSE +0.25 ± 0.44  better in 1 of 3
+    OD    -0.0007 ± 0.0009  Brier -0.0003 ± 0.0004  MSE -0.68 ± 0.44  better in 3 of 3
+    HAOD  -0.0007 ± 0.0013  Brier -0.0004 ± 0.0006  MSE -0.29 ± 0.66  better in 3 of 3
+    MX    +0.0001 ± 0.0005  Brier +0.0000 ± 0.0002  MSE +0.16 ± 0.24  better in 0 of 3
+  base route     n  7134  base log loss 0.6225
+    HA    -0.0005 ± 0.0004  Brier -0.0002 ± 0.0002  MSE -0.21 ± 0.19  better in 5 of 6
+    OD    -0.0002 ± 0.0007  Brier -0.0001 ± 0.0003  MSE -0.12 ± 0.31  better in 3 of 6
+    HAOD  -0.0002 ± 0.0013  Brier -0.0001 ± 0.0006  MSE -0.15 ± 0.55  better in 3 of 6
+    MX    +0.0007 ± 0.0006  Brier +0.0002 ± 0.0002  MSE +0.31 ± 0.25  better in 3 of 6
+
+  By season, games 1+ (log loss arm - base):
+    season     n                 HA                 OD               HAOD                 MX
+    2017   1214  +0.0005 ± 0.0010  +0.0007 ± 0.0016  +0.0005 ± 0.0041  +0.0031 ± 0.0030
+    2018   1214  -0.0003 ± 0.0007  +0.0003 ± 0.0008  +0.0016 ± 0.0038  -0.0001 ± 0.0002
+    2019   1214  -0.0007 ± 0.0008  -0.0006 ± 0.0015  -0.0022 ± 0.0024  -0.0002 ± 0.0009
+    2021   1064  -0.0010 ± 0.0011  +0.0014 ± 0.0026  +0.0020 ± 0.0038  +0.0009 ± 0.0010
+    2022   1214  -0.0004 ± 0.0015  -0.0025 ± 0.0013  -0.0023 ± 0.0025  -0.0000 ± 0.0004
+    2023   1214  -0.0011 ± 0.0011  -0.0002 ± 0.0021  -0.0004 ± 0.0026  +0.0003 ± 0.0006
+    2024   1215  -0.0010 ± 0.0023  -0.0000 ± 0.0009  -0.0005 ± 0.0027  +0.0000 ± 0.0011
+    2025   1209  +0.0005 ± 0.0013  -0.0015 ± 0.0015  -0.0007 ± 0.0020  +0.0002 ± 0.0010
+    2026   1209  +0.0000 ± 0.0010  -0.0007 ± 0.0019  -0.0007 ± 0.0022  +0.0000 ± 0.0002
+
+== 2. Against the close, each basis x book x season alone
+   arm - close log loss (± 95%); [arm - base log loss, Brier]
+  reconstructed dk      2026 games 1+   n  964  base +0.0153 ± 0.0106
+      HA    +0.0156 ± 0.0106  [+0.0003 ± 0.0009, Brier +0.0001 ± 0.0004]
+      OD    +0.0140 ± 0.0106  [-0.0014 ± 0.0021, Brier -0.0008 ± 0.0009]
+      HAOD  +0.0144 ± 0.0106  [-0.0009 ± 0.0024, Brier -0.0006 ± 0.0010]
+      MX    +0.0153 ± 0.0106  [-0.0001 ± 0.0002, Brier -0.0000 ± 0.0001]
+  reconstructed dk      2026 games 10+  n  964  base +0.0153 ± 0.0106
+      HA    +0.0156 ± 0.0106  [+0.0003 ± 0.0009, Brier +0.0001 ± 0.0004]
+      OD    +0.0140 ± 0.0106  [-0.0014 ± 0.0021, Brier -0.0008 ± 0.0009]
+      HAOD  +0.0144 ± 0.0106  [-0.0009 ± 0.0024, Brier -0.0006 ± 0.0010]
+      MX    +0.0153 ± 0.0106  [-0.0001 ± 0.0002, Brier -0.0000 ± 0.0001]
+  reconstructed espnbet 2025 games 1+   n 1209  base +0.0096 ± 0.0087
+      HA    +0.0101 ± 0.0087  [+0.0005 ± 0.0013, Brier +0.0002 ± 0.0006]
+      OD    +0.0082 ± 0.0084  [-0.0015 ± 0.0015, Brier -0.0006 ± 0.0007]
+      HAOD  +0.0089 ± 0.0085  [-0.0007 ± 0.0020, Brier -0.0004 ± 0.0009]
+      MX    +0.0098 ± 0.0088  [+0.0002 ± 0.0010, Brier +0.0001 ± 0.0004]
+  reconstructed espnbet 2025 games 1-9  n  138  base -0.0187 ± 0.0250
+      HA    -0.0171 ± 0.0251  [+0.0017 ± 0.0052, Brier +0.0008 ± 0.0023]
+      OD    -0.0201 ± 0.0251  [-0.0013 ± 0.0034, Brier -0.0006 ± 0.0016]
+      HAOD  -0.0174 ± 0.0254  [+0.0013 ± 0.0066, Brier +0.0007 ± 0.0030]
+      MX    -0.0201 ± 0.0256  [-0.0014 ± 0.0025, Brier -0.0007 ± 0.0011]
+  reconstructed espnbet 2025 games 10+  n 1071  base +0.0133 ± 0.0093
+      HA    +0.0136 ± 0.0092  [+0.0004 ± 0.0013, Brier +0.0001 ± 0.0006]
+      OD    +0.0118 ± 0.0089  [-0.0015 ± 0.0016, Brier -0.0006 ± 0.0007]
+      HAOD  +0.0123 ± 0.0090  [-0.0010 ± 0.0021, Brier -0.0005 ± 0.0009]
+      MX    +0.0137 ± 0.0094  [+0.0004 ± 0.0011, Brier +0.0002 ± 0.0004]
+  reconstructed espnbet 2026 games 1+   n  245  base -0.0015 ± 0.0206
+      HA    -0.0024 ± 0.0211  [-0.0010 ± 0.0034, Brier -0.0006 ± 0.0016]
+      OD    +0.0002 ± 0.0206  [+0.0017 ± 0.0041, Brier +0.0010 ± 0.0018]
+      HAOD  -0.0012 ± 0.0212  [+0.0002 ± 0.0053, Brier +0.0002 ± 0.0024]
+      MX    -0.0011 ± 0.0206  [+0.0004 ± 0.0004, Brier +0.0002 ± 0.0002]
+  reconstructed espnbet 2026 games 1-9  n  138  base +0.0047 ± 0.0270
+      HA    +0.0006 ± 0.0273  [-0.0042 ± 0.0042, Brier -0.0020 ± 0.0020]
+      OD    +0.0074 ± 0.0267  [+0.0027 ± 0.0056, Brier +0.0013 ± 0.0026]
+      HAOD  +0.0029 ± 0.0270  [-0.0018 ± 0.0067, Brier -0.0009 ± 0.0032]
+      MX    +0.0055 ± 0.0270  [+0.0008 ± 0.0007, Brier +0.0003 ± 0.0003]
+  reconstructed espnbet 2026 games 10+  n  107  base -0.0095 ± 0.0319
+      HA    -0.0063 ± 0.0332  [+0.0032 ± 0.0056, Brier +0.0012 ± 0.0025]
+      OD    -0.0091 ± 0.0324  [+0.0004 ± 0.0059, Brier +0.0007 ± 0.0026]
+      HAOD  -0.0066 ± 0.0339  [+0.0028 ± 0.0085, Brier +0.0015 ± 0.0037]
+      MX    -0.0096 ± 0.0319  [-0.0001 ± 0.0002, Brier -0.0000 ± 0.0001]
+
+== 3. Decision rule (G7, set before the run)
+  HA    FAIL  priced games 10+ dk 2026: +0.0003 (Brier +0.0001); espnbet 2025: +0.0004 (Brier +0.0001); games 1+ -0.0004 ± 0.0004, better in 6 of 9; largest season gain 0.0011 (tripwire 0.008)
+  OD    FAIL  priced games 10+ dk 2026: -0.0014 (Brier -0.0008); espnbet 2025: -0.0015 (Brier -0.0006); games 1+ -0.0004 ± 0.0005, better in 6 of 9; largest season gain 0.0025 (tripwire 0.008)
+  HAOD  FAIL  priced games 10+ dk 2026: -0.0009 (Brier -0.0006); espnbet 2025: -0.0010 (Brier -0.0005); games 1+ -0.0003 ± 0.0010, better in 6 of 9; largest season gain 0.0023 (tripwire 0.008)
+  MX    FAIL  priced games 10+ dk 2026: -0.0001 (Brier -0.0000); espnbet 2025: +0.0004 (Brier +0.0002); games 1+ +0.0005 ± 0.0004, better in 3 of 9; largest season gain 0.0002 (tripwire 0.008)
+
+== 3b. Sensitivity (description, not the rule): games 1+ without COVID-affected folds
+  all folds            n 10767
+    HA    -0.0004 ± 0.0004  Brier -0.0002 ± 0.0002  MSE -0.06 ± 0.20  better in 6 of 9
+    OD    -0.0004 ± 0.0005  Brier -0.0002 ± 0.0002  MSE -0.31 ± 0.25  better in 6 of 9
+    HAOD  -0.0003 ± 0.0010  Brier -0.0002 ± 0.0004  MSE -0.20 ± 0.43  better in 6 of 9
+    MX    +0.0005 ± 0.0004  Brier +0.0002 ± 0.0002  MSE +0.26 ± 0.18  better in 3 of 9
+  without 2021         n  9703
+    HA    -0.0003 ± 0.0005  Brier -0.0002 ± 0.0002  MSE +0.01 ± 0.21  better in 5 of 8
+    OD    -0.0006 ± 0.0005  Brier -0.0002 ± 0.0002  MSE -0.41 ± 0.25  better in 6 of 8
+    HAOD  -0.0006 ± 0.0010  Brier -0.0003 ± 0.0005  MSE -0.29 ± 0.44  better in 6 of 8
+    MX    +0.0004 ± 0.0004  Brier +0.0001 ± 0.0002  MSE +0.25 ± 0.20  better in 3 of 8
+  without 2021, 2022   n  8489
+    HA    -0.0003 ± 0.0005  Brier -0.0002 ± 0.0002  MSE +0.01 ± 0.22  better in 4 of 7
+    OD    -0.0003 ± 0.0006  Brier -0.0001 ± 0.0003  MSE -0.31 ± 0.27  better in 5 of 7
+    HAOD  -0.0004 ± 0.0011  Brier -0.0002 ± 0.0005  MSE -0.16 ± 0.47  better in 5 of 7
+    MX    +0.0005 ± 0.0005  Brier +0.0002 ± 0.0002  MSE +0.32 ± 0.22  better in 2 of 7
+
+== 4. Fitted weights by fold (base route, season-start fit; report route static fit)
+   home_w: weight on the home team's rating (P2's w; 0.5 = production);
+   off_share: weight on offence vs defence (0.5 = the composite's split).
+  HA base
+    2017  delta +0.142  d_phase +0.058  home_w@0.5 +0.538  home_w@1.0 +0.533  c_sum +0.013
+    2018  delta +0.119  d_phase +0.035  home_w@0.5 +0.532  home_w@1.0 +0.528  c_sum +0.009
+    2019  delta +0.120  d_phase +0.058  home_w@0.5 +0.534  home_w@1.0 +0.528  c_sum +0.010
+    2021  delta +0.122  d_phase +0.058  home_w@0.5 +0.551  home_w@1.0 +0.543  c_sum +0.015
+    2022  delta +0.109  d_phase +0.087  home_w@0.5 +0.571  home_w@1.0 +0.555  c_sum +0.022
+    2023  delta +0.109  d_phase +0.112  home_w@0.5 +0.560  home_w@1.0 +0.545  c_sum +0.020
+    2024  delta +0.105  d_phase +0.124  home_w@0.5 +0.568  home_w@1.0 +0.549  c_sum +0.023
+    2025  delta +0.108  d_phase +0.117  home_w@0.5 +0.560  home_w@1.0 +0.544  c_sum +0.020
+    2026  delta +0.116  d_phase +0.128  home_w@0.5 +0.555  home_w@1.0 +0.540  c_sum +0.020
+  OD base
+    2017  delta +0.173  d_phase +0.056  off_share@0.5 +0.426  off_share@1.0 +0.436  delta_off -0.052
+    2018  delta +0.137  d_phase +0.033  off_share@0.5 +0.446  off_share@1.0 +0.452  delta_off -0.030
+    2019  delta +0.156  d_phase +0.055  off_share@0.5 +0.412  off_share@1.0 +0.425  delta_off -0.055
+    2021  delta +0.179  d_phase +0.052  off_share@0.5 +0.365  off_share@1.0 +0.384  delta_off -0.087
+    2022  delta +0.146  d_phase +0.083  off_share@0.5 +0.409  off_share@1.0 +0.428  delta_off -0.058
+    2023  delta +0.165  d_phase +0.106  off_share@0.5 +0.376  off_share@1.0 +0.405  delta_off -0.087
+    2024  delta +0.156  d_phase +0.120  off_share@0.5 +0.391  off_share@1.0 +0.418  delta_off -0.077
+    2025  delta +0.155  d_phase +0.114  off_share@0.5 +0.397  off_share@1.0 +0.422  delta_off -0.072
+    2026  delta +0.167  d_phase +0.125  off_share@0.5 +0.393  off_share@1.0 +0.420  delta_off -0.081
+  HAOD base
+    2017  delta +0.176  d_phase +0.052  home_w@0.5 +0.383  home_w@1.0 +0.396  off_share@0.5 +0.425  off_share@1.0 +0.435  c_sum -0.047  delta_off -0.052  o_sum +0.105
+    2018  delta +0.138  d_phase +0.029  home_w@0.5 +0.310  home_w@1.0 +0.326  off_share@0.5 +0.447  off_share@1.0 +0.452  c_sum -0.058  delta_off -0.029  o_sum +0.114
+    2019  delta +0.155  d_phase +0.054  home_w@0.5 +0.410  home_w@1.0 +0.422  off_share@0.5 +0.414  off_share@1.0 +0.427  c_sum -0.033  delta_off -0.054  o_sum +0.070
+    2021  delta +0.178  d_phase +0.051  home_w@0.5 +0.437  home_w@1.0 +0.444  off_share@0.5 +0.366  off_share@1.0 +0.385  c_sum -0.026  delta_off -0.086  o_sum +0.066
+    2022  delta +0.146  d_phase +0.083  home_w@0.5 +0.481  home_w@1.0 +0.484  off_share@0.5 +0.410  off_share@1.0 +0.429  c_sum -0.007  delta_off -0.057  o_sum +0.047
+    2023  delta +0.166  d_phase +0.105  home_w@0.5 +0.485  home_w@1.0 +0.488  off_share@0.5 +0.377  off_share@1.0 +0.405  c_sum -0.006  delta_off -0.086  o_sum +0.043
+    2024  delta +0.156  d_phase +0.119  home_w@0.5 +0.508  home_w@1.0 +0.506  off_share@0.5 +0.391  off_share@1.0 +0.419  c_sum +0.003  delta_off -0.077  o_sum +0.031
+    2025  delta +0.155  d_phase +0.113  home_w@0.5 +0.505  home_w@1.0 +0.504  off_share@0.5 +0.398  off_share@1.0 +0.423  c_sum +0.002  delta_off -0.072  o_sum +0.029
+    2026  delta +0.167  d_phase +0.125  home_w@0.5 +0.509  home_w@1.0 +0.507  off_share@0.5 +0.394  off_share@1.0 +0.420  c_sum +0.004  delta_off -0.080  o_sum +0.025
+  MX base
+    2017  delta +0.130  d_phase +0.092  mx +0.056
+    2018  delta +0.119  d_phase +0.033  mx -0.005
+    2019  delta +0.123  d_phase +0.050  mx -0.021
+    2021  delta +0.124  d_phase +0.051  mx -0.020
+    2022  delta +0.110  d_phase +0.084  mx -0.009
+    2023  delta +0.113  d_phase +0.103  mx -0.020
+    2024  delta +0.107  d_phase +0.118  mx -0.015
+    2025  delta +0.109  d_phase +0.113  mx -0.010
+    2026  delta +0.116  d_phase +0.125  mx -0.008
+  HA avail (static)
+    2024  delta +0.078  d_phase +0.198  home_w@0.5 +0.614  home_w@1.0 +0.573  c_sum +0.041
+    2025  delta +0.135  d_phase +0.107  home_w@0.5 +0.549  home_w@1.0 +0.538  c_sum +0.018
+    2026  delta +0.143  d_phase +0.144  home_w@0.5 +0.540  home_w@1.0 +0.530  c_sum +0.017
+  OD avail (static)
+    2024  delta +0.091  d_phase +0.197  off_share@0.5 +0.471  off_share@1.0 +0.481  delta_off -0.021
+    2025  delta +0.160  d_phase +0.109  off_share@0.5 +0.450  off_share@1.0 +0.461  delta_off -0.039
+    2026  delta +0.192  d_phase +0.147  off_share@0.5 +0.413  off_share@1.0 +0.435  delta_off -0.078
+  HAOD avail (static)
+    2024  delta +0.094  d_phase +0.197  home_w@0.5 +0.709  home_w@1.0 +0.638  off_share@0.5 +0.473  off_share@1.0 +0.483  c_sum +0.080  delta_off -0.020  o_sum -0.069
+    2025  delta +0.161  d_phase +0.107  home_w@0.5 +0.569  home_w@1.0 +0.556  off_share@0.5 +0.451  off_share@1.0 +0.461  c_sum +0.030  delta_off -0.039  o_sum -0.019
+    2026  delta +0.192  d_phase +0.146  home_w@0.5 +0.545  home_w@1.0 +0.535  off_share@0.5 +0.414  off_share@1.0 +0.435  c_sum +0.024  delta_off -0.078  o_sum -0.012
+  MX avail (static)
+    2024  delta +0.080  d_phase +0.210  mx +0.044
+    2025  delta +0.135  d_phase +0.110  mx +0.016
+    2026  delta +0.141  d_phase +0.146  mx +0.007

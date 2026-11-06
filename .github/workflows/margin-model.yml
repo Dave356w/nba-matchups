@@ -7,7 +7,9 @@ name: Margin model
 # before it exists on main; caches restore from main's.
 # study: interaction_weight runs research/interaction_weight.py instead (home/
 # away and offence/defence weighting on the production model, walk-forward),
-# its folds in parallel, then one report job.
+# its folds in parallel, then one report job; od_weights runs the registered
+# offence/defence test (research/od_weights.py, diagnostics/od_weights/
+# REGISTRATION.md) the same way, refreshing this season's pages first.
 
 on:
   workflow_dispatch:
@@ -18,13 +20,14 @@ on:
       study:
         description: 'Study to run'
         type: choice
-        options: [margin_model, interaction_weight]
+        options: [margin_model, interaction_weight, od_weights]
         default: margin_model
   push:
     branches: [claude/pensive-bell-0h7sge, claude/compassionate-meitner-aunjeq]
     paths:
       - research/margin_model.py
       - research/interaction_weight.py
+      - research/od_weights.py
       - .github/workflows/margin-model.yml
 
 permissions:
@@ -36,7 +39,7 @@ concurrency:
 
 jobs:
   margin:
-    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'interaction_weight' || 'margin_model')) == 'margin_model'
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'od_weights' || 'margin_model')) == 'margin_model'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
@@ -82,7 +85,7 @@ jobs:
             diagnostics/margin_model/
 
   interaction:
-    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'interaction_weight' || 'margin_model')) == 'interaction_weight'
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'od_weights' || 'margin_model')) == 'interaction_weight'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
@@ -157,3 +160,83 @@ jobs:
           path: |
             interaction_weight.txt
             diagnostics/interaction_weight/
+
+  od:
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'od_weights' || 'margin_model')) == 'od_weights'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['2018 2019 2022', '2023 2024', '2025', '2026', '2027']
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_od_weights.py tests/test_interaction_weight.py -q
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped; this season refreshed)
+        run: |
+          python nba_composite.py download --years 2015-2026
+          python nba_composite.py download --years 2027 --refresh
+          rm -f research/output/tips_2027.csv
+      - name: Folds ${{ matrix.part }}
+        run: python research/od_weights.py --run --seasons ${{ matrix.part }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: od-${{ strategy.job-index }}
+          path: |
+            diagnostics/od_weights/predictions_*.csv
+            diagnostics/od_weights/coefs_*.json
+
+  od-report:
+    needs: od
+    if: always() && needs.od.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: od-*
+          path: diagnostics/od_weights
+          merge-multiple: true
+      - name: Report
+        run: |
+          set -o pipefail
+          python research/od_weights.py --report | tee od_weights.txt
+          { echo '```'; cat diagnostics/od_weights/RESULTS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: od-weights
+          path: |
+            od_weights.txt
+            diagnostics/od_weights/
