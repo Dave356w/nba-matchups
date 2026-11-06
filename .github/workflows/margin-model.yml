@@ -24,7 +24,7 @@ on:
         options: [margin_model, interaction_weight, od_weights, totals_od]
         default: margin_model
   push:
-    branches: [claude/pensive-bell-0h7sge, claude/compassionate-meitner-aunjeq]
+    branches: [claude/pensive-bell-0h7sge]
     paths:
       - research/margin_model.py
       - research/interaction_weight.py
