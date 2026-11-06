@@ -5,6 +5,9 @@ name: Margin model
 # (research/margin_model.py). Writes nothing to the repo; results are the job
 # summary and an artifact. The push trigger runs it from the research branch
 # before it exists on main; caches restore from main's.
+# study: interaction_weight runs research/interaction_weight.py instead (home/
+# away and offence/defence weighting on the production model, walk-forward),
+# its folds in parallel, then one report job.
 
 on:
   workflow_dispatch:
@@ -12,9 +15,17 @@ on:
       seasons:
         description: 'Test seasons (BBR years; 2026 = 2025-26)'
         default: '2017-2019 2021-2026'
+      study:
+        description: 'Study to run'
+        type: choice
+        options: [margin_model, interaction_weight]
+        default: margin_model
   push:
-    branches: [claude/pensive-bell-0h7sge]
-    paths: [research/margin_model.py, .github/workflows/margin-model.yml]
+    branches: [claude/pensive-bell-0h7sge, claude/compassionate-meitner-aunjeq]
+    paths:
+      - research/margin_model.py
+      - research/interaction_weight.py
+      - .github/workflows/margin-model.yml
 
 permissions:
   contents: read
@@ -25,6 +36,7 @@ concurrency:
 
 jobs:
   margin:
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'interaction_weight' || 'margin_model')) == 'margin_model'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
@@ -68,3 +80,80 @@ jobs:
           path: |
             margin_model.txt
             diagnostics/margin_model/
+
+  interaction:
+    if: (inputs.study || (github.ref_name == 'claude/compassionate-meitner-aunjeq' && 'interaction_weight' || 'margin_model')) == 'interaction_weight'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['2017 2018 2019 2021', '2022 2023 2024', '2025', '2026']
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests/test_interaction_weight.py -q
+      - uses: actions/cache@v4
+        with:
+          path: bbr_cache
+          key: bbr-${{ github.run_id }}
+          restore-keys: bbr-
+      - uses: actions/cache@v4
+        with:
+          path: research/output/box_*.csv
+          key: espn-box-${{ github.run_id }}
+          restore-keys: espn-box-
+      - uses: actions/cache@v4
+        with:
+          path: |
+            research/output/injury_reports
+            research/output/tips_*.csv
+          key: injury-reports-${{ github.run_id }}
+          restore-keys: injury-reports-
+      - name: Download (cached pages are skipped)
+        run: python nba_composite.py download --years 2015-2026
+      - name: Folds ${{ matrix.part }}
+        run: python research/interaction_weight.py --run --seasons ${{ matrix.part }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interaction-${{ strategy.job-index }}
+          path: |
+            diagnostics/interaction_weight/predictions_*.csv
+            diagnostics/interaction_weight/coefs_*.json
+
+  interaction-report:
+    needs: interaction
+    if: always() && needs.interaction.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: interaction-*
+          path: diagnostics/interaction_weight
+          merge-multiple: true
+      - name: Report
+        run: |
+          set -o pipefail
+          python research/interaction_weight.py --report | tee interaction_weight.txt
+          { echo '```'; cat diagnostics/interaction_weight/RESULTS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interaction-weight
+          path: |
+            interaction_weight.txt
+            diagnostics/interaction_weight/
