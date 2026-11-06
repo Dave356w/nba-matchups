@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from math import erf, sqrt
 from pathlib import Path
@@ -108,10 +109,46 @@ def implied(feats, b):
 
 
 # ------------------------------------------------------------ report terms --
+def _parse(path):
+    try:
+        pav.parse_report(path)                     # writes its cached CSV
+        return True
+    except Exception:  # noqa: BLE001 - game_statuses reports and handles it
+        return False
+
+
+def preparse(t, workers=None):
+    """Fetch season t's reports at the lead and parse the uncached ones on
+    every core (parse_report caches each as CSV next to its PDF; about 2 s a
+    report, one at a time, made a season about 20 minutes). The terms then
+    read the same reports from the cache: the result is unchanged."""
+    from concurrent.futures import ProcessPoolExecutor
+    from datetime import timedelta
+    import ledger
+    box, tips = pav.fetch_box(t), pav.fetch_tips(t)
+    cut = []
+    for gid in box["game_id"].astype(str).unique():
+        tip = ledger.parse_utc(tips.get(gid))
+        if tip is not None:
+            cut.append(tip.astimezone(pav.ET).replace(tzinfo=None)
+                       - timedelta(minutes=totals.REPORT_LEAD))
+    arch = pav.ReportArchive(pav.REPORT_DIR)
+    arch.prefetch(cut)
+    arch.save()
+    paths = {arch.latest_before(c)[1] for c in set(cut)} - {None}
+    todo = sorted(p for p in paths
+                  if not os.path.exists(p[:-4] + f".v{pav.PARSER_VERSION}.csv"))
+    log(f"terms {t}: {len(paths)} reports, {len(todo)} to parse on {workers or os.cpu_count()} cores")
+    with ProcessPoolExecutor(workers) as ex:
+        ok = sum(ex.map(_parse, todo, chunksize=4))
+    log(f"terms {t}: parsed {ok} of {len(todo)}")
+
+
 def season_terms(t):
     """{(date, team): {av_o, av_d, av_m}} for report season t (0 where the
     report does not cover the game), as research/totals_report.py."""
     import totals_report as trp
+    preparse(t)
     model = json.load(open(ROOT / "model" / "logit_avail.json"))
     rates = pav.lead_rates(model["q_rates"], totals.REPORT_LEAD)
     terms, _ = trp.report_terms(t, totals.REPORT_LEAD, rates)
