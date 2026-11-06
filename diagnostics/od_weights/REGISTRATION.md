@@ -60,3 +60,32 @@ Passing makes OD2 a candidate, the owner's decision; adoption would need its own
 amendment and the usual post-change checks (rescore, rebuild, build, model review,
 DraftKings and History backtests). Failing closes the question unless new evidence
 appears. Every result is reported. ± is 95%, game-level, paired.
+
+## Amendment (owner's decision, 2026-11-06, before any code ran or any result of this test)
+
+The owner directs the test onto seen data: **2016-17 through today, minus the COVID
+seasons, is the new era of the game.** This replaces the out-of-era evidence above.
+
+- **Era seasons:** 2016-17, 2017-18, 2018-19, 2021-22, 2022-23, 2023-24, 2024-25,
+  2025-26 and 2026-27 to date (BBR years 2017, 2018, 2019, 2022–2027). 2019-20 (the
+  bubble) and 2020-21 (mostly empty arenas) are left out of every game-level fit
+  and every test season.
+- **Walk-forward:** each test season Y (2018, 2019, 2022 .. 2027) is scored by fits
+  on the era seasons before Y only: the base-route margin OLS on the era's game
+  seasons, the report route (refitted before each slate) on the report seasons
+  before Y plus Y's covered games so far, as in production. Composite weights keep
+  the production protocol (ridge on WEIGHT_YEARS before Y), so only the game-level
+  weighting differs between arms. Production routing, v10h25 config, talent included.
+- **These seasons were seen** in PR #150, where OD (delta_off alone) was better on
+  both priced books but failed G7 on outcomes. The owner chose this knowingly; the
+  result is not independent of that one.
+- **Decision rule (replaces the one above):** OD2 is a candidate only if
+  1. games 1+ over the completed test seasons (2018, 2019, 2022–2026): OD2 − base
+     log loss below zero beyond the 95% interval, and better in at least 5 of those 7
+     seasons;
+  2. the fitted offence share at phase 1 is below 0.5 in at least 5 of the 7
+     completed folds (base route);
+  3. not worse than base on reconstructed DraftKings 2025-26 and ESPN BET 2024-25,
+     games 10+, with Brier agreeing;
+  4. no season gains more than 0.008 (leakage tripwire).
+  2026-27 to date is reported, apart, and not counted. GW8 stays description only.
