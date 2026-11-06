@@ -1,0 +1,105 @@
+Offence/defence weights refitted on game margins: the registered test (diagnostics/od_weights/REGISTRATION.md).
+
+Completed test seasons [2018, 2019, 2022, 2023, 2024, 2025, 2026]: 8600 games; report route on 3633. Negative = arm better.
+
+== New era, completed seasons (the rule's evidence): arm - base (log loss / Brier / margin MSE, ± 95%)
+  games 1+       n  8489  base log loss 0.6088
+    OD2  -0.0008 ± 0.0009  Brier -0.0003 ± 0.0004  MSE -0.46 ± 0.42  better in 5 of 7
+    GW8  -0.0008 ± 0.0013  Brier -0.0003 ± 0.0006  MSE -0.37 ± 0.57  better in 5 of 7
+  games 1-9      n   978  base log loss 0.6246
+    OD2  -0.0004 ± 0.0025  Brier -0.0001 ± 0.0011  MSE +0.10 ± 1.02  better in 4 of 7
+    GW8  +0.0027 ± 0.0043  Brier +0.0012 ± 0.0019  MSE +0.75 ± 1.83  better in 2 of 7
+  games 10+      n  7511  base log loss 0.6068
+    OD2  -0.0009 ± 0.0009  Brier -0.0003 ± 0.0004  MSE -0.53 ± 0.45  better in 5 of 7
+    GW8  -0.0012 ± 0.0013  Brier -0.0005 ± 0.0006  MSE -0.52 ± 0.60  better in 5 of 7
+  avail route    n  3633  base log loss 0.5896
+    OD2  -0.0006 ± 0.0014  Brier -0.0003 ± 0.0006  MSE -0.58 ± 0.71  better in 2 of 3
+    GW8  -0.0004 ± 0.0016  Brier -0.0002 ± 0.0007  MSE -0.50 ± 0.77  better in 2 of 3
+  base route     n  4856  base log loss 0.6232
+    OD2  -0.0010 ± 0.0011  Brier -0.0003 ± 0.0005  MSE -0.38 ± 0.50  better in 3 of 4
+    GW8  -0.0010 ± 0.0019  Brier -0.0004 ± 0.0009  MSE -0.27 ± 0.82  better in 3 of 4
+
+  By season, games 1+ (log loss arm - base):
+    2018  n  1214  OD2 +0.0007 ± 0.0006  GW8 -0.0003 ± 0.0036
+    2019  n  1214  OD2 -0.0003 ± 0.0018  GW8 -0.0039 ± 0.0033
+    2022  n  1214  OD2 -0.0033 ± 0.0025  GW8 -0.0015 ± 0.0039
+    2023  n  1214  OD2 -0.0010 ± 0.0032  GW8 +0.0018 ± 0.0042
+    2024  n  1215  OD2 +0.0007 ± 0.0029  GW8 +0.0009 ± 0.0028
+    2025  n  1209  OD2 -0.0014 ± 0.0019  GW8 -0.0011 ± 0.0028
+    2026  n  1209  OD2 -0.0010 ± 0.0024  GW8 -0.0011 ± 0.0025
+
+== 2026-27 to date (apart, not counted): arm - base (log loss / Brier / margin MSE, ± 95%)
+  games 1+       n   107  base log loss 0.6092
+    OD2  +0.0017 ± 0.0038  Brier +0.0011 ± 0.0017  MSE +1.80 ± 1.94  better in 0 of 1
+    GW8  +0.0013 ± 0.0103  Brier +0.0010 ± 0.0048  MSE +3.54 ± 5.12  better in 0 of 1
+  games 1-9      n   107  base log loss 0.6092
+    OD2  +0.0017 ± 0.0038  Brier +0.0011 ± 0.0017  MSE +1.80 ± 1.94  better in 0 of 1
+    GW8  +0.0013 ± 0.0103  Brier +0.0010 ± 0.0048  MSE +3.54 ± 5.12  better in 0 of 1
+
+  By season, games 1+ (log loss arm - base):
+    2027  n   107  OD2 +0.0017 ± 0.0038  GW8 +0.0013 ± 0.0103
+
+== Against the close, each basis x book x season alone (arm - close log loss; [arm - base, Brier])
+  native        dk      2027 games 1+   n  107  base +0.0447 ± 0.0265
+      OD2  +0.0465 ± 0.0265  [+0.0017 ± 0.0038, Brier +0.0011 ± 0.0017]
+      GW8  +0.0460 ± 0.0270  [+0.0013 ± 0.0103, Brier +0.0010 ± 0.0048]
+  native        dk      2027 games 1-9  n  107  base +0.0447 ± 0.0265
+      OD2  +0.0465 ± 0.0265  [+0.0017 ± 0.0038, Brier +0.0011 ± 0.0017]
+      GW8  +0.0460 ± 0.0270  [+0.0013 ± 0.0103, Brier +0.0010 ± 0.0048]
+  reconstructed dk      2026 games 1+   n  964  base +0.0153 ± 0.0106
+      OD2  +0.0139 ± 0.0108  [-0.0014 ± 0.0029, Brier -0.0008 ± 0.0012]
+      GW8  +0.0133 ± 0.0103  [-0.0020 ± 0.0027, Brier -0.0010 ± 0.0011]
+  reconstructed dk      2026 games 10+  n  964  base +0.0153 ± 0.0106
+      OD2  +0.0139 ± 0.0108  [-0.0014 ± 0.0029, Brier -0.0008 ± 0.0012]
+      GW8  +0.0133 ± 0.0103  [-0.0020 ± 0.0027, Brier -0.0010 ± 0.0011]
+  reconstructed espnbet 2025 games 1+   n 1209  base +0.0096 ± 0.0087
+      OD2  +0.0082 ± 0.0084  [-0.0014 ± 0.0019, Brier -0.0006 ± 0.0008]
+      GW8  +0.0085 ± 0.0087  [-0.0011 ± 0.0028, Brier -0.0005 ± 0.0012]
+  reconstructed espnbet 2025 games 1-9  n  138  base -0.0187 ± 0.0250
+      OD2  -0.0188 ± 0.0253  [-0.0000 ± 0.0018, Brier +0.0000 ± 0.0008]
+      GW8  -0.0162 ± 0.0272  [+0.0026 ± 0.0083, Brier +0.0009 ± 0.0038]
+  reconstructed espnbet 2025 games 10+  n 1071  base +0.0133 ± 0.0093
+      OD2  +0.0116 ± 0.0088  [-0.0016 ± 0.0021, Brier -0.0007 ± 0.0009]
+      GW8  +0.0116 ± 0.0091  [-0.0016 ± 0.0030, Brier -0.0007 ± 0.0013]
+  reconstructed espnbet 2026 games 1+   n  245  base -0.0015 ± 0.0206
+      OD2  -0.0007 ± 0.0208  [+0.0007 ± 0.0024, Brier +0.0005 ± 0.0011]
+      GW8  +0.0010 ± 0.0208  [+0.0025 ± 0.0064, Brier +0.0016 ± 0.0029]
+  reconstructed espnbet 2026 games 1-9  n  138  base +0.0047 ± 0.0270
+      OD2  +0.0046 ± 0.0269  [-0.0001 ± 0.0028, Brier +0.0000 ± 0.0013]
+      GW8  +0.0105 ± 0.0266  [+0.0058 ± 0.0089, Brier +0.0031 ± 0.0041]
+  reconstructed espnbet 2026 games 10+  n  107  base -0.0095 ± 0.0319
+      OD2  -0.0076 ± 0.0328  [+0.0019 ± 0.0042, Brier +0.0012 ± 0.0018]
+      GW8  -0.0112 ± 0.0329  [-0.0017 ± 0.0091, Brier -0.0004 ± 0.0040]
+
+== Decision rule (registration as amended, commit dbacc45)
+  1. games 1+, completed seasons: -0.0008 ± 0.0009 (Brier -0.0003), better in 5 of 7  -> FAIL
+  2. offence share < 0.5 at phase 1 in 6 of 7 folds  -> pass
+  3. priced games 10+: dk 2026 -0.0014 (Brier -0.0008); espnbet 2025 -0.0016 (Brier -0.0007)  -> pass
+  4. largest season gain 0.0033 (tripwire 0.008)  -> pass
+  OD2: NOT a candidate
+
+== OD2 fitted weights by fold (off_share 0.5 = the composite's split)
+  base
+    2018  delta +0.094  d_phase -0.061  delta_off -0.024  doff_phase +0.066  off_share_0.5 +0.534  off_share_1.0 +0.694
+    2019  delta +0.080  d_phase +0.163  delta_off +0.037  doff_phase -0.183  off_share_0.5 +0.400  off_share_1.0 +0.287
+    2022  delta +0.117  d_phase +0.155  delta_off -0.004  doff_phase -0.180  off_share_0.5 +0.342  off_share_1.0 +0.245
+    2023  delta +0.152  d_phase +0.169  delta_off -0.058  doff_phase -0.136  off_share_0.5 +0.319  off_share_1.0 +0.284
+    2024  delta +0.123  d_phase +0.216  delta_off -0.020  doff_phase -0.179  off_share_0.5 +0.345  off_share_1.0 +0.293
+    2025  delta +0.131  d_phase +0.190  delta_off -0.027  doff_phase -0.144  off_share_0.5 +0.360  off_share_1.0 +0.319
+    2026  delta +0.146  d_phase +0.201  delta_off -0.038  doff_phase -0.137  off_share_0.5 +0.362  off_share_1.0 +0.331
+    2027  delta +0.144  d_phase +0.231  delta_off -0.040  doff_phase -0.154  off_share_0.5 +0.355  off_share_1.0 +0.326
+  avail (static)
+    2024  delta -0.015  d_phase +0.425  delta_off +0.161  doff_phase -0.398  off_share_0.5 +0.447  off_share_1.0 +0.297
+    2025  delta +0.122  d_phase +0.199  delta_off +0.026  doff_phase -0.153  off_share_0.5 +0.436  off_share_1.0 +0.376
+    2026  delta +0.155  d_phase +0.232  delta_off -0.015  doff_phase -0.146  off_share_0.5 +0.403  off_share_1.0 +0.369
+    2027  delta +0.156  d_phase +0.268  delta_off -0.020  doff_phase -0.174  off_share_0.5 +0.388  off_share_1.0 +0.353
+
+== GW8 (description): fitted slope per factor gap (per SD x 100), base route
+    2018  off eFG +0.008  off TOV +0.001  off ORB% +0.005  off FTr +0.002  def eFG +0.007  def TOV +0.004  def ORB% +0.003  def FTr -0.003
+    2019  off eFG +0.010  off TOV +0.002  off ORB% +0.005  off FTr +0.000  def eFG +0.007  def TOV +0.004  def ORB% +0.007  def FTr -0.001
+    2022  off eFG +0.009  off TOV +0.002  off ORB% +0.005  off FTr +0.000  def eFG +0.009  def TOV +0.006  def ORB% +0.008  def FTr -0.000
+    2023  off eFG +0.006  off TOV +0.001  off ORB% +0.006  off FTr -0.001  def eFG +0.011  def TOV +0.007  def ORB% +0.006  def FTr +0.001
+    2024  off eFG +0.006  off TOV +0.002  off ORB% +0.005  off FTr +0.000  def eFG +0.010  def TOV +0.006  def ORB% +0.006  def FTr +0.001
+    2025  off eFG +0.007  off TOV +0.003  off ORB% +0.005  off FTr +0.001  def eFG +0.010  def TOV +0.006  def ORB% +0.005  def FTr +0.000
+    2026  off eFG +0.008  off TOV +0.003  off ORB% +0.005  off FTr +0.000  def eFG +0.010  def TOV +0.007  def ORB% +0.006  def FTr -0.000
+    2027  off eFG +0.006  off TOV +0.002  off ORB% +0.006  off FTr +0.000  def eFG +0.011  def TOV +0.007  def ORB% +0.005  def FTr +0.001
