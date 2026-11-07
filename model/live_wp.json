@@ -1,0 +1,38 @@
+{
+ "knots": [
+  0.0,
+  0.020833333333333332,
+  0.0625,
+  0.125,
+  0.25,
+  0.5,
+  0.75,
+  1.0
+ ],
+ "a": [
+  0.028002,
+  0.050391,
+  0.050953,
+  0.051557,
+  0.052224,
+  0.048817,
+  0.04463,
+  0.031635
+ ],
+ "b": [
+  0.244291,
+  0.154778,
+  0.125542,
+  0.114952,
+  0.095889,
+  0.090424,
+  0.084923,
+  0.082572
+ ],
+ "form": "spline",
+ "fit_seasons": "2015-16..2025-26 (no 2019-20)",
+ "games": 12095,
+ "formula": "P(home) = Phi(a(tau) * lead / sqrt(tau) + b(tau) * mu * sqrt(tau)); a, b piecewise linear in tau on knots",
+ "source": "research/live_wp.py; ESPN play-by-play and archived pregame lines",
+ "note": "Display only (CLAUDE.md, Live win chance): never a model input, test or record."
+}

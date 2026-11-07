@@ -14,6 +14,7 @@ import pandas as pd
 import analysis
 import dfs
 import ledger
+import live_wp
 import market
 from matchup_context import MatchupContext
 
@@ -74,7 +75,16 @@ CSS = """
 .tracked-box{border-radius:9px;background:rgba(var(--accent),.07);padding:12px;border:1px solid rgba(var(--accent),.18)}
 .tracked-box .tracked-label{color:rgb(var(--accent-tx));margin-bottom:7px}.tracked-line{font-size:12px;display:flex;justify-content:space-between;gap:8px;margin:5px 0}
 .tracked-line b{font-family:var(--mono);font-size:12px;white-space:nowrap}.forecast-only{padding:10px 0 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line-2)}
-.forecast-only b{color:var(--ink)}.details-cue{display:flex;justify-content:space-between;margin-top:14px;padding-top:10px;border-top:1px solid var(--line-2);font-size:11px;color:var(--muted)}
+.forecast-only b{color:var(--ink)}
+.live-wp{padding:12px 0 4px;margin-top:8px;border-top:1px solid var(--line-2)}[data-live-wp][hidden]{display:none!important}
+.live-wp .lwp-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.live-wp .lwp-head small{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgb(var(--bad))}
+.live-wp .lwp-head span{font-size:11px;color:var(--muted);text-align:right}
+.live-wp .lwp-row{display:flex;align-items:center;gap:10px;font-size:13px}.live-wp .lwp-row>span{white-space:nowrap}
+.live-wp .lwp-row em{font:750 18px var(--sans);font-style:normal;letter-spacing:-.02em}.live-wp .lwp-row b{font-size:12px;color:var(--muted)}
+.lwp-bar{flex:1;min-width:40px;height:6px;border-radius:3px;background:rgb(var(--accent));overflow:hidden}
+.lwp-bar i{display:block;height:100%;width:50%;background:var(--faint);transition:width .3s}
+.details-cue{display:flex;justify-content:space-between;margin-top:14px;padding-top:10px;border-top:1px solid var(--line-2);font-size:11px;color:var(--muted)}
 .details-cue i{font-style:normal;transition:transform .15s}.tool-card[open] .details-cue i{transform:rotate(180deg)}
 .tool-card .g-detail{padding:0 16px 16px;border-top:1px solid var(--line-2);font-size:13px}.tool-card .g-detail p{color:var(--muted)}
 .tool-card .g-detail h3{font-size:12px;margin:16px 0 8px}.public-filters{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}
@@ -155,6 +165,9 @@ class PublicSite:
             except (OSError, ValueError, KeyError):
                 injuries = pd.DataFrame(columns=ledger.INJURY_COLUMNS)
         self.injuries = injuries
+        # Live win chance (owner request, 2026-11-07): coefficients only; the
+        # reader's browser computes it from ESPN's live score (display only)
+        self.live_fit = live_wp.load()
         self.predictions = analysis.model_predictions(self.native)
         # the O/U rows of the live totals model: ou3's once Fit model has
         # written it (or a native lock carries it), else ou2's
@@ -283,9 +296,14 @@ class PublicSite:
                              f"<b>{result}<small><a href='results.html'>Model record →</a></small></b></div>")
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
+        live_spread, live = self.live_block(row, dk)
         detail = (f"<h3>Forecast and market</h3><p>{u.esc(row.away)} @ {u.esc(row.home)} · {u.esc(book)} prices. "
                   f"Market home win probability: {u.pct(q)} with the bookmaker margin removed. "
                   f"Forecast saved at {u.tip_pt(row.get('snapshot_utc'))}. Prices and forecasts freeze at tip.</p>")
+        if live:
+            detail += ("<p>During the game, <b>live win chance</b> updates with the score from the current margin, "
+                       "the time left and the DraftKings spread at tip, using a formula fitted on past NBA games. "
+                       "It is not the model’s forecast, is not saved and never changes a tracked pick.</p>")
         if recs:
             detail += (f"<h3>Recorded before play</h3><p>Tracked at {u.tip_pt(recs[0]['at'])}. "
                        "The selections and prices above stay fixed even if the forecast or market changes later. "
@@ -294,11 +312,29 @@ class PublicSite:
             detail += "<p>The model includes the NBA injury report available when this forecast was saved.</p>"
         detail += self.factor_details(row, context) + self.injury_details(row)
         detail += "<p><a href='how-it-works.html'>How forecasts and tracked picks work →</a></p>"
-        return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(recs))}' data-state='{'final' if final else 'upcoming'}'>"
+        return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(recs))}' data-state='{'final' if final else 'upcoming'}'{live_spread}>"
                 f"<summary><div class='g-meta'><span>{u.tip_pt(row.tip_utc)}</span><span class='badge st'>{status}</span></div>"
-                + "".join(teams) + forecast + tracking
+                + "".join(teams) + live + forecast + tracking
                 + "<span class='details-cue'>Game details<i aria-hidden='true'>⌄</i></span></summary>"
                 + f"<div class='g-detail'>{detail}</div></details>")
+
+    def live_block(self, row, dk):
+        """The live win chance (owner request, 2026-11-07; live_wp.py): the
+        card's frozen DraftKings home spread as data-live-spread and an empty,
+        hidden readout that window.nbaLive fills from ESPN's live score while
+        the game is in progress. Nothing without a fit or a DraftKings spread;
+        no number is written at build time."""
+        u = self.ui
+        spread = pd.to_numeric(row.get("pre_spread"), errors="coerce") if dk else np.nan
+        if not self.live_fit or not np.isfinite(spread):
+            return "", ""
+        side = lambda s: f"<b>{u.esc(row[s])}</b>"  # noqa: E731
+        block = ("<div class='live-wp' data-live-wp hidden><div class='lwp-head'><small>Live win chance</small>"
+                 "<span>Score, time left and spread at tip</span></div>"
+                 f"<div class='lwp-row'><span>{side('away')} <em data-wp='away'>—</em></span>"
+                 "<span class='lwp-bar' aria-hidden='true'><i></i></span>"
+                 f"<span><em data-wp='home'>—</em> {side('home')}</span></div></div>")
+        return f" data-live-spread='{spread:g}'", block
 
     def factor_details(self, row, context):
         u = self.ui
@@ -373,7 +409,8 @@ class PublicSite:
                 f"<button type='button' data-show='{key}' aria-pressed='{'true' if key == 'all' else 'false'}'>{name}<span class='ct'>0</span></button>"
                 for key,name in (("all","All"),("tracked","Tracked"),("upcoming","Upcoming"),("live","Live"),("final","Final"))) + "</div>"
             body += f"<div class='tool-grid' data-slate='{u.esc(self.today)}'>" + "".join(self.card(r) for _,r in day.sort_values("tip_utc").iterrows()) + "</div>"
-            body += "<div class='public-empty' data-filter-empty hidden><p>No games match this filter.</p></div>" + FILTER_JS + u.SCORES_JS
+            body += ("<div class='public-empty' data-filter-empty hidden><p>No games match this filter.</p></div>"
+                     + FILTER_JS + live_wp.script(self.live_fit) + u.SCORES_JS)
         return self.page("Today · NBA Composite", "index.html", body)
 
     def results_page(self):
@@ -603,6 +640,7 @@ class PublicSite:
         body = self.head("How it works", "Forecasts update until a game locks. Tracked picks follow fixed rules and never change.")
         body += """<div class='guide'><section><h2>Reading a game</h2>
 <p><b>Model win chance</b> is the probability that the model’s favored team wins; <b>predicted margin</b> is the expected points difference. <b>Total</b> sets the model’s expected combined score beside the DraftKings total and shows the side it leans to. Prices are DraftKings’; the small number under each moneyline is the spread. Times are Pacific.</p>
+<p>While a game is in progress, <b>live win chance</b> gives each team’s chance of winning from the current score, the time left and the DraftKings spread at tip. It comes from a formula fitted on more than 12,000 past NBA games; the pregame spread keeps more weight than a lead of the same size, because leads tend to shrink. It is not the model’s forecast, is not saved, and never changes a tracked pick or a record.</p>
 <p>A game <b>locks</b> at the first priced snapshot within 5 hours of tip whose game data include every completed game. Before that you see a forecast, which can change. At the lock, any rule that qualifies records a <b>tracked pick</b> at its price, fixed from then on. A game with no such snapshot before tip has no tracked pick; <b>forecast only</b> means no rule qualified.</p>
 <p>Game details show each team’s record and its four factors (shooting, turnovers, offensive rebounding, free throws, for and against) as plain season totals before the slate; the model itself weights recent games more. Injuries are ESPN’s pregame list, shown for context only: the model uses the NBA’s official injury report.</p></section>
 <section><h2>The model</h2>

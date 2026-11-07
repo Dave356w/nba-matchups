@@ -956,7 +956,9 @@ OPEN_JS = ("<script>(function(){function o(){var h=location.hash.slice(1);if(!h)
 # Today page: live and final scores from ESPN's public scoreboard, fetched by
 # the reader's browser on each page load (display only: never written to
 # data/ and never read by the model). Cards match on the ESPN event id
-# (data-gid); a failed fetch leaves the page as built.
+# (data-gid); a failed fetch leaves the page as built. A page that defines
+# window.nbaLive (the public Today page: live_wp.script) gets each updated
+# card's state and scores for its live win chance.
 SCORES_JS = """<script>(function(){
 var g=document.querySelector('[data-slate]');if(!g||!window.fetch)return;
 var u='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?limit=100&dates='
@@ -975,6 +977,7 @@ var b=c.querySelector('.g-meta .st');b.textContent=txt;
 b.className='badge st'+(ty.state==='in'?' live':'');
 if(score&&s.away!=null&&s.home!=null)c.querySelectorAll('.sc').forEach(function(x){
 x.textContent=s[x.getAttribute('data-side')];});
+if(window.nbaLive)window.nbaLive(c,ty,st,s);
 c.setAttribute('data-state',ty.state==='in'?'live':'final');n++;});
 var a=document.querySelector('[data-scores-asof]');
 if(n&&a){a.querySelector('time').textContent=new Date().toLocaleTimeString('en-US',
