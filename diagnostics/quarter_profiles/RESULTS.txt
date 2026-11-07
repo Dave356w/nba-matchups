@@ -1,0 +1,39 @@
+Team scoring patterns by quarter: real, forecastable, useful live? Research only; ± is 95%.
+Games with a line and four quarters: 12257 (2015-16 .. 2026-27, no 2019-20). q_k = home margin in quarter k.
+
+== 1. How the expected margin splits by quarter (q_k = alpha_k + beta_k mu, all seasons)
+  Q1: beta 0.326 ± 0.020  (share of the line 33%)   alpha -0.05 ± 0.15 pts   residual sd 8.04
+  Q2: beta 0.252 ± 0.020  (share of the line 25%)   alpha -0.07 ± 0.15 pts   residual sd 8.02
+  Q3: beta 0.268 ± 0.021  (share of the line 27%)   alpha +0.01 ± 0.15 pts   residual sd 8.26
+  Q4: beta 0.144 ± 0.020  (share of the line 14%)   alpha -0.00 ± 0.14 pts   residual sd 7.76
+  sum of betas 0.990 (1 = the quarters add up to the line); sum of alphas -0.11
+
+== 2. Is a team's quarter shape real? Split-half (odd vs even games), same team-season
+  Q1 shape         r +0.056 [-0.058, +0.168]   season reliability 0.11   team-season sd 0.86 pts/game, of which persistent ~0.28   (team-seasons 300)
+  Q2 shape         r -0.025 [-0.138, +0.088]   season reliability 0.00   team-season sd 0.80 pts/game, of which persistent ~0.00   (team-seasons 300)
+  Q3 shape         r +0.071 [-0.043, +0.182]   season reliability 0.13   team-season sd 0.87 pts/game, of which persistent ~0.32   (team-seasons 300)
+  Q4 shape         r +0.038 [-0.075, +0.151]   season reliability 0.07   team-season sd 0.86 pts/game, of which persistent ~0.23   (team-seasons 300)
+  overall vs line  r +0.064 [-0.050, +0.176]   season reliability 0.12   team-season sd 0.38 pts/game, of which persistent ~0.13   (team-seasons 300)
+  year to year (same team, consecutive seasons):
+   Q1 shape         r +0.230 [+0.106, +0.346]   (pairs 240)
+   Q2 shape         r -0.007 [-0.133, +0.120]   (pairs 240)
+   Q3 shape         r +0.052 [-0.075, +0.178]   (pairs 240)
+   Q4 shape         r +0.085 [-0.042, +0.210]   (pairs 240)
+   overall vs line  r +0.043 [-0.085, +0.168]   (pairs 240)
+
+== 3. Forecastable? Walk-forward within season, both teams ≥ 10 earlier games
+  fitted on train (6277 games): shrinkage n0 160 games, weight 0.25 ± 0.29 (1 = take the shrunk shape at face value)
+  test (4296 games): squared error per game (four quarters) 267.4 pts² with the line alone; shape − line alone -0.009 ± 0.093 pts²
+    Q1: -0.010 ± 0.044   (predicted shape sd 0.09 pts vs residual sd 8.29)
+    Q2: +0.016 ± 0.043   (predicted shape sd 0.09 pts vs residual sd 8.18)
+    Q3: -0.005 ± 0.048   (predicted shape sd 0.10 pts vs residual sd 8.34)
+    Q4: -0.011 ± 0.042   (predicted shape sd 0.09 pts vs residual sd 7.89)
+  second half (Q3 + Q4 margin) from halftime: +0.062 ± 0.066 pts²
+
+== 4. Useful live? Deployed live win chance at quarter ends + c x remaining shape / sqrt(tau)
+  c -0.1486 ± 0.2267 (train; the lead's own weight a(tau) is ~0.05)
+  test log loss, with − without: +0.00012 ± 0.00032 (games 4296)
+    end Q1  -0.00014 ± 0.00032
+    half    -0.00002 ± 0.00043
+    end Q3  +0.00053 ± 0.00047
+

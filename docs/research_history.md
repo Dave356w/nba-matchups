@@ -858,3 +858,19 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   change −0.0000 ± 0.0000 overall, in every part of the game, in games 1–9
   and 10+, and where the two differ by ≥ 4 points (732 games). The model
   adds nothing to the line, before or during the game. Research only.
+- Team scoring patterns by quarter (owner's question, 2026-11-07;
+  `research/quarter_profiles.py`, [results](../diagnostics/quarter_profiles/RESULTS.txt)).
+  12,257 games 2015-16 .. 2026-27 with play-by-play and the archived line;
+  rules fixed before the run. The expected margin is front-loaded: the
+  favourite's share of the line by quarter is 33 / 25 / 27 / 14% (± 2),
+  summing to 0.99, so a lead built early fades in Q4 — the shape the
+  deployed live fit already learned from outcomes. Team shapes (residual to
+  that split, centred across quarters): split-half correlation +0.06, −0.03,
+  +0.07, +0.04 by quarter, every interval spanning 0, no more persistent
+  than a team's overall result against its line (+0.06); year to year only
+  Q1 persists (+0.23 [+0.11, +0.35]; ~0.3 pt a game). Walk-forward within
+  season (shrinkage n0 160, weight 0.25 ± 0.29): quarter squared error
+  −0.009 ± 0.093 pts² per game; second half from halftime +0.062 ± 0.066.
+  Added to the live win chance at quarter ends: c −0.15 ± 0.23, test log
+  loss +0.00012 ± 0.00032. Not forecastable within a season and no use live.
+  Research only.
