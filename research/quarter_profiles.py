@@ -28,6 +28,18 @@ Fixed before the run (95% intervals):
      quarters, home - away) / sqrt(tau), c fitted on train. Passes only if
      the test log loss falls with its interval below 0. (The deployed fit saw
      the test seasons; the added weight did not.)
+Decayed shapes (owner's request, 2026-11-07, added before their run): the
+shape is an exponentially decayed mean of earlier games, half-life 5, 10,
+25 or 50 games or none (the season-to-date mean of rule 3), either
+restarting each season (within) or carrying on across seasons (across; the
+offseason counts as one game). Predicted shape = S / (W + n0) x weight, S
+and W the decayed sums of shapes and of weights. Every arm is fitted on
+train (n0 on a grid, the weight by least squares) and one arm is chosen by
+train squared error; only that arm is scored on test, by rules 3 and 4.
+All arms are scored on the same games (both teams >= 10 earlier games this
+season); the across arms are also shown on games 1-9 (information only).
+Shown first: each arm's predictive correlation with the next game's shape,
+by quarter (the decayed form of rule 2).
 Research only: nothing here reaches the model, the page, a test or a record.
 """
 from __future__ import annotations
@@ -51,7 +63,8 @@ OUT = ROOT / "diagnostics" / "quarter_profiles"
 Z95 = 1.96
 TRAIN_LAST, TEST_LAST = F.TRAIN_LAST, F.TEST_LAST
 MIN_PRIOR = 10
-N0_GRID = (5, 10, 20, 40, 80, 160)
+N0_GRID = (2, 5, 10, 20, 40, 80, 160, 320)
+HALF_LIVES = (5, 10, 25, 50, None)          # None: no decay (equal weights)
 
 
 def quarter_margins(G):
@@ -100,15 +113,22 @@ def team_rows(G, R):
     return T.sort_values(["season", "team", "date", "game_id"]).reset_index(drop=True)
 
 
-def prior_means(T):
-    """Each team-game's mean shape over the team's earlier games that season
-    (and the count n)."""
-    g = T.groupby(["season", "team"])
-    out = {"n": g.cumcount().to_numpy()}
-    for k in range(1, 5):
-        c = g[f"s{k}"].cumsum() - T[f"s{k}"]
-        out[f"p{k}"] = (c / out["n"]).where(out["n"] > 0).to_numpy()
-    return pd.DataFrame(out, index=T.index)
+def decayed_priors(T, half_life, across):
+    """For each team-row: S (decayed sum of the team's earlier shapes s1..s4,
+    the most recent weighted 1) and W (the same sum of weights), restarting
+    each season (across=False) or carrying on (across=True)."""
+    lam = 1.0 if half_life is None else 0.5 ** (1 / half_life)
+    keys = ["team"] if across else ["season", "team"]
+    Ts = T.sort_values(["team", "season", "date", "game_id"] if across else ["season", "team", "date", "game_id"])
+    s = T[["s1", "s2", "s3", "s4"]].to_numpy()
+    S, W = np.zeros((len(T), 4)), np.zeros(len(T))
+    for pos in Ts.groupby(keys, sort=False).indices.values():
+        acc, wacc = np.zeros(4), 0.0
+        for i in Ts.index[pos]:
+            S[i], W[i] = acc, wacc
+            acc = lam * acc + s[i]
+            wacc = lam * wacc + 1.0
+    return S, W
 
 
 def main():
@@ -155,64 +175,105 @@ def main():
         w(f"   {lab:<16} r {r:+.3f} [{lo:+.3f}, {hi:+.3f}]   (pairs {len(nxt)})")
     w("")
     # ---- 3 ----
-    w("== 3. Forecastable? Walk-forward within season, both teams ≥ 10 earlier games")
-    P = prior_means(T)
-    T = T.join(P)
-    hm = T[T.side == "home"].set_index("game_id")
-    aw = T[T.side == "away"].set_index("game_id")
-    D = G.set_index("game_id").join(hm[["n", "p1", "p2", "p3", "p4"]]).join(
-        aw[["n", "p1", "p2", "p3", "p4"]], rsuffix="_a")
-    D = D[(D.n >= MIN_PRIOR) & (D.n_a >= MIN_PRIOR)].copy()
-    tr, te = D[D.season <= TRAIN_LAST], D[(D.season > TRAIN_LAST) & (D.season <= TEST_LAST)]
+    T["n"] = T.groupby(["season", "team"]).cumcount()
+    hrow = T[T.side == "home"].set_index("game_id")["n"]
+    arow = T[T.side == "away"].set_index("game_id")["n"]
+    idx_h = pd.Series(T.index[T.side == "home"], index=T.game_id[T.side == "home"])
+    idx_a = pd.Series(T.index[T.side == "away"], index=T.game_id[T.side == "away"])
+    Gi = G.set_index("game_id")
+    gids = Gi.index
+    nh, na = hrow.loc[gids].to_numpy(), arow.loc[gids].to_numpy()
+    ih, ia = idx_h.loc[gids].to_numpy(), idx_a.loc[gids].to_numpy()
+    resid = np.column_stack([Gi[f"q{k}"] - A[k - 1] - B[k - 1] * Gi.mu for k in range(1, 5)])
+    shape = resid - resid.mean(1, keepdims=True)
+    season = Gi.season.to_numpy()
+    est = (nh >= MIN_PRIOR) & (na >= MIN_PRIOR)
+    early = (np.minimum(nh, na) >= 1) & ~est
+    trm, tem = est & (season <= TRAIN_LAST), est & (season > TRAIN_LAST) & (season <= TEST_LAST)
+    arms = {}
+    for across in (False, True):
+        for hl in HALF_LIVES:
+            S, W = decayed_priors(T, hl, across)
+            arms[(hl, across)] = (S[ih], W[ih], S[ia], W[ia])
 
-    def x(d, n0):
-        sh = lambda n: n / (n + n0)          # noqa: E731
-        return np.column_stack([sh(d.n) * d[f"p{k}"] - sh(d.n_a) * d[f"p{k}_a"] for k in range(1, 5)])
+    def name(arm):
+        hl, across = arm
+        return f"{'no decay' if hl is None else f'half-life {hl}'}, {'across seasons' if across else 'within season'}"
 
-    def resid(d):
-        return np.column_stack([d[f"q{k}"] - A[k - 1] - B[k - 1] * d.mu for k in range(1, 5)])
+    def X(arm, n0):
+        Sh, Wh, Sa, Wa = arms[arm]
+        return Sh / (Wh + n0)[:, None] - Sa / (Wa + n0)[:, None]
 
-    best = None
-    for n0 in N0_GRID:
-        X, Y = x(tr, n0).ravel(), resid(tr).ravel()
-        g = float(X @ Y / (X @ X))
-        sse = float(((Y - g * X) ** 2).sum())
-        if best is None or sse < best[2]:
-            best = (n0, g, sse)
-    n0, gam, _ = best
-    X, Y = x(tr, n0).ravel(), resid(tr).ravel()
-    se_g = math.sqrt(((Y - gam * X) ** 2).sum() / (len(Y) - 1) / (X @ X))
-    w(f"  fitted on train ({len(tr)} games): shrinkage n0 {n0} games, weight {gam:.2f} ± {Z95 * se_g:.2f} (1 = take the shrunk shape at face value)")
-    Rt, Xt = resid(te), gam * x(te, n0)
-    d = ((Rt - Xt) ** 2).sum(1) - (Rt ** 2).sum(1)
-    w(f"  test ({len(te)} games): squared error per game (four quarters) {np.mean((Rt ** 2).sum(1)):.1f} pts² with the line alone; "
-      f"shape − line alone {d.mean():+.3f} ± {Z95 * d.std(ddof=1) / math.sqrt(len(d)):.3f} pts²")
+    w("== 2b. Decayed shapes: predictive correlation with the next game's shape (both teams ≥ 10 games, 2016-17 .. 2025-26)")
+    allm = est & (season <= TEST_LAST)
+    for arm in arms:
+        Sh, Wh, Sa, Wa = arms[arm]
+        xm = Sh / np.maximum(Wh, 1e-9)[:, None] - Sa / np.maximum(Wa, 1e-9)[:, None]
+        cs = []
+        for k in range(4):
+            r, lo, hi = corr_ci(xm[allm, k], shape[allm, k])
+            cs.append(f"Q{k + 1} {r:+.3f} [{lo:+.3f}, {hi:+.3f}]")
+        w(f"  {name(arm):<32} " + "  ".join(cs))
+    w(f"  (games {int(allm.sum())}; a real, decaying team shape would show correlations above 0)")
+    w("")
+    w("== 3. Forecastable? Each arm fitted on train (both teams ≥ 10 earlier games); one chosen by train error")
+    fits = {}
+    for arm in arms:
+        best = None
+        for n0 in N0_GRID:
+            Xa, Y = X(arm, n0)[trm].ravel(), shape[trm].ravel()
+            g = float(Xa @ Y / (Xa @ Xa))
+            sse = float(((Y - g * Xa) ** 2).sum())
+            if best is None or sse < best[2]:
+                best = (n0, g, sse)
+        n0, g, sse = best
+        Xa = X(arm, n0)[trm].ravel()
+        Y = shape[trm].ravel()
+        se = math.sqrt(((Y - g * Xa) ** 2).sum() / (len(Y) - 1) / (Xa @ Xa))
+        base = float((Y ** 2).sum())
+        fits[arm] = (n0, g, sse)
+        w(f"  {name(arm):<32} n0 {n0:>3}  weight {g:+.2f} ± {Z95 * se:.2f}   train squared error − line alone "
+          f"{(sse - base) / trm.sum():+.3f} pts² per game")
+    chosen = min(fits, key=lambda a: fits[a][2])
+    n0, gam, _ = fits[chosen]
+    w(f"  chosen on train: {name(chosen)} (n0 {n0}, weight {gam:.2f})")
+    Xt = gam * X(chosen, n0)
+    Rt, Pt = shape[tem], Xt[tem]
+    d = ((Rt - Pt) ** 2).sum(1) - (Rt ** 2).sum(1)
+    w(f"  test ({int(tem.sum())} games): squared error per game (four quarters) − line alone "
+      f"{d.mean():+.3f} ± {Z95 * d.std(ddof=1) / math.sqrt(len(d)):.3f} pts²")
     for k in range(4):
-        dk = (Rt[:, k] - Xt[:, k]) ** 2 - Rt[:, k] ** 2
+        dk = (Rt[:, k] - Pt[:, k]) ** 2 - Rt[:, k] ** 2
         w(f"    Q{k + 1}: {dk.mean():+.3f} ± {Z95 * dk.std(ddof=1) / math.sqrt(len(dk)):.3f}   "
-          f"(predicted shape sd {Xt[:, k].std():.2f} pts vs residual sd {Rt[:, k].std():.2f})")
-    rem = Rt[:, 2:].sum(1)
-    d2 = (rem - Xt[:, 2:].sum(1)) ** 2 - rem ** 2
+          f"(predicted shape sd {Pt[:, k].std():.2f} pts vs residual sd {resid[tem, k].std():.2f})")
+    rem = resid[tem, 2:].sum(1)
+    d2 = (rem - Pt[:, 2:].sum(1)) ** 2 - rem ** 2
     w(f"  second half (Q3 + Q4 margin) from halftime: {d2.mean():+.3f} ± {Z95 * d2.std(ddof=1) / math.sqrt(len(d2)):.3f} pts²")
+    for arm in [a for a in arms if a[1]]:
+        if arm == chosen or arm[0] in (10, 25):
+            n0a, ga, _ = fits[arm]
+            em = early & (season > TRAIN_LAST) & (season <= TEST_LAST)
+            P = ga * X(arm, n0a)[em]
+            de = ((shape[em] - P) ** 2).sum(1) - (shape[em] ** 2).sum(1)
+            w(f"  information: {name(arm)} on games 1-9 ({int(em.sum())} test games): "
+              f"{de.mean():+.3f} ± {Z95 * de.std(ddof=1) / math.sqrt(len(de)):.3f} pts²")
     w("")
     # ---- 4 ----
-    w("== 4. Useful live? Deployed live win chance at quarter ends + c x remaining shape / sqrt(tau)")
+    w(f"== 4. Useful live? Deployed live win chance at quarter ends + c x remaining shape ({name(chosen)}) / sqrt(tau)")
     fit = live_wp.load()
-    Dall = pd.concat([tr, te])
-    Xs = gam * x(Dall, n0)
-    cum = Dall[["q1", "q2", "q3", "q4"]].cumsum(1).to_numpy()
+    cum = Gi[["q1", "q2", "q3", "q4"]].cumsum(axis=1).to_numpy()
+    y = (Gi.final.to_numpy() > 0).astype(float)
     rows = []
     for j, tau in ((0, .75), (1, .5), (2, .25)):
-        lead = cum[:, j]
         a = np.interp(tau, fit["knots"], fit["a"])
         b = np.interp(tau, fit["knots"], fit["b"])
-        z0 = a * lead / math.sqrt(tau) + b * Dall.mu.values * math.sqrt(tau)
-        shift = Xs[:, j + 1:].sum(1)
-        rows.append(pd.DataFrame(dict(game_id=Dall.index, season=Dall.season.values, tau=tau, z0=z0,
-                                      x=shift / math.sqrt(tau), y=(Dall.final.values > 0).astype(float))))
+        rows.append(pd.DataFrame(dict(game_id=gids, season=season, tau=tau, keep=est,
+                                      z0=a * cum[:, j] / math.sqrt(tau) + b * Gi.mu.to_numpy() * math.sqrt(tau),
+                                      x=Xt[:, j + 1:].sum(1) / math.sqrt(tau), y=y)))
     L = pd.concat(rows, ignore_index=True)
+    L = L[L.keep]
     Ltr, Lte = L[L.season <= TRAIN_LAST], L[(L.season > TRAIN_LAST) & (L.season <= TEST_LAST)]
-    c, lo = 0.0, None
+    c = 0.0
     for _ in range(30):                                # probit with offset z0, one weight
         z = Ltr.z0 + c * Ltr.x
         p = np.clip(F.Phi(z), 1e-9, 1 - 1e-9)
@@ -220,10 +281,10 @@ def main():
         g = (Ltr.x * f * (Ltr.y - p) / (p * (1 - p))).sum()
         h = (Ltr.x ** 2 * f * f / (p * (1 - p))).sum()
         c += g / h
-    sc = (Ltr.x * F.phi(Ltr.z0 + c * Ltr.x) * (Ltr.y - F.Phi(Ltr.z0 + c * Ltr.x))
-          / (F.Phi(Ltr.z0 + c * Ltr.x) * (1 - F.Phi(Ltr.z0 + c * Ltr.x))))
-    G_sc = pd.Series(sc.values, index=Ltr.game_id.values).groupby(level=0).sum()
-    se_c = math.sqrt((G_sc ** 2).sum()) / h
+    z = Ltr.z0 + c * Ltr.x
+    p = np.clip(F.Phi(z), 1e-9, 1 - 1e-9)
+    sc = pd.Series((Ltr.x * F.phi(z) * (Ltr.y - p) / (p * (1 - p))).values, index=Ltr.game_id.values)
+    se_c = math.sqrt((sc.groupby(level=0).sum() ** 2).sum()) / h
     w(f"  c {c:+.4f} ± {Z95 * se_c:.4f} (train; the lead's own weight a(tau) is ~0.05)")
     p0, p1 = F.Phi(Lte.z0), F.Phi(Lte.z0 + c * Lte.x)
     dl = pd.Series(F.ll(p1, Lte.y.values) - F.ll(p0, Lte.y.values), index=Lte.game_id.values).groupby(level=0).mean()

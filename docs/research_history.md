@@ -868,9 +868,13 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   that split, centred across quarters): split-half correlation +0.06, −0.03,
   +0.07, +0.04 by quarter, every interval spanning 0, no more persistent
   than a team's overall result against its line (+0.06); year to year only
-  Q1 persists (+0.23 [+0.11, +0.35]; ~0.3 pt a game). Walk-forward within
-  season (shrinkage n0 160, weight 0.25 ± 0.29): quarter squared error
-  −0.009 ± 0.093 pts² per game; second half from halftime +0.062 ± 0.066.
-  Added to the live win chance at quarter ends: c −0.15 ± 0.23, test log
-  loss +0.00012 ± 0.00032. Not forecastable within a season and no use live.
-  Research only.
+  Q1 persists (+0.23 [+0.11, +0.35]; ~0.3 pt a game). Decayed shapes (owner's
+  request, added before their run; half-lives 5, 10, 25, 50 or none, within
+  or across seasons): predictive correlation with the next game +0.007 at
+  half-life 5 rising to at most +0.025 [+0.006, +0.044] (Q1, half-life 50
+  across seasons) — longer memory predicts better, the mark of a small
+  stable component, not form. The arm chosen on train (no decay, across
+  seasons) makes the test quarters worse (+0.095 ± 0.130 pts² per game;
+  second half from halftime +0.038 ± 0.096), and added to the live win chance
+  at quarter ends changes test log loss by −0.00004 ± 0.00011. Not
+  forecastable and no use live. Research only.
