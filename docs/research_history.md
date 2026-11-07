@@ -907,3 +907,18 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   is 0; at γ = 1 the test change is +0.0000 ± 0.0001. Expected totals vary
   little (sd 10 of 219 points), so v moves the swing by ~1%. Neither pace nor
   team quarter patterns modulate the live estimate. Research only.
+- Comebacks: is there a team skill in going from a live win chance under
+  50% to over 80%? (owner's question, 2026-11-07; `research/comebacks.py`,
+  [results](../diagnostics/comebacks/RESULTS.txt)). 12,095 games 2015-16 ..
+  2025-26, 19,241 trailing episodes (a team's first state under 50%, from
+  the deployed live formula); rules fixed before the run. Calibrated: teams
+  first under 50% at a mean 0.369 won 37.2% (± 0.7); underdogs at tip 31.9%
+  vs 31.1%, favourites who fell behind 46.3% vs 46.9%; only the deepest band
+  (p0 < 0.1, 271 episodes) won less (4.4% vs 7.9% ± 2.4). Past 80% runs a
+  little under p0 / 0.8 (43.0% vs 46.2%), a sampling effect (312 wins decided
+  in the last seconds never show over 80%). No team skill: split-half −0.11
+  [−0.22, +0.01] for comebacks past 80%, −0.08 for comeback wins, −0.06 for
+  holding leads; year to year +0.04 to +0.09, intervals spanning 0; the
+  spread of team-season comebacks minus expected (sd 3.66) is no larger than
+  chance alone (3.83). Walk-forward comeback and hold records added to the
+  live win chance change test log loss by −0.0000 ± 0.0001. Research only.
