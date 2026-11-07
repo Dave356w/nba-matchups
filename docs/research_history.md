@@ -895,3 +895,15 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   team trait (pace and rotation habits that move both teams' points, a
   totals matter, not a winner's), too small and slow to estimate in season
   to inform the live win chance. Research only.
+- Can team scoring patterns modulate the live win chance's volatility?
+  (owner's question, 2026-11-07; `research/live_wp_pace.py`,
+  [results](../diagnostics/live_wp_pace/RESULTS.txt)). The live z scaled by
+  v^−γ, v = √(expected points left ÷ league average), from the two teams'
+  season-to-date scoring (VT: game total in the league's quarter shares;
+  VQ: each team's own points scored and allowed by quarter); base refitted
+  on 2015-16 .. 2021-22, γ on a grid on train (theory 1), tested 2022-23 ..
+  2025-26 (4,279 games); rules fixed before the run. Train chose γ = 0 for
+  both (γ = 1: +0.00003 / +0.00002 log loss, worse), so the test difference
+  is 0; at γ = 1 the test change is +0.0000 ± 0.0001. Expected totals vary
+  little (sd 10 of 219 points), so v moves the swing by ~1%. Neither pace nor
+  team quarter patterns modulate the live estimate. Research only.

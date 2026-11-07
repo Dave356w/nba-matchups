@@ -498,7 +498,7 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   live price ([live win chance vs Kalshi](diagnostics/live_wp_kalshi/RESULTS.txt)),
   with the model's margin ([model adds nothing](diagnostics/live_wp_model/RESULTS.txt)),
   and team quarter patterns ([quarter profiles](diagnostics/quarter_profiles/RESULTS.txt),
-  [stabilization](diagnostics/quarter_stabilization/RESULTS.txt)).
+  [stabilization](diagnostics/quarter_stabilization/RESULTS.txt), [live volatility](diagnostics/live_wp_pace/RESULTS.txt)).
 - Fantasy and Sleeper signals: [fantasy](diagnostics/fantasy_signal/RESULTS.txt),
   [Sleeper](diagnostics/sleeper_signal/RESULTS.txt).
 - Pace, totals (O/U) and the picks' timing under v11:
