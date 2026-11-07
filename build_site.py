@@ -954,22 +954,32 @@ OPEN_JS = ("<script>(function(){function o(){var h=location.hash.slice(1);if(!h)
            "addEventListener('hashchange',o);addEventListener('DOMContentLoaded',o);})();</script>")
 
 # Today page: live and final scores from ESPN's public scoreboard, fetched by
-# the reader's browser on each page load (display only: never written to
-# data/ and never read by the model). Cards match on the ESPN event id
-# (data-gid); a failed fetch leaves the page as built. A page that defines
-# window.nbaLive (the public Today page: live_wp.script) gets each updated
-# card's state and scores for its live win chance.
+# the reader's browser (display only: never written to data/ and never read
+# by the model). Cards match on the ESPN event id (data-gid); a failed fetch
+# leaves the page as it is. The page re-fetches while it is open: every
+# SCORES_LIVE_MS while one of its games is in progress; otherwise, while one
+# is still to start, at its tip (no sooner than 1 minute, no later than 10);
+# never once every game is final. A failed fetch retries after 1, 2, ...
+# minutes (at most 10 tries in a row). A hidden tab does not fetch and
+# catches up when shown again. A page that defines window.nbaLive (the public
+# Today page: live_wp.script) gets each updated card's state and scores for
+# its live win chance.
+SCORES_LIVE_MS = 30_000
 SCORES_JS = """<script>(function(){
 var g=document.querySelector('[data-slate]');if(!g||!window.fetch)return;
 var u='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?limit=100&dates='
 +g.getAttribute('data-slate').replace(/-/g,'');
+var LIVE=""" + str(SCORES_LIVE_MS) + """,MIN=60000,MAX=600000,t=null,wait=false,fails=0;
 function per(p){return p<=4?'Q'+p:p==5?'OT':(p-4)+'OT';}
-fetch(u,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
-var n=0;((j&&j.events)||[]).forEach(function(e){
+function next(ms){clearTimeout(t);t=setTimeout(tick,ms);}
+function tick(){if(document.hidden){wait=true;return;}load();}
+function load(){fetch(u,{cache:'no-store'}).then(function(r){if(!r.ok)throw r.status;return r.json();}).then(function(j){
+fails=0;var n=0,live=0,soon=Infinity;((j&&j.events)||[]).forEach(function(e){
 var c=document.querySelector(".gcard[data-gid='"+e.id+"']");if(!c)return;
 var st=e.status||{},ty=st.type||{},s={},txt,score=true;
-(((e.competitions||[])[0]||{}).competitors||[]).forEach(function(t){s[t.homeAway]=t.score;});
-if(ty.state==='in'){txt=ty.name==='STATUS_HALFTIME'?'Half':ty.name==='STATUS_END_PERIOD'?
+if(ty.state==='pre'){var d=Date.parse(e.date);soon=Math.min(soon,isFinite(d)?d-Date.now():MAX);return;}
+(((e.competitions||[])[0]||{}).competitors||[]).forEach(function(x){s[x.homeAway]=x.score;});
+if(ty.state==='in'){live++;txt=ty.name==='STATUS_HALFTIME'?'Half':ty.name==='STATUS_END_PERIOD'?
 'End '+per(st.period):ty.name==='STATUS_IN_PROGRESS'?per(st.period)+' '+st.displayClock:ty.shortDetail;}
 else if(ty.state==='post'){txt=ty.shortDetail||'Final';score=!!ty.completed;}
 else return;
@@ -983,7 +993,10 @@ var a=document.querySelector('[data-scores-asof]');
 if(n&&a){a.querySelector('time').textContent=new Date().toLocaleTimeString('en-US',
 {timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'})+' PT';a.hidden=false;}
 if(n&&window.nbaCount)window.nbaCount();
-}).catch(function(){});})();</script>"""
+if(live)next(LIVE);else if(soon<Infinity)next(Math.min(Math.max(soon,MIN),MAX));
+}).catch(function(){if(++fails<=10)next(Math.min(MIN*fails,MAX));});}
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&wait){wait=false;load();}});
+load();})();</script>"""
 
 THEME_JS = ("<script>(function(){var k='nba-theme',r=document.documentElement;"
             "try{var s=localStorage.getItem(k);if(s)r.setAttribute('data-theme',s);}catch(e){}"
