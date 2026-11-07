@@ -132,3 +132,22 @@ def test_unavailable_probability_and_market_render_without_a_false_tracked_pick(
     assert 'Forecast unavailable' in site.today_page()
     assert 'Tracked picks ·' not in site.today_page()
     assert not site.records
+
+
+def test_today_lists_unfinished_games_first_then_finals_in_tip_order():
+    """Owner request (2026-11-07): live and upcoming games above finished
+    ones; the browser re-sorts as states change (FILTER_JS)."""
+    import re
+    g = rows().assign(home_won=[1, np.nan, 0, np.nan, 1, 1], slate_date='2026-11-19',
+                      tip_utc=['2026-11-20T03:00Z', '2026-11-20T02:00Z', '2026-11-20T01:00Z',
+                               '2026-11-20T00:30Z', '2026-11-20T00:00Z', '2026-11-20T03:30Z'])
+    html = PublicSite(ui, g, '2026-11-19', 'built').today_page()
+    cards = re.findall(r"<details class='gcard tool-card' data-gid='([^']+)' data-tracked='\d' "
+                       r"data-state='(\w+)' data-order='(\d+)'", html)
+    gid = list(g.game_id.astype(str))
+    # tip order 4, 3, 2, 1, 0, 5; unfinished 3 and 1 first, then the finals
+    assert [c[0] for c in cards] == [gid[3], gid[1], gid[4], gid[2], gid[0], gid[5]]
+    assert [c[1] for c in cards] == ['upcoming', 'upcoming', 'final', 'final', 'final', 'final']
+    assert [int(c[2]) for c in cards] == [1, 3, 0, 2, 4, 5]
+    js = __import__('public_site').FILTER_JS
+    assert 'rank={live:0,upcoming:1,final:2}' in js and 'function update(){order();' in js

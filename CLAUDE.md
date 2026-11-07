@@ -422,6 +422,9 @@ information only, separate from DraftKings and native evidence.
   The open page re-fetches ESPN's scoreboard every 30 s while one of its
   games is in progress (owner request, 2026-11-07), at each tip before
   that, and not once every game is final; a hidden tab waits.
+  Today lists live games first, then upcoming, then final (tip order within
+  each), re-sorting as the overlay changes a game's state (owner request,
+  2026-11-07).
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
   is `MODEL.md` / `nba_composite.py`; prices are `market.py`; pregame locks
