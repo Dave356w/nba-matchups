@@ -1,0 +1,40 @@
+Does the model's pregame margin add to the live win chance? Research only; ± is 95%.
+Model margin: walk-forward predictions under production routing (diagnostics/margin_form, arm B):
+hindsight, each season fitted on earlier seasons only. Line: ESPN's archived pregame line (as research/live_wp.py).
+
+== 0. Data
+  games in the box files 12276; with a line and a model margin 11016; with states 10976 (40 dropped: play-by-play final != box final)
+  train 2016-17 .. 2021-22: 5973 games; test 2022-23 .. 2025-26: 4888; 2026-27 to date: 115
+  |model margin − line|: median 1.8 pts, 90th percentile 4.7
+
+== 1. Pregame (tau = 1): outcome on the line and the model's disagreement, train
+  weight on the line 0.0819 ± 0.0057; on model − line +0.0006 ± 0.0128 (ratio +0.01: 0 = the model adds nothing to the line) (games 5987)
+  test seasons, pregame log loss: line alone 0.5891, model alone 0.5997; model − line +0.0106 ± 0.0051 (games 4908)
+
+== 2. Fits (train)
+  M1: c +0.0004 ± 0.0168   (line weight b(1) 0.0819)
+  M3: c(tau 0) -0.0117 ± 0.0561   c(tau 0.5) +0.0023 ± 0.0183   c(tau 1) -0.0001 ± 0.0130   (line weight b(1) 0.0818)
+
+== 3. Test (held-out seasons): arm − base log loss (negative = the model adds)
+  M1: all minutes -0.0000 ± 0.0000
+      Q1          -0.0000 ± 0.0000
+      Q2          -0.0000 ± 0.0000
+      Q3          -0.0000 ± 0.0000
+      Q4 to 2:00  -0.0000 ± 0.0000
+      last 2:00   -0.0000 ± 0.0000
+      OT          -0.0000 ± 0.0000
+      games 1-9   -0.0000 ± 0.0000  (games 555)
+      games 10+   -0.0000 ± 0.0000  (games 4270)
+  M3: all minutes -0.0000 ± 0.0000
+      Q1          -0.0000 ± 0.0000
+      Q2          -0.0001 ± 0.0001
+      Q3          +0.0000 ± 0.0000
+      Q4 to 2:00  +0.0001 ± 0.0001
+      last 2:00   +0.0000 ± 0.0000
+      OT          +0.0002 ± 0.0005
+      games 1-9   -0.0001 ± 0.0001  (games 555)
+      games 10+   +0.0000 ± 0.0000  (games 4270)
+  base log loss 0.4419; M1 0.4419; M3 0.4419
+  games where the model and the line differ by ≥ 4 pts (732 games): M1 − base -0.0000 ± 0.0001
+  2026-27 to date (information only, 115 games): M1 − base +0.0001 ± 0.0001
+
