@@ -422,6 +422,9 @@ information only, separate from DraftKings and native evidence.
   The open page re-fetches ESPN's scoreboard every 30 s while one of its
   games is in progress (owner request, 2026-11-07), at each tip before
   that, and not once every game is final; a hidden tab waits.
+  Today lists live games first, then upcoming, then final (tip order within
+  each), re-sorting as the overlay changes a game's state (owner request,
+  2026-11-07).
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
   is `MODEL.md` / `nba_composite.py`; prices are `market.py`; pregame locks
@@ -495,7 +498,10 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
   In-game win probability from the score and the pregame line (display only):
   [live win chance](diagnostics/live_wp/RESULTS.txt), and against Kalshi's
-  live price ([live win chance vs Kalshi](diagnostics/live_wp_kalshi/RESULTS.txt)).
+  live price ([live win chance vs Kalshi](diagnostics/live_wp_kalshi/RESULTS.txt)),
+  with the model's margin ([model adds nothing](diagnostics/live_wp_model/RESULTS.txt)),
+  and team quarter patterns ([quarter profiles](diagnostics/quarter_profiles/RESULTS.txt),
+  [stabilization](diagnostics/quarter_stabilization/RESULTS.txt), [live volatility](diagnostics/live_wp_pace/RESULTS.txt)).
 - Fantasy and Sleeper signals: [fantasy](diagnostics/fantasy_signal/RESULTS.txt),
   [Sleeper](diagnostics/sleeper_signal/RESULTS.txt).
 - Pace, totals (O/U) and the picks' timing under v11:

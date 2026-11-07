@@ -858,3 +858,52 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   change −0.0000 ± 0.0000 overall, in every part of the game, in games 1–9
   and 10+, and where the two differ by ≥ 4 points (732 games). The model
   adds nothing to the line, before or during the game. Research only.
+- Team scoring patterns by quarter (owner's question, 2026-11-07;
+  `research/quarter_profiles.py`, [results](../diagnostics/quarter_profiles/RESULTS.txt)).
+  12,257 games 2015-16 .. 2026-27 with play-by-play and the archived line;
+  rules fixed before the run. The expected margin is front-loaded: the
+  favourite's share of the line by quarter is 33 / 25 / 27 / 14% (± 2),
+  summing to 0.99, so a lead built early fades in Q4 — the shape the
+  deployed live fit already learned from outcomes. Team shapes (residual to
+  that split, centred across quarters): split-half correlation +0.06, −0.03,
+  +0.07, +0.04 by quarter, every interval spanning 0, no more persistent
+  than a team's overall result against its line (+0.06); year to year only
+  Q1 persists (+0.23 [+0.11, +0.35]; ~0.3 pt a game). Decayed shapes (owner's
+  request, added before their run; half-lives 5, 10, 25, 50 or none, within
+  or across seasons): predictive correlation with the next game +0.007 at
+  half-life 5 rising to at most +0.025 [+0.006, +0.044] (Q1, half-life 50
+  across seasons) — longer memory predicts better, the mark of a small
+  stable component, not form. The arm chosen on train (no decay, across
+  seasons) makes the test quarters worse (+0.095 ± 0.130 pts² per game;
+  second half from halftime +0.038 ± 0.096), and added to the live win chance
+  at quarter ends changes test log loss by −0.00004 ± 0.00011. Not
+  forecastable and no use live. Research only.
+- Do teams' quarter scoring distributions stabilize within a season?
+  (owner's question, 2026-11-07; `research/quarter_stabilization.py`,
+  [results](../diagnostics/quarter_stabilization/RESULTS.txt)). Completed
+  seasons 2015-16 .. 2025-26, 269 team-seasons with ≥ 80 games; reliability
+  from disjoint random game sets, n50 = games to reliability 0.5 (rule fixed
+  before the run: stabilizes within a season only if n50 ≤ 82). For scale,
+  points per game n50 4, margin 9, margin against the line 879. Share of a
+  team's points by quarter: Q1 112, Q2 128, Q3 94, Q4 50 (the one within a
+  season; persistent spread 0.67 pp ≈ 0.8 pt a game); share allowed 140–176.
+  Margin shape: Q4 116, Q1 215, Q3 548, Q2 never; after the line's split
+  (line-adjusted) 333–660 or never — the part that could change a game's
+  flow beyond the line does not stabilize. First n games against the rest
+  of the season: offence shares reach +0.24 to +0.39 by 40–60 games,
+  line-adjusted shapes −0.04 to +0.16. Quarter scoring shares are partly a
+  team trait (pace and rotation habits that move both teams' points, a
+  totals matter, not a winner's), too small and slow to estimate in season
+  to inform the live win chance. Research only.
+- Can team scoring patterns modulate the live win chance's volatility?
+  (owner's question, 2026-11-07; `research/live_wp_pace.py`,
+  [results](../diagnostics/live_wp_pace/RESULTS.txt)). The live z scaled by
+  v^−γ, v = √(expected points left ÷ league average), from the two teams'
+  season-to-date scoring (VT: game total in the league's quarter shares;
+  VQ: each team's own points scored and allowed by quarter); base refitted
+  on 2015-16 .. 2021-22, γ on a grid on train (theory 1), tested 2022-23 ..
+  2025-26 (4,279 games); rules fixed before the run. Train chose γ = 0 for
+  both (γ = 1: +0.00003 / +0.00002 log loss, worse), so the test difference
+  is 0; at γ = 1 the test change is +0.0000 ± 0.0001. Expected totals vary
+  little (sd 10 of 219 points), so v moves the swing by ~1%. Neither pace nor
+  team quarter patterns modulate the live estimate. Research only.

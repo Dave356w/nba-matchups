@@ -1,0 +1,37 @@
+Can teams' scoring patterns modulate the live win chance through its volatility? Research only; ± is 95%.
+States of games with both teams ≥ 10 earlier games: train 6260 games, test 4279 (2022-23 .. 2025-26).
+  expected game total (team season-to-date): mean 218.9, sd 10.2 pts; v at the half: VT sd 0.010, VQ sd 0.012
+
+== 1. Fits (train): gamma on the grid 0 .. 2 (0 = no modulation, 1 = theory)
+  VT: gamma 0.0   train log loss 0.45370 vs base 0.45370
+      train log loss − base by gamma: 0.5: +0.00001  1.0: +0.00003  1.5: +0.00006  2.0: +0.00009
+  VQ: gamma 0.0   train log loss 0.45370 vs base 0.45370
+      train log loss − base by gamma: 0.5: +0.00000  1.0: +0.00002  1.5: +0.00004  2.0: +0.00007
+  information (not the rule): at the theory value gamma = 1, test VT − base +0.0000 ± 0.0001; VQ − base +0.0000 ± 0.0001
+
+== 2. Test (held-out): log loss differences, negative = better
+  VT − base (pace)                   all minutes +0.0000 ± 0.0000
+      Q1          +0.0000 ± 0.0000
+      Q2          +0.0000 ± 0.0000
+      Q3          +0.0000 ± 0.0000
+      Q4 to 2:00  +0.0000 ± 0.0000
+      last 2:00   +0.0000 ± 0.0000
+      OT          +0.0000 ± 0.0000
+  VQ − base                          all minutes +0.0000 ± 0.0000
+      Q1          +0.0000 ± 0.0000
+      Q2          +0.0000 ± 0.0000
+      Q3          +0.0000 ± 0.0000
+      Q4 to 2:00  +0.0000 ± 0.0000
+      last 2:00   +0.0000 ± 0.0000
+      OT          +0.0000 ± 0.0000
+  VQ − VT (team quarter patterns)    all minutes +0.0000 ± 0.0000
+      Q1          +0.0000 ± 0.0000
+      Q2          +0.0000 ± 0.0000
+      Q3          +0.0000 ± 0.0000
+      Q4 to 2:00  +0.0000 ± 0.0000
+      last 2:00   +0.0000 ± 0.0000
+      OT          +0.0000 ± 0.0000
+  base test log loss 0.4378
+  fastest tenth  (429 games): VT − base +0.0000 ± 0.0000
+  slowest tenth  (428 games): VT − base +0.0000 ± 0.0000
+

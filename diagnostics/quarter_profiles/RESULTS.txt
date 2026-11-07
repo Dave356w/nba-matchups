@@ -1,0 +1,65 @@
+Team scoring patterns by quarter: real, forecastable, useful live? Research only; ± is 95%.
+Games with a line and four quarters: 12257 (2015-16 .. 2026-27, no 2019-20). q_k = home margin in quarter k.
+
+== 1. How the expected margin splits by quarter (q_k = alpha_k + beta_k mu, all seasons)
+  Q1: beta 0.326 ± 0.020  (share of the line 33%)   alpha -0.05 ± 0.15 pts   residual sd 8.04
+  Q2: beta 0.252 ± 0.020  (share of the line 25%)   alpha -0.07 ± 0.15 pts   residual sd 8.02
+  Q3: beta 0.268 ± 0.021  (share of the line 27%)   alpha +0.01 ± 0.15 pts   residual sd 8.26
+  Q4: beta 0.144 ± 0.020  (share of the line 14%)   alpha -0.00 ± 0.14 pts   residual sd 7.76
+  sum of betas 0.990 (1 = the quarters add up to the line); sum of alphas -0.11
+
+== 2. Is a team's quarter shape real? Split-half (odd vs even games), same team-season
+  Q1 shape         r +0.056 [-0.058, +0.168]   season reliability 0.11   team-season sd 0.86 pts/game, of which persistent ~0.28   (team-seasons 300)
+  Q2 shape         r -0.025 [-0.138, +0.088]   season reliability 0.00   team-season sd 0.80 pts/game, of which persistent ~0.00   (team-seasons 300)
+  Q3 shape         r +0.071 [-0.043, +0.182]   season reliability 0.13   team-season sd 0.87 pts/game, of which persistent ~0.32   (team-seasons 300)
+  Q4 shape         r +0.038 [-0.075, +0.151]   season reliability 0.07   team-season sd 0.86 pts/game, of which persistent ~0.23   (team-seasons 300)
+  overall vs line  r +0.064 [-0.050, +0.176]   season reliability 0.12   team-season sd 0.38 pts/game, of which persistent ~0.13   (team-seasons 300)
+  year to year (same team, consecutive seasons):
+   Q1 shape         r +0.230 [+0.106, +0.346]   (pairs 240)
+   Q2 shape         r -0.007 [-0.133, +0.120]   (pairs 240)
+   Q3 shape         r +0.052 [-0.075, +0.178]   (pairs 240)
+   Q4 shape         r +0.085 [-0.042, +0.210]   (pairs 240)
+   overall vs line  r +0.043 [-0.085, +0.168]   (pairs 240)
+
+== 2b. Decayed shapes: predictive correlation with the next game's shape (both teams ≥ 10 games, 2016-17 .. 2025-26)
+  half-life 5, within season       Q1 +0.007 [-0.012, +0.026]  Q2 -0.007 [-0.026, +0.012]  Q3 +0.007 [-0.012, +0.026]  Q4 +0.013 [-0.006, +0.032]
+  half-life 10, within season      Q1 +0.012 [-0.007, +0.031]  Q2 -0.004 [-0.023, +0.015]  Q3 +0.009 [-0.010, +0.028]  Q4 +0.015 [-0.004, +0.034]
+  half-life 25, within season      Q1 +0.016 [-0.003, +0.035]  Q2 -0.003 [-0.022, +0.016]  Q3 +0.014 [-0.005, +0.033]  Q4 +0.014 [-0.005, +0.033]
+  half-life 50, within season      Q1 +0.017 [-0.002, +0.036]  Q2 -0.004 [-0.023, +0.015]  Q3 +0.016 [-0.003, +0.035]  Q4 +0.014 [-0.006, +0.033]
+  no decay, within season          Q1 +0.018 [-0.001, +0.037]  Q2 -0.004 [-0.023, +0.015]  Q3 +0.018 [-0.001, +0.037]  Q4 +0.012 [-0.007, +0.031]
+  half-life 5, across seasons      Q1 +0.007 [-0.012, +0.026]  Q2 -0.007 [-0.026, +0.012]  Q3 +0.007 [-0.012, +0.026]  Q4 +0.013 [-0.006, +0.032]
+  half-life 10, across seasons     Q1 +0.014 [-0.005, +0.033]  Q2 -0.003 [-0.022, +0.016]  Q3 +0.008 [-0.011, +0.027]  Q4 +0.016 [-0.003, +0.035]
+  half-life 25, across seasons     Q1 +0.022 [+0.003, +0.041]  Q2 -0.007 [-0.026, +0.012]  Q3 +0.010 [-0.009, +0.029]  Q4 +0.019 [-0.000, +0.038]
+  half-life 50, across seasons     Q1 +0.025 [+0.006, +0.044]  Q2 -0.014 [-0.033, +0.005]  Q3 +0.011 [-0.008, +0.030]  Q4 +0.019 [+0.000, +0.038]
+  no decay, across seasons         Q1 +0.017 [-0.002, +0.036]  Q2 -0.015 [-0.034, +0.004]  Q3 +0.010 [-0.009, +0.029]  Q4 +0.014 [-0.005, +0.033]
+  (games 10573; a real, decaying team shape would show correlations above 0)
+
+== 3. Forecastable? Each arm fitted on train (both teams ≥ 10 earlier games); one chosen by train error
+  half-life 5, within season       n0   2  weight +0.01 ± 0.04   train squared error − line alone -0.001 pts² per game
+  half-life 10, within season      n0   2  weight +0.01 ± 0.05   train squared error − line alone -0.002 pts² per game
+  half-life 25, within season      n0 320  weight +0.38 ± 0.75   train squared error − line alone -0.008 pts² per game
+  half-life 50, within season      n0 320  weight +0.44 ± 0.61   train squared error − line alone -0.017 pts² per game
+  no decay, within season          n0 320  weight +0.46 ± 0.47   train squared error − line alone -0.030 pts² per game
+  half-life 5, across seasons      n0 320  weight +0.26 ± 1.39   train squared error − line alone -0.001 pts² per game
+  half-life 10, across seasons     n0 320  weight +0.38 ± 1.04   train squared error − line alone -0.004 pts² per game
+  half-life 25, across seasons     n0 320  weight +0.60 ± 0.70   train squared error − line alone -0.023 pts² per game
+  half-life 50, across seasons     n0 320  weight +0.68 ± 0.54   train squared error − line alone -0.052 pts² per game
+  no decay, across seasons         n0 160  weight +0.33 ± 0.21   train squared error − line alone -0.078 pts² per game
+  chosen on train: no decay, across seasons (n0 160, weight 0.33)
+  test (4296 games): squared error per game (four quarters) − line alone +0.095 ± 0.130 pts²
+    Q1: +0.032 ± 0.069   (predicted shape sd 0.15 pts vs residual sd 8.29)
+    Q2: +0.064 ± 0.045   (predicted shape sd 0.10 pts vs residual sd 8.18)
+    Q3: -0.024 ± 0.058   (predicted shape sd 0.13 pts vs residual sd 8.34)
+    Q4: +0.023 ± 0.051   (predicted shape sd 0.12 pts vs residual sd 7.89)
+  second half (Q3 + Q4 margin) from halftime: +0.038 ± 0.096 pts²
+  information: half-life 10, across seasons on games 1-9 (561 test games): +0.004 ± 0.107 pts²
+  information: half-life 25, across seasons on games 1-9 (561 test games): +0.006 ± 0.234 pts²
+  information: no decay, across seasons on games 1-9 (561 test games): -0.110 ± 0.392 pts²
+
+== 4. Useful live? Deployed live win chance at quarter ends + c x remaining shape (no decay, across seasons) / sqrt(tau)
+  c -0.0327 ± 0.1346 (train; the lead's own weight a(tau) is ~0.05)
+  test log loss, with − without: -0.00004 ± 0.00011 (games 4296)
+    end Q1  -0.00006 ± 0.00013
+    half    -0.00007 ± 0.00014
+    end Q3  -0.00000 ± 0.00014
+

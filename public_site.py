@@ -124,8 +124,16 @@ CSS = """
 .public-table td:first-child{grid-column:1/-1;font-size:16px;font-weight:700}.public-empty{padding:22px}.guide section{padding:18px}.nav a{min-height:42px;display:grid;place-items:center}}
 """
 
+# Today's filter bar and card order (owner request, 2026-11-07): live games
+# first, then upcoming, then final, tip order (data-order) within each; it
+# re-sorts whenever the live-score overlay changes a card's state
+# (window.nbaCount) and moves nothing when the order is unchanged.
 FILTER_JS = """<script>(function(){var bar=document.querySelector('[data-filter]');if(!bar)return;bar.hidden=false;
-var filter='all';function update(){var c={all:0,tracked:0,upcoming:0,live:0,final:0};
+var grid=document.querySelector('.tool-grid[data-slate]'),rank={live:0,upcoming:1,final:2};
+function order(){if(!grid)return;var cs=[].slice.call(grid.querySelectorAll(':scope>.gcard')),
+s=cs.slice().sort(function(a,b){return(rank[a.dataset.state]-rank[b.dataset.state])||(a.dataset.order-b.dataset.order);});
+if(s.some(function(x,i){return x!==cs[i];}))s.forEach(function(x){grid.appendChild(x);});}
+var filter='all';function update(){order();var c={all:0,tracked:0,upcoming:0,live:0,final:0};
 document.querySelectorAll('.gcard').forEach(function(x){var s=x.dataset.state;c.all++;c[s]++;if(x.dataset.tracked==='1')c.tracked++;
 x.hidden=filter==='tracked'?x.dataset.tracked!=='1':filter!=='all'&&s!==filter;});
 bar.querySelectorAll('button').forEach(function(b){var k=b.dataset.show;b.querySelector('.ct').textContent=c[k];b.setAttribute('aria-pressed',k===filter?'true':'false');});
@@ -237,7 +245,7 @@ class PublicSite:
         return (f"<div class='ou-readout'><span>Total · model <b>{T:.1f}</b>"
                 + (f" · {book}" if book else "") + f"</span>{lean}</div>")
 
-    def card(self, row):
+    def card(self, row, order=None):
         u = self.ui
         number = lambda k: pd.to_numeric(row.get(k), errors="coerce")
         p = number("p_home")
@@ -312,7 +320,8 @@ class PublicSite:
             detail += "<p>The model includes the NBA injury report available when this forecast was saved.</p>"
         detail += self.factor_details(row, context) + self.injury_details(row)
         detail += "<p><a href='how-it-works.html'>How forecasts and tracked picks work →</a></p>"
-        return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(recs))}' data-state='{'final' if final else 'upcoming'}'{live_spread}>"
+        order_attr = f" data-order='{int(order)}'" if order is not None else ""
+        return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(recs))}' data-state='{'final' if final else 'upcoming'}'{order_attr}{live_spread}>"
                 f"<summary><div class='g-meta'><span>{u.tip_pt(row.tip_utc)}</span><span class='badge st'>{status}</span></div>"
                 + "".join(teams) + live + forecast + tracking
                 + "<span class='details-cue'>Game details<i aria-hidden='true'>⌄</i></span></summary>"
@@ -408,7 +417,13 @@ class PublicSite:
             body += "<div class='seg' data-filter role='group' aria-label='Filter games' hidden>" + "".join(
                 f"<button type='button' data-show='{key}' aria-pressed='{'true' if key == 'all' else 'false'}'>{name}<span class='ct'>0</span></button>"
                 for key,name in (("all","All"),("tracked","Tracked"),("upcoming","Upcoming"),("live","Live"),("final","Final"))) + "</div>"
-            body += f"<div class='tool-grid' data-slate='{u.esc(self.today)}'>" + "".join(self.card(r) for _,r in day.sort_values("tip_utc").iterrows()) + "</div>"
+            # tip order, games already final at the bottom (the browser keeps
+            # live games first and re-sorts as states change: FILTER_JS)
+            rows = list(day.sort_values("tip_utc", kind="stable").iterrows())
+            done = [np.isfinite(pd.to_numeric(r.get("home_won"), errors="coerce")) for _, r in rows]
+            cards = sorted(((bool(f), i, self.card(r, i)) for i, ((_, r), f) in enumerate(zip(rows, done))),
+                           key=lambda t: (t[0], t[1]))
+            body += f"<div class='tool-grid' data-slate='{u.esc(self.today)}'>" + "".join(c for *_, c in cards) + "</div>"
             body += ("<div class='public-empty' data-filter-empty hidden><p>No games match this filter.</p></div>"
                      + FILTER_JS + live_wp.script(self.live_fit) + u.SCORES_JS)
         return self.page("Today · NBA Composite", "index.html", body)

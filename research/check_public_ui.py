@@ -178,7 +178,7 @@ def main():
                     page.locator('[data-show="tracked"]').click()
                     assert page.locator('.gcard:visible').count()==4
                     assert page.get_by_text('Tracked picks · 5 h lock').count()==4
-                    page.locator('.gcard summary').first.click()
+                    page.locator('[data-gid="fixture-0"] summary').click()
                     assert page.get_by_role('heading',name='Recorded before play',exact=True).is_visible()
                     card = page.locator('[data-gid="fixture-0"]')
                     assert card.locator('.team-record').all_inner_texts() == ['(15–15)', '(1–2)']
@@ -346,6 +346,10 @@ def main():
                 page.goto(f'{base}/fixture/index.html')
                 live.locator('.st').filter(has_text='Q2 4:00').wait_for()
                 assert len(calls) == 1, calls
+                cards = "els => els.map(e => e.dataset.gid)"
+                # card order: live first, then upcoming, then final (tip order within)
+                assert page.eval_on_selector_all('.tool-grid > .gcard', cards) == \
+                    ['fixture-3', 'fixture-0', 'fixture-1', 'fixture-2', 'fixture-4']
                 page.clock.run_for(31_000)
                 live.locator('.st').filter(has_text='Q3 7:30').wait_for()
                 assert len(calls) == 2
@@ -366,11 +370,14 @@ def main():
                 assert len(calls) == 4 and box.is_hidden()
                 assert live.get_attribute('data-state') == 'final'
                 assert live.locator('.sc[data-side="home"]').inner_text() == '101'
+                # the game that just ended moves down to its tip position among the finals
+                assert page.eval_on_selector_all('.tool-grid > .gcard', cards) == \
+                    ['fixture-0', 'fixture-1', 'fixture-2', 'fixture-3', 'fixture-4']
                 page.clock.run_for(30 * 60_000)
                 assert len(calls) == 4, 'polling continued after the final'
                 checks.append(f'Auto-refresh · a live game re-fetched every 30 s (Q2 4:00 → Q3 7:30, BOS {fmt(ph)}; '
                               f'Q4 0:45.5 tied, BOS {fmt(ph4)}); a hidden tab waited and caught up when shown; '
-                              'the final hid the live readout and polling stopped')
+                              'the final hid the live readout, moved the card down among the finals and stopped the polling')
                 # opened before tip: the next fetch comes at the tip, then 30 s
                 pre = event('pre', 'STATUS_SCHEDULED', 0, '0:00', 0, 0)
                 pre['date'] = '2026-11-20T03:04:00Z'
