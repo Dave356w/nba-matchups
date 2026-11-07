@@ -806,3 +806,24 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   bets rises with the gap in both priced seasons (value favourites +0.35 →
   +2.12 / +0.85 → +3.57 pp from gaps < 0.02 to ≥ 0.08; spread ~0.1 pts below
   3 points, +0.65 / +0.92 from 3); ROI by band is noise and chose nothing.
+- Live win chance (owner request, 2026-11-07; `research/live_wp.py`,
+  [results](../diagnostics/live_wp/RESULTS.txt); `live_wp.py`,
+  `model/live_wp.json`). An in-game home win probability for Today's live
+  games, from the score, the clock and the pregame line. Data: 12,212
+  regular-season games 2015-16 .. 2026-27 (no 2019-20) with ESPN
+  play-by-play and ESPN's archived pregame line (2024-25 on it equals the
+  repo's closing line in all 2,571 games checked; earlier, the consensus of
+  10–15 providers), states every 30 s (every 5 s in the last 2 minutes,
+  weighted to equal time). Fitted 2015-16 .. 2021-22, tested 2022-23 ..
+  2025-26 (4,901 games), ± 95% across games. The Brownian form
+  Φ((lead + μτ)/(σ√τ)) (σ 17.88) overrates a leading underdog (end of Q1
+  predicted 54.9% vs actual 47.1%; half 64.5% vs 57.3%; end of Q3 75.2% vs
+  71.0%): the line deserves about 1.8× the lead's weight, since leads
+  partly fade. Separate weights a(τ), b(τ), piecewise linear on 8 knots:
+  log loss − Brownian −0.0071 ± 0.0029, − constant weights −0.0007 ±
+  0.0004, calibrated by tenth, the underdog cases within a point (46.4 /
+  57.2 / 70.8%). Refitted on 2015-16 .. 2025-26 and deployed; 2026-27 to date
+  (117 games, not fitted) − Brownian −0.0225 ± 0.0171. Ignores possession,
+  fouls and in-game injuries. Earlier evidence (strength vs reaction): a
+  score-and-line formula matched Kalshi's live price but did not beat it.
+  Display only; no data, test or record reads it.

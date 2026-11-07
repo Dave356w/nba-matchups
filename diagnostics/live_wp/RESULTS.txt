@@ -1,0 +1,70 @@
+Live win chance: in-game home win probability from the score, the clock and the pregame line.
+P = Phi(z); fitted 2015-16 .. 2021-22, tested 2022-23 .. 2025-26. ± is 95%, across games.
+Research only; the page's live readout is display only (CLAUDE.md, Live win chance).
+The page reads DraftKings' pregame spread frozen at tip (ledger pre_spread) for mu; the fit
+uses ESPN's archived line (2024-25 on: the repo's closing line; earlier: the providers' consensus).
+
+== 0. Data
+  games in the box files: 12276; with a pregame line: 12260; pick'em lines: 17
+  ESPN line vs reconstructed close (2024-25, 2025-26): n 2448, same favourite 100.0%, mean |diff| 0.00 pts
+  ESPN line vs native ledger close (2026-27): n 123, same favourite 100.0%, mean |diff| 0.00 pts
+  games with states: 12212 (48 dropped: play-by-play final != box final); states 1425637
+  train games 7194, test games 4901, 2026-27 to date 117
+
+== 1. Fits (train)
+  brownian   sigma 17.88
+  two-weight a 0.0495 ± 0.0018   b 0.0882 ± 0.0062   b/a 1.78
+  spline     knot tau   a(tau)              b(tau)              b/a
+             0.0000   0.0284 ± 0.0023   0.2249 ± 0.1637   7.91
+             0.0208   0.0492 ± 0.0027   0.1620 ± 0.0588   3.29
+             0.0625   0.0509 ± 0.0024   0.1292 ± 0.0316   2.54
+             0.1250   0.0521 ± 0.0024   0.1180 ± 0.0181   2.26
+             0.2500   0.0525 ± 0.0024   0.0973 ± 0.0112   1.85
+             0.5000   0.0490 ± 0.0028   0.0911 ± 0.0071   1.86
+             0.7500   0.0450 ± 0.0037   0.0861 ± 0.0055   1.91
+             1.0000   0.0347 ± 0.0077   0.0838 ± 0.0046   2.41
+
+== 2. Test (held-out seasons): log loss, lower is better
+  brownian    log loss 0.4492   Brier 0.1499
+  two-weight  log loss 0.4428   Brier 0.1474
+  spline      log loss 0.4421   Brier 0.1472
+  two-weight − brownian  -0.0064 ± 0.0027
+  spline − brownian      -0.0071 ± 0.0029
+  spline − two-weight    -0.0007 ± 0.0004
+  by part of the game (spline − brownian | spline − two-weight; spline log loss):
+    Q1          -0.0107 ± 0.0039 | -0.0018 ± 0.0010;  0.5729  (games 4901)
+    Q2          -0.0090 ± 0.0037 | -0.0003 ± 0.0005;  0.5147  (games 4901)
+    Q3          -0.0059 ± 0.0030 | -0.0001 ± 0.0005;  0.4299  (games 4901)
+    Q4 to 2:00  -0.0033 ± 0.0022 | -0.0004 ± 0.0011;  0.2972  (games 4901)
+    last 2:00   -0.0049 ± 0.0026 | -0.0023 ± 0.0014;  0.1534  (games 4901)
+    OT          +0.0002 ± 0.0106 | +0.0007 ± 0.0059;  0.4816  (games 251)
+  lowest held-out log loss: spline
+
+== 3. Calibration on the test seasons (predicted → actual %, by tenth)
+  brownian    3→3  15→17  25→27  35→36  45→46  55→56  65→67  75→77  85→85  97→97
+  two-weight  3→3  15→16  25→27  35→36  45→46  55→55  65→65  75→75  85→84  97→97
+  spline      3→3  15→16  25→26  35→36  45→46  55→54  65→65  75→75  85→84  97→97
+  underdog leading at quarter ends:
+  brownian    end Q1: pred 54.9% actual 47.1% (n 1896) | half: pred 64.5% actual 57.3% (n 1788) | end Q3: pred 75.2% actual 71.0% (n 1624)
+  two-weight  end Q1: pred 47.3% actual 47.1% (n 1896) | half: pred 57.8% actual 57.3% (n 1788) | end Q3: pred 70.4% actual 71.0% (n 1624)
+  spline      end Q1: pred 46.4% actual 47.1% (n 1896) | half: pred 57.2% actual 57.3% (n 1788) | end Q3: pred 70.8% actual 71.0% (n 1624)
+
+== 4. Deployed: spline, refitted on 2015-16 .. 2025-26 (12095 games)
+  tau 0.0000   a 0.0280   b 0.2443
+  tau 0.0208   a 0.0504   b 0.1548
+  tau 0.0625   a 0.0510   b 0.1255
+  tau 0.1250   a 0.0516   b 0.1150
+  tau 0.2500   a 0.0522   b 0.0959
+  tau 0.5000   a 0.0488   b 0.0904
+  tau 0.7500   a 0.0446   b 0.0849
+  tau 1.0000   a 0.0316   b 0.0826
+  2026-27 to date (not fitted; 117 games): log loss 0.4259, − brownian -0.0225 ± 0.0171
+  Example readings (home team; mu = expected home margin):
+    lead +5, mu -6.5, end of Q1: 41.3%
+    lead +5, mu -6.5, end of Q2: 47.2%
+    lead +5, mu -6.5, end of Q3: 58.3%
+    lead +10, mu -10.0, end of Q2: 52.0%
+    lead -8, mu +3.0, end of Q3: 24.5%
+    lead +2, mu +0.0, Q4, 1:00 left: 75.7%
+    lead -3, mu +5.0, Q4, 0:30 left: 14.7%
+    lead +0, mu +4.0, end of Q4: 56.1%

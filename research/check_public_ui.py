@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT))
 import build_site as ui  # noqa: E402
 import dfs  # noqa: E402
 import ledger  # noqa: E402
+import live_wp  # noqa: E402
 from matchup_context import MatchupContext  # noqa: E402
 import nba_composite as nc  # noqa: E402
 import totals  # noqa: E402
@@ -309,6 +310,22 @@ def main():
                 assert live.locator('.sc[data-side="home"]').inner_text()=='42'
                 assert live.locator('.tracked-line').count()==4
                 checks.append('Live-score overlay updated status and scores without changing four frozen selections')
+                # Live win chance (owner request, 2026-11-07): the browser's
+                # figure equals live_wp.win_prob for the card's frozen spread
+                fit = live_wp.load()
+                ph = live_wp.win_prob(42-38, 6, live_wp.tau(2, 240), fit)
+                fmt = lambda p: '>99%' if p > .995 else '<1%' if p < .005 else f'{round(100*p)}%'  # noqa: E731
+                box = live.locator('[data-live-wp]')
+                assert box.is_visible()
+                assert box.locator('[data-wp="home"]').inner_text()==fmt(ph)
+                assert box.locator('[data-wp="away"]').inner_text()==fmt(1-ph)
+                assert page.locator('[data-gid="fixture-0"] [data-live-wp]').is_hidden()  # final: no live readout
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                for device, width, height in (('desktop',1440,1000),('mobile',390,844)):
+                    page.set_viewport_size({'width':width,'height':height})
+                    live.screenshot(path=str(out/f'{device}-fixture-live-card.png'))
+                checks.append(f'Live win chance · BOS {fmt(ph)} / NYK {fmt(1-ph)} at Q2 4:00, 42–38, BOS −6 at tip, '
+                              'matching live_wp.win_prob; hidden for a final game; no horizontal overflow')
                 browser.close()
         finally:
             server.shutdown()
