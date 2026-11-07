@@ -405,6 +405,21 @@ information only, separate from DraftKings and native evidence.
   Missing closes stay in the full model record. Earlier versions, rebuilt
   rows and research records stay outside the public forecast record.
 
+- **Live win chance (owner request, 2026-11-07).** Today cards show each
+  team's in-game win chance while a game is in progress, computed in the
+  reader's browser from the live ESPN score, period and clock the page
+  already fetches and the game's DraftKings spread frozen at tip
+  (`pre_spread`): P(home) = Φ(a(τ)·lead/√τ + b(τ)·μ·√τ), μ = −pre_spread,
+  τ = regulation left / 48 min (overtime: the period's time left / 48 min).
+  `live_wp.py` holds the formula and its browser copy; `model/live_wp.json`
+  the coefficients, fitted by `research/live_wp.py` on ESPN play-by-play
+  and archived pregame lines of 2015-16 .. 2025-26 and chosen by held-out
+  log loss ([live win chance](diagnostics/live_wp/RESULTS.txt)). Display
+  only: never written to `data/`, never a model input, rule, snapshot,
+  grade or record. It is labelled apart from the pregame model forecast
+  (still the card's one primary probability) and from tracked picks, and
+  is absent without a DraftKings spread, before tip and after the final.
+
 - Read `docs/model_guidelines.md` before a model or rule change. The model
   is `MODEL.md` / `nba_composite.py`; prices are `market.py`; pregame locks
   and schema are `ledger.py`; grading/statistics are `analysis.py`.
@@ -475,6 +490,8 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   [model review](diagnostics/model_review/RESULTS.txt).
 - Kalshi and live trading: [benchmark](diagnostics/kalshi_benchmark/RESULTS.txt),
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
+  In-game win probability from the score and the pregame line (display only):
+  [live win chance](diagnostics/live_wp/RESULTS.txt).
 - Fantasy and Sleeper signals: [fantasy](diagnostics/fantasy_signal/RESULTS.txt),
   [Sleeper](diagnostics/sleeper_signal/RESULTS.txt).
 - Pace, totals (O/U) and the picks' timing under v11:
