@@ -326,6 +326,73 @@ def main():
                     live.screenshot(path=str(out/f'{device}-fixture-live-card.png'))
                 checks.append(f'Live win chance · BOS {fmt(ph)} / NYK {fmt(1-ph)} at Q2 4:00, 42–38, BOS −6 at tip, '
                               'matching live_wp.win_prob; hidden for a final game; no horizontal overflow')
+                # Auto-refresh (owner request, 2026-11-07): a live game is
+                # re-fetched every 30 s (fake clock), a hidden tab waits and
+                # catches up when shown, polling stops once every game is final
+                def event(state, name, period, clock, home, away):
+                    return {'id': 'fixture-3', 'status': {'type': {'state': state, 'name': name, 'completed': state == 'post',
+                            'shortDetail': 'Final' if state == 'post' else ''}, 'period': period, 'displayClock': clock},
+                            'competitions': [{'competitors': [{'homeAway': 'home', 'score': str(home)},
+                                                              {'homeAway': 'away', 'score': str(away)}]}]}
+                feed = [event('in', 'STATUS_IN_PROGRESS', 2, '4:00', 42, 38), event('in', 'STATUS_IN_PROGRESS', 3, '7:30', 61, 63),
+                        event('in', 'STATUS_IN_PROGRESS', 4, '0:45.5', 99, 99), event('post', 'STATUS_FINAL', 4, '0.0', 101, 99)]
+                calls = []
+                def serve(route):
+                    calls.append(route.request.url)
+                    route.fulfill(json={'events': [feed[min(len(calls), len(feed)) - 1]]})
+                page.unroute_all()
+                page.clock.install()
+                page.route('**/apis/site/v2/sports/basketball/nba/scoreboard?**', serve)
+                page.goto(f'{base}/fixture/index.html')
+                live.locator('.st').filter(has_text='Q2 4:00').wait_for()
+                assert len(calls) == 1, calls
+                page.clock.run_for(31_000)
+                live.locator('.st').filter(has_text='Q3 7:30').wait_for()
+                assert len(calls) == 2
+                assert live.locator('.sc[data-side="home"]').inner_text() == '61'
+                ph = live_wp.win_prob(61 - 63, 6, live_wp.tau(3, 450), fit)
+                assert box.locator('[data-wp="home"]').inner_text() == fmt(ph)
+                page.evaluate("Object.defineProperty(document,'hidden',{value:true,configurable:true})")
+                page.clock.run_for(5 * 60_000)
+                assert len(calls) == 2, 'a hidden tab fetched'
+                page.evaluate("Object.defineProperty(document,'hidden',{value:false,configurable:true});"
+                              "document.dispatchEvent(new Event('visibilitychange'))")
+                live.locator('.st').filter(has_text='Q4 0:45.5').wait_for()
+                assert len(calls) == 3
+                ph4 = live_wp.win_prob(0, 6, live_wp.tau(4, 45.5), fit)
+                assert box.locator('[data-wp="home"]').inner_text() == fmt(ph4)
+                page.clock.run_for(31_000)
+                live.locator('.st').filter(has_text='Final').wait_for()
+                assert len(calls) == 4 and box.is_hidden()
+                assert live.get_attribute('data-state') == 'final'
+                assert live.locator('.sc[data-side="home"]').inner_text() == '101'
+                page.clock.run_for(30 * 60_000)
+                assert len(calls) == 4, 'polling continued after the final'
+                checks.append(f'Auto-refresh · a live game re-fetched every 30 s (Q2 4:00 → Q3 7:30, BOS {fmt(ph)}; '
+                              f'Q4 0:45.5 tied, BOS {fmt(ph4)}); a hidden tab waited and caught up when shown; '
+                              'the final hid the live readout and polling stopped')
+                # opened before tip: the next fetch comes at the tip, then 30 s
+                pre = event('pre', 'STATUS_SCHEDULED', 0, '0:00', 0, 0)
+                pre['date'] = '2026-11-20T03:04:00Z'
+                feed[:] = [pre, event('in', 'STATUS_IN_PROGRESS', 1, '11:40', 2, 0), event('in', 'STATUS_IN_PROGRESS', 1, '11:10', 2, 3)]
+                calls.clear()
+                tab = browser.new_page()
+                tab.clock.install(time='2026-11-20T03:00:00Z')
+                tab.route('**/apis/site/v2/sports/basketball/nba/scoreboard?**', serve)
+                tab.goto(f'{base}/fixture/index.html')
+                tab.locator('[data-gid="fixture-3"]').wait_for(state='attached')
+                tab.wait_for_timeout(200)
+                assert len(calls) == 1 and tab.locator('[data-gid="fixture-3"] [data-live-wp]').is_hidden()
+                tab.clock.run_for(3 * 60_000 + 50_000)
+                assert len(calls) == 1, 'fetched before the tip'
+                tab.clock.run_for(15_000)
+                tab.locator('[data-gid="fixture-3"] .st').filter(has_text='Q1 11:40').wait_for()
+                assert len(calls) == 2 and tab.locator('[data-gid="fixture-3"] [data-live-wp]').is_visible()
+                tab.clock.run_for(31_000)
+                tab.locator('[data-gid="fixture-3"] .st').filter(has_text='Q1 11:10').wait_for()
+                assert len(calls) == 3
+                tab.close()
+                checks.append('Auto-refresh · a page opened 4 min before tip fetched again at the tip, then every 30 s while live')
                 browser.close()
         finally:
             server.shutdown()

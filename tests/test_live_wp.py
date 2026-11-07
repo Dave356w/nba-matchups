@@ -92,3 +92,12 @@ def test_live_readout_changes_no_record_or_selection():
     b.live_fit = None
     assert [a.selection(r) for r in a.records] == [b.selection(r) for r in b.records]
     assert a.results_page() == b.results_page() and a.performance_page() == b.performance_page()
+
+
+def test_scores_overlay_keeps_polling_while_a_game_is_live():
+    js = ui.SCORES_JS
+    assert ui.SCORES_LIVE_MS == 30_000 and 'LIVE=30000' in js
+    assert 'if(live)next(LIVE)' in js                     # every 30 s while one is in progress
+    assert 'visibilitychange' in js and 'document.hidden' in js
+    assert 'if(++fails<=10)' in js                        # failed fetches retry, then stop
+    assert js.count('fetch(u') == 1 and js.rstrip().endswith('load();})();</script>')

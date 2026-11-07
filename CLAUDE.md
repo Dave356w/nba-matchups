@@ -419,6 +419,9 @@ information only, separate from DraftKings and native evidence.
   grade or record. It is labelled apart from the pregame model forecast
   (still the card's one primary probability) and from tracked picks, and
   is absent without a DraftKings spread, before tip and after the final.
+  The open page re-fetches ESPN's scoreboard every 30 s while one of its
+  games is in progress (owner request, 2026-11-07), at each tip before
+  that, and not once every game is final; a hidden tab waits.
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
   is `MODEL.md` / `nba_composite.py`; prices are `market.py`; pregame locks
