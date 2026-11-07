@@ -425,6 +425,10 @@ information only, separate from DraftKings and native evidence.
   Today lists live games first, then upcoming, then final (tip order within
   each), re-sorting as the overlay changes a game's state (owner request,
   2026-11-07).
+  The public pages' slate rolls over at 6:00 ET, not midnight: before then
+  they show the previous ET slate when it had games, so late West Coast games
+  stay on Today; grading and snapshots keep the ET date (owner request,
+  2026-11-07).
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
   is `MODEL.md` / `nba_composite.py`; prices are `market.py`; pregame locks

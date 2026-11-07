@@ -121,6 +121,24 @@ def et_today():
     return datetime.now(ET).strftime("%Y-%m-%d")
 
 
+# The public pages' slate rolls over at 6:00 ET, not midnight (owner request,
+# 2026-11-07): a build after midnight ET (a push, a dispatch) kept moving
+# Today to the next slate while West Coast games were still being played.
+# Before the rollover the pages show the previous ET slate when it had games;
+# grading and snapshots still use the ET date.
+SLATE_ROLLOVER_HOUR = 6
+
+
+def page_slate(native, today, now=None):
+    """The ET slate date the public pages show for a build run on `today`."""
+    now = now or datetime.now(ET)
+    if now.strftime("%Y-%m-%d") != today or now.hour >= SLATE_ROLLOVER_HOUR:
+        return today
+    prev = (pd.Timestamp(today) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    had = len(native) and native["slate_date"].astype(str).eq(prev).any()
+    return prev if had else today
+
+
 def season_for(date):
     """Basketball-Reference season year: 2026-27 season -> 2027."""
     d = pd.Timestamp(date)
@@ -3502,10 +3520,11 @@ def write_research(native, recon, today, model_ok, pre=None, out_dir=None):
     return text
 
 
-def write_pages(native, recon, today, model_ok, pre=None):
-    """Publish an explicit allowlist; retain the complete workbench elsewhere."""
+def write_pages(native, recon, today, model_ok, pre=None, page_day=None):
+    """Publish an explicit allowlist; retain the complete workbench elsewhere.
+    The public pages show `page_day` (page_slate), the workbench `today`."""
     built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
-    pages = public_site.PublicSite(sys.modules[__name__], native, today, built, model_ok).render()
+    pages = public_site.PublicSite(sys.modules[__name__], native, page_day or today, built, model_ok).render()
     internal = OUT_DIR.parent / "diagnostics" / "site"
     text = write_research(native, recon, today, model_ok, pre, out_dir=internal)
     (internal / "how-it-works.html").write_text(pages["how-it-works.html"], encoding="utf-8")
@@ -3570,7 +3589,10 @@ def main(argv=None):
         # each earlier ou1 / ou2 lock once to data/nba_ou3_rescore.csv; never raises
         ou3_rescore.update(native, log)
         dfs.snapshot(log)   # Yahoo salaries for the DFS page; never raises
-    text = write_pages(native, recon, today, model_ok)
+    day = today if a.date else page_slate(native, today)
+    if day != today:
+        log(f"public pages show the {day} slate until {SLATE_ROLLOVER_HOUR}:00 ET")
+    text = write_pages(native, recon, today, model_ok, page_day=day)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(text, encoding="utf-8")
     log(f"wrote {OUT_DIR}/" + ", ".join(h for h, _ in PAGES)

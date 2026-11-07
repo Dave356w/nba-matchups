@@ -151,3 +151,20 @@ def test_today_lists_unfinished_games_first_then_finals_in_tip_order():
     assert [int(c[2]) for c in cards] == [1, 3, 0, 2, 4, 5]
     js = __import__('public_site').FILTER_JS
     assert 'rank={live:0,upcoming:1,final:2}' in js and 'function update(){order();' in js
+
+
+def test_public_pages_keep_last_nights_slate_until_six_et(tmp_path, monkeypatch):
+    """Owner request (2026-11-07): a build after midnight ET kept the West
+    Coast games on Today; the pages' slate rolls over at 6:00 ET."""
+    from datetime import datetime
+    g = rows()                                     # slate 2026-11-19
+    at = lambda d, h, m=0: datetime(2026, 11, d, h, m, tzinfo=ui.ET)  # noqa: E731
+    assert ui.page_slate(g, '2026-11-20', at(20, 0, 30)) == '2026-11-19'
+    assert ui.page_slate(g, '2026-11-20', at(20, 5, 59)) == '2026-11-19'
+    assert ui.page_slate(g, '2026-11-20', at(20, 6, 0)) == '2026-11-20'
+    assert ui.page_slate(g, '2026-11-19', at(19, 1, 0)) == '2026-11-19'   # nothing the night before
+    assert ui.page_slate(g, '2026-11-20', at(25, 1, 0)) == '2026-11-20'   # a build for another date
+    monkeypatch.setattr(ui, 'OUT_DIR', tmp_path / 'public')
+    ui.write_pages(g, ledger.empty(), '2026-11-20', True, page_day='2026-11-19')
+    html = (tmp_path / 'public' / 'index.html').read_text()
+    assert 'Thursday, November 19' in html and "data-slate='2026-11-19'" in html
