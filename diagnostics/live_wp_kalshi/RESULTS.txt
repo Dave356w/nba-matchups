@@ -1,0 +1,76 @@
+Live win chance vs Kalshi's live price, minute by minute. Research only; ± is 95% across games.
+Kalshi mid = (yes ask + yes bid) / 2 of the home market at each 1-minute candle's close, quotes ≤ 3c wide;
+the state is ESPN's last play at or before that minute (wallclock). Overtime included.
+
+== A. 2026-27 native, through 2026-11-06 (DraftKings spread at tip: the page's input)
+  games used 127; dropped: implausible wallclock 2
+  quote half-spread: median 0.50pp; Kalshi taker fee at the mid: median 1.36pp
+  |gap| = |live win chance − Kalshi mid| in percentage points (pp); signed = live win chance − mid
+  all minutes    states  16264  games  127  |gap| mean 2.88  median 2.25  p90  5.76  ≤1pp  22%  ≤2pp  45%  ≤5pp  86%  signed +0.69  | Brownian mean 4.54
+  Q1             states   3460  games  127  |gap| mean 2.67  median 2.33  p90  5.39  ≤1pp  22%  ≤2pp  43%  ≤5pp  88%  signed +0.76  | Brownian mean 4.38
+  Q2             states   4173  games  127  |gap| mean 2.70  median 2.32  p90  5.27  ≤1pp  20%  ≤2pp  43%  ≤5pp  88%  signed +0.83  | Brownian mean 4.76
+  Q3             states   5457  games  124  |gap| mean 2.64  median 2.11  p90  5.56  ≤1pp  22%  ≤2pp  47%  ≤5pp  87%  signed +0.72  | Brownian mean 4.29
+  Q4 to 2:00     states   2670  games  108  |gap| mean 3.13  median 2.16  p90  6.93  ≤1pp  26%  ≤2pp  47%  ≤5pp  80%  signed +0.59  | Brownian mean 4.25
+  last 2:00      states    406  games   63  |gap| mean 5.53  median 3.07  p90 14.07  ≤1pp  20%  ≤2pp  39%  ≤5pp  65%  signed +0.75  | Brownian mean 6.49
+  OT             states     98  games    7  |gap| mean 12.90  median 5.32  p90 42.28  ≤1pp  10%  ≤2pp  19%  ≤5pp  49%  signed -7.24  | Brownian mean 15.62
+  at tip (live win chance at 0-0, 48:00 left − Kalshi's last pregame mid): |gap| mean 2.27pp, median 1.94pp, signed +0.49pp (games 127)
+  tip gap ≤ 1pp  states   3657  games   29  |gap| mean 2.13  median 1.54  p90  4.61  ≤1pp  33%  ≤2pp  59%  ≤5pp  91%  signed +0.52  | Brownian mean 3.97
+  inside the bid–ask quote: 11% of minutes; beyond half-spread + fee: 65%
+  timing (minute-on-minute changes in log-odds):
+    mid moves -2 min after the score: corr +0.016 (n 15767)
+    mid moves -1 min after the score: corr +0.021 (n 15921)
+    mid moves +0 min after the score: corr +0.709 (n 16084)
+    mid moves +1 min after the score: corr +0.070 (n 15921)
+    mid moves +2 min after the score: corr +0.015 (n 15767)
+  accuracy on these minutes, log loss (lower is better): live win chance 0.4437, Kalshi mid 0.4433, Brownian 0.4677  (home won 66 of 127)
+  live win chance − Kalshi mid: +0.0004 ± 0.0082 (games 127)
+  Brownian − Kalshi mid:        +0.0245 ± 0.0175 (games 127)
+  games with the largest mean |gap|:
+    2026-10-26 MIN @ CLE    mean 10.27pp  max  81.6pp  minutes 168
+    2026-10-26 DAL @ MIA    mean  6.53pp  max  54.7pp  minutes 142
+    2026-10-25 DET @ PHI    mean  6.12pp  max  13.1pp  minutes 148
+    2026-10-26 MEM @ UTA    mean  5.77pp  max  15.1pp  minutes 135
+    2026-11-04 MIA @ LAC    mean  5.53pp  max  33.1pp  minutes 159
+
+== A, 2026-11-06 slate only (the games watched)
+  all minutes    states    788  games    7  |gap| mean 2.69  median 2.03  p90  5.76  ≤1pp  27%  ≤2pp  49%  ≤5pp  86%  signed +0.29  | Brownian mean 4.16
+  BOS @ CHO      states     53  games    1  |gap| mean 0.64  median 0.72  p90  1.14  ≤1pp  85%  ≤2pp 100%  ≤5pp 100%  signed -0.45  | Brownian mean 1.41
+  MIN @ NOP      states    146  games    1  |gap| mean 2.64  median 1.55  p90  6.07  ≤1pp  27%  ≤2pp  56%  ≤5pp  83%  signed +0.48  | Brownian mean 3.98
+  OKC @ MEM      states     81  games    1  |gap| mean 2.18  median 1.86  p90  3.93  ≤1pp  28%  ≤2pp  52%  ≤5pp  96%  signed -2.18  | Brownian mean 2.36
+  PHI @ CLE      states    126  games    1  |gap| mean 3.78  median 3.77  p90  7.22  ≤1pp  13%  ≤2pp  29%  ≤5pp  75%  signed +3.53  | Brownian mean 8.89
+  TOR @ MIL      states    141  games    1  |gap| mean 3.60  median 2.85  p90  7.77  ≤1pp  15%  ≤2pp  36%  ≤5pp  73%  signed -3.22  | Brownian mean 3.42
+  UTA @ DAL      states    118  games    1  |gap| mean 1.12  median 0.68  p90  2.47  ≤1pp  53%  ≤2pp  81%  ≤5pp 100%  signed -0.25  | Brownian mean 5.07
+  WAS @ ATL      states    123  games    1  |gap| mean 3.32  median 3.54  p90  5.35  ≤1pp   6%  ≤2pp  25%  ≤5pp  87%  signed +3.21  | Brownian mean 1.85
+
+== B. 2025-26 reconstructed (closing spread), Kalshi's first NBA season
+  games used 1180; dropped: implausible wallclock 12, no candles 9, first play > 45 min after the scheduled tip 4, no live quotes 3
+  quote half-spread: median 0.50pp; Kalshi taker fee at the mid: median 1.26pp
+  |gap| = |live win chance − Kalshi mid| in percentage points (pp); signed = live win chance − mid
+  all minutes    states 144354  games 1180  |gap| mean 2.37  median 1.79  p90  5.07  ≤1pp  30%  ≤2pp  55%  ≤5pp  90%  signed +0.27  | Brownian mean 4.90
+  Q1             states  30919  games 1180  |gap| mean 2.11  median 1.74  p90  4.42  ≤1pp  31%  ≤2pp  56%  ≤5pp  93%  signed +0.27  | Brownian mean 5.51
+  Q2             states  36811  games 1180  |gap| mean 2.21  median 1.77  p90  4.69  ≤1pp  31%  ≤2pp  55%  ≤5pp  92%  signed +0.31  | Brownian mean 5.25
+  Q3             states  48891  games 1161  |gap| mean 2.27  median 1.70  p90  4.96  ≤1pp  31%  ≤2pp  57%  ≤5pp  90%  signed +0.32  | Brownian mean 4.55
+  Q4 to 2:00     states  23241  games 1013  |gap| mean 2.60  median 1.87  p90  5.76  ≤1pp  28%  ≤2pp  53%  ≤5pp  86%  signed +0.14  | Brownian mean 3.94
+  last 2:00      states   3628  games  540  |gap| mean 5.49  median 3.70  p90 12.87  ≤1pp  17%  ≤2pp  34%  ≤5pp  59%  signed +0.19  | Brownian mean 6.52
+  OT             states    864  games   50  |gap| mean 5.23  median 3.79  p90 11.39  ≤1pp  13%  ≤2pp  27%  ≤5pp  61%  signed -0.11  | Brownian mean 6.29
+  at tip (live win chance at 0-0, 48:00 left − Kalshi's last pregame mid): |gap| mean 1.73pp, median 1.49pp, signed +0.10pp (games 1179)
+  tip gap ≤ 1pp  states  49719  games  418  |gap| mean 2.01  median 1.43  p90  4.39  ≤1pp  37%  ≤2pp  64%  ≤5pp  93%  signed +0.23  | Brownian mean 5.23
+  inside the bid–ask quote: 18% of minutes; beyond half-spread + fee: 55%
+  timing (minute-on-minute changes in log-odds):
+    mid moves -2 min after the score: corr +0.023 (n 137516)
+    mid moves -1 min after the score: corr +0.046 (n 139598)
+    mid moves +0 min after the score: corr +0.670 (n 141830)
+    mid moves +1 min after the score: corr +0.135 (n 139598)
+    mid moves +2 min after the score: corr +0.023 (n 137516)
+  accuracy on these minutes, log loss (lower is better): live win chance 0.4404, Kalshi mid 0.4405, Brownian 0.4508  (home won 651 of 1180)
+  live win chance − Kalshi mid: -0.0001 ± 0.0024 (games 1180)
+  Brownian − Kalshi mid:        +0.0103 ± 0.0063 (games 1180)
+  close · dk     states 115844  games  955  |gap| mean 2.36  median 1.78  p90  5.05  ≤1pp  30%  ≤2pp  55%  ≤5pp  90%  signed +0.25  | Brownian mean 4.90
+  close · espnbet states  28510  games  225  |gap| mean 2.41  median 1.80  p90  5.14  ≤1pp  29%  ≤2pp  54%  ≤5pp  89%  signed +0.38  | Brownian mean 4.86
+  games with the largest mean |gap|:
+    2026-04-10 PHO @ LAL    mean  7.36pp  max  15.5pp  minutes 115
+    2026-02-09 UTA @ MIA    mean  6.85pp  max  17.0pp  minutes 143
+    2026-03-21 LAL @ ORL    mean  6.56pp  max  16.2pp  minutes 146
+    2025-11-05 GSW @ SAC    mean  6.28pp  max  13.0pp  minutes 134
+    2025-12-01 PHO @ LAL    mean  6.26pp  max  14.9pp  minutes 112
+

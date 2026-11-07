@@ -494,7 +494,8 @@ History backtest (G7/G10). No activation until these checks are reviewed.
 - Kalshi and live trading: [benchmark](diagnostics/kalshi_benchmark/RESULTS.txt),
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
   In-game win probability from the score and the pregame line (display only):
-  [live win chance](diagnostics/live_wp/RESULTS.txt).
+  [live win chance](diagnostics/live_wp/RESULTS.txt), and against Kalshi's
+  live price ([live win chance vs Kalshi](diagnostics/live_wp_kalshi/RESULTS.txt)).
 - Fantasy and Sleeper signals: [fantasy](diagnostics/fantasy_signal/RESULTS.txt),
   [Sleeper](diagnostics/sleeper_signal/RESULTS.txt).
 - Pace, totals (O/U) and the picks' timing under v11:

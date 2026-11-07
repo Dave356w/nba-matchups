@@ -827,3 +827,21 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   fouls and in-game injuries. Earlier evidence (strength vs reaction): a
   score-and-line formula matched Kalshi's live price but did not beat it.
   Display only; no data, test or record reads it.
+- Live win chance vs Kalshi's live price (owner's question, 2026-11-07:
+  "it tracks Kalshi within 1c"; `research/live_wp_kalshi.py`,
+  [results](../diagnostics/live_wp_kalshi/RESULTS.txt)). Every live minute's
+  Kalshi home mid (quotes ≤ 3c wide) against the page's live win chance at
+  ESPN's last play before it. 2025-26 reconstructed, closing spread, 1,180
+  games (4 dropped: ESPN's wallclock an hour late on 2026-03-08, the
+  daylight-saving day): |gap| median 1.8 pp, mean 2.4; within 1 pp 30% of
+  minutes, 2 pp 55%, 5 pp 90%; the Brownian form's mean gap 4.9. Largest in
+  the last 2 minutes (median 3.7 pp: possession, fouls) and overtime. At
+  tip the two disagree by 1.5 pp (median); where they agree within 1 pp the
+  in-game median is 1.4. Same minute (corr of changes +0.67 at lag 0).
+  Accuracy against the outcome on the same minutes: live win chance − mid
+  −0.0001 ± 0.0024 log loss (Brownian +0.0103 ± 0.0063). 2026-27 native
+  through 2026-11-06 (127 games, DraftKings spread at tip, the page's input):
+  median 2.3 pp, at tip 1.9 pp, accuracy +0.0004 ± 0.0082. It matches the
+  market as well as it can be measured and does not beat it; the gaps
+  beyond half-spread + fee (55–65% of minutes) carry no edge on this evidence
+  (strength vs reaction: trading them lost money). Research only.

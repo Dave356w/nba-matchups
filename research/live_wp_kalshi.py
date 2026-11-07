@@ -45,6 +45,7 @@ sys.path.insert(0, str(ROOT))
 import kalshi                                     # noqa: E402
 import ledger                                     # noqa: E402
 import live_wp                                    # noqa: E402
+import market                                     # noqa: E402
 import strength_vs_reaction as svr                # noqa: E402
 
 CACHE = ROOT / "research" / "output" / "live_wp_kalshi"
@@ -52,16 +53,29 @@ OUT = ROOT / "diagnostics" / "live_wp_kalshi"
 BENCH = ROOT / "diagnostics" / "kalshi_benchmark" / "games.csv"
 SIGMA_BROWNIAN = 17.88          # diagnostics/live_wp/RESULTS.txt, train fit
 MAX_SPREAD = 0.03               # widest two-sided quote used (dollars)
+MAX_TIP_DELAY = 45 * 60         # first play this long after the scheduled tip: clock suspect
 Z95 = 1.96
 PARTS = ("Q1", "Q2", "Q3", "Q4 to 2:00", "last 2:00", "OT")
 
 
 # ----------------------------------------------------------- games ----
 def native_games():
+    """Graded native games, plus finished games not yet graded (the result
+    from ESPN's scoreboard, completed games only)."""
     n = ledger.load(ledger.NATIVE_PATH)
     n = n[n["basis"].eq("native") & n["pre_book"].eq("dk")
-          & pd.to_numeric(n["pre_spread"], errors="coerce").notna()
-          & n["home_won"].isin([0, 1])].copy()
+          & pd.to_numeric(n["pre_spread"], errors="coerce").notna()].copy()
+    todo = n[~n["home_won"].isin([0, 1])]
+    for date in sorted(set(todo["slate_date"].astype(str))):
+        try:
+            done = {g["game_id"]: g for g in market.scoreboard(date) if g["completed"]}
+        except Exception:  # noqa: BLE001 - leave them out
+            continue
+        for i in todo.index[todo["slate_date"].astype(str).eq(date)]:
+            g = done.get(str(n.at[i, "game_id"]))
+            if g and g["home_pts"] is not None and g["away_pts"] is not None:
+                n.at[i, "home_won"] = float(g["home_pts"] > g["away_pts"])
+    n = n[n["home_won"].isin([0, 1])].copy()
     n["mu"] = -pd.to_numeric(n["pre_spread"])
     n["prior"] = "DraftKings pre_spread"
     n["ticker"] = [kalshi.market_ticker(str(d), h, h, a)
@@ -134,6 +148,10 @@ def states(row, js, candles):
     sched = ledger.parse_utc(row.tip_utc).timestamp()
     if not (-1800 <= tip - sched <= 7200 and 1.5 * 3600 <= end - tip <= 4.5 * 3600):
         return "implausible wallclock", None
+    if tip - sched > MAX_TIP_DELAY:
+        # ESPN's wallclock an hour late (all 2025-26 cases: 2026-03-08, the
+        # day US clocks changed); the usual delay is ~11 min
+        return f"first play > {MAX_TIP_DELAY // 60} min after the scheduled tip", None
     c = pd.DataFrame(candles, columns=["ts", "ask", "bid", "vol"]).dropna(subset=["ts"])
     c = c.drop_duplicates("ts").sort_values("ts")
     pre = c[(c.ts <= tip) & c.ask.notna() & c.bid.notna() & (c.ask > c.bid) & (c.ask - c.bid <= MAX_SPREAD + 1e-9)]
@@ -227,7 +245,7 @@ def section(w, name, S, drops):
     w(f"  Brownian − Kalshi mid:        {per_game_diff(S, 'pb', 'mid')}")
     if S.prior.nunique() > 1:
         for pr, sub in S.groupby("prior"):
-            w(gap_line(pr[-14:], sub))
+            w(gap_line(pr.replace("close_spread · ", "close · "), sub))
     pg = S.assign(g=100 * (S.p - S.mid).abs()).groupby(["slate", "game"]).g.agg(["mean", "max", "size"])
     w("  games with the largest mean |gap|:")
     for (sl, gm), r in pg.sort_values("mean", ascending=False).head(5).iterrows():
