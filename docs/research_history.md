@@ -878,3 +878,20 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   second half from halftime +0.038 ± 0.096), and added to the live win chance
   at quarter ends changes test log loss by −0.00004 ± 0.00011. Not
   forecastable and no use live. Research only.
+- Do teams' quarter scoring distributions stabilize within a season?
+  (owner's question, 2026-11-07; `research/quarter_stabilization.py`,
+  [results](../diagnostics/quarter_stabilization/RESULTS.txt)). Completed
+  seasons 2015-16 .. 2025-26, 269 team-seasons with ≥ 80 games; reliability
+  from disjoint random game sets, n50 = games to reliability 0.5 (rule fixed
+  before the run: stabilizes within a season only if n50 ≤ 82). For scale,
+  points per game n50 4, margin 9, margin against the line 879. Share of a
+  team's points by quarter: Q1 112, Q2 128, Q3 94, Q4 50 (the one within a
+  season; persistent spread 0.67 pp ≈ 0.8 pt a game); share allowed 140–176.
+  Margin shape: Q4 116, Q1 215, Q3 548, Q2 never; after the line's split
+  (line-adjusted) 333–660 or never — the part that could change a game's
+  flow beyond the line does not stabilize. First n games against the rest
+  of the season: offence shares reach +0.24 to +0.39 by 40–60 games,
+  line-adjusted shapes −0.04 to +0.16. Quarter scoring shares are partly a
+  team trait (pace and rotation habits that move both teams' points, a
+  totals matter, not a winner's), too small and slow to estimate in season
+  to inform the live win chance. Research only.
