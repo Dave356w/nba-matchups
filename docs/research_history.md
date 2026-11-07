@@ -845,3 +845,16 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   market as well as it can be measured and does not beat it; the gaps
   beyond half-spread + fee (55–65% of minutes) carry no edge on this evidence
   (strength vs reaction: trading them lost money). Research only.
+- Does the model add to the live win chance? (owner's question, 2026-11-07;
+  `research/live_wp_model.py`, [results](../diagnostics/live_wp_model/RESULTS.txt)).
+  The deployed live form plus c × (model margin − line) × √τ (one weight, or
+  c(τ) on 3 knots), the model margin the walk-forward production-routing
+  prediction of diagnostics/margin_form (hindsight), fitted 2016-17 ..
+  2021-22 (5,973 games), tested 2022-23 .. 2025-26 (4,888). Fixed before
+  the run: the model adds only if the held-out log loss falls with its 95%
+  interval below 0. Pregame, the outcome's weight on model − line is +0.0006
+  ± 0.0128 against 0.0819 on the line (ratio +0.01); the model alone trails
+  the line (+0.0106 ± 0.0051 log loss). In-game c +0.0004 ± 0.0168; held-out
+  change −0.0000 ± 0.0000 overall, in every part of the game, in games 1–9
+  and 10+, and where the two differ by ≥ 4 points (732 games). The model
+  adds nothing to the line, before or during the game. Research only.
