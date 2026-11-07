@@ -1,0 +1,34 @@
+Comebacks: is there a team skill in going from a live win chance under 50% to over 80%? Research only; ± is 95%.
+Games 12095 (2015-16 .. 2025-26, no 2019-20); team-games 24190; trailing episodes 19241.
+Live win chance: the deployed live formula from each team's side; states every 30 s (5 s in the last 2 minutes).
+
+== 1. Calibration (league-wide): came back past 80% and won, against the live chance at the first state under 50%
+  group                              episodes  mean p0  expected >80%  observed >80%  expected win  observed win
+  all trailing episodes                 19241    0.369          46.2%     43.0% ± 0.7         36.9%    37.2% ± 0.7
+  underdogs at tip                      12088    0.311          38.8%     36.6% ± 0.9         31.1%    31.9% ± 0.8
+  favourites who fell behind             7153    0.469          58.6%     53.7% ± 1.2         46.9%    46.3% ± 1.2
+  p0 0.0–0.1                              271    0.079           9.8%      5.5% ± 2.7          7.9%     4.4% ± 2.4
+  p0 0.1–0.2                             1872    0.159          19.8%     17.0% ± 1.7         15.9%    16.2% ± 1.7
+  p0 0.2–0.3                             3204    0.255          31.9%     28.4% ± 1.6         25.5%    25.0% ± 1.5
+  p0 0.3–0.4                             4196    0.352          44.0%     42.6% ± 1.5         35.2%    37.3% ± 1.5
+  p0 0.4–0.5                             9698    0.463          57.9%     53.9% ± 1.0         46.3%    46.2% ± 1.0
+  Past 80% runs below p0 / 0.8 because the states are sampled: 312 of 7167 comeback wins never show
+  over 80% on the grid (decided in the last seconds); counting them gives 44.6%, the rest
+  is a jumpy score sampled every 30 s. The win rate, the clean test, matches p0.
+
+== 2. Team skill: split-half (odd vs even episodes, same team-season) and year to year
+  comeback past 80% − expected   split-half r -0.107 [-0.218, +0.006] (team-seasons 300, ~64 episodes each)   year to year r +0.086 [-0.041, +0.210] (pairs 240)
+  comeback win − p0              split-half r -0.078 [-0.189, +0.036] (team-seasons 300, ~64 episodes each)   year to year r +0.084 [-0.043, +0.209] (pairs 240)
+  holding a lead: win − p0'      split-half r -0.058 [-0.170, +0.056] (team-seasons 300, ~64 episodes each)   year to year r +0.035 [-0.092, +0.161] (pairs 240)
+  team-season comebacks past 80% minus expected: sd 3.66 episodes; sd expected from chance alone 3.83
+
+== 3. Useful live? Walk-forward comeback / hold records added to the live z
+  fitted on train: n0 5, c -0.036 (on the z scale per unit of win-probability residual)
+  test (2022-23 .. 2025-26, 4901 games): log loss with − without -0.0000 ± 0.0001
+      Q1          -0.0000 ± 0.0001
+      Q2          -0.0000 ± 0.0001
+      Q3          -0.0000 ± 0.0001
+      Q4 to 2:00  -0.0000 ± 0.0001
+      last 2:00   -0.0000 ± 0.0000
+      OT          -0.0002 ± 0.0003
+

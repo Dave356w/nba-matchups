@@ -425,6 +425,10 @@ information only, separate from DraftKings and native evidence.
   Today lists live games first, then upcoming, then final (tip order within
   each), re-sorting as the overlay changes a game's state (owner request,
   2026-11-07).
+  The public pages' slate rolls over at 6:00 ET, not midnight: before then
+  they show the previous ET slate when it had games, so late West Coast games
+  stay on Today; grading and snapshots keep the ET date (owner request,
+  2026-11-07).
 
 - Read `docs/model_guidelines.md` before a model or rule change. The model
   is `MODEL.md` / `nba_composite.py`; prices are `market.py`; pregame locks
@@ -501,7 +505,8 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   live price ([live win chance vs Kalshi](diagnostics/live_wp_kalshi/RESULTS.txt)),
   with the model's margin ([model adds nothing](diagnostics/live_wp_model/RESULTS.txt)),
   and team quarter patterns ([quarter profiles](diagnostics/quarter_profiles/RESULTS.txt),
-  [stabilization](diagnostics/quarter_stabilization/RESULTS.txt), [live volatility](diagnostics/live_wp_pace/RESULTS.txt)).
+  [stabilization](diagnostics/quarter_stabilization/RESULTS.txt), [live volatility](diagnostics/live_wp_pace/RESULTS.txt)),
+  and comeback ability ([comebacks](diagnostics/comebacks/RESULTS.txt)).
 - Fantasy and Sleeper signals: [fantasy](diagnostics/fantasy_signal/RESULTS.txt),
   [Sleeper](diagnostics/sleeper_signal/RESULTS.txt).
 - Pace, totals (O/U) and the picks' timing under v11:
