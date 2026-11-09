@@ -1,46 +1,46 @@
 {
   "version": "dfs_sim_v2",
   "accepted": true,
-  "as_of": "2026-11-07",
+  "as_of": "2026-11-09",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
-    "high:bench": 1.1081979057013944,
-    "high:starter": 1.1040394423406525,
-    "low:bench": 2.813688314962663,
-    "mid:bench": 1.4922697585596456,
-    "mid:starter": 1.1003541239090526
+    "high:bench": 1.146717499203651,
+    "high:starter": 1.095140171074686,
+    "low:bench": 3.1273080736715837,
+    "mid:bench": 1.5259569008031855,
+    "mid:starter": 1.131070681150096
   },
-  "trained_through": "2026-11-04",
-  "validation_from": "2026-11-05",
-  "validated_through": "2026-11-06",
-  "train_rows": 2213,
-  "test_rows": 229,
-  "train_dates": 13,
+  "trained_through": "2026-11-06",
+  "validation_from": "2026-11-07",
+  "validated_through": "2026-11-08",
+  "train_rows": 2442,
+  "test_rows": 326,
+  "train_dates": 15,
   "test_dates": 2,
   "factors": {
     "team": 0.0,
     "starter": 0.0,
-    "game_star": 0.05591314120866363,
-    "star_split": 0.04829850370315847,
+    "game_star": 0.04925960664586657,
+    "star_split": 0.050527167329004315,
     "center_pair": 0.0
   },
   "holdout": {
-    "n": 229,
-    "bias": -1.1248122270742362,
-    "rmse": 10.444935962352375,
-    "variance_loss": 5.814403913932066,
-    "p90_coverage": 0.8733624454148472
+    "n": 326,
+    "bias": -0.8575368098159514,
+    "rmse": 9.300906152008324,
+    "variance_loss": 5.4754290984825165,
+    "p90_coverage": 0.8742331288343558
   },
   "baseline": {
-    "n": 229,
-    "bias": -1.1248122270742362,
-    "rmse": 10.444935962352375,
-    "variance_loss": 6.5251436474098305,
-    "p90_coverage": 0.8602620087336245
+    "n": 326,
+    "bias": -0.8575368098159514,
+    "rmse": 9.300906152008324,
+    "variance_loss": 6.283357973509051,
+    "p90_coverage": 0.8619631901840491
   },
-  "coverage_date_se": 0.03380443086325441,
+  "coverage_date_se": 0.010722496513775326,
   "reason": "passed chronological variance-loss and p90 coverage checks",
-  "projected_rows": 2465,
-  "matched_rows": 2442,
-  "matched_games": 118
+  "projected_rows": 2803,
+  "matched_rows": 2768,
+  "matched_games": 132
 }
