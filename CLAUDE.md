@@ -23,7 +23,14 @@ freezing the ML rule, with the UI centered on the games-10+ model.
 - **Owner amendment during implementation:** pool historical and new games
   within the same v11 model family in one cumulative ML record. Label the
   historical rule selection honestly; do not describe the combined record
-  as a pre-registered forward test. Keep season and stage separate.
+  as a pre-registered forward test. The owner explicitly includes reconstructed
+  and rebuilt v11 replays, labeled as a mixed record. Pool seasons in the
+  headline with season and live-only filters available; keep stages separate.
+  Replays use their DraftKings closing prices, native picks their saved lock
+  prices, and the UI names both timings. Only graded v11 replays with a usable
+  DraftKings pair qualify. Native IDs take precedence, including missed/void
+  locks; rebuilt takes precedence over a duplicate reconstructed replay.
+  Pooling is a presentation/monitoring choice, not evidence that replay is live.
   Early/opening/unknown-stage forecasts
   remain available separately and never enter the games-10+ forward test.
 - Today defaults to games 10+, with one primary ML forecast and its locked
