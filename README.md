@@ -1,30 +1,38 @@
 # NBA Matchups
 
-NBA forecasts and four registered tracking tests, published by GitHub
-Actions: <https://dave356w.github.io/nba-matchups/>.
+Moneyline forecasts and v11 performance, published by GitHub Actions:
+<https://dave356w.github.io/nba-matchups/>.
 
 | Public page | Purpose |
 |---|---|
-| Today | One probability, predicted margin and total per game, current DraftKings prices, each team's season W/L, and each tracked pick once its game locks (the first priced snapshot within 5 hours of tip with current game logs). While a game is in progress, each team's live win chance from the score, the time left and the DraftKings spread at tip (display only). Game details include season four-factor comparisons and timestamped ESPN player injury lists. |
-| Results | Every frozen v11 winner prediction, including forecast-only games, with stage, season and outcome filters; a separate view contains every tracked win, loss, push and pending bet. |
-| Performance | Every v11 prediction's W/L, accuracy, pending count and Wilson 95% interval, with same-game closing-favourite W/L, log loss and Brier scores. Separate betting records for spread (H5·3), value favourite (H2·F·5), large probability gap (H4) and total (OU). Each season and stage stands alone. No combined portfolio return. |
-| How it works | Plain-language forecast, rule, timing and results definitions. |
-| DFS lineups | A Yahoo classic-contest lineup optimizer for the day's slate: Yahoo salaries with Sleeper's projections in Yahoo scoring; the best lineups are found in the browser for the main, early or late slate by start time (lock, exclude, re-project, exposure caps). Cash mode maximizes projected points; tournament mode simulates the slate with each player's measured spread and correlations (`diagnostics/dfs_correlation/`), solves every simulated slate exactly and ranks lineups by how often they finish in the top 5%. A separate tool: no forecast, tracked pick or record. |
+| Today | Defaults to games where both teams have completed 10 games. One primary win probability and ML forecast, with the saved five-hour ML pick and price shown separately. All games and early games remain accessible. Game details retain margin, four factors, injuries and paper selections. Live scores and win chances remain display-only. |
+| Results | Every v11 ML prediction, source, execution price, outcome and running return. Defaults to games 10+, with stage, source, season and outcome filters. All paper-test picks remain in an expandable section. |
+| Performance | Leads with the combined v11 games-10+ ML ROI, net units, W/L, accuracy and uncertainty, plus market benchmarks. Source and season filters show saved live locks or historical replay separately. Paper-test records are secondary. |
+| How it works | Frozen ML rule, mixed-record provenance, stage/price definitions, model explanation and paper rules. |
+| DFS | The existing Yahoo lineup optimizer using Sleeper projections; a separate tool with no ML forecast or tracking record. |
 
-The public records restarted with the v11 model family on the 2026-10-29
-slate and read only the v11-family rows at the 5 h lock (CLAUDE.md,
-"Model-family reset" and "Edge floors and O/U test" amendments). Earlier
-first-snapshot and 5 h-lock rows stay graded in the internal workbench and
-`data/ledger_report.txt`, never pooled. Forecast-only games, rebuilt
-history, retired rules, coefficient tables, price-band comparisons and
-exploratory diagnostics remain research outputs.
+**ML rule, frozen November 10, 2026:** one unit on the team with the higher
+v11 win probability (home at exactly 50%), at its saved DraftKings moneyline.
+No edge, favorite, confidence or price-band filter. Both teams must have
+completed at least 10 games for the main record; other stages stay separate.
+Live picks read only valid five-hour locks, including the existing stale-log
+exclusions. Missing prices preserve winner W/L without fabricating a return.
 
-The model-prediction record reads every native v11 five-hour lock from
-2026-10-29, with no betting threshold and no market-price requirement.
-Later forecast updates cannot change a recorded prediction. Missing locks
-are never replaced with a later forecast. Opening games and unknown stages
-get their own rows when present. Missing closes remain in the model W/L;
-the market comparison uses only matched, graded DraftKings closing pairs.
+**Owner-approved mixed record:** historical reconstructed/rebuilt v11 replays
+and saved live v11 picks are pooled across seasons in the headline. Replays
+use their historical DraftKings closing prices; live picks use their saved
+five-hour prices. This combines different evidence and price timings, is
+labeled as mixed, and is not described as a pure forward test. Replays require
+a graded outcome, v11 tag and usable DraftKings pair. Native game IDs always
+take precedence, including missing/void locks; rebuilt supersedes duplicate
+reconstructed games. Source and season views remain available. Running ROI
+on Results combines sources within each season and stage in tip order.
+
+Spread H5·3, value-favorite H2·F·5 and totals OU continue unchanged on paper,
+with every saved result and future qualifying selection retained. They are
+no longer betting recommendations. H4 and all earlier retired rules remain
+retired in the internal archive. Model maths, fitting, tags, ledger snapshots
+and grading are unchanged. Earlier model versions remain separate.
 
 `public/` is exclusively generated publication output. It contains only the
 five approved HTML pages and `.nojekyll`; stale files and directories are
@@ -41,14 +49,15 @@ routes and the same faded rating; P(home) = Φ(predicted margin / σ).
 Optional missing inputs contribute neutral values with distinct tags;
 missing core ratings abstain. No legacy carryover or v4 model is loaded in
 production. A separate totals model (`totals.py`) gives each game's total
-and P(over). No stage, season, test or model family is pooled.
+and P(over) for paper research. Model families and stages are never pooled;
+the owner-approved mixed ML headline pools sources and seasons explicitly.
 
 | File | Role |
 |---|---|
 | `nba_composite.py` | Model fitting, prior-game features and predictions. |
 | `totals.py` | Totals (O/U) model: expected total and P(over). |
 | `build_site.py` | Grade, score, preserve snapshots, generate internal reports and publish the approved pages. |
-| `public_site.py` | Public native-only forecasts, tracking records and guide. |
+| `public_site.py` | ML forecasts, mixed-record presentation, paper records and guide. |
 | `matchup_context.py` | Display-only team records and four factors from saved inputs strictly before the slate; no network or model changes. |
 | `analysis.py` | Registered selections/grades and shared statistics. |
 | `ledger.py` | Schema, write-once snapshots, pregame locks and grading. |

@@ -60,7 +60,7 @@ def test_public_pages_drop_the_test_and_carry_one_dated_line():
         assert "Four registered tests" not in html and "Four fixed tracking rules" not in html
     assert line not in pages["index.html"] and line not in pages["dfs.html"]
     guide = pages["how-it-works.html"]
-    assert "Three fixed tracking rules" in guide
+    assert "Paper tracking rules and preserved history" in guide
     assert "<span class='rule-number'>03</span>Total (over/under)" in guide
     assert "rule-number'>04" not in guide
 

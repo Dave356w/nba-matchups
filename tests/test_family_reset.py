@@ -86,7 +86,7 @@ def test_public_pages_show_only_the_family_record():
     card = PublicSite(build_site, g, "2026-10-29", "built").card(g.iloc[3])
     assert "Forecast only" in card and "earlier model" in card
     guide = site.guide_page()
-    assert "the current record, its minimum gaps and the total began with the October 29, 2026 games" in guide
+    assert "v11" in guide and "Paper tracking rules and preserved history" in guide
     assert "closed on" not in guide
 
 

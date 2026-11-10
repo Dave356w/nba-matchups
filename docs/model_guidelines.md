@@ -1,3 +1,23 @@
+# Current public policy — November 10, 2026
+
+The owner-approved ML-focus amendment in `CLAUDE.md` supersedes conflicting
+presentation and pooling restrictions in the historical guidelines below.
+The main UI defaults to games 10+ and tracks one unit on every v11 model
+winner at its saved DraftKings price, with no edge or price-band filter.
+Live locks remain immutable. Spread, value-favorite and totals tests continue
+unchanged on paper; retired rules stay retired and every old result is kept.
+
+The owner explicitly requested a **mixed v11 ML record**, pooling historical
+reconstructed/rebuilt replay with saved live picks across seasons. Historical
+replays use DraftKings closes; live picks use five-hour locks. The UI labels
+the mixture and exposes source/season filters; stages stay separate. Native
+IDs take precedence even for missed/void locks, so replay never repairs a
+missing live pick. The rule was chosen after historical outcomes were known;
+the combined result is not a pure forward test or proof of a betting edge.
+No model maths, training, tags, locks, grading or historical data change.
+
+The historical evidence and original registrations below remain preserved.
+
 # Model guidelines: v9, one model and three first-snapshot tests
 
 Updated 2026-10-23. Current evidence: [model review](../diagnostics/model_review/RESULTS.txt),

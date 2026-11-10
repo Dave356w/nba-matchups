@@ -100,20 +100,24 @@ def test_pages_show_forecast_only_games_and_keep_betting_records_separate():
     assert 'Log loss' in perf and 'Brier score' in perf and '95% Wilson interval' in perf
     card = site.card(g.iloc[0])
     assert 'Model pick · 5 h lock' in card and 'Loss' in card and '51.0%' in card
-    assert 'Forecast only' in card
-    assert 'Every v11 model prediction has a record' in site.guide_page()
+    assert 'Locked ML ·' in card and 'Separate stage record' in card
+    assert 'The 10+ game ML rule' in site.guide_page()
 
 
-def test_prediction_performance_never_pools_seasons_or_stages():
+def test_prediction_performance_keeps_stage_and_season_views():
     g = forecasts().iloc[1:5].copy()
     g['season'] = [2026, 2027, 2027, 2027]
     site = PublicSite(ui, g, CLOSED, 'built')
     html = site.prediction_performance()
-    assert '2025-26 · v11 · 5 h lock' in html
-    assert '2026-27 · v11 · 5 h lock' in html
-    assert html.count("class='record'>0–1") == 2  # one early loss per season
-    assert "class='record'>1–0" in html  # established, with a pending game
-    assert '1 graded · 1 pending' in html
+    # Owner-approved mixed headline pools seasons, with exact season/stage views retained.
+    from lxml import html as lh
+    panels = lh.fromstring(html)
+    def panel(stage, season):
+        return " ".join(panels.xpath(f"//*[@data-ml-panel and @data-stage='{stage}' and @data-source='live' and @data-season='{season}']")[0].itertext())
+    assert '0–1' in panel('early', '2026')
+    assert '0–1' in panel('early', '2027')
+    assert '1–0' in panel('established', '2027')
+    assert '1 graded · 1 pending' in panel('established', '2027')
 
 
 def test_moneyline_return_reads_only_the_lock_price_and_never_pools_stages():
@@ -156,9 +160,9 @@ def test_results_show_moneyline_return_and_running_roi_on_predictions_only():
     assert '<th>Moneyline return</th><th>Running ROI</th>' in html
     assert html.count("data-label='Running ROI'") == len(d)
     assert html.count("data-label='Running ROI'>—</td>") == int(d.ml_units.isna().sum())
-    assert 'not a tracked test' in html and 'data-prediction-moneyline' in html
-    assert 'Market-price baseline' in html
+    assert 'not a pure forward test' in html and 'data-prediction-moneyline' in html
+    assert 'market-price baseline' in html
     perf = site.performance_page()
-    assert 'Moneyline return' not in perf and 'data-prediction-moneyline' not in perf
+    assert 'Moneyline ROI' in perf and 'data-ml-panel' in perf
     bare = PublicSite(ui, g.assign(lock_book='espnbet'), CLOSED, 'built').results_page()
-    assert 'No DraftKings price at the lock' in bare and 'data-prediction-moneyline' not in bare
+    assert 'No DraftKings price at the lock' in bare and 'data-prediction-moneyline' in bare

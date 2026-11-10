@@ -1089,8 +1089,8 @@ def page(title, active, body, built, extra_css=""):
     return (f"<!doctype html><html lang='en'><head><meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>{esc(title)}</title><meta name='description' content='NBA "
-            "composite model picks: win probabilities against the market, "
-            "graded flat 1u against its null'>"
+            "moneyline forecasts and v11 performance for games 10+, "
+            "with historical replay and saved live results identified'>"
             f"{THEME_JS}<style>{font_face_css()}{CSS}{extra_css}</style></head><body>"
             "<a class='skip-link' href='#main-content'>Skip to content</a>"
             "<div class='mx-wrap'><header class='topbar'><a class='brand' href='index.html'>"
@@ -1104,7 +1104,7 @@ def page(title, active, body, built, extra_css=""):
             "injury report; the market is a benchmark only and never enters the model. "
             "Not betting advice.</div><div class='r'>"
             + (f"Research: {research_links} · <a href='{report.REPORT_NAME}'>{report.REPORT_NAME}</a>"
-               if research else "<a href='how-it-works.html'>How it works</a> · <a href='results.html'>Tracked results</a>")
+               if research else "<a href='how-it-works.html'>How it works</a> · <a href='results.html'>ML results</a>")
             +
             f"</div></footer></div>{OPEN_JS}</body></html>")
 
@@ -3527,7 +3527,9 @@ def write_pages(native, recon, today, model_ok, pre=None, page_day=None):
     """Publish an explicit allowlist; retain the complete workbench elsewhere.
     The public pages show `page_day` (page_slate), the workbench `today`."""
     built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
-    pages = public_site.PublicSite(sys.modules[__name__], native, page_day or today, built, model_ok).render()
+    replay = pd.concat([recon, ledger.load(ledger.REBUILT_PATH)], ignore_index=True)
+    pages = public_site.PublicSite(sys.modules[__name__], native, page_day or today, built,
+                                  model_ok, replay=replay).render()
     internal = OUT_DIR.parent / "diagnostics" / "site"
     text = write_research(native, recon, today, model_ok, pre, out_dir=internal)
     (internal / "how-it-works.html").write_text(pages["how-it-works.html"], encoding="utf-8")
