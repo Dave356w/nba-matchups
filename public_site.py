@@ -492,10 +492,7 @@ class PublicSite:
 
     def prediction_results(self):
         u, d = self.ui, analysis.model_prediction_moneyline(self.predictions)
-        body = ("<h2 class='sec'>Moneyline · v11</h2><p class='public-note'>One winner prediction per game, "
-                "using saved live locks or explicitly labeled historical replays. "
-                "Pending games have no W/L result. The closing favorite is a later benchmark.</p>")
-        body += self.prediction_moneyline_note(d)
+        body = self.prediction_moneyline_note(d)
         if not len(d):
             return body + "<div class='public-empty'><h3>No locked v11 predictions yet</h3><p>Predictions appear here after a valid five-hour snapshot is saved.</p></div>"
         options = (("stage", "Prediction stage", list(PREDICTION_STAGES)+[("all", "All stages")]),
@@ -554,10 +551,13 @@ class PublicSite:
                 "The ML rule was selected after historical outcomes were known. This is not a pure forward test.</p>")
 
     def prediction_moneyline_note(self, d):
-        return (self.mixed_note() + "<p class='public-note' data-prediction-moneyline><b>Moneyline return</b> stakes 1 unit per priced winner. "
+        return ("<p class='public-note' data-prediction-moneyline><b>Mixed v11 record · flat 1u.</b> Live picks use five-hour lock prices; "
+                "historical replays use closing prices. <a href='performance.html'>ML performance →</a></p>"
+                "<details class='public-note'><summary>Prices, sources and running ROI</summary>" + self.mixed_note()
+                + "<p><b>Moneyline return</b> stakes 1 unit per priced winner. "
                 "<b>Running ROI</b> combines live and replay within each season and stage in game order; changing a filter does not recalculate it. "
                 "Missing prices keep their forecast W/L but have no return. No edge or confidence filter. "
-                "<a href='performance.html'>ROI, uncertainty and market-price baseline →</a></p>")
+                "<a href='performance.html'>ROI, uncertainty and market-price baseline →</a></p></details>")
 
     def prediction_performance(self):
         u, d = self.ui, analysis.model_prediction_moneyline(self.predictions)
