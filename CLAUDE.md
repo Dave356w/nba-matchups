@@ -5,6 +5,16 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Public ML-only amendment — owner approval, November 10, 2026
+
+The owner explicitly requested removing tracked betting tests from every
+public page. This supersedes the expandable-paper-section instructions below.
+Today, Results, Performance and How it works show ML forecasts/records only:
+no spread, value-favorite, totals or retired-test selections, rules, tables,
+charts, links or notes, including inside collapsed details. These tests keep
+all existing internal data, registered rules, ongoing grading, workbench and
+report records. No model, snapshot, mixed-ML membership or grading changes.
+
 ### ML focus amendment — owner approval, 2026-11-10T19:37:57Z
 
 This amendment supersedes conflicting public-presentation instructions below.

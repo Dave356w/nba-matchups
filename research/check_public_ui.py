@@ -162,6 +162,8 @@ def main():
                         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                         assert page.locator('.nav a').evaluate_all('els => els.every(e => e.scrollWidth <= e.clientWidth)')
                         assert page.get_by_role('link',name='Research',exact=True).count()==0
+                        assert page.locator('#paper-results, #paper-performance, [data-result-row], .tracked-line').count()==0
+                        assert 'Paper tracking' not in page.locator('body').inner_text()
                         if filename=='index.html' and page.locator('.gcard:visible').count():
                             top=page.locator('.gcard:visible').first.bounding_box()['y']
                             assert top < height-100,(device,'first game is below the fold',top)
@@ -183,7 +185,7 @@ def main():
                     assert page.locator('.gcard:visible').count()==1
                     page.locator('[data-show="all"]').click()
                     assert page.locator('.gcard:visible').count()==5
-                    assert page.get_by_text('Paper picks · 5 h lock').count()==4
+                    assert page.get_by_text('Paper picks · 5 h lock').count()==0
                     page.locator('[data-gid="fixture-0"] > summary').click()
                     assert page.get_by_role('heading',name='Recorded before play',exact=True).is_visible()
                     card = page.locator('[data-gid="fixture-0"]')
@@ -208,17 +210,8 @@ def main():
                     page.get_by_label('Prediction outcome',exact=True).select_option('all')
                     assert page.locator('[data-prediction-row]:visible').count()==4
                     page.screenshot(path=str(out/f'{device}-fixture-model-results.jpg'),full_page=True,type='jpeg',quality=85)
-                    page.locator('#paper-results > summary').click()
-                    assert page.locator('[data-prediction-row]:visible').count()==4
-                    assert page.locator('[data-result-row]').count()==12
-                    for result in ('Win','Loss','Push','Pending'):
-                        assert page.locator('.result-badge',has_text=result).count()>0,result
-                    page.get_by_label('Test',exact=True).select_option('spread')
-                    assert page.locator('[data-result-row]:visible').count()==4
-                    page.get_by_label('Stage',exact=True).select_option('established')
-                    assert page.locator('[data-result-row]:visible').count()==1
-                    page.get_by_label('Stage',exact=True).select_option('early')
-                    assert page.locator('[data-result-row]:visible').count()==3
+                    assert page.locator('[data-result-row]').count()==0
+                    assert page.locator('#paper-results').count()==0
                     page.screenshot(path=str(out/f'{device}-fixture-results.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/performance.html')
                     assert page.locator('[data-ml-panel]:visible').count()==1
@@ -231,12 +224,12 @@ def main():
                     assert page.locator('[data-ml-panel]:visible').get_by_text('No predictions in this view yet',exact=True).count()==1
                     page.get_by_label('Record source',exact=True).select_option('live')
                     assert page.locator('[data-ml-panel]:visible').get_by_text('3–1',exact=True).count()==1
-                    page.locator('#paper-performance > summary').click()
-                    checks.append(f'{device}: ML focus · 10+ default, separate early record, W/L, matched scores, source/outcome/stage filters, empty states and expandable paper records passed')
-                    assert page.get_by_text('1–1–1',exact=True).count()==1
-                    page.get_by_text('Benchmarks and return chart',exact=True).first.click()
+                    assert page.locator('#paper-performance').count()==0
+                    checks.append(f'{device}: ML focus · 10+ default, separate early record, W/L, matched scores, source/outcome/stage filters, empty states and exclusion of betting tests passed')
+                    panel = page.locator('[data-ml-panel]:visible')
+                    panel.get_by_text('Return over time',exact=True).click()
                     page.screenshot(path=str(out/f'{device}-fixture-performance.jpg'),full_page=True,type='jpeg',quality=85)
-                    checks.append(f'{device}: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed')
+                    checks.append(f'{device}: labelled fixture · ML outcomes, filters, details, theme and return chart passed')
                     page.goto(f'{base}/fixture/dfs.html')
                     page.locator('.dfs-lineup').first.wait_for()
                     labels = page.locator('#dfs-slate option').all_inner_texts()
@@ -319,8 +312,9 @@ def main():
                 live=page.locator('[data-gid="fixture-3"]')
                 live.locator('.st').filter(has_text='Q2 4:00').wait_for()
                 assert live.locator('.sc[data-side="home"]').inner_text()=='42'
-                assert live.locator('.tracked-line').count()==3
-                checks.append('Live-score overlay updated status and scores without changing three frozen selections')
+                assert live.locator('.tracked-line').count()==0
+                assert live.locator('.tracked-box .tracked-label').inner_text().lower().startswith('locked ml')
+                checks.append('Live-score overlay updated status and scores without changing the frozen ML selection')
                 # Live win chance (owner request, 2026-11-07): the browser's
                 # figure equals live_wp.win_prob for the card's frozen spread
                 fit = live_wp.load()

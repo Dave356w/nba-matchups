@@ -163,7 +163,7 @@ def test_today_marks_locked_picks_and_says_when_the_rest_lock():
     g.loc[g.index[5], "tip_utc"] = "2099-01-01T00:30Z"
     site = _page(g, "2026-11-19")
     locked = site.card(g.iloc[3])
-    assert "Locked ML ·" in locked and "Paper picks · 5 h lock" in locked
+    assert "Locked ML ·" in locked and "Paper picks" not in locked
     waiting = site.card(g.iloc[5])
     assert "Forecast only" in waiting and "within 5 hours of tip" in waiting
     # a first-snapshot slate is no public record after the model-family reset
@@ -176,9 +176,9 @@ def test_results_and_performance_show_only_the_lock_record():
     site = _page(g, "2026-11-20")
     res = site.results_page()
     assert "data-basis" not in res and "First snapshot" not in res
-    assert res.count("data-result-row ") == 3     # H5 on the three locked games (H4 retired)
+    assert res.count("data-result-row ") == 0     # H5 on the three locked games (H4 retired)
     perf = site.performance_page()
-    assert "DraftKings · 5 h lock" in perf and "first snapshot" not in perf
+    assert "Moneyline ROI" in perf and "first snapshot" not in perf
     guide = site.guide_page()
     assert "within 5 hours of tip" in guide and "closed on" not in guide
 

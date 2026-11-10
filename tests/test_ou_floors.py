@@ -242,21 +242,15 @@ def test_ou_test_membership_grading_and_clv():
     assert pd_.set_index("game_id").loc["o1", "units"] == 0.0
 
 
-def test_pages_show_the_total_and_three_tests(monkeypatch):
+def test_totals_records_remain_internal_and_are_absent_from_public_pages(monkeypatch):
     from conftest import pin_ou2_model
     pin_ou2_model(monkeypatch)
     g = _ou_ledger().assign(lock_ou_tag=totals.TAG_OU2)       # native ou2 locks: the public rows
     g["pre_book"], g["pre_ou_line"], g["pre_ou_over"], g["pre_ou_under"] = "dk", 220.5, -110, -110
     g["ou_total"], g["ou_p_over"] = [226.0, 214.0, 221.0], [0.60, 0.40, 0.52]
     site = PublicSite(build_site, g, "2026-10-29", "built")
-    card = site.card(g.iloc[0])
-    assert "Total · model <b>226.0</b> · DraftKings <b>220.5</b>" in card
-    assert "Lean <b>Over 220.5</b>" in card and "Over 220.5" in site.results_page()
-    assert "Total (over/under)" in card and "Paper picks · 5 h lock" in card
-    assert "Lean <b>Under 220.5</b>" in site.card(g.iloc[1])
-    perf = site.performance_page()
-    assert "Total (over/under)" in perf and "Three registered tests" in perf
-    assert "Same-game over ROI" in perf
-    guide = site.guide_page()
-    assert "at least 3 points" in guide and "at least 5 percentage points" in guide
-    assert "Total (over/under)" in guide
+    assert any(r['hyp'].get('market') == 'ou' for r in site.records)
+    for page in (site.card(g.iloc[0]), site.results_page(), site.performance_page(), site.guide_page()):
+        assert 'Total (over/under)' not in page
+        assert 'Over 220.5' not in page and 'Under 220.5' not in page
+        assert 'Paper picks' not in page and 'Three registered tests' not in page

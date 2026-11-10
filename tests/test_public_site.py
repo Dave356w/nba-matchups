@@ -59,8 +59,8 @@ def test_pending_selections_never_fabricate_results_and_ignore_later_refreshes()
     fresh = PublicSite(ui,changed,CLOSED,'built')
     assert [site.selection(r) for r in site.records] == [fresh.selection(r) for r in fresh.records]
     html = fresh.results_page()
-    assert html.count("class='result-badge'>Pending") == 8
-    assert 'No graded picks yet' in fresh.performance_page()
+    assert html.count("class='prediction-badge'>Pending") == len(fresh.predictions)
+    assert 'No graded, priced ML picks yet' in fresh.performance_page()
     assert '>+999<' not in html and '>-999<' not in html
 
 
@@ -68,7 +68,7 @@ def test_public_forecasts_cannot_promote_a_legacy_lean_record_or_reconstructed_r
     g = rows().assign(lock_model_tag=ui.MODEL_TAG_V10,gp_home=3)
     site = PublicSite(ui,g,CLOSED,'built')
     assert not site.records
-    assert 'The forward record starts here' in site.results_page()
+    assert 'No locked v11 predictions yet' in site.results_page()
     assert '100.0%' not in site.today_page()
     assert 'class=\'record\'' not in site.performance_page()
     card = site.card(g.iloc[1])
@@ -86,12 +86,14 @@ def test_results_keep_losses_pushes_pending_overlap_and_seasons_separate():
     g.loc[g.index[1],'season']=2026
     site=PublicSite(ui,g,CLOSED,'built')
     result=site.results_page()
-    assert 'Loss' in result and 'Push' in result and 'Pending' in result
-    assert result.count('data-result-row ')==6
+    assert 'Loss' in result and 'Pending' in result
+    assert any(r['grade'] is not None and r['grade'].get('result') == .5 for r in site.records)
+    assert 'data-result-row' not in result
+    assert len(site.records) == 6
     perf=site.performance_page()
-    assert '2025-26 · DraftKings' in perf and '2026-27 · DraftKings' in perf
+    assert '2025-26' in perf and '2026-27' in perf
     assert 'Early · games 1–9' in perf and 'Established · games 10+' in perf
-    assert 'no combined portfolio return' in perf
+    assert 'Paper tracking' not in perf
     # An actual loss remains a negative return, not an empty or hidden cell.
     assert '-1.00u' in result
 

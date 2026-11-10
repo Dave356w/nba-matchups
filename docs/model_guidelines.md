@@ -1,11 +1,12 @@
 # Current public policy — November 10, 2026
 
-The owner-approved ML-focus amendment in `CLAUDE.md` supersedes conflicting
+The owner-approved ML-only and ML-focus amendments in `CLAUDE.md` supersedes conflicting
 presentation and pooling restrictions in the historical guidelines below.
 The main UI defaults to games 10+ and tracks one unit on every v11 model
 winner at its saved DraftKings price, with no edge or price-band filter.
 Live locks remain immutable. Spread, value-favorite and totals tests continue
-unchanged on paper; retired rules stay retired and every old result is kept.
+unchanged internally on paper; none of their picks, rules or records appear on public
+pages. Retired rules stay retired and every old result is kept.
 
 The owner explicitly requested a **mixed v11 ML record**, pooling historical
 reconstructed/rebuilt replay with saved live picks across seasons. Historical

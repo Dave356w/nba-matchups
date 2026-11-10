@@ -1,4 +1,4 @@
-"""Public ML forecasts, owner-approved mixed v11 record and paper tests.
+"""Public ML forecasts and the owner-approved mixed v11 record.
 
 Replay is explicitly identified and never replaces a native game.
 All selections and grades come from analysis; this module never scores a game.
@@ -29,7 +29,7 @@ PREDICTION_STAGES = (("established", "Established · games 10+"),
 
 
 def rule_key(root, early, ou="ou2"):
-    """The public row of a test and stage (CLAUDE.md amendments of
+    """The archived row of a test and stage (CLAUDE.md amendments of
     2026-10-29): the floored v11-family rows (H5·3, H2·F·5) at the
     5 h lock, e.g. H5·3·E·L·v11 (H4 retired 2026-11-10, internal only), and the O/U test's rows of the live totals
     model `ou`: OU·L·ou2 / OU·E·L·ou2 (ou2 amendment, 2026-11-03), OU·L·ou3 /
@@ -110,7 +110,7 @@ CSS = """
 .prediction-grid .rule-panel>p{min-height:0}.prediction-comparison{width:100%;font-size:12px;border-collapse:collapse;margin-top:14px}
 .prediction-comparison th,.prediction-comparison td{text-align:right;padding:8px 4px;border-bottom:1px solid var(--line-2)}
 .prediction-comparison th:first-child,.prediction-comparison td:first-child{text-align:left}.prediction-comparison th{font-size:10px;color:var(--muted)}
-[data-record-panel][hidden],[data-prediction-row][hidden],[data-result-row][hidden]{display:none!important}
+[data-record-panel][hidden],[data-prediction-row][hidden]{display:none!important}
 .public-empty{padding:32px;border:1px dashed var(--line);border-radius:14px;margin:24px 0;background:var(--surface);color:var(--muted)}
 .public-empty h2{color:var(--ink);font-size:18px;margin:0 0 8px}.public-empty p{font-size:14px;margin:0;max-width:600px}
 .guide{max-width:760px}.guide section{margin:28px 0;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
@@ -120,8 +120,7 @@ CSS = """
 .ml-hero h2{margin:0 0 8px;font-size:20px}.ml-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin:24px 0}
 .ml-metrics small{display:block;color:var(--muted);font-size:12px}.ml-metrics strong{display:block;font:700 clamp(24px,3vw,36px) var(--sans);letter-spacing:-.04em;margin-top:6px}
 .ml-hero .prediction-comparison{max-width:650px}.ml-hero .public-note{margin-bottom:0}
-.paper-records{margin:28px 0;border-top:1px solid var(--line);padding-top:20px}.paper-records>summary{cursor:pointer;font-size:15px;font-weight:650;padding:10px 0}
-.paper-records .tracked-box{margin-top:12px}.paper-label{color:var(--muted);font-size:12px}
+.record-label{color:var(--muted);font-size:12px}
 .forecast-readout.ml-focus{grid-template-columns:1.2fr 1fr}.stage-label{font-size:11px;color:var(--muted)}
 [data-ml-panel][hidden],.gcard[hidden]{display:none!important}
 @media(max-width:640px){.ml-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.ml-hero{padding:18px}}
@@ -149,11 +148,6 @@ x.hidden=filter==='established'||filter==='early'?x.dataset.stage!==filter:filte
 bar.querySelectorAll('button').forEach(function(b){var k=b.dataset.show;b.querySelector('.ct').textContent=c[k];b.setAttribute('aria-pressed',k===filter?'true':'false');});
 var e=document.querySelector('[data-filter-empty]');if(e){e.hidden=!!c[filter];e.querySelector('p').textContent=filter==='established'?'No games with both teams at 10+ games today. Choose All games to see the full slate.':'No games match this filter.';}}
 window.nbaCount=update;bar.addEventListener('click',function(e){var b=e.target.closest('button');if(b){filter=b.dataset.show;update();}});update();})();</script>"""
-
-RESULT_FILTER_JS = """<script>(function(){var controls=document.querySelectorAll('[data-result-filter]');
-controls.forEach(function(c){c.addEventListener('change',function(){var n=0;document.querySelectorAll('[data-result-row]').forEach(function(r){
-var show=true;controls.forEach(function(f){if(f.value!=='all'&&r.dataset[f.dataset.resultFilter]!==f.value)show=false;});r.hidden=!show;if(show)n++;});
-document.querySelector('[data-results-empty]').hidden=n>0;});});})();</script>"""
 
 PREDICTION_FILTER_JS = """<script>(function(){var controls=document.querySelectorAll('[data-prediction-filter]');
 function update(){var n=0;document.querySelectorAll('[data-prediction-row]').forEach(function(r){
@@ -193,10 +187,8 @@ class PublicSite:
         self.hypotheses = {h["key"]: h for h in analysis.public_hypotheses()
                            + analysis.public_ou_tests(self.native)}
         self.records = []
-        # Model-family reset and edge floors (CLAUDE.md amendments 2026-10-29):
-        # the floored v11-family rows (H5·3, H2·F·5) and the O/U test, at
-        # the 5 h lock. Every other record stays internal (presentation only;
-        # analysis defines every record).
+        # Preserve archival selection/grade parity for the internal tests.
+        # Public renders never include these records (ML-only amendment).
         by_id = self.native.set_index("game_id", drop=False)
         for key, name, slug in RULES:
             for early in (True, False):
@@ -263,7 +255,6 @@ class PublicSite:
         stage = 'established' if gp >= 10 else 'early' if 1 <= gp <= 9 else 'opener' if gp == 0 else 'unknown'
         stage_text = dict(PREDICTION_STAGES)[stage]
         dk = str(row.get("pre_book")) == "dk"
-        recs = [r for r in self.records if str(r["row"].game_id) == str(row.game_id)]
         final = np.isfinite(number("home_won"))
         status = "Final" if final else "Pregame"
         teams = []
@@ -312,7 +303,7 @@ class PublicSite:
                 priced = analysis.model_prediction_moneyline(saved).iloc[0]
                 lock_price = u.ml_txt(priced.ml) if pd.notna(priced.ml) else 'No DraftKings lock price'
                 tracking = (f"<div class='tracked-box'><span class='tracked-label'>Locked ML · {lock_price}</span>"
-                            f"<span class='paper-label'>{'10+ game record' if stage == 'established' else 'Separate stage record'} · 1 unit per priced pick</span></div>")
+                            f"<span class='record-label'>{'10+ game record' if stage == 'established' else 'Separate stage record'} · 1 unit per priced pick</span></div>")
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
         live_spread, live = self.live_block(row, dk)
@@ -322,25 +313,18 @@ class PublicSite:
         if live:
             detail += ("<p>During the game, <b>live win chance</b> updates with the score from the current margin, "
                        "the time left and the DraftKings spread at tip, using a formula fitted on past NBA games. "
-                       "It is not the model’s forecast, is not saved and never changes a tracked pick.</p>")
+                       "It is not the model’s forecast, is not saved and never changes a saved ML pick.</p>")
         if np.isfinite(p):
             detail += f"<p>Predicted margin: {u.esc(margin_team)} by {abs(margin):.1f} points. This is forecast context.</p>"
         if len(saved):
             detail += ("<h3>Recorded before play</h3><p>The saved ML winner and price stay fixed even if the forecast or market changes later. "
                        "The main record requires both teams to have played at least 10 games.</p>")
-        if recs or np.isfinite(number('ou_total')):
-            detail += "<details class='paper-records'><summary>Paper tracking · spread and totals</summary><p class='paper-label'>Research records only; no betting recommendation.</p>"
-            detail += self.ou_readout(row, dk)
-            if recs:
-                detail += "<div class='tracked-box'><span class='tracked-label'>Paper picks · 5 h lock</span>" + "".join(
-                    f"<div class='tracked-line'><span>{r['name']}</span><b>{self.selection(r)}</b></div>" for r in recs) + "</div>"
-            detail += "</details>"
         if str(row.get("model_tag", "")) in u.AVAIL_TAGS:
             detail += "<p>The model includes the NBA injury report available when this forecast was saved.</p>"
         detail += self.factor_details(row, context) + self.injury_details(row)
-        detail += "<p><a href='how-it-works.html'>How ML forecasts and paper tracking work →</a></p>"
+        detail += "<p><a href='how-it-works.html'>How ML forecasts work →</a></p>"
         order_attr = f" data-order='{int(order)}'" if order is not None else ""
-        return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(recs))}' data-state='{'final' if final else 'upcoming'}'{order_attr} data-stage='{stage}'{live_spread}>"
+        return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(len(saved)))}' data-state='{'final' if final else 'upcoming'}'{order_attr} data-stage='{stage}'{live_spread}>"
                 f"<summary><div class='g-meta'><span>{u.tip_pt(row.tip_utc)}</span><span class='badge st'>{status}</span></div>"
                 + "".join(teams) + f"<div class='stage-label'>{stage_text}</div>" + live + forecast + tracking
                 + "<span class='details-cue'>Game details<i aria-hidden='true'>⌄</i></span></summary>"
@@ -429,7 +413,7 @@ class PublicSite:
         day = self.native[self.native.slate_date.astype(str).eq(self.today)]
         title = pd.Timestamp(self.today).strftime("%A, %B %-d")
         body = self.head(title, "Moneyline forecasts, focused on games where both teams have played at least 10 games.", True)
-        body += "<p class='public-note'><a href='performance.html'>View ML performance →</a> · One unit per locked winner. Early games and paper tests have separate records.</p>"
+        body += "<p class='public-note'><a href='performance.html'>View ML performance →</a> · One unit per locked winner. Early games have a separate record.</p>"
         body += "<div class='public-intro'><p>DraftKings prices · All times Pacific (PT)<span data-scores-asof hidden> · Scores as of <time></time></span></p><a href='how-it-works.html'>How to read →</a></div>"
         if not len(day):
             body += "<div class='public-empty'><h2>No games to show</h2><p>There are no saved regular-season forecasts for this slate. Check back for the next update.</p></div>"
@@ -449,41 +433,8 @@ class PublicSite:
         return self.page("Today · NBA Composite", "index.html", body)
 
     def results_page(self):
-        u = self.ui
         body = self.head("ML results", "Every v11 ML winner, with live locks and historical replays identified. Games 10+ are shown first.")
-        body += self.prediction_results()
-        body += "<details class='paper-records' id='paper-results'><summary>Paper tracking · spread, value favorite and totals</summary><h2 class='sec'>Paper picks</h2>"
-        body += ("<p class='public-note'>Three separate paper tests, not betting recommendations. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
-                 "Picks lock at the first priced snapshot within 5 hours of tip whose game data include every completed game.</p>"
-                 + self.restart_note() + self.void_note() + self.gap_note())
-        if not self.records:
-            body += "<div class='public-empty'><h2>The forward record starts here</h2><p>No qualifying picks have been recorded since the record restarted. Today’s forecasts remain available while the tests build their records.</p></div><p><a href='index.html'>View today’s forecasts →</a></p>"
-        else:
-            seasons = sorted({r['season'] for r in self.records}, reverse=True)
-            options = (("rule","Test",[("all","All tests")]+[(s,n) for _,n,s in RULES]),
-                       ("stage","Stage",[("all","Both stages"),("early","Early · games 1–9"),("established","Established · games 10+")]),
-                       ("season","Season",[("all","All seasons")]+[(str(s),u.season_txt(s)) for s in seasons]))
-            body += "<div class='public-filters'>" + "".join(f"<div><label for='filter-{key}'>{name}</label><select id='filter-{key}' data-result-filter='{key}'>"+"".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></div>" for key,name,opts in options) + "</div>"
-            labels = ["Game", "Test / stage", "Recorded pick", "Recorded at", "Outcome", "Return"]
-            rows = []
-            for rec in sorted(self.records, key=lambda r:(str(r['row'].tip_utc),r['slug']), reverse=True):
-                row, grade = rec['row'], rec['grade']
-                if grade is None:
-                    result, ret = "Pending", "—"
-                else:
-                    win = grade['result'] if rec['hyp'].get('market') in ('ats', 'ou') else grade['won']
-                    result = "Push" if win == .5 else "Win" if win == 1 else "Loss"
-                    ret = f"{grade['units']:+.2f}u"
-                stage = "Early · games 1–9" if rec['early'] else "Established · games 10+"
-                cells = [f"{u.esc(row.away)} @ {u.esc(row.home)}<small>{u.esc(row.slate_date)} · {u.tip_pt(row.tip_utc)}</small>",
-                         f"{rec['name']}<small>{stage} · {u.season_txt(rec['season'])}</small>", self.selection(rec),
-                         f"{u.tip_pt(rec['at'])}<small>5 h lock · {u.esc(str(rec['at'])[:10])}</small>",
-                         f"<span class='result-badge'>{result}</span>", ret]
-                rows.append(f"<tr data-result-row data-rule='{rec['slug']}' data-stage='{'early' if rec['early'] else 'established'}' "
-                            f"data-season='{rec['season']}'>"+"".join(f"<td data-label='{l}'>{v}</td>" for l,v in zip(labels,cells))+"</tr>")
-            body += "<table class='public-table'><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)+"</tr></thead><tbody>"+"".join(rows)+"</tbody></table>"
-            body += "<div class='public-empty' data-results-empty hidden><p>No picks match these filters.</p></div>"+RESULT_FILTER_JS
-        body += "</details>" + PREDICTION_FILTER_JS
+        body += self.prediction_results() + self.void_note() + PREDICTION_FILTER_JS
         return self.page("Results · NBA Composite", "results.html", body)
 
     @staticmethod
@@ -583,7 +534,7 @@ class PublicSite:
                             part = part[part.season.astype(int).eq(int(season))]
                     hidden = '' if (stage, source, season) == ('established', 'all', 'all') else ' hidden'
                     body += (f"<article class='ml-hero' data-ml-panel data-stage='{stage}' data-source='{source}' data-season='{season}'{hidden}>"
-                             f"<h2>{label}</h2><div class='paper-label'>{season_label} · {source_label} · v11</div>"
+                             f"<h2>{label}</h2><div class='record-label'>{season_label} · {source_label} · v11</div>"
                              + self.ml_performance_panel(part) + '</article>')
         return body + '</section>' + PERFORMANCE_FILTER_JS
 
@@ -715,29 +666,12 @@ class PublicSite:
                 f"{d:%B} {d.day}, {d.year} games. Its picks are kept separately and are not included here.</p>")
 
     def performance_page(self):
-        u = self.ui
         body = self.head("ML performance", "The v11 moneyline record. Games 10+ lead; historical replays and saved live results are combined and identified.")
-        body += self.prediction_performance()
-        body += "<details class='paper-records' id='paper-performance'><summary>Paper tracking · spread, value favorite and totals</summary><h2 class='sec'>Paper test records</h2>"
-        body += "<p class='public-note'>Three registered tests continue on paper with unchanged rules. No betting recommendation. Each season and stage stands alone; there is no combined portfolio return.</p>"
-        body += self.restart_note() + self.void_note() + self.gap_note()
-        seasons = sorted({self.season}|{r['season'] for r in self.records},reverse=True)
-        desc = {"H5·3": "Model margin at least 3 points from the spread.",
-                "H2·F·5": "The market favorite when the model rates it at least 5 points higher.",
-                "OU": "The model’s total versus the market’s, at least 5 points of probability apart."}
-        for season in seasons:
-            body += f"<h2 class='sec'>{u.season_txt(season)} · DraftKings · 5 h lock</h2><div class='rule-grid'>"
-            for key,name,slug in RULES:
-                body += f"<article class='rule-panel'><h2>{name}</h2><p>{desc[key]} <a href='how-it-works.html#{slug}'>Rule →</a></p>"
-                body += self.stage(self.hypotheses[rule_key(key, True, self.ou)], season) + \
-                    self.stage(self.hypotheses[rule_key(key, False, self.ou)], season) + "</article>"
-            body += "</div>"
-        body += "<p class='public-note'>These tests can select the same game. There is no combined portfolio return. All qualifying results remain in <a href='results.html'>Results</a>, including losses. Forecast-only games do not enter these records.</p>"
-        body += "</details>"
+        body += self.prediction_performance() + self.void_note()
         return self.page("Performance · NBA Composite", "performance.html", body)
 
     def guide_page(self):
-        body = self.head("How it works", "One ML forecast per game. A fixed rule, a visible record and separate paper research.")
+        body = self.head("How it works", "One ML forecast per game. A fixed rule and a visible record.")
         body += """<div class='guide'><section><h2>The 10+ game ML rule</h2>
 <p>Both teams must have completed at least 10 regular-season games before the slate to enter the main record. Early games (1–9), opening games and games with unavailable stage data remain accessible separately.</p>
 <p>Pick the team with the higher v11 win probability; at exactly 50%, pick the home team. Track a flat <b>1 unit</b> at its saved DraftKings moneyline, with both prices available. There is no edge, favorite, confidence or price-band filter.</p>
@@ -754,12 +688,7 @@ class PublicSite:
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
 <section><h2>The model</h2>
 <p>The same v11 model predicts a points margin and converts it to a win probability. Inputs include recent shooting, turnovers, rebounding and free-throw rates for and against; home court, back-to-backs and season phase; roster value and the NBA injury report. Last season’s team rating fades out over the first 10 games. Market prices are benchmarks, never model inputs.</p>""" + self.model_note() + """</section>
-<details class='paper-records'><summary>Paper tracking rules and preserved history</summary>
-<p>Spread, value-favorite and total selections continue as paper research. Their saved picks, prices, results and fixed rules are preserved; they are not betting recommendations. Their records remain under the expandable paper sections on Results and Performance, separate by season and stage.</p>
-<h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert win probability into a home margin with 13.5 × Φ⁻¹(P), and take its side when it differs from the spread by at least 3 points. Both spread prices must be between −135 and +115.</p>
-<h3 id='favorite'><span class='rule-number'>02</span>Value favorite</h3><p>Take the market favorite when the model rates it at least 5 percentage points above the no-vig market probability.</p>
-<h3 id='total'><span class='rule-number'>03</span>Total (over/under)</h3><p>A separate model predicts the combined score from pace, scoring rates, back-to-backs, season phase""" + (", both teams’ days of rest" if self.ou == "ou3" else "") + """ and the injury report. Track its side when P(over) differs from the no-vig market by at least 5 percentage points on a main-line DraftKings total.""" + self.ou2_clause() + """</p>
-<p>Each paper test retains its existing five-hour lock, model versions and thresholds, with games 1–9 and 10+ separate. Totals before activation of the current totals model include explicitly disclosed lock-time rescoring, rather than a pure live record. Paper tests can select the same game; there is no combined portfolio return.</p>""" + self.gap_note() + """</details>"""
+"""
         body += dfs.guide() + "</div>"
         return self.page("How it works · NBA Composite", "how-it-works.html", body)
 

@@ -97,7 +97,7 @@ def test_cards_show_records_factors_and_distinct_injury_source_with_safe_missing
     assert 'No pregame injury list was captured' in empty
 
 
-def test_all_three_public_test_records_match_every_registered_signal_and_grade(monkeypatch):
+def test_internal_test_records_match_every_registered_signal_and_grade(monkeypatch):
     pin_ou2_model(monkeypatch)                      # the ou2 public rows
     g = rows().iloc[1:5].copy()
     g['lock_ou_p_over'] = .8
@@ -124,7 +124,7 @@ def test_all_three_public_test_records_match_every_registered_signal_and_grade(m
             assert {r['row'].game_id for r in actual if r['grade'] is not None} == set(grades.game_id)
             assert all(r['slug'] == slug for r in actual)
     assert len(site.records) == 12  # every game qualifies for each of the three tests
-    assert site.results_page().count('data-result-row ') == 12
+    assert site.results_page().count('data-result-row ') == 0
     # Display context cannot alter the frozen record.
     fresh = PublicSite(ui, g.assign(p_home=.01, pre_home_ml=999), '2026-11-19', 'built',
                        context=MatchupContext(), injuries=pd.DataFrame(columns=ledger.INJURY_COLUMNS))
