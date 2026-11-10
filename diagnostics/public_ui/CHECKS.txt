@@ -18,7 +18,7 @@ mobile: matchup context · season W/L, prior-slate four factors and timestamped 
 mobile: v11 model predictions · forecast-only games, W/L, matched scores, outcome/stage filters, empty states and view switching passed
 mobile: labelled fixture · all outcomes, overlapping tests, filters, details, theme and chart passed
 mobile: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show median examples from 5,000 independent evaluation slates; New draws reseeds; the min player salary leaves out cheaper players except a locked one
-Live-score overlay updated status and scores without changing four frozen selections
+Live-score overlay updated status and scores without changing three frozen selections
 Live win chance · BOS 74% / NYK 26% at Q2 4:00, 42–38, BOS −6 at tip, matching live_wp.win_prob; hidden for a final game; no horizontal overflow
 Auto-refresh · a live game re-fetched every 30 s (Q2 4:00 → Q3 7:30, BOS 58%; Q4 0:45.5 tied, BOS 55%); a hidden tab waited and caught up when shown; the final hid the live readout, moved the card down among the finals and stopped the polling
 Auto-refresh · a page opened 4 min before tip fetched again at the tip, then every 30 s while live

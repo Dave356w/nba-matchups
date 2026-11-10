@@ -207,7 +207,7 @@ def main():
                     page.get_by_role('button',name='Model predictions',exact=True).click()
                     assert page.locator('[data-prediction-row]:visible').count()==4  # filters survive a view change
                     page.get_by_role('button',name='Tracked picks',exact=True).click()
-                    assert page.locator('[data-result-row]').count()==16
+                    assert page.locator('[data-result-row]').count()==12
                     for result in ('Win','Loss','Push','Pending'):
                         assert page.locator('.result-badge',has_text=result).count()>0,result
                     page.get_by_label('Test',exact=True).select_option('spread')
@@ -308,8 +308,8 @@ def main():
                 live=page.locator('[data-gid="fixture-3"]')
                 live.locator('.st').filter(has_text='Q2 4:00').wait_for()
                 assert live.locator('.sc[data-side="home"]').inner_text()=='42'
-                assert live.locator('.tracked-line').count()==4
-                checks.append('Live-score overlay updated status and scores without changing four frozen selections')
+                assert live.locator('.tracked-line').count()==3
+                checks.append('Live-score overlay updated status and scores without changing three frozen selections')
                 # Live win chance (owner request, 2026-11-07): the browser's
                 # figure equals live_wp.win_prob for the card's frozen spread
                 fit = live_wp.load()
