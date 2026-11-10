@@ -187,4 +187,4 @@ def test_pages_carry_the_dated_void_line_and_the_lock_condition():
     assert note in site.results_page() and note in site.performance_page()
     guide = site.guide_page()
     assert "within 5 hours of tip whose game data include every completed game" in guide
-    assert "no such snapshot before tip has no tracked pick" in guide
+    assert "missing lock or price means no ML return" in guide

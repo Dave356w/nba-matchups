@@ -252,7 +252,7 @@ def test_pages_show_the_total_and_three_tests(monkeypatch):
     card = site.card(g.iloc[0])
     assert "Total · model <b>226.0</b> · DraftKings <b>220.5</b>" in card
     assert "Lean <b>Over 220.5</b>" in card and "Over 220.5" in site.results_page()
-    assert "Total (over/under)" in card and "Tracked picks · 5 h lock" in card
+    assert "Total (over/under)" in card and "Paper picks · 5 h lock" in card
     assert "Lean <b>Under 220.5</b>" in site.card(g.iloc[1])
     perf = site.performance_page()
     assert "Total (over/under)" in perf and "Three registered tests" in perf

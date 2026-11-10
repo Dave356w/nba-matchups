@@ -163,9 +163,9 @@ def test_today_marks_locked_picks_and_says_when_the_rest_lock():
     g.loc[g.index[5], "tip_utc"] = "2099-01-01T00:30Z"
     site = _page(g, "2026-11-19")
     locked = site.card(g.iloc[3])
-    assert "Tracked picks · 5 h lock" in locked
+    assert "Locked ML ·" in locked and "Paper picks · 5 h lock" in locked
     waiting = site.card(g.iloc[5])
-    assert "Forecast only" in waiting and "lock about 5 hours before tip" in waiting
+    assert "Forecast only" in waiting and "within 5 hours of tip" in waiting
     # a first-snapshot slate is no public record after the model-family reset
     assert "Tracked picks ·" not in site.card(g.iloc[0])
     assert {r["row"].slate_date for r in site.records} == {"2026-11-19"}

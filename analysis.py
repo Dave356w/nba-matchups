@@ -264,15 +264,62 @@ def model_predictions(native):
 
 PREDICTION_ML_COLUMNS = ("ml", "ml_units", "ml_units_null", "ml_run_n", "ml_run_units", "ml_run_roi")
 
+# Owner's ML-focus amendment, 2026-11-10. Same v11 family, one unit on
+# every winner pick, no edge or price-band filter; games 10+ are primary.
+ML_RULE_REGISTRATION_UTC = "2026-11-10T19:37:57Z"
+
+
+def moneyline_model_predictions(native, replay=None):
+    """Saved v11 locks plus explicitly identified v11 historical replays.
+
+    Owner-authorized mixed record: replay prices are DraftKings closes;
+    live prices remain five-hour locks. No synthetic locks are created.
+    Native game IDs take precedence even when a lock is missing/void, so
+    a replay cannot fill a missed lock or undo an exclusion. Replays must
+    be graded, tagged v11 and have a usable DraftKings closing pair.
+    """
+    live = model_predictions(native)
+    live['prediction_source'] = 'live'
+    if replay is None or not len(replay):
+        return live
+    g = replay.copy()
+    ids = set(native.game_id.astype(str)) if native is not None and len(native) else set()
+    p = pd.to_numeric(g['p_home'], errors='coerce')
+    y = pd.to_numeric(g['home_won'], errors='coerce')
+    hm = pd.to_numeric(g['close_home_ml'], errors='coerce')
+    am = pd.to_numeric(g['close_away_ml'], errors='coerce')
+    keep = (g.basis.isin(('reconstructed', 'rebuilt'))
+            & g.model_tag.astype(str).str.endswith(FAMILY_TAGS)
+            & p.between(0, 1) & y.isin((0, 1))
+            & g.close_book.eq(HYPOTHESIS_BOOK)
+            & np.isfinite(hm) & np.isfinite(am) & hm.ne(0) & am.ne(0)
+            & ~g.game_id.astype(str).isin(ids | set(VOID_LOCKS)))
+    g = g.loc[keep].copy()
+    # A current-season rebuild supersedes a reconstructed copy of the game.
+    g['_priority'] = g.basis.map({'reconstructed': 0, 'rebuilt': 1})
+    g = g.sort_values('_priority', kind='stable').drop_duplicates('game_id', keep='last').drop(columns='_priority')
+    if not len(g):
+        return live
+    p = pd.to_numeric(g.p_home)
+    home = p.ge(.5)
+    g['prediction'] = np.where(home, g.home, g.away)
+    g['prediction_p'] = np.where(home, p, 1-p)
+    g['prediction_won'] = np.where(home, pd.to_numeric(g.home_won), 1-pd.to_numeric(g.home_won))
+    gp = np.minimum(pd.to_numeric(g.gp_home, errors='coerce'), pd.to_numeric(g.gp_away, errors='coerce'))
+    g['prediction_stage'] = np.select([gp.eq(0), gp.between(1, 9), gp.ge(10)],
+                                      ['opener', 'early', 'established'], default='unknown')
+    g['prediction_source'] = 'replay'
+    return pd.concat([live, g], ignore_index=True)
+
 
 def model_prediction_moneyline(predictions):
     """`predictions` (model_predictions) with a flat 1-unit moneyline return
-    on each winner pick, at its frozen DraftKings lock price (owner request,
-    2026-11-09). Descriptive only: every prediction, no threshold, not a
-    registered test, and first shown after results were known.
+    on each winner pick. Live uses its frozen DraftKings lock price; the
+    owner-approved mixed record also accepts identified v11 replays at the
+    historical DraftKings close. Rule selection followed historical outcomes.
 
-    ml: the pick's lock moneyline (NaN unless the lock book is DraftKings
-    with both prices). ml_units: +profit / -1 once graded. ml_units_null: the
+    ml: the source's moneyline (NaN unless its book is DraftKings with both
+    nonzero prices). ml_units: +profit / -1 once graded. ml_units_null: the
     return expected if the lock's no-vig probability is right. ml_run_*: the
     graded, priced picks to date within the same season x stage in tip
     order (n, units, ROI = units / n); never pooled across either. A pick
@@ -284,16 +331,18 @@ def model_prediction_moneyline(predictions):
     if not len(d):
         return d
     home = d['prediction'].eq(d['home'])
-    hml = pd.to_numeric(d['lock_home_ml'], errors='coerce')
-    aml = pd.to_numeric(d['lock_away_ml'], errors='coerce')
-    priced = d['lock_book'].astype(str).eq(HYPOTHESIS_BOOK) & hml.notna() & aml.notna()
+    replay = d['basis'].isin(('reconstructed', 'rebuilt'))
+    hml = pd.to_numeric(d['lock_home_ml'].where(~replay, d['close_home_ml']), errors='coerce')
+    aml = pd.to_numeric(d['lock_away_ml'].where(~replay, d['close_away_ml']), errors='coerce')
+    book = d['lock_book'].where(~replay, d['close_book'])
+    priced = book.astype(str).eq(HYPOTHESIS_BOOK) & hml.notna() & aml.notna() & hml.ne(0) & aml.ne(0)
     ml = np.where(home, hml, aml)
     d.loc[priced, 'ml'] = ml[priced]
     won = pd.to_numeric(d['prediction_won'], errors='coerce')
     done = priced & won.isin([0, 1])
     d.loc[done, 'ml_units'] = [market.unit_profit(m, w == 1)
                                for m, w in zip(d.loc[done, 'ml'], won[done])]
-    qh = pd.to_numeric(d['lock_q_home'], errors='coerce')
+    qh = pd.to_numeric(d['lock_q_home'].where(~replay, d['close_q_home']), errors='coerce')
     q = pd.Series(np.where(home, qh, 1 - qh), index=d.index)
     ok = done & q.between(0, 1, inclusive='neither')
     d.loc[ok, 'ml_units_null'] = q[ok] * [market.decimal_payout(m) for m in d.loc[ok, 'ml']] - 1
@@ -316,9 +365,19 @@ def model_prediction_moneyline_summary(part):
     u = d['ml_units'].to_numpy(float)
     n, w = len(u), int((u > 0).sum())
     null = d['ml_units_null'].to_numpy(float)
+    replay = d['basis'].isin(('reconstructed', 'rebuilt'))
+    qh = pd.to_numeric(d['lock_q_home'].where(~replay, d['close_q_home']), errors='coerce')
+    hml = pd.to_numeric(d['lock_home_ml'].where(~replay, d['close_home_ml']), errors='coerce')
+    aml = pd.to_numeric(d['lock_away_ml'].where(~replay, d['close_away_ml']), errors='coerce')
+    bench = qh.between(0, 1, inclusive='neither')
+    fav_home = qh[bench].ge(.5)
+    fav_ml = np.where(fav_home, hml[bench], aml[bench])
+    fav_won = fav_home.to_numpy() == pd.to_numeric(d.loc[bench, 'home_won']).eq(1).to_numpy()
+    fav_units = [market.unit_profit(m, won) for m, won in zip(fav_ml, fav_won)]
     return dict(n=n, w=w, l=n - w, units=float(u.sum()), roi=float(u.mean()),
                 roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float('nan'),
-                roi_null=float(np.nanmean(null)) if np.isfinite(null).any() else float('nan'))
+                roi_null=float(np.nanmean(null)) if np.isfinite(null).any() else float('nan'),
+                fav_roi=float(np.mean(fav_units)) if fav_units else float('nan'), fav_n=len(fav_units))
 
 
 def model_prediction_summary(predictions):
@@ -344,7 +403,8 @@ def model_prediction_summary(predictions):
         low, high = max(0., centre-radius), min(1., centre+radius)
     else:
         low = high = np.nan
-    frozen = graded.assign(p_home=graded['lock_p_home'], lean=graded['prediction'])
+    replay = graded['basis'].isin(('reconstructed', 'rebuilt'))
+    frozen = graded.assign(p_home=graded['lock_p_home'].where(~replay, graded['p_home']), lean=graded['prediction'])
     paired = with_close(frozen)
     paired = paired[paired['close_book'].eq(HYPOTHESIS_BOOK)]
     return dict(n=n, w=w, l=n-w, pending=len(d)-n, accuracy=acc,

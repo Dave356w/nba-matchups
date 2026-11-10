@@ -129,7 +129,7 @@ def main():
                                   ('fixture',fixture(),'2026-11-19')):
             target = root/name
             target.mkdir()
-            context = matchup_fixture() if name == 'fixture' else {}
+            context = matchup_fixture() if name == 'fixture' else dict(replay=pd.concat([ledger.load(ledger.RECON_PATH), ledger.load(ledger.REBUILT_PATH)], ignore_index=True))
             pages = PublicSite(ui,native,day,'UI verification · Pacific time', **context).render()
             for filename, html in pages.items():
                 if name == 'fixture':
@@ -160,9 +160,10 @@ def main():
                         page.get_by_role('heading',level=1).wait_for()
                         assert page.locator('.nav [aria-current="page"]').count()==1
                         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                        assert page.locator('.nav a').evaluate_all('els => els.every(e => e.scrollWidth <= e.clientWidth)')
                         assert page.get_by_role('link',name='Research',exact=True).count()==0
-                        if filename=='index.html' and page.locator('.gcard').count():
-                            top=page.locator('.gcard').first.bounding_box()['y']
+                        if filename=='index.html' and page.locator('.gcard:visible').count():
+                            top=page.locator('.gcard:visible').first.bounding_box()['y']
                             assert top < height-100,(device,'first game is below the fold',top)
                         if filename=='dfs.html' and page.locator('#dfs-data').count():
                             # the live slate: lineups, or (every game started) a clear "no lineup"
@@ -172,13 +173,18 @@ def main():
                             assert built or msg.startswith('No complete portfolio found'), msg
                             checks.append(f'{device}: DFS lineups · the browser optimizer ran on the live slate'
                                           f" ({built} lineups{'' if built else ': every game started'})")
-                        page.screenshot(path=str(out/f'{device}-{filename[:-5]}.jpg'),full_page=True,type='jpeg',quality=85)
+                        # The mixed archive has hundreds of rows; a full-page
+                        # JPEG can exceed Chromium's image-height limit.
+                        shot = out/f'{device}-{filename[:-5]}.jpg'
+                        page.screenshot(path=str(shot),full_page=filename!='results.html',type='jpeg',quality=85)
+                        assert shot.stat().st_size > 0, f'empty screenshot: {shot}'
                         checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
                     page.goto(f'{base}/fixture/index.html')
-                    page.locator('[data-show="tracked"]').click()
-                    assert page.locator('.gcard:visible').count()==4
-                    assert page.get_by_text('Tracked picks · 5 h lock').count()==4
-                    page.locator('[data-gid="fixture-0"] summary').click()
+                    assert page.locator('.gcard:visible').count()==1
+                    page.locator('[data-show="all"]').click()
+                    assert page.locator('.gcard:visible').count()==5
+                    assert page.get_by_text('Paper picks · 5 h lock').count()==4
+                    page.locator('[data-gid="fixture-0"] > summary').click()
                     assert page.get_by_role('heading',name='Recorded before play',exact=True).is_visible()
                     card = page.locator('[data-gid="fixture-0"]')
                     assert card.locator('.team-record').all_inner_texts() == ['(15–15)', '(1–2)']
@@ -192,7 +198,7 @@ def main():
                     assert page.locator('html').get_attribute('data-theme') in ('dark','light')
                     page.screenshot(path=str(out/f'{device}-fixture-tracked.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/results.html')
-                    assert page.locator('[data-prediction-row]:visible').count()==5
+                    assert page.locator('[data-prediction-row]:visible').count()==1
                     assert page.locator('[data-prediction-row][data-outcome="loss"]').count()==1
                     page.get_by_label('Prediction outcome',exact=True).select_option('pending')
                     assert page.locator('[data-prediction-row]:visible').count()==1
@@ -202,11 +208,8 @@ def main():
                     page.get_by_label('Prediction outcome',exact=True).select_option('all')
                     assert page.locator('[data-prediction-row]:visible').count()==4
                     page.screenshot(path=str(out/f'{device}-fixture-model-results.jpg'),full_page=True,type='jpeg',quality=85)
-                    page.get_by_role('button',name='Tracked picks',exact=True).click()
-                    assert page.locator('[data-prediction-row]:visible').count()==0
-                    page.get_by_role('button',name='Model predictions',exact=True).click()
-                    assert page.locator('[data-prediction-row]:visible').count()==4  # filters survive a view change
-                    page.get_by_role('button',name='Tracked picks',exact=True).click()
+                    page.locator('#paper-results > summary').click()
+                    assert page.locator('[data-prediction-row]:visible').count()==4
                     assert page.locator('[data-result-row]').count()==12
                     for result in ('Win','Loss','Push','Pending'):
                         assert page.locator('.result-badge',has_text=result).count()>0,result
@@ -218,10 +221,18 @@ def main():
                     assert page.locator('[data-result-row]:visible').count()==3
                     page.screenshot(path=str(out/f'{device}-fixture-results.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/performance.html')
-                    assert page.locator('#model-predictions').get_by_text('3–1',exact=True).count()==1
-                    assert page.locator('#model-predictions').get_by_text('Log loss',exact=True).count()==1
-                    assert page.locator('#model-predictions').get_by_text('Brier score',exact=True).count()==1
-                    checks.append(f'{device}: v11 model predictions · forecast-only games, W/L, matched scores, outcome/stage filters, empty states and view switching passed')
+                    assert page.locator('[data-ml-panel]:visible').count()==1
+                    page.get_by_label('Model stage',exact=True).select_option('early')
+                    panel = page.locator('[data-ml-panel]:visible')
+                    assert panel.get_by_text('3–1',exact=True).count()==1
+                    assert panel.get_by_text('Log loss',exact=True).count()==1
+                    assert panel.get_by_text('Brier score',exact=True).count()==1
+                    page.get_by_label('Record source',exact=True).select_option('replay')
+                    assert page.locator('[data-ml-panel]:visible').get_by_text('No predictions in this view yet',exact=True).count()==1
+                    page.get_by_label('Record source',exact=True).select_option('live')
+                    assert page.locator('[data-ml-panel]:visible').get_by_text('3–1',exact=True).count()==1
+                    page.locator('#paper-performance > summary').click()
+                    checks.append(f'{device}: ML focus · 10+ default, separate early record, W/L, matched scores, source/outcome/stage filters, empty states and expandable paper records passed')
                     assert page.get_by_text('1–1–1',exact=True).count()==1
                     page.get_by_text('Benchmarks and return chart',exact=True).first.click()
                     page.screenshot(path=str(out/f'{device}-fixture-performance.jpg'),full_page=True,type='jpeg',quality=85)
