@@ -22,7 +22,7 @@ PAGES = (("index.html", "Today"), ("results.html", "Results"),
          ("performance.html", "Performance"), ("how-it-works.html", "How it works"),
          ("dfs.html", "DFS"))
 RULES = (("H5·3", "Spread", "spread"), ("H2·F·5", "Value favorite", "favorite"),
-         ("H4", "Large probability gap", "gap"), ("OU", "Total (over/under)", "total"))
+         ("OU", "Total (over/under)", "total"))
 PREDICTION_STAGES = (("early", "Early · games 1–9"),
                      ("established", "Established · games 10+"),
                      ("opener", "Opening games · game 0"), ("unknown", "Stage unavailable"))
@@ -30,8 +30,8 @@ PREDICTION_STAGES = (("early", "Early · games 1–9"),
 
 def rule_key(root, early, ou="ou2"):
     """The public row of a test and stage (CLAUDE.md amendments of
-    2026-10-29): the floored v11-family rows (H5·3, H2·F·5) and H4's at the
-    5 h lock, e.g. H5·3·E·L·v11, and the O/U test's rows of the live totals
+    2026-10-29): the floored v11-family rows (H5·3, H2·F·5) at the
+    5 h lock, e.g. H5·3·E·L·v11 (H4 retired 2026-11-10, internal only), and the O/U test's rows of the live totals
     model `ou`: OU·L·ou2 / OU·E·L·ou2 (ou2 amendment, 2026-11-03), OU·L·ou3 /
     OU·E·L·ou3 once ou3 is active (ou3 amendment, 2026-11-06)."""
     if root == "OU":
@@ -184,7 +184,7 @@ class PublicSite:
                            + analysis.public_ou_tests(self.native)}
         self.records = []
         # Model-family reset and edge floors (CLAUDE.md amendments 2026-10-29):
-        # the floored v11-family rows (H5·3, H2·F·5), H4's and the O/U test, at
+        # the floored v11-family rows (H5·3, H2·F·5) and the O/U test, at
         # the 5 h lock. Every other record stays internal (presentation only;
         # analysis defines every record).
         by_id = self.native.set_index("game_id", drop=False)
@@ -436,9 +436,9 @@ class PublicSite:
                  "<button type='button' data-view='tracked' aria-pressed='false'>Tracked picks</button></div>"
                  "<section data-record-panel='predictions'>" + self.prediction_results() + "</section>"
                  "<section data-record-panel='tracked'><h2 class='sec'>Tracked picks</h2>")
-        body += ("<p class='public-note'>Four separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
+        body += ("<p class='public-note'>Three separate tests. A game can appear in more than one; their returns are never added together. Early games (1–9) and established games (10+) remain separate. "
                  "Picks lock at the first priced snapshot within 5 hours of tip whose game data include every completed game.</p>"
-                 + self.restart_note() + self.void_note())
+                 + self.restart_note() + self.void_note() + self.gap_note())
         if not self.records:
             body += "<div class='public-empty'><h2>The forward record starts here</h2><p>No qualifying picks have been recorded since the record restarted. Today’s forecasts remain available while the tests build their records.</p></div><p><a href='index.html'>View today’s forecasts →</a></p>"
         else:
@@ -629,17 +629,23 @@ class PublicSite:
                 "November 2, 2026 are void and not counted: they locked before the previous "
                 "night’s games reached the model’s game data.</p>")
 
+    def gap_note(self):
+        """The one dated line (H4 retirement amendment, 2026-11-10): a fourth
+        test left the pages; its picks are kept apart. No H4 figure."""
+        d = pd.Timestamp(analysis.GAP_CLOSE_SLATE) - pd.Timedelta(days=1)
+        return ("<p class='public-note'>A fourth test, large probability gap, was retired after the "
+                f"{d:%B} {d.day}, {d.year} games. Its picks are kept separately and are not included here.</p>")
+
     def performance_page(self):
         u = self.ui
-        body = self.head("The forward record", "Every v11 model prediction, followed by four separate betting tests. Each season and stage stands on its own.")
+        body = self.head("The forward record", "Every v11 model prediction, followed by three separate betting tests. Each season and stage stands on its own.")
         body += self.prediction_performance()
-        body += "<h2 class='sec'>Tracked betting tests</h2><p class='public-note'>Four registered tests, each with its own forward record. Every qualifying pick is included, with wins, losses, pushes and pending picks.</p>"
+        body += "<h2 class='sec'>Tracked betting tests</h2><p class='public-note'>Three registered tests, each with its own forward record. Every qualifying pick is included, with wins, losses, pushes and pending picks.</p>"
         body += "<p class='public-note'>Returns use a flat 1 unit per pick. ROI is return divided by stakes. The market-price baseline includes the bookmaker’s margin. A small sample can move sharply.</p>"
-        body += self.restart_note() + self.void_note()
+        body += self.restart_note() + self.void_note() + self.gap_note()
         seasons = sorted({self.season}|{r['season'] for r in self.records},reverse=True)
         desc = {"H5·3": "Model margin at least 3 points from the spread.",
                 "H2·F·5": "The market favorite when the model rates it at least 5 points higher.",
-                "H4": "A model–market probability gap of at least 12 points.",
                 "OU": "The model’s total versus the market’s, at least 5 points of probability apart."}
         for season in seasons:
             body += f"<h2 class='sec'>{u.season_txt(season)} · DraftKings · 5 h lock</h2><div class='rule-grid'>"
@@ -667,13 +673,12 @@ class PublicSite:
 """ + self.model_note() + """<p>Market prices are a benchmark, never an input. A team’s first game gets a forecast but no tracked pick.</p></section>
 <section><h2>Every v11 model prediction has a record</h2>
 <p>Results lists one winner pick per game from its five-hour v11 lock, even when no betting rule qualifies (at exactly 50%, the home team). Performance gives W/L and accuracy by season and stage with a 95% Wilson interval, beside the closing DraftKings favorite on the same games (W/L, log loss and Brier score; lower is better). Pending games, rebuilt games and earlier model versions are not counted.</p></section>
-<section><h2>Four fixed tracking rules</h2>
+<section><h2>Three fixed tracking rules</h2>
 <p>Each rule reads the probability and DraftKings prices saved at the lock and is never changed to fit later results. The minimum gaps exist because the bookmaker’s margin swallows small disagreements.</p>
 <h3 id='spread'><span class='rule-number'>01</span>Spread</h3><p>Convert the win probability into a home margin with 13.5 × Φ⁻¹(P) (not the margin shown on Today). Take the model’s side when it differs from the spread by at least 3 points, with both spread prices between −135 and +115.</p>
 <h3 id='favorite'><span class='rule-number'>02</span>Value favorite</h3><p>Take the market favorite when the model rates it at least 5 percentage points above the market’s no-vig probability (the market’s probability with the bookmaker’s margin removed).</p>
-<h3 id='gap'><span class='rule-number'>03</span>Large probability gap</h3><p>Take whichever team, favorite or underdog, the model rates at least 12 percentage points above the market.</p>
-<h3 id='total'><span class='rule-number'>04</span>Total (over/under)</h3><p>A separate totals model predicts the combined score from both teams’ recent pace and points scored and allowed per 100 possessions, with back-to-backs""" + (", both teams’ days of rest" if self.ou == "ou3" else "") + """ and the point in the season, adjusted for players on the NBA injury report. Take its side when its chance of the over differs from the market’s by at least 5 percentage points, on a main-line DraftKings total.""" + self.ou2_clause() + """</p>
-<p>Each rule keeps separate records for games 1–9 and games 10+, by the team with fewer games played; the current record, its minimum gaps and the total began with the """ + self.restart_txt() + """ games.</p></section>
+<h3 id='total'><span class='rule-number'>03</span>Total (over/under)</h3><p>A separate totals model predicts the combined score from both teams’ recent pace and points scored and allowed per 100 possessions, with back-to-backs""" + (", both teams’ days of rest" if self.ou == "ou3" else "") + """ and the point in the season, adjusted for players on the NBA injury report. Take its side when its chance of the over differs from the market’s by at least 5 percentage points, on a main-line DraftKings total.""" + self.ou2_clause() + """</p>
+<p>Each rule keeps separate records for games 1–9 and games 10+, by the team with fewer games played; the current record, its minimum gaps and the total began with the """ + self.restart_txt() + """ games.</p>""" + self.gap_note().replace("class='public-note'", "class='note'") + """</section>
 <section><h2>Reading the results fairly</h2>
 <p>Each pick stakes one unit at its recorded price; a push returns the stake. ROI is profit divided by stakes. The market-price baseline is the ROI expected if the market is right, usually slightly negative because of the bookmaker’s margin; the benchmark on the same games is the favorite, or the over for totals.</p>
 <p>Uncertainty is ±1 standard error, narrower than a 95% interval, and small samples prove little. Rules can pick the same game, so their returns are never combined, nor are early and established records.</p></section>"""

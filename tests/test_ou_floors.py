@@ -182,11 +182,12 @@ def test_validator_checks_the_ou_lock(tmp_path):
 # --------------------------------------------------------------- analysis --
 def test_floored_rows_are_the_public_rules_and_subsets_of_the_old_floors():
     pub = {h["key"]: h for h in analysis.public_hypotheses()}
-    assert set(pub) == {"H5·3·L·v11", "H5·3·E·L·v11", "H2·F·5·L·v11", "H2·F·5·E·L·v11",
-                        "H4·L·v11", "H4·E·L·v11"}
+    assert set(pub) == {"H5·3·L·v11", "H5·3·E·L·v11", "H2·F·5·L·v11", "H2·F·5·E·L·v11"}
     assert pub["H5·3·L·v11"]["min_edge"] == 3.0 and pub["H5·3·L·v11"]["sigma"] == 13.5
     assert pub["H2·F·5·L·v11"]["min_edge"] == 0.05 and pub["H2·F·5·L·v11"]["favourite"]
-    assert pub["H4·L·v11"]["min_edge"] == 0.12
+    # H4's family rows keep their rule but closed at its retirement (2026-11-10)
+    h4 = next(h for h in analysis.HYPOTHESES if h["key"] == "H4·L·v11")
+    assert h4["min_edge"] == 0.12 and not h4.get("public")
     assert analysis.FLOOR_REGISTRATION_UTC == "2026-10-29T16:13:38Z"
     g = _two_slates("2026-10-28", "2026-10-29", build_site.MODEL_TAG_V11)
     g.loc[g.index[3:], "lock_p_home"] = [0.2, 0.42, 0.62]     # vs -5.5: edges 16.9, 8.2, 1.4 pts
@@ -241,7 +242,7 @@ def test_ou_test_membership_grading_and_clv():
     assert pd_.set_index("game_id").loc["o1", "units"] == 0.0
 
 
-def test_pages_show_the_total_and_four_tests(monkeypatch):
+def test_pages_show_the_total_and_three_tests(monkeypatch):
     from conftest import pin_ou2_model
     pin_ou2_model(monkeypatch)
     g = _ou_ledger().assign(lock_ou_tag=totals.TAG_OU2)       # native ou2 locks: the public rows
@@ -254,7 +255,7 @@ def test_pages_show_the_total_and_four_tests(monkeypatch):
     assert "Total (over/under)" in card and "Tracked picks · 5 h lock" in card
     assert "Lean <b>Under 220.5</b>" in site.card(g.iloc[1])
     perf = site.performance_page()
-    assert "Total (over/under)" in perf and "Four registered tests" in perf
+    assert "Total (over/under)" in perf and "Three registered tests" in perf
     assert "Same-game over ROI" in perf
     guide = site.guide_page()
     assert "at least 3 points" in guide and "at least 5 percentage points" in guide

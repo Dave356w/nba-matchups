@@ -2960,7 +2960,10 @@ def _hypotheses(native, recon):
         early.append([f"<b>{hyp['key']}</b>", esc(hyp["rule"]), *cell(r)])
     return (
         "<h2 id='hypotheses'>Pre-registered hypotheses — the forward test</h2>"
-        "<p class='note'>Three tests: H5, H2·F and H4. The <b>5 h lock</b> rows "
+        "<p class='note'>Three tests: H5, H2·F and H4. <b>H4 retired</b> (owner's decision "
+        f"after its forward record, registered {analysis.GAP_RETIREMENT_UTC.replace('T', ' at ').replace('Z', ' UTC')}): "
+        f"its v11-family rows close with the slate before {analysis.GAP_CLOSE_SLATE} and are off the "
+        "public pages; they stay graded here, never pooled. The <b>5 h lock</b> rows "
         "(·L; amendment registered 2026-10-28 at 21:30:29 UTC) bet the first "
         "snapshot within 5 hours of tip; the first-snapshot rows close with the "
         f"last slate before the lock's activation{_lock_txt(native)}. "

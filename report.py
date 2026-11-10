@@ -158,6 +158,9 @@ def hypotheses_block(native, recon):
     lines.append(f"  EDGE FLOORS (registered {analysis.FLOOR_REGISTRATION_UTC}): the public spread "
                  "and value-favourite tests are H5·3 (edge ≥ 3 pts) and H2·F·5 (P − q ≥ 0.05), "
                  "with H4; the old-floor v11 rows are their internal supersets.")
+    lines.append(f"  H4 RETIRED (registered {analysis.GAP_RETIREMENT_UTC}; owner's decision after its "
+                 f"forward record): its v11-family rows close with the slate before "
+                 f"{analysis.GAP_CLOSE_SLATE} and are internal only; never pooled.")
     st = analysis.lock_status(native) if native is not None and len(native) else None
     if st:
         lines.append(f"  5 h lock active from slate {st['activation']}: {st['locked']} games "

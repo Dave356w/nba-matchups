@@ -176,7 +176,7 @@ def test_results_and_performance_show_only_the_lock_record():
     site = _page(g, "2026-11-20")
     res = site.results_page()
     assert "data-basis" not in res and "First snapshot" not in res
-    assert res.count("data-result-row ") == 6     # H5 and H4 on the three locked games
+    assert res.count("data-result-row ") == 3     # H5 on the three locked games (H4 retired)
     perf = site.performance_page()
     assert "DraftKings · 5 h lock" in perf and "first snapshot" not in perf
     guide = site.guide_page()

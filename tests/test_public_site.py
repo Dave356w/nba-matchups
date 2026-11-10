@@ -52,14 +52,14 @@ def test_pending_signal_membership_matches_registered_grades_for_every_stage_and
 def test_pending_selections_never_fabricate_results_and_ignore_later_refreshes():
     g = rows().assign(home_won=np.nan,home_pts=np.nan,away_pts=np.nan)
     site = PublicSite(ui,g,CLOSED,'built')
-    assert len(site.records) == 12  # four eligible games, three tests
+    assert len(site.records) == 8  # four eligible games, two tests (H4 retired)
     assert all(r['grade'] is None for r in site.records)
     changed = g.assign(p_home=.01,pre_home_ml=999,pre_away_ml=-999,pre_q_home=.01,
                        model_tag=ui.MODEL_TAG_V9_NEUTRAL)
     fresh = PublicSite(ui,changed,CLOSED,'built')
     assert [site.selection(r) for r in site.records] == [fresh.selection(r) for r in fresh.records]
     html = fresh.results_page()
-    assert html.count("class='result-badge'>Pending") == 12
+    assert html.count("class='result-badge'>Pending") == 8
     assert 'No graded picks yet' in fresh.performance_page()
     assert '>+999<' not in html and '>-999<' not in html
 
@@ -87,7 +87,7 @@ def test_results_keep_losses_pushes_pending_overlap_and_seasons_separate():
     site=PublicSite(ui,g,CLOSED,'built')
     result=site.results_page()
     assert 'Loss' in result and 'Push' in result and 'Pending' in result
-    assert result.count('data-result-row ')==9
+    assert result.count('data-result-row ')==6
     perf=site.performance_page()
     assert '2025-26 · DraftKings' in perf and '2026-27 · DraftKings' in perf
     assert 'Early · games 1–9' in perf and 'Established · games 10+' in perf

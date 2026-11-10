@@ -680,7 +680,8 @@ HYPOTHESES += tuple(dict(h, key=h["key"] + "·v11", family="v11", tags=FAMILY_TA
 # Edge floors and O/U amendment (CLAUDE.md, registered before any floor or
 # O/U code and before any v11 lock): the public spread and value-favourite
 # tests are the v11-family rows with floors, H5·3 (edge >= 3 points) and
-# H2·F·5 (P - q >= 0.05); H4's family rows are public unchanged. The
+# H2·F·5 (P - q >= 0.05); H4's family rows were public unchanged until
+# their retirement (GAP_RETIREMENT_UTC below). The
 # old-floor family rows (H5·L·v11, H2·F·L·v11) continue internally as their
 # supersets. The O/U test is OU_TESTS below. Never pooled.
 FLOOR_REGISTRATION_UTC = "2026-10-29T16:13:38Z"
@@ -744,6 +745,18 @@ HYPOTHESES = tuple(dict(h, public=True) if h.get("family") and h["key"].startswi
 HYPOTHESES += tuple(_floor_row(h) for h in HYPOTHESES
                     if h.get("family") and h["key"].split("·L")[0].replace("·E", "") in FLOORS)
 
+# Large probability gap (H4) retirement (CLAUDE.md, registered before any
+# retirement code; owner's decision after its forward record, not a pre-set
+# stopping rule): H4's v11-family rows close with the slate before
+# GAP_CLOSE_SLATE and leave the public pages. Like H4's earlier closed rows
+# they keep their bets, grades and CLV internally; nothing is rescored.
+GAP_RETIREMENT_UTC = "2026-11-10T05:55:00Z"
+GAP_CLOSE_SLATE = "2026-11-10"
+HYPOTHESES = tuple(dict(h, public=False, until_slate=GAP_CLOSE_SLATE,
+                        closed_utc=GAP_RETIREMENT_UTC)
+                   if h.get("family") and h["key"].startswith("H4") else h
+                   for h in HYPOTHESES)
+
 
 def active_hypotheses():
     """Three tests, with distinct early/established rows, at the first
@@ -782,8 +795,9 @@ def hindsight_twin(hyp):
 
 
 def public_hypotheses():
-    """The tracked rows the public pages show: H5·3, H2·F·5 and H4, each by
-    stage, v11 family at the 5 h lock (the O/U test is OU_TESTS)."""
+    """The tracked rows the public pages show: H5·3 and H2·F·5, each by
+    stage, v11 family at the 5 h lock (the O/U test is OU_TESTS). H4's rows
+    closed at its retirement (GAP_RETIREMENT_UTC) and are internal."""
     return tuple(h for h in active_hypotheses() if h.get("public"))
 
 
