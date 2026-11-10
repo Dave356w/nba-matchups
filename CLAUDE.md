@@ -433,6 +433,19 @@ information only, separate from DraftKings and native evidence.
   Missing closes stay in the full model record. Earlier versions, rebuilt
   rows and research records stay outside the public forecast record.
 
+- **Moneyline return on model predictions (owner request, 2026-11-09).**
+  Results' model-prediction table adds each pick's flat 1-unit return at
+  its frozen DraftKings lock moneyline and a running ROI (return divided
+  by stakes through that game, tip order) within its season × stage, with
+  each season × stage's figure to date beside its ± 1 SE and no-vig
+  baseline. This extends the 2026-10-31 rule that prediction W/L stays
+  apart from betting returns, on Results only. It is every prediction with
+  no threshold, not a registered test, and was first shown after 70 graded
+  results were known: descriptive, never evidence for a rule or pooled
+  with a tracked record. A lock without both DraftKings prices keeps its
+  W/L and has no return. Lock values only; nothing rescored. Performance's
+  prediction record and the tracked tests are unchanged.
+
 - **Live win chance (owner request, 2026-11-07).** Today cards show each
   team's in-game win chance while a game is in progress, computed in the
   reader's browser from the live ESPN score, period and clock the page

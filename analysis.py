@@ -262,6 +262,65 @@ def model_predictions(native):
     return g
 
 
+PREDICTION_ML_COLUMNS = ("ml", "ml_units", "ml_units_null", "ml_run_n", "ml_run_units", "ml_run_roi")
+
+
+def model_prediction_moneyline(predictions):
+    """`predictions` (model_predictions) with a flat 1-unit moneyline return
+    on each winner pick, at its frozen DraftKings lock price (owner request,
+    2026-11-09). Descriptive only: every prediction, no threshold, not a
+    registered test, and first shown after results were known.
+
+    ml: the pick's lock moneyline (NaN unless the lock book is DraftKings
+    with both prices). ml_units: +profit / -1 once graded. ml_units_null: the
+    return expected if the lock's no-vig probability is right. ml_run_*: the
+    graded, priced picks to date within the same season x stage in tip
+    order (n, units, ROI = units / n); never pooled across either. A pick
+    without a price keeps its W/L and has no return.
+    """
+    d = predictions.copy() if predictions is not None else pd.DataFrame()
+    for c in PREDICTION_ML_COLUMNS:
+        d[c] = np.nan
+    if not len(d):
+        return d
+    home = d['prediction'].eq(d['home'])
+    hml = pd.to_numeric(d['lock_home_ml'], errors='coerce')
+    aml = pd.to_numeric(d['lock_away_ml'], errors='coerce')
+    priced = d['lock_book'].astype(str).eq(HYPOTHESIS_BOOK) & hml.notna() & aml.notna()
+    ml = np.where(home, hml, aml)
+    d.loc[priced, 'ml'] = ml[priced]
+    won = pd.to_numeric(d['prediction_won'], errors='coerce')
+    done = priced & won.isin([0, 1])
+    d.loc[done, 'ml_units'] = [market.unit_profit(m, w == 1)
+                               for m, w in zip(d.loc[done, 'ml'], won[done])]
+    qh = pd.to_numeric(d['lock_q_home'], errors='coerce')
+    q = pd.Series(np.where(home, qh, 1 - qh), index=d.index)
+    ok = done & q.between(0, 1, inclusive='neither')
+    d.loc[ok, 'ml_units_null'] = q[ok] * [market.decimal_payout(m) for m in d.loc[ok, 'ml']] - 1
+    order = d[done].sort_values(['tip_utc', 'game_id'])
+    for _, part in order.groupby([order['season'].astype(int), order['prediction_stage']], sort=False):
+        units = part['ml_units'].cumsum()
+        n = np.arange(1, len(part) + 1)
+        d.loc[part.index, 'ml_run_n'] = n
+        d.loc[part.index, 'ml_run_units'] = units
+        d.loc[part.index, 'ml_run_roi'] = units / n
+    return d
+
+
+def model_prediction_moneyline_summary(part):
+    """One season x stage of model_prediction_moneyline: dict(n, w, l,
+    units, roi, roi_se, roi_null) over graded, priced picks, or None."""
+    d = part[part['ml_units'].notna()] if part is not None and len(part) else None
+    if d is None or not len(d):
+        return None
+    u = d['ml_units'].to_numpy(float)
+    n, w = len(u), int((u > 0).sum())
+    null = d['ml_units_null'].to_numpy(float)
+    return dict(n=n, w=w, l=n - w, units=float(u.sum()), roi=float(u.mean()),
+                roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float('nan'),
+                roi_null=float(np.nanmean(null)) if np.isfinite(null).any() else float('nan'))
+
+
 def model_prediction_summary(predictions):
     """W/L for one season/stage, plus a same-game closing-market comparison.
 

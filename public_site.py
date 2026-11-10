@@ -474,10 +474,11 @@ class PublicSite:
         return "Pending" if pd.isna(row.prediction_won) else "Win" if row.prediction_won == 1 else "Loss"
 
     def prediction_results(self):
-        u, d = self.ui, self.predictions
+        u, d = self.ui, analysis.model_prediction_moneyline(self.predictions)
         body = ("<h2 class='sec'>Model predictions · v11</h2><p class='public-note'>One winner prediction per game, "
                 "frozen at the 5 h lock, whether or not a tracked betting rule qualifies. "
                 "Pending games have no W/L result. The closing favorite is a later benchmark.</p>")
+        body += self.prediction_moneyline_note(d)
         if not len(d):
             return body + "<div class='public-empty'><h3>No locked v11 predictions yet</h3><p>Predictions appear here after a valid five-hour snapshot is saved.</p></div>"
         options = (("stage", "Prediction stage", [("all", "All stages")]+list(PREDICTION_STAGES)),
@@ -487,7 +488,8 @@ class PublicSite:
             f"<div><label for='prediction-{key}'>{name}</label><select id='prediction-{key}' data-prediction-filter='{key}'>"
             + "".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></div>"
             for key,name,opts in options) + "</div>"
-        labels = ["Game", "Stage / season", "Model pick", "Recorded at", "Outcome", "Closing favorite"]
+        labels = ["Game", "Stage / season", "Model pick", "Recorded at", "Outcome", "Closing favorite",
+                  "Moneyline return", "Running ROI"]
         rows = []
         for _, r in d.sort_values(['tip_utc','game_id'], ascending=False).iterrows():
             result = self.prediction_result(r)
@@ -504,12 +506,50 @@ class PublicSite:
                      f"{dict(PREDICTION_STAGES)[r.prediction_stage]}<small>{u.season_txt(int(r.season))}</small>",
                      f"{u.esc(r.prediction)}<small>{u.pct(r.prediction_p)} win chance · v11</small>",
                      f"{u.tip_pt(r.lock_snapshot_utc)}<small>5 h lock · {u.esc(str(r.lock_snapshot_utc)[:10])}</small>",
-                     f"<span class='prediction-badge'>{result}</span>", closing]
+                     f"<span class='prediction-badge'>{result}</span>", closing,
+                     *self.prediction_moneyline_cells(r)]
             rows.append(f"<tr data-prediction-row data-stage='{r.prediction_stage}' data-season='{int(r.season)}' data-outcome='{result.lower()}'>"
                         + "".join(f"<td data-label='{label}'>{value}</td>" for label,value in zip(labels,cells))+"</tr>")
         return (body + "<table class='public-table'><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)
                 + "</tr></thead><tbody>"+"".join(rows)+"</tbody></table>"
                 + "<div class='public-empty' data-predictions-empty hidden><p>No predictions match these filters.</p></div>")
+
+    def prediction_moneyline_cells(self, r):
+        """Results' two moneyline cells for one prediction (owner request,
+        2026-11-09): its flat 1-unit return at the DraftKings lock price,
+        and its season × stage's ROI through that game."""
+        u = self.ui
+        if pd.isna(r.ml):
+            return ["—<small>No DraftKings price at the lock</small>", "—"]
+        price = f"<small>{u.ml_txt(r.ml)} at the lock</small>"
+        if pd.isna(r.ml_units):
+            return ["—" + price, "—"]
+        return [f"{r.ml_units:+.2f}u" + price,
+                f"{100 * r.ml_run_roi:+.1f}%<small>{int(r.ml_run_n)} priced · {r.ml_run_units:+.2f}u</small>"]
+
+    def prediction_moneyline_note(self, d):
+        """What the moneyline columns are, and each season × stage's figure to
+        date beside its ± 1 SE and market-price baseline. Never pooled."""
+        u = self.ui
+        body = ("<p class='public-note'><b>Moneyline return</b> stakes 1 unit on every model pick at its DraftKings "
+                "price at the lock. <b>Running ROI</b> is return divided by stakes through that game, within its "
+                "stage and season. This covers every prediction and is not a tracked test: it was added after "
+                "these results were known, and most picks are market favorites.</p>")
+        lines = []
+        if len(d):
+            for season in sorted(set(d.season.astype(int)), reverse=True):
+                for stage, label in PREDICTION_STAGES:
+                    r = analysis.model_prediction_moneyline_summary(
+                        d[d.season.astype(int).eq(season) & d.prediction_stage.eq(stage)])
+                    if not r:
+                        continue
+                    se = (f" ±{u.se_txt(r['roi_se'])} pp (1 SE)" if np.isfinite(r['roi_se']) and r['roi_se'] > 0 else "")
+                    null = (f" Market-price baseline {100 * r['roi_null']:+.1f}%." if np.isfinite(r['roi_null']) else "")
+                    lines.append(f"<li>{u.season_txt(season)} · {label}: <b>{100 * r['roi']:+.1f}%</b>{se} on "
+                                 f"{r['n']} priced picks ({r['w']}–{r['l']}, {r['units']:+.2f}u).{null}</li>")
+        if lines:
+            body += "<ul class='public-note' data-prediction-moneyline>" + "".join(lines) + "</ul>"
+        return body
 
     def prediction_performance(self):
         u, d = self.ui, self.predictions

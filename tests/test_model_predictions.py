@@ -114,3 +114,51 @@ def test_prediction_performance_never_pools_seasons_or_stages():
     assert html.count("class='record'>0–1") == 2  # one early loss per season
     assert "class='record'>1–0" in html  # established, with a pending game
     assert '1 graded · 1 pending' in html
+
+
+def test_moneyline_return_reads_only_the_lock_price_and_never_pools_stages():
+    g = forecasts().assign(lock_book='dk', lock_home_ml=-150, lock_away_ml=130, lock_q_home=.6)
+    d = analysis.model_prediction_moneyline(analysis.model_predictions(g))
+    home = d.prediction.eq(d.home)
+    assert list(d.ml) == [(-150 if h else 130) for h in home]
+    graded = d[d.prediction_won.notna()]
+    for _, r in graded.iterrows():
+        want = (100 / 150 if r.ml < 0 else 1.3) if r.prediction_won == 1 else -1.0
+        assert np.isclose(r.ml_units, want)
+    assert d[d.prediction_won.isna()].ml_units.isna().all()          # pending: no return
+    # running figures restart in each season x stage and follow tip order
+    for _, part in graded.groupby([graded.season.astype(int), graded.prediction_stage]):
+        part = part.sort_values(['tip_utc', 'game_id'])
+        assert list(part.ml_run_n) == list(range(1, len(part) + 1))
+        assert np.allclose(part.ml_run_units, part.ml_units.cumsum())
+        assert np.allclose(part.ml_run_roi, part.ml_units.cumsum() / part.ml_run_n)
+        s = analysis.model_prediction_moneyline_summary(part)
+        assert s['n'] == len(part) and np.isclose(s['roi'], part.ml_run_roi.iloc[-1])
+        assert np.isclose(s['roi_null'], part.ml_units_null.mean())
+    # later prices, probabilities and the close never change it
+    later = g.assign(pre_home_ml=999, pre_away_ml=-999, close_home_ml=999, close_away_ml=-999, p_home=.01)
+    pd.testing.assert_frame_equal(
+        d[list(analysis.PREDICTION_ML_COLUMNS)],
+        analysis.model_prediction_moneyline(analysis.model_predictions(later))[list(analysis.PREDICTION_ML_COLUMNS)])
+    # no DraftKings lock price: the W/L stays, with no return
+    for bare in (g.assign(lock_book='espnbet'), g.assign(lock_away_ml=np.nan)):
+        b = analysis.model_prediction_moneyline(analysis.model_predictions(bare))
+        assert len(b) == len(d) and b.ml.isna().all() and b.ml_run_roi.isna().all()
+        assert analysis.model_prediction_moneyline_summary(b) is None
+    assert analysis.model_prediction_moneyline(pd.DataFrame()).empty
+
+
+def test_results_show_moneyline_return_and_running_roi_on_predictions_only():
+    g = forecasts().assign(lock_book='dk', lock_home_ml=-150, lock_away_ml=130, lock_q_home=.6)
+    site = PublicSite(ui, g, CLOSED, 'built')
+    d = analysis.model_prediction_moneyline(site.predictions)
+    html = site.results_page()
+    assert '<th>Moneyline return</th><th>Running ROI</th>' in html
+    assert html.count("data-label='Running ROI'") == len(d)
+    assert html.count("data-label='Running ROI'>—</td>") == int(d.ml_units.isna().sum())
+    assert 'not a tracked test' in html and 'data-prediction-moneyline' in html
+    assert 'Market-price baseline' in html
+    perf = site.performance_page()
+    assert 'Moneyline return' not in perf and 'data-prediction-moneyline' not in perf
+    bare = PublicSite(ui, g.assign(lock_book='espnbet'), CLOSED, 'built').results_page()
+    assert 'No DraftKings price at the lock' in bare and 'data-prediction-moneyline' not in bare
