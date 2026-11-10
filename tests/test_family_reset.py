@@ -81,7 +81,7 @@ def test_public_pages_show_only_the_family_record():
         assert "kept separately and are not included here" in page
         assert "first snapshot" not in page.lower().replace("first priced snapshot", "")
     assert "data-basis" not in res and "AWY @ HOM<small>2026-10-28" not in res
-    assert res.count("data-result-row ") == 2 * 2           # H5 and H4 on two games
+    assert res.count("data-result-row ") == 2               # H5 on two games (H4 retired 2026-11-10)
     # an off-family lock is forecast only on Today, with its reason
     card = PublicSite(build_site, g, "2026-10-29", "built").card(g.iloc[3])
     assert "Forecast only" in card and "earlier model" in card

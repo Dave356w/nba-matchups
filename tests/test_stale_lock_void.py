@@ -22,8 +22,7 @@ from test_ou_floors import _ou_ledger, _row as ou_row
 from test_public_site import CLOSED, rows
 
 VOID = sorted(analysis.VOID_LOCKS)
-PUBLIC = ("H5·3·E·L·v11", "H5·3·L·v11", "H2·F·5·E·L·v11", "H2·F·5·L·v11",
-          "H4·E·L·v11", "H4·L·v11")
+PUBLIC = ("H5·3·E·L·v11", "H5·3·L·v11", "H2·F·5·E·L·v11", "H2·F·5·L·v11")
 
 
 def hyp(key):
@@ -95,14 +94,14 @@ def test_void_locks_leave_the_model_prediction_record():
 def test_frozen_values_stay_and_are_listed_internally():
     g = rows()
     g["game_id"] = [f"k{i}" for i in range(len(g))]
-    hit = sorted(picked(g, "H4·E·L·v11"))[0]
+    hit = sorted(picked(g, "H5·3·E·L·v11"))[0]
     g.loc[g["game_id"] == hit, "game_id"] = VOID[3]
     frozen = g.loc[g["game_id"] == VOID[3], ledger.LOCK_COLUMNS].copy()
     bets = dict(analysis.void_lock_bets(g))
-    assert VOID[3] in set(bets["H4·E·L·v11"]["game_id"].astype(str))
+    assert VOID[3] in set(bets["H5·3·E·L·v11"]["game_id"].astype(str))
     lines = "\n".join(report.void_lines(g))
     assert analysis.VOID_REGISTRATION_UTC in lines and VOID[3] in lines
-    assert "H4·E·L·v11" in lines
+    assert "H5·3·E·L·v11" in lines
     pd.testing.assert_frame_equal(g.loc[g["game_id"] == VOID[3], ledger.LOCK_COLUMNS], frozen)
     st = analysis.lock_status(g)
     assert st["void"] == 1 and st["locked"] == len(g)

@@ -262,6 +262,65 @@ def model_predictions(native):
     return g
 
 
+PREDICTION_ML_COLUMNS = ("ml", "ml_units", "ml_units_null", "ml_run_n", "ml_run_units", "ml_run_roi")
+
+
+def model_prediction_moneyline(predictions):
+    """`predictions` (model_predictions) with a flat 1-unit moneyline return
+    on each winner pick, at its frozen DraftKings lock price (owner request,
+    2026-11-09). Descriptive only: every prediction, no threshold, not a
+    registered test, and first shown after results were known.
+
+    ml: the pick's lock moneyline (NaN unless the lock book is DraftKings
+    with both prices). ml_units: +profit / -1 once graded. ml_units_null: the
+    return expected if the lock's no-vig probability is right. ml_run_*: the
+    graded, priced picks to date within the same season x stage in tip
+    order (n, units, ROI = units / n); never pooled across either. A pick
+    without a price keeps its W/L and has no return.
+    """
+    d = predictions.copy() if predictions is not None else pd.DataFrame()
+    for c in PREDICTION_ML_COLUMNS:
+        d[c] = np.nan
+    if not len(d):
+        return d
+    home = d['prediction'].eq(d['home'])
+    hml = pd.to_numeric(d['lock_home_ml'], errors='coerce')
+    aml = pd.to_numeric(d['lock_away_ml'], errors='coerce')
+    priced = d['lock_book'].astype(str).eq(HYPOTHESIS_BOOK) & hml.notna() & aml.notna()
+    ml = np.where(home, hml, aml)
+    d.loc[priced, 'ml'] = ml[priced]
+    won = pd.to_numeric(d['prediction_won'], errors='coerce')
+    done = priced & won.isin([0, 1])
+    d.loc[done, 'ml_units'] = [market.unit_profit(m, w == 1)
+                               for m, w in zip(d.loc[done, 'ml'], won[done])]
+    qh = pd.to_numeric(d['lock_q_home'], errors='coerce')
+    q = pd.Series(np.where(home, qh, 1 - qh), index=d.index)
+    ok = done & q.between(0, 1, inclusive='neither')
+    d.loc[ok, 'ml_units_null'] = q[ok] * [market.decimal_payout(m) for m in d.loc[ok, 'ml']] - 1
+    order = d[done].sort_values(['tip_utc', 'game_id'])
+    for _, part in order.groupby([order['season'].astype(int), order['prediction_stage']], sort=False):
+        units = part['ml_units'].cumsum()
+        n = np.arange(1, len(part) + 1)
+        d.loc[part.index, 'ml_run_n'] = n
+        d.loc[part.index, 'ml_run_units'] = units
+        d.loc[part.index, 'ml_run_roi'] = units / n
+    return d
+
+
+def model_prediction_moneyline_summary(part):
+    """One season x stage of model_prediction_moneyline: dict(n, w, l,
+    units, roi, roi_se, roi_null) over graded, priced picks, or None."""
+    d = part[part['ml_units'].notna()] if part is not None and len(part) else None
+    if d is None or not len(d):
+        return None
+    u = d['ml_units'].to_numpy(float)
+    n, w = len(u), int((u > 0).sum())
+    null = d['ml_units_null'].to_numpy(float)
+    return dict(n=n, w=w, l=n - w, units=float(u.sum()), roi=float(u.mean()),
+                roi_se=float(u.std(ddof=1) / np.sqrt(n)) if n > 1 else float('nan'),
+                roi_null=float(np.nanmean(null)) if np.isfinite(null).any() else float('nan'))
+
+
 def model_prediction_summary(predictions):
     """W/L for one season/stage, plus a same-game closing-market comparison.
 
@@ -680,7 +739,8 @@ HYPOTHESES += tuple(dict(h, key=h["key"] + "·v11", family="v11", tags=FAMILY_TA
 # Edge floors and O/U amendment (CLAUDE.md, registered before any floor or
 # O/U code and before any v11 lock): the public spread and value-favourite
 # tests are the v11-family rows with floors, H5·3 (edge >= 3 points) and
-# H2·F·5 (P - q >= 0.05); H4's family rows are public unchanged. The
+# H2·F·5 (P - q >= 0.05); H4's family rows were public unchanged until
+# their retirement (GAP_RETIREMENT_UTC below). The
 # old-floor family rows (H5·L·v11, H2·F·L·v11) continue internally as their
 # supersets. The O/U test is OU_TESTS below. Never pooled.
 FLOOR_REGISTRATION_UTC = "2026-10-29T16:13:38Z"
@@ -744,6 +804,18 @@ HYPOTHESES = tuple(dict(h, public=True) if h.get("family") and h["key"].startswi
 HYPOTHESES += tuple(_floor_row(h) for h in HYPOTHESES
                     if h.get("family") and h["key"].split("·L")[0].replace("·E", "") in FLOORS)
 
+# Large probability gap (H4) retirement (CLAUDE.md, registered before any
+# retirement code; owner's decision after its forward record, not a pre-set
+# stopping rule): H4's v11-family rows close with the slate before
+# GAP_CLOSE_SLATE and leave the public pages. Like H4's earlier closed rows
+# they keep their bets, grades and CLV internally; nothing is rescored.
+GAP_RETIREMENT_UTC = "2026-11-10T05:55:00Z"
+GAP_CLOSE_SLATE = "2026-11-10"
+HYPOTHESES = tuple(dict(h, public=False, until_slate=GAP_CLOSE_SLATE,
+                        closed_utc=GAP_RETIREMENT_UTC)
+                   if h.get("family") and h["key"].startswith("H4") else h
+                   for h in HYPOTHESES)
+
 
 def active_hypotheses():
     """Three tests, with distinct early/established rows, at the first
@@ -782,8 +854,9 @@ def hindsight_twin(hyp):
 
 
 def public_hypotheses():
-    """The tracked rows the public pages show: H5·3, H2·F·5 and H4, each by
-    stage, v11 family at the 5 h lock (the O/U test is OU_TESTS)."""
+    """The tracked rows the public pages show: H5·3 and H2·F·5, each by
+    stage, v11 family at the 5 h lock (the O/U test is OU_TESTS). H4's rows
+    closed at its retirement (GAP_RETIREMENT_UTC) and are internal."""
     return tuple(h for h in active_hypotheses() if h.get("public"))
 
 
