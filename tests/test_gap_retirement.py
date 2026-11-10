@@ -52,16 +52,16 @@ def test_public_pages_drop_the_test_and_carry_one_dated_line():
     line = "A fourth test, large probability gap, was retired after the November 9, 2026 games."
     pages = site.render()
     for name in ("results.html", "performance.html", "how-it-works.html"):
-        assert pages[name].count(line) == 1
-        assert "kept separately and are not included here" in pages[name]
+        assert line not in pages[name]
+        assert "large probability gap" not in pages[name]
     for name, html in pages.items():
         assert "Large probability gap" not in html and "#gap" not in html and "id='gap'" not in html
         assert "12 percentage points" not in html and "at least 12 points" not in html
         assert "Four registered tests" not in html and "Four fixed tracking rules" not in html
     assert line not in pages["index.html"] and line not in pages["dfs.html"]
     guide = pages["how-it-works.html"]
-    assert "Paper tracking rules and preserved history" in guide
-    assert "<span class='rule-number'>03</span>Total (over/under)" in guide
+    assert "Paper tracking" not in guide
+    assert "Total (over/under)" not in guide
     assert "rule-number'>04" not in guide
 
 

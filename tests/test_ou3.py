@@ -143,9 +143,10 @@ def test_public_rows_follow_the_live_totals_model(monkeypatch, tmp_path):
     ou = [r for r in site.records if r["hyp"].get("market") == "ou"]
     assert {r["row"].game_id for r in ou} == {"o1", "o2"} and {r["signal"].side for r in ou} == {"under", "over"}
     guide = site.guide_page()
-    assert "both teams’ days of rest" in guide
+    assert "both teams’ days of rest" not in guide
     note = "Picks through October 29, 2026 were scored with this model"
-    assert note in guide and note not in site.results_page() and note not in site.performance_page()
+    assert note in site.ou2_clause()
+    assert all(note not in page for page in (guide, site.results_page(), site.performance_page()))
 
 
 # ---------------------------------------------------------------- rescore --

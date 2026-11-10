@@ -81,8 +81,22 @@ def test_mixed_headline_pools_sources_and_seasons_but_10_plus_stays_separate():
     assert "data-stage='established' data-source='all' data-season='all'>" in html
     assert 'Mixed record:' in html and 'historical replays' in html
     assert 'Saved live locks' in html and 'Historical replay' in html
-    assert "<details class='paper-records' id='paper-performance'>" in html
+    assert "id='paper-performance'" not in html
     results = site.results_page()
     assert "data-source='replay'" in results and 'DraftKings close' in results
     assert "data-source='live'" in results and 'Saved live lock' in results
     assert 'The 10+ game ML rule' in site.guide_page()
+
+
+def test_tracked_betting_tests_are_absent_even_from_collapsed_public_markup():
+    native = rows()
+    site = PublicSite(ui, native, '2026-11-19', 'built')
+    assert site.records  # the internal tests and their grades still exist
+    for filename, page in site.render().items():
+        for forbidden in ('Paper tracking', 'Paper picks', 'Paper test records',
+                          'data-result-row', "id='spread'", "id='favorite'", "id='total'",
+                          'Three registered tests', 'Value favorite', 'Total (over/under)',
+                          'large probability gap', 'H5·3', 'H2·F·5'):
+            assert forbidden not in page, (filename, forbidden)
+    assert 'ML results' in site.results_page()
+    assert 'Moneyline ROI' in site.performance_page()

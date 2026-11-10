@@ -77,16 +77,16 @@ def test_public_pages_show_only_the_family_record():
     assert {str(r["row"].game_id) for r in site.records} == {"new1", "new2"}
     res, perf = site.results_page(), site.performance_page()
     for page in (res, perf):
-        assert "restarted with the October 29, 2026 games" in page
-        assert "kept separately and are not included here" in page
+        assert "Paper tracking" not in page
+        assert "data-result-row" not in page
         assert "first snapshot" not in page.lower().replace("first priced snapshot", "")
     assert "data-basis" not in res and "AWY @ HOM<small>2026-10-28" not in res
-    assert res.count("data-result-row ") == 2               # H5 on two games (H4 retired 2026-11-10)
+    assert res.count("data-result-row ") == 0               # H5 on two games (H4 retired 2026-11-10)
     # an off-family lock is forecast only on Today, with its reason
     card = PublicSite(build_site, g, "2026-10-29", "built").card(g.iloc[3])
     assert "Forecast only" in card and "earlier model" in card
     guide = site.guide_page()
-    assert "v11" in guide and "Paper tracking rules and preserved history" in guide
+    assert "v11" in guide and "Paper tracking" not in guide
     assert "closed on" not in guide
 
 
@@ -95,5 +95,5 @@ def test_empty_family_record_starts_here():
     site = PublicSite(build_site, g, "2026-10-29", "built")
     assert not site.records
     res = site.results_page()
-    assert "The forward record starts here" in res and "restarted" in res
-    assert "No graded picks yet" in site.performance_page()
+    assert "No locked v11 predictions yet" in res
+    assert "No predictions in this view yet" in site.performance_page()

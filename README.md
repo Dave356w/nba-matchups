@@ -5,10 +5,10 @@ Moneyline forecasts and v11 performance, published by GitHub Actions:
 
 | Public page | Purpose |
 |---|---|
-| Today | Defaults to games where both teams have completed 10 games. One primary win probability and ML forecast, with the saved five-hour ML pick and price shown separately. All games and early games remain accessible. Game details retain margin, four factors, injuries and paper selections. Live scores and win chances remain display-only. |
-| Results | Every v11 ML prediction, source, execution price, outcome and running return. Defaults to games 10+, with stage, source, season and outcome filters. All paper-test picks remain in an expandable section. |
-| Performance | Leads with the combined v11 games-10+ ML ROI, net units, W/L, accuracy and uncertainty, plus market benchmarks. Source and season filters show saved live locks or historical replay separately. Paper-test records are secondary. |
-| How it works | Frozen ML rule, mixed-record provenance, stage/price definitions, model explanation and paper rules. |
+| Today | Defaults to games where both teams have completed 10 games. One primary win probability and ML forecast, with the saved five-hour ML pick and price shown separately. All games and early games remain accessible. Game details retain margin, four factors, injuries and forecast context. Live scores and win chances remain display-only. |
+| Results | Every v11 ML prediction, source, execution price, outcome and running return. Defaults to games 10+, with stage, source, season and outcome filters. Tracked betting tests remain internal. |
+| Performance | Leads with the combined v11 games-10+ ML ROI, net units, W/L, accuracy and uncertainty, plus market benchmarks. Source and season filters show saved live locks or historical replay separately. Tracked betting tests are excluded. |
+| How it works | Frozen ML rule, mixed-record provenance, stage/price definitions, and model explanation. |
 | DFS | The existing Yahoo lineup optimizer using Sleeper projections; a separate tool with no ML forecast or tracking record. |
 
 **ML rule, frozen November 10, 2026:** one unit on the team with the higher
@@ -29,8 +29,8 @@ reconstructed games. Source and season views remain available. Running ROI
 on Results combines sources within each season and stage in tip order.
 
 Spread H5·3, value-favorite H2·F·5 and totals OU continue unchanged on paper,
-with every saved result and future qualifying selection retained. They are
-no longer betting recommendations. H4 and all earlier retired rules remain
+with every saved result and future qualifying selection retained internally.
+Their picks, rules and records do not appear on public pages. H4 and all earlier retired rules remain
 retired in the internal archive. Model maths, fitting, tags, ledger snapshots
 and grading are unchanged. Earlier model versions remain separate.
 
@@ -57,7 +57,7 @@ the owner-approved mixed ML headline pools sources and seasons explicitly.
 | `nba_composite.py` | Model fitting, prior-game features and predictions. |
 | `totals.py` | Totals (O/U) model: expected total and P(over). |
 | `build_site.py` | Grade, score, preserve snapshots, generate internal reports and publish the approved pages. |
-| `public_site.py` | ML forecasts, mixed-record presentation, paper records and guide. |
+| `public_site.py` | ML forecasts, mixed-record presentation and guide. |
 | `matchup_context.py` | Display-only team records and four factors from saved inputs strictly before the slate; no network or model changes. |
 | `analysis.py` | Registered selections/grades and shared statistics. |
 | `ledger.py` | Schema, write-once snapshots, pregame locks and grading. |
