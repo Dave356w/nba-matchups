@@ -378,6 +378,34 @@ information only, separate from DraftKings and native evidence.
     on the post-change checks (rescore, rebuild, build, model review, DraftKings
     and History backtests), reviewed before activation.
 
+- **Large probability gap (H4) retirement (owner's decision, registered 2026-11-10T05:55:00Z).**
+  Committed on its own before any retirement code: the native ledger at
+  `f98459c` has 154 rows, the last lock at 2026-11-09T22:02:30Z, all eight
+  games of the 2026-11-09 slate locked, no lock on a later slate and no
+  pending H4 bet.
+  - **Retire.** H4's v11-family rows H4·L·v11 and H4·E·L·v11 close with the
+    2026-11-09 slate: games from the 2026-11-10 slate on make no H4 bet. At
+    registration they stand H4·E·L·v11 0–7 (−7.00u; null −4.0%, same-game
+    favourite +41.5%, CLV +1.09 pp ± 0.77) and H4·L·v11 no bets. The closed
+    rows keep their bets, grades and CLV in the internal workbench and
+    `data/ledger_report.txt`, never pooled, like H4's earlier closed rows.
+    Nothing is rescored or deleted; lock values in `data/nba_ledger.csv`
+    are unchanged.
+  - Reason, stated as it is: the owner retired the test after reading its
+    forward record (0–7, about 1.8 SE below its null on a null-based error;
+    the registered ± 1 SE of 0.0 is degenerate). This is a decision made on
+    outcomes, not a pre-set stopping rule, and seven bets do not show the
+    rule loses. H4 is not replaced, re-thresholded or inverted; a later
+    test on model–market gaps needs its own registration before any bet.
+  - **Public pages.** Today, Results and Performance show three tests
+    (H5·3, H2·F·5, OU) by stage and season; H4's picks, record and rule
+    leave every public page. Results, Performance and How it works carry one dated
+    line that a fourth test, large probability gap, was retired after the
+    November 9, 2026 games and that its picks are kept separately and not
+    included. No H4 figure appears on a public page.
+  - The margin model, v11's maths, snapshots, tags, the other tests' rules,
+    thresholds and records, and the model-prediction record are unchanged.
+
 ## Sources of truth and engineering rules
 
 - **Public matchup context (owner request, 2026-11-01).** Today cards show
