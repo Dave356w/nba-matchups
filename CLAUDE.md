@@ -5,6 +5,41 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### ML focus amendment — owner approval, 2026-11-10T19:37:57Z
+
+This amendment supersedes conflicting public-presentation instructions below.
+The owner approved making ML forecasts the public focus, moving spread and
+total selections to paper tracking, preserving every existing result, and
+freezing the ML rule, with the UI centered on the games-10+ model.
+
+- **Frozen ML rule.** For each native
+  v11-family prediction at its existing valid five-hour lock, select the team
+  with the higher saved win probability (home at exactly 50%). Stake a flat
+  1 unit at the saved DraftKings moneyline, with both lock prices available.
+  Both teams must have completed at least 10 games before the slate. No edge,
+  favorite, price-band or confidence filter; missing locks/prices abstain.
+  Existing stale-log voids still apply. Later forecasts and closing prices
+  cannot replace a lock. Future model families need their own amendment.
+- **Owner amendment during implementation:** pool historical and new games
+  within the same v11 model family in one cumulative ML record. Label the
+  historical rule selection honestly; do not describe the combined record
+  as a pre-registered forward test. Keep season and stage separate.
+  Early/opening/unknown-stage forecasts
+  remain available separately and never enter the games-10+ forward test.
+- Today defaults to games 10+, with one primary ML forecast and its locked
+  selection/price when available. Early games remain accessible. Results
+  defaults to games 10+; Performance leads with cumulative v11 ML return,
+  W/L, uncertainty and matched market benchmarks. Keep historical ML and
+  other stages accessible with explicit labels; do not imply proven profit.
+- Spread H5·3, value-favorite H2·F·5 and totals OU retain their unchanged
+  rules, snapshots, grades and future paper tracking, accessible in secondary
+  paper-record views. They are no longer public betting recommendations.
+  H4 and all previously retired rules stay retired under their existing
+  terms. No data, old results or models are deleted or rescored.
+- No prediction maths, fitting, tags, ledger schema, lock timing, data-write
+  workflow or pricing changes. Validate data, run the full test suite and
+  desktop/mobile browser checks before publication through GitHub Pages.
+
 Public UI approval, 2026-10-23: publish only Today, Results, Performance and
 How it works. Public records contain the three registered native tests,
 with test × stage × season separate. Forecasts and frozen tracked picks
