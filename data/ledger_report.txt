@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-11-11T21:32:36Z; latest graded slate 2026-11-10 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-11-11T22:02:31Z; latest graded slate 2026-11-10 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_avail_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_neutral_avail_v11
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -44,8 +44,8 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
   MODEL-FAMILY RESET (registered 2026-10-29T13:58:40Z): the ·L rows close with the slate before 2026-10-29; the v11-family rows (·L·v11, lock tag _v11) start there and alone are public.
   EDGE FLOORS (registered 2026-10-29T16:13:38Z): the public spread and value-favourite tests are H5·3 (edge ≥ 3 pts) and H2·F·5 (P − q ≥ 0.05), with H4; the old-floor v11 rows are their internal supersets.
   H4 RETIRED (registered 2026-11-10T05:55:00Z; owner's decision after its forward record): its v11-family rows close with the slate before 2026-11-10 and are internal only; never pooled.
-  5 h lock active from slate 2026-10-28: 104 games locked (median 5.0 h before tip), 9 missed (no snapshot in the window).
-  v11 family from slate 2026-10-29: 101 locked with a family tag, 0 locked off-family (no tracked bet).
+  5 h lock active from slate 2026-10-28: 105 games locked (median 5.0 h before tip), 9 missed (no snapshot in the window).
+  v11 family from slate 2026-10-29: 102 locked with a family tag, 0 locked off-family (no tracked bet).
   VOID (stale game-log locks amendment, registered 2026-11-03T07:12:59Z): 8 locks taken with a team's game log behind its graded finals; no record, CLV or model prediction reads them. Frozen values stay in the ledger.
     401909897  2026-10-31 PHI @ CHO (CHO, PHI logs behind)
     401909909  2026-11-02 ATL @ IND (IND log behind)
