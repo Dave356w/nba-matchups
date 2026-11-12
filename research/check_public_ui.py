@@ -184,7 +184,7 @@ def main():
                     page.goto(f'{base}/fixture/index.html')
                     assert page.locator('.gcard:visible').count()==1
                     assert page.locator('.gcard:visible [data-season-calibration]').count()==1
-                    assert 'equals market WP' in page.locator('.gcard:visible [data-season-calibration]').inner_text()
+                    assert 'No historical results in this cell yet' in page.locator('.gcard:visible [data-season-calibration]').inner_text()
                     page.locator('[data-group="stage"][data-show="all"]').click()
                     assert page.locator('.gcard:visible').count()==5
                     # Stage and status compose; counts reflect the other group.

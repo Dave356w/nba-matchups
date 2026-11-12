@@ -1,10 +1,9 @@
-"""Display-only, in-season joint calibration of v11 ML forecasts.
+"""Display-only rolling joint calibration of v11 ML forecasts.
 
-The prior is 100 copies of the current no-vig market probability. Evidence
-comes only from valid, graded native five-hour locks in the same season,
-model-winner × market-WP cell, on earlier slates. Early and 10+ games
-share evidence; opening games remain separate.
-No model, market price, saved pick or result is written or changed here.
+Use the latest 50 actual outcomes in each model-winner × market-WP cell:
+previous-season replay seeds plus current-season native five-hour locks.
+Early and 10+ share evidence; opening games remain separate. No market
+pseudo-games, model changes, price changes, or writes to saved results.
 """
 from __future__ import annotations
 
@@ -14,7 +13,7 @@ import pandas as pd
 import analysis
 import market
 
-PRIOR_GAMES = 100
+WINDOW_GAMES = 50
 MODEL_BOUNDS = (.5, .6, .7, .8, 1.0)
 MARKET_BOUNDS = (0., .5, .6, .7, .8, 1.0)
 
@@ -32,24 +31,28 @@ def stage(row):
     return 'established' if gp >= 10 else 'early' if gp >= 1 else 'opener' if gp == 0 else None
 
 
-class SeasonCalibration:
-    def __init__(self, native):
+class RollingCalibration:
+    def __init__(self, native, replay=None):
         # Reuse the registered exclusions, family, timing and stage boundaries.
-        live = analysis.model_predictions(native)
+        predictions = analysis.moneyline_model_predictions(native, replay)
         self.rows = []
-        for _, row in live.iterrows():
+        for _, row in predictions.iterrows():
             y = pd.to_numeric(row.get('home_won'), errors='coerce')
-            if y not in (0, 1) or row.get('lock_book') != 'dk':
+            if y not in (0, 1):
                 continue
-            q = market.devig(row.get('lock_home_ml'), row.get('lock_away_ml'))
+            source = row.prediction_source
+            prefix = 'lock' if source == 'live' else 'close'
+            if row.get(f'{prefix}_book') != 'dk':
+                continue
+            q = market.devig(row.get(f'{prefix}_home_ml'), row.get(f'{prefix}_away_ml'))
             if not np.isfinite(q):
                 continue
-            p_home = pd.to_numeric(row.lock_p_home, errors='coerce')
+            p_home = pd.to_numeric(row.lock_p_home if source == 'live' else row.p_home, errors='coerce')
             home = p_home >= .5
             p_pick = p_home if home else 1 - p_home
             q_pick = q if home else 1 - q
             self.rows.append(dict(game_id=str(row.game_id), season=row.season,
-                date=str(row.slate_date), stage=row.prediction_stage,
+                date=str(row.slate_date), stage=row.prediction_stage, source=source,
                 model_band=band(p_pick, MODEL_BOUNDS), market_band=band(q_pick, MARKET_BOUNDS),
                 won=int(y if home else 1-y)))
 
@@ -71,12 +74,20 @@ class SeasonCalibration:
         home = p >= .5
         p_pick, q_pick = (p, q_home) if home else (1-p, 1-q_home)
         pb, qb = band(p_pick, MODEL_BOUNDS), band(q_pick, MARKET_BOUNDS)
-        prior = [r for r in self.rows if r['season'] == row.get('season')
+        season = pd.to_numeric(row.get('season'), errors='coerce')
+        if not np.isfinite(season):
+            return None
+        prior = [r for r in self.rows
+                 if ((r['season'] == season and r['source'] == 'live') or r['season'] == season-1)
                  and (r['stage'] in ('early', 'established') if experience in ('early', 'established') else r['stage'] == experience)
                  and r['date'] < str(row.get('slate_date'))
                  and r['game_id'] != str(row.get('game_id'))
                  and r['model_band'] == pb and r['market_band'] == qb]
+        # Date and ID provide deterministic order, independent of outcomes.
+        prior = sorted(prior, key=lambda r: (r['date'], r['game_id']))[-WINDOW_GAMES:]
         wins, n = sum(r['won'] for r in prior), len(prior)
-        return dict(probability=(wins + PRIOR_GAMES*q_pick)/(n + PRIOR_GAMES),
+        previous = sum(r['season'] == season-1 for r in prior)
+        return dict(probability=wins/n if n else np.nan,
                     market_probability=q_pick, games=n, wins=wins, losses=n-wins,
+                    previous_games=previous, current_games=n-previous,
                     model_range=MODEL_BOUNDS[pb:pb+2], market_range=MARKET_BOUNDS[qb:qb+2])
