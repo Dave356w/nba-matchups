@@ -217,13 +217,16 @@ def main():
                     assert page.locator('[data-ml-panel]:visible').count()==1
                     page.get_by_label('Model stage',exact=True).select_option('early')
                     panel = page.locator('[data-ml-panel]:visible')
-                    assert panel.get_by_text('3–1',exact=True).count()==1
+                    assert panel.locator('.ml-metrics').get_by_text('3–1',exact=True).count()==1
+                    # the band table repeats the matched record in its All row
+                    assert panel.locator('[data-confidence-bands]').count()==1
+                    assert panel.locator('[data-confidence-bands] tfoot').get_by_text('3–1',exact=True).count()>=1
                     assert panel.get_by_text('Log loss',exact=True).count()==1
                     assert panel.get_by_text('Brier score',exact=True).count()==1
                     page.get_by_label('Record source',exact=True).select_option('replay')
                     assert page.locator('[data-ml-panel]:visible').get_by_text('No predictions in this view yet',exact=True).count()==1
                     page.get_by_label('Record source',exact=True).select_option('live')
-                    assert page.locator('[data-ml-panel]:visible').get_by_text('3–1',exact=True).count()==1
+                    assert page.locator('[data-ml-panel]:visible .ml-metrics').get_by_text('3–1',exact=True).count()==1
                     assert page.locator('#paper-performance').count()==0
                     checks.append(f'{device}: ML focus · 10+ default, separate early record, W/L, matched scores, source/outcome/stage filters, empty states and exclusion of betting tests passed')
                     panel = page.locator('[data-ml-panel]:visible')
