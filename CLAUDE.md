@@ -5,6 +5,18 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Realized WP band adjustment (v2) — owner instruction, November 12, 2026
+
+After a sanity check showed the raw cell rate is biased by where a game sits in
+its market band, the owner sent the proposed fix back as the instruction:
+Realized WP = this game's no-vig DraftKings WP + (cell wins/games − the cell's
+mean no-vig market WP), clipped to 0–100%. Same cells, latest-50 window,
+seeding, pooling and exclusions; no shrinkage. Cards and the guide show this
+value under the same name with the cell's W/L and market average. The shadow
+record continues as a new version; v1 closes, kept and never pooled. Fixed
+terms are in `docs/realized_wp_forward_registration_v2.md`, committed before
+implementation. The ROI matrix, model, locks, grades and records are unchanged.
+
 ### Realized WP shadow forward record — owner approval, November 12, 2026
 
 The owner explicitly requests immutable pre-tip Realized WP capture and matched
