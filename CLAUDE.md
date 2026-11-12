@@ -5,6 +5,27 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### ML stats ROI matrix — owner approval, November 12, 2026
+
+Replace the Winner accuracy by stated win chance table with a joint model-WP
+(row) × no-vig market-WP (column) ROI matrix. The owner selected latest 50 per
+cell. Apply the existing stage/source/season filters before the cap. Each result
+stakes 1 unit on the saved model winner at its source price; show ROI, count,
+W/L and net units. Include market-underdog/disagreement cells. Pending and
+unpriced games do not enter. Use lock P/prices for live and historical model
+P/closing prices for replay. Label filter/window scope; card Realized WP pools
+its own previous/current-season calibration population. No rule or data changes.
+
+### Card layout refinement — owner approval, November 12, 2026
+
+Name the display Realized WP (owner follow-up). Keep Model probability at top left; replace the large DraftKings moneyline
+with DraftKings no-vig probability at top right. Replace the duplicated market
+readout with Rolling calibrated WP. Keep its pooled W/L and season composition,
+put break-even text above Actual result, and remove the old duplicate calibration
+block, latest-50/pooling boilerplate, inline How calculated link and "likely
+winner may still be poor value" sentence from the summary. The guide retains
+the method and all calculation and tracking rules remain unchanged.
+
 ### Rolling matrix amendment — owner approval, November 12, 2026
 
 The owner selected the latest 50 results per joint model-WP × market-WP cell,

@@ -200,15 +200,41 @@ def test_confidence_bands_grade_model_and_market_on_the_same_games_by_their_own_
     assert analysis.prediction_confidence_bands(d[d.prediction_won.isna()]) == ([], None)
 
 
-def test_performance_shows_the_confidence_band_table_without_a_filter_claim():
+def test_performance_replaces_confidence_bands_with_roi_lookup_matrix():
     site = PublicSite(ui, forecasts(), CLOSED, 'built')
     perf = site.performance_page()
-    assert 'data-confidence-bands' in perf
-    assert 'Winner accuracy by stated win chance' in perf
-    assert 'Market favorites at close' in perf and 'avg. implied 60.0%' in perf
+    assert 'data-roi-matrix' in perf
+    assert 'ROI lookup matrix · latest 50 per cell' in perf
+    assert 'data-confidence-bands' not in perf and 'Winner accuracy by stated win chance' not in perf
     assert 'not a filter or a betting rule' in perf
-    assert 'Winner accuracy by stated win chance' in site.guide_page()
-    assert site.confidence_bands(site.predictions.iloc[:0]) == ''
+    assert 'ROI lookup matrix' in site.guide_page()
+    assert site.roi_matrix(site.predictions.iloc[:0]) == ''
+
+
+def test_roi_matrix_caps_graded_priced_results_at_fifty_per_cell():
+    from lxml import html as lh
+    g=pd.concat([forecasts().iloc[3:4]]*55,ignore_index=True)
+    g['game_id']=[f'matrix-{i:03d}' for i in range(len(g))]
+    g['home_won']=[1]*3+[0]*50+[np.nan,1]
+    g.loc[54,'lock_home_ml']=np.nan
+    site=PublicSite(ui,g,CLOSED,'built')
+    tree=lh.fromstring(site.roi_matrix(site.predictions))
+    cell=tree.xpath("//*[@data-model-band='3' and @data-market-band='1']")[0]
+    assert cell.get('data-n')=='50'
+    assert '-100.0%' in cell.text_content() and '-50.00u' in cell.text_content()
+    assert '0–50' in cell.text_content()
+    assert sum(int(x) for x in tree.xpath('//*[@data-n]/@data-n'))==50
+
+
+def test_roi_matrix_places_replay_model_underdog_at_closing_price():
+    from lxml import html as lh
+    from test_ml_focus import replay_rows
+    replay=replay_rows().iloc[:1].copy()
+    site=PublicSite(ui,rows().iloc[:0],CLOSED,'built',replay=replay)
+    tree=lh.fromstring(site.roi_matrix(site.predictions))
+    cell=tree.xpath("//*[@data-model-band='3' and @data-market-band='0']")[0]
+    assert cell.get('data-n')=='1'
+    assert '+150.0%' in cell.text_content() and '+1.50u' in cell.text_content()
 
 
 @pytest.mark.parametrize('p,price,book,break_even,market_p,result', [
@@ -226,7 +252,7 @@ def test_card_compares_same_team_probability_price_and_actual_result(p, price, b
     outcome = card.xpath("//*[@data-forecast-result]")[0]
     assert outcome.text == result
     assert outcome.get('data-pick-side') == ('home' if p >= .5 else 'away')
-    assert market_p in card.xpath("//*[@class='forecast-outcome']")[0].text_content()
+    assert market_p in card.xpath("//*[@data-market-probability]")[0].text_content()
     text = card.xpath("//*[@class='break-even']")[0].text_content()
     assert (break_even in text) if break_even else ('unavailable' in text)
     pd.testing.assert_frame_equal(before, g)
