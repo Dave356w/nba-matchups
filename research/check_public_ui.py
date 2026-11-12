@@ -160,6 +160,8 @@ def main():
                         page.get_by_role('heading',level=1).wait_for()
                         assert page.locator('.nav [aria-current="page"]').count()==1
                         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                        if filename=='performance.html':
+                            assert page.locator('.roi-matrix:visible th, .roi-matrix:visible td').evaluate_all('els => els.every(e => e.scrollWidth <= e.clientWidth + 1)')
                         assert page.locator('.nav a').evaluate_all('els => els.every(e => e.scrollWidth <= e.clientWidth)')
                         assert page.get_by_role('link',name='Research',exact=True).count()==0
                         assert page.locator('#paper-results, #paper-performance, [data-result-row], .tracked-line').count()==0
