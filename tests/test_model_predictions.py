@@ -99,8 +99,9 @@ def test_pages_show_forecast_only_games_and_keep_betting_records_separate():
     assert "class='record'>0–1" in perf and 'Closing favorite:' in perf
     assert 'Log loss' in perf and 'Brier score' in perf and '95% Wilson interval' in perf
     card = site.card(g.iloc[0])
-    assert 'Model pick · 5 h lock' in card and 'Loss' in card and '51.0%' in card
-    assert 'Locked ML ·' in card and 'Separate stage record' in card
+    assert 'Locked pick:' in card and 'Loss' in card and '51.0%' in card
+    assert card.count("class='tracked-label'") == 1 and 'Separate stage record' in card
+    assert 'Saved 1:07 PM PT' in card
     assert 'The 10+ game ML rule' in site.guide_page()
 
 
@@ -208,3 +209,38 @@ def test_performance_shows_the_confidence_band_table_without_a_filter_claim():
     assert 'not a filter or a betting rule' in perf
     assert 'Winner accuracy by stated win chance' in site.guide_page()
     assert site.confidence_bands(site.predictions.iloc[:0]) == ''
+
+
+@pytest.mark.parametrize('p,price,book,break_even,market_p,result', [
+    (.75, -449, 'dk', '81.8%', '60.0%', 'Win'),
+    (.25, 200, 'dk', '33.3%', '40.0%', 'Loss'),
+    (.75, 0, 'dk', None, '60.0%', 'Win'),
+    (.75, -449, 'other', None, '—', 'Win'),
+])
+def test_card_compares_same_team_probability_price_and_actual_result(p, price, book, break_even, market_p, result):
+    from lxml import html as lh
+    g = rows().iloc[3:4].assign(p_home=p, pre_home_ml=price, pre_away_ml=price,
+                              pre_book=book, pre_q_home=.6, home_won=1)
+    before = g.copy(deep=True)
+    card = lh.fromstring(PublicSite(ui, g, CLOSED, 'built').card(g.iloc[0]))
+    outcome = card.xpath("//*[@data-forecast-result]")[0]
+    assert outcome.text == result
+    assert outcome.get('data-pick-side') == ('home' if p >= .5 else 'away')
+    assert market_p in card.xpath("//*[@class='forecast-outcome']")[0].text_content()
+    text = card.xpath("//*[@class='break-even']")[0].text_content()
+    assert (break_even in text) if break_even else ('unavailable' in text)
+    pd.testing.assert_frame_equal(before, g)
+
+
+def test_results_market_probability_refers_to_locked_pick_not_closing_favorite():
+    from lxml import html as lh
+    # The saved model chooses away; both the current model and closing market choose home.
+    g = rows().iloc[3:4].assign(lock_p_home=.3, lock_q_home=.4, p_home=.9,
+                              close_q_home=.8, close_book='dk', home_won=0)
+    tree = lh.fromstring(PublicSite(ui, g, CLOSED, 'built').results_page())
+    comparison = tree.xpath("//td[@data-label='Model vs market']")[0].text_content()
+    assert g.iloc[0].away in comparison
+    assert 'Model: 70.0%' in comparison
+    assert 'Market implied: 60.0% · 5 h lock · no vig' in comparison
+    assert 'Market implied: 20.0% · close · no vig' in comparison
+    assert 'Win' in tree.xpath("//td[@data-label='Actual result']")[0].text_content()

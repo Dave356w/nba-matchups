@@ -166,7 +166,7 @@ def main():
                         assert 'Paper tracking' not in page.locator('body').inner_text()
                         if filename=='index.html' and page.locator('.gcard:visible').count():
                             top=page.locator('.gcard:visible').first.bounding_box()['y']
-                            assert top < height-100,(device,'first game is below the fold',top)
+                            assert top < (460 if device == 'mobile' else height-100),(device,'first game is too far down the page',top)
                         if filename=='dfs.html' and page.locator('#dfs-data').count():
                             # the live slate: lineups, or (every game started) a clear "no lineup"
                             page.wait_for_function("!/Building/.test(document.getElementById('dfs-msg').textContent)")
@@ -183,8 +183,22 @@ def main():
                         checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
                     page.goto(f'{base}/fixture/index.html')
                     assert page.locator('.gcard:visible').count()==1
-                    page.locator('[data-show="all"]').click()
+                    page.locator('[data-group="stage"][data-show="all"]').click()
                     assert page.locator('.gcard:visible').count()==5
+                    # Stage and status compose; counts reflect the other group.
+                    page.locator('[data-group="state"][data-show="final"]').click()
+                    assert page.locator('.gcard:visible').count()==4
+                    page.locator('[data-group="stage"][data-show="early"]').click()
+                    assert page.locator('.gcard:visible').count()==4
+                    page.locator('[data-group="stage"][data-show="established"]').click()
+                    assert page.locator('.gcard:visible').count()==0
+                    assert 'No final games with both teams at 10+ games yet.' in page.locator('[data-filter-empty]').inner_text()
+                    page.get_by_role('button',name='Show all games',exact=True).click()
+                    assert page.locator('.gcard:visible').count()==5
+                    assert page.locator('[data-filter] [aria-pressed="true"]').count()==2
+                    page.locator('[data-group="state"][data-show="live"]').click()
+                    assert 'No games are live right now.' in page.locator('[data-filter-empty]').inner_text()
+                    page.get_by_role('button',name='Show all games',exact=True).click()
                     assert page.get_by_text('Paper picks · 5 h lock').count()==0
                     page.locator('[data-gid="fixture-0"] > summary').click()
                     assert page.get_by_role('heading',name='Recorded before play',exact=True).is_visible()
@@ -215,9 +229,16 @@ def main():
                     page.screenshot(path=str(out/f'{device}-fixture-results.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/performance.html')
                     assert page.locator('[data-ml-panel]:visible').count()==1
+                    assert page.get_by_label('Record source',exact=True).input_value()=='live'
+                    assert page.locator('[data-source-summary]:visible article').count()==2
                     page.get_by_label('Model stage',exact=True).select_option('early')
                     panel = page.locator('[data-ml-panel]:visible')
                     assert panel.locator('.ml-metrics').get_by_text('3–1',exact=True).count()==1
+                    assert page.locator('[data-source-summary]:visible').get_attribute('data-stage')=='early'
+                    page.get_by_label('Record source',exact=True).select_option('all')
+                    assert page.locator('[data-ml-panel]:visible .ml-metrics').get_by_text('3–1',exact=True).count()==1
+                    assert page.locator('[data-source-summary]:visible article').count()==2
+
                     # the band table repeats the matched record in its All row
                     assert panel.locator('[data-confidence-bands]').count()==1
                     assert panel.locator('[data-confidence-bands] tfoot').get_by_text('3–1',exact=True).count()>=1
@@ -316,8 +337,26 @@ def main():
                 live.locator('.st').filter(has_text='Q2 4:00').wait_for()
                 assert live.locator('.sc[data-side="home"]').inner_text()=='42'
                 assert live.locator('.tracked-line').count()==0
-                assert live.locator('.tracked-box .tracked-label').inner_text().lower().startswith('locked ml')
-                checks.append('Live-score overlay updated status and scores without changing the frozen ML selection')
+                assert live.locator('.tracked-box .tracked-label').inner_text().lower().startswith('locked pick:')
+                assert live.locator('[data-forecast-result]').inner_text()=='Pending'
+                locked_text = live.locator('.tracked-box').inner_text()
+                page.route('**/apis/site/v2/sports/basketball/nba/scoreboard?**',lambda route: route.fulfill(json={'events':[{
+                    'id':'fixture-3','status':{'type':{'state':'post','completed':True,'shortDetail':'Final'}},
+                    'competitions':[{'competitors':[{'homeAway':'home','score':'110'},{'homeAway':'away','score':'100'}]}]}]}))
+                page.reload()
+                live=page.locator('[data-gid="fixture-3"]')
+                live.locator('.st').filter(has_text='Final').wait_for()
+                assert live.locator('[data-forecast-result]').inner_text()=='Win'
+                assert live.locator('.tracked-box').inner_text()==locked_text
+                # Restore the in-progress fixture for the live win-chance checks below.
+                page.unroute_all()
+                page.route('**/apis/site/v2/sports/basketball/nba/scoreboard?**',lambda route: route.fulfill(json={'events':[{
+                    'id':'fixture-3','status':{'type':{'state':'in','name':'STATUS_IN_PROGRESS'},'period':2,'displayClock':'4:00'},
+                    'competitions':[{'competitors':[{'homeAway':'home','score':'42'},{'homeAway':'away','score':'38'}]}]}]}))
+                page.reload()
+                live=page.locator('[data-gid="fixture-3"]')
+                live.locator('.st').filter(has_text='Q2 4:00').wait_for()
+                checks.append('Live-score overlay updated status, scores and actual forecast outcome without changing the frozen ML selection')
                 # Live win chance (owner request, 2026-11-07): the browser's
                 # figure equals live_wp.win_prob for the card's frozen spread
                 fit = live_wp.load()

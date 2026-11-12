@@ -1006,6 +1006,10 @@ b.className='badge st'+(ty.state==='in'?' live':'');
 if(score&&s.away!=null&&s.home!=null)c.querySelectorAll('.sc').forEach(function(x){
 x.textContent=s[x.getAttribute('data-side')];});
 if(window.nbaLive)window.nbaLive(c,ty,st,s);
+var outcome=c.querySelector('[data-forecast-result]');
+if(outcome&&ty.state==='post'&&ty.completed&&s.home!=null&&s.away!=null&&isFinite(+s.home)&&isFinite(+s.away)&&+s.home!==+s.away){
+outcome.textContent=((outcome.getAttribute('data-pick-side')==='home')===(+s.home>+s.away))?'Win':'Loss';}
+
 c.setAttribute('data-state',ty.state==='in'?'live':'final');n++;});
 var a=document.querySelector('[data-scores-asof]');
 if(n&&a){a.querySelector('time').textContent=new Date().toLocaleTimeString('en-US',
