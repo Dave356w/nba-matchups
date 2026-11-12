@@ -168,3 +168,12 @@ def test_internal_report_no_replay_or_cross_version_pooling(tmp_path):
     assert result['shadow_research'] and result['captures'] == 1
     assert result['versions'][forward.VERSION]['pooled']['pending_games'] == 1
     assert (tmp_path/'out'/'RESULTS.md').is_file()
+
+
+def test_production_recording_clock_is_refreshed_after_evidence_write(tmp_path, monkeypatch):
+    site, _ = fixture()
+    times = iter([NOW, pd.Timestamp('2026-11-13T02:00:00Z')])
+    monkeypatch.setattr(forward.ledger, 'utc_now', lambda: next(times))
+    assert forward.capture(site, tmp_path, code_revision='rev') == 0
+    assert forward.read_all(tmp_path).empty
+    assert (tmp_path/'realized_wp_cells_2027.csv').exists()

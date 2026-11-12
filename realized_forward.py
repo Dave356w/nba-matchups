@@ -114,7 +114,7 @@ def snapshot(row, estimate, now, code_revision):
                   season=str(int(row['season'])), stage=calibration.stage(row), home=str(row['home']),
                   away=str(row['away']), model_tag=str(row['model_tag']), code_revision=code_revision,
                   book='dk', model_pick='home' if home else 'away', model_p_home=p, market_p_home=q,
-                  realized_p_home=r if home else 1-r, displayed_realized_wp=f'{r:.1%}',
+                  realized_p_home=r if home else 1-r, displayed_realized_wp=f'{100*r:.1f}%',
                   home_ml=float(row['pre_home_ml']), away_ml=float(row['pre_away_ml']),
                   cell_games=estimate['games'], cell_wins=estimate['wins'],
                   previous_games=estimate['previous_games'], current_games=estimate['current_games'],
@@ -126,26 +126,28 @@ def snapshot(row, estimate, now, code_revision):
 
 
 def capture(site, data_dir='data', now=None, code_revision=None):
-    now = now if now is not None else ledger.utc_now()
     code_revision = code_revision or revision()
     day = site.native[site.native.slate_date.astype(str).eq(site.today)]
-    groups = {}
-    for _, row in day.iterrows():
-        item = snapshot(row, site.calibration.estimate(row), now, code_revision)
-        if item:
-            groups.setdefault(int(row.season), []).append(item)
     count = 0
-    for season, items in groups.items():
-        root = Path(data_dir)
-        # Save proofs first so every persisted snapshot has its evidence.
-        append(root / f'realized_wp_cells_{season}.csv', [x[1] for x in items], EVIDENCE_COLUMNS)
-        # Unchanged content survives a code-only deploy with its original revision.
+    for _, row in day.iterrows():
+        estimate = site.calibration.estimate(row)
+        item = snapshot(row, estimate, now if now is not None else ledger.utc_now(), code_revision)
+        if not item:
+            continue
+        season, root = int(row.season), Path(data_dir)
+        # Persist proof before assigning the recording time. If processing or
+        # disk I/O crosses tip, keep only an orphan proof, never a late capture.
+        append(root / f'realized_wp_cells_{season}.csv', [item[1]], EVIDENCE_COLUMNS)
         path = root / f'realized_wp_snapshots_{season}.csv'
         old = load(path, COLUMNS).set_index('snapshot_id')
-        for row, _ in items:
-            if row['snapshot_id'] in old.index:
-                row['code_revision'] = old.loc[row['snapshot_id'], 'code_revision']
-        count += append(path, [x[0] for x in items], COLUMNS)
+        item = snapshot(row, estimate, now if now is not None else ledger.utc_now(), code_revision)
+        if not item:
+            continue
+        values = item[0]
+        # Unchanged content survives a code-only deploy with its original revision.
+        if values['snapshot_id'] in old.index:
+            values['code_revision'] = old.loc[values['snapshot_id'], 'code_revision']
+        count += append(path, [values], COLUMNS)
     return count
 
 
@@ -289,7 +291,7 @@ def validate(data_dir='data'):
                     raise ValueError('invalid cell count')
                 if not math.isclose(realized if home else 1-realized, w/n, abs_tol=1e-15):
                     raise ValueError('cell rate disagrees with frozen forecast')
-                if r.displayed_realized_wp != f'{w/n:.1%}':
+                if r.displayed_realized_wp != f'{100*w/n:.1f}%':
                     raise ValueError('displayed rate mismatch')
                 proof = evidence[r.evidence_id]
                 members = proof['members']
