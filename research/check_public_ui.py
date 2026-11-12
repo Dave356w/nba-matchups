@@ -39,7 +39,7 @@ def fixture():
         row = dict.fromkeys(ledger.COLUMNS, np.nan)
         row.update(game_id=f'fixture-{i}', basis='native', season=2027,
             slate_date='2026-11-19', tip_utc='2026-11-20T03:00:00Z',
-            home='BOS', away='NYK', model_tag=ui.MODEL_TAG_V9,
+            home='BOS', away='NYK', model_tag=ui.MODEL_TAG_V11,
             first_model_tag=ui.MODEL_TAG_V9, gp_home=gp, gp_away=30,
             p_home=.8, p_lean=.8, lean='BOS', margin_home=11.2,
             first_p_home=.8, first_snapshot_utc='2026-11-19T15:07:00Z',
@@ -183,6 +183,8 @@ def main():
                         checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
                     page.goto(f'{base}/fixture/index.html')
                     assert page.locator('.gcard:visible').count()==1
+                    assert page.locator('.gcard:visible [data-season-calibration]').count()==1
+                    assert 'equals market WP' in page.locator('.gcard:visible [data-season-calibration]').inner_text()
                     page.locator('[data-group="stage"][data-show="all"]').click()
                     assert page.locator('.gcard:visible').count()==5
                     # Stage and status compose; counts reflect the other group.

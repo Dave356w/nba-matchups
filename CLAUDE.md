@@ -5,6 +5,20 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### In-season calibrated WP — owner approval, November 12, 2026
+
+The owner requested the exact joint-cell estimate on each game card:
+(wins + 100 × current no-vig DraftKings WP) / (games + 100).
+Use only graded native v11 five-hour locks on strictly earlier slates in the
+same season, pooling early and 10+ calibration evidence (owner follow-up),
+with the model's selected team defining
+both probabilities and the observed result. Cells use model 50/60/70/80/100%
+and market 0/50/60/70/80/100% boundaries, lower inclusive (100% in the last).
+Opening games remain separate. No replay or prior-season seeding. Display count and W/L, explain empty cells
+and smoothing, and label the estimate experimental in the guide. This is a
+separate pregame display: it does not change the model, saved picks, grades,
+record membership, or pricing. Preserve historical and frozen data.
+
 ### Public clarity amendment — owner approval, November 12, 2026
 
 The owner approved all six site-review suggestions and merge after validation.

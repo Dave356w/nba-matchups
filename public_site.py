@@ -16,6 +16,7 @@ import dfs
 import ledger
 import live_wp
 import market
+import wp_calibration
 from matchup_context import MatchupContext
 
 PAGES = (("index.html", "Today"), ("results.html", "Results"),
@@ -124,7 +125,7 @@ CSS = """
 .forecast-readout.ml-focus{grid-template-columns:1.2fr 1fr}.stage-label{font-size:11px;color:var(--muted)}
 [data-source-summary][hidden],[data-ml-panel][hidden],.gcard[hidden]{display:none!important}
 .game-filters{display:flex;flex-wrap:wrap;gap:8px 16px;margin:16px 0 12px}.filter-group>span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.filter-group .seg{display:flex;margin:0}
-.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}.lock-summary a{display:inline-block;margin-top:6px;font-size:11px}
+.season-calibration{padding:10px 0;margin-bottom:10px;border-top:1px solid var(--line-2);font-size:12px}.season-calibration strong{font-size:18px;margin-left:8px}.season-calibration small{display:block;font-size:11px;color:var(--muted);margin-top:4px}.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}.lock-summary a{display:inline-block;margin-top:6px;font-size:11px}
 .source-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.source-summary article{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}.source-summary h3{margin:0 0 6px;font-size:15px}.source-summary p{font-size:12px;color:var(--muted);margin:6px 0}.source-summary strong{color:var(--ink)}
 .public-empty button{margin-top:14px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;cursor:pointer}
 @media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-note.public-note{display:none}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
@@ -190,6 +191,7 @@ class PublicSite:
         # reader's browser computes it from ESPN's live score (display only)
         self.live_fit = live_wp.load()
         self.predictions = analysis.moneyline_model_predictions(self.native, replay)
+        self.calibration = wp_calibration.SeasonCalibration(self.native)
         # the O/U rows of the live totals model: ou3's once Fit model has
         # written it (or a native lock carries it), else ou2's
         self.ou = "ou3" if analysis.ou3_active(self.native) else "ou2"
@@ -297,10 +299,11 @@ class PublicSite:
             forecast += (f"<div class='forecast-outcome'><div><small>Market implied · no vig</small><strong>{u.pct(q_pick)}</strong>"
                          f"<small>{u.esc(team)} · pregame {u.tip_pt(row.get('snapshot_utc'))}</small></div>"
                          f"<div><small>Actual result · {u.esc(team)}</small><strong data-forecast-result data-pick-side='{'home' if p >= .5 else 'away'}'>{actual}</strong></div></div>")
+            forecast += self.calibrated_readout(row, team)
             forecast += (f"<p class='break-even'>Price requires {u.pct(breakeven)} to break even. A likely winner may still be poor value.</p>"
                          if np.isfinite(breakeven) else "<p class='break-even'>Break-even probability unavailable: no valid DraftKings price.</p>")
         else:
-            forecast = "<div class='forecast-only'><b>Forecast unavailable</b><br>A required model input was unavailable.</div>"
+            forecast = "<div class='forecast-only'><b>Forecast unavailable</b><br>A required model input was unavailable.</div>" + self.calibrated_readout(row, None)
         tracking = ""
         saved = self.predictions[self.predictions.game_id.astype(str).eq(str(row.game_id))] if len(self.predictions) else self.predictions
         if not len(saved):
@@ -348,6 +351,21 @@ class PublicSite:
                 + "".join(teams) + f"<div class='stage-label'>{stage_text}</div>" + live + forecast + tracking
                 + "<span class='details-cue'>Game details<i aria-hidden='true'>⌄</i></span></summary>"
                 + f"<div class='g-detail'>{detail}</div></details>")
+
+    def calibrated_readout(self, row, team):
+        u = self.ui
+        estimate = self.calibration.estimate(row)
+        if estimate is None:
+            return ("<div class='season-calibration' data-season-calibration>In-season calibrated WP <strong>—</strong>"
+                    "<small>Requires a v11 forecast, team experience and valid DraftKings prices.</small></div>")
+        n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
+        support = f"{wins}–{losses} from {n} prior cell game{'s' if n != 1 else ''} this season"
+        pool = 'early + 10+ pooled' if wp_calibration.stage(row) in ('early', 'established') else 'opening games only'
+        fallback = " · no prior games; equals market WP" if not n else ''
+        return (f"<div class='season-calibration' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
+                f"In-season calibrated WP <strong>{u.pct(estimate['probability'])}</strong>"
+                f"<small>{u.esc(team)} · {support}{fallback}</small>"
+                f"<small>Earlier slates · {pool} · market prior: 100 games. <a href='how-it-works.html#in-season-calibration'>How calculated</a></small></div>")
 
     def live_block(self, row, dk):
         """The live win chance (owner request, 2026-11-07; live_wp.py): the
@@ -775,6 +793,12 @@ class PublicSite:
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings moneyline</b> is that team’s current market price. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
+<section id='in-season-calibration'><h2>In-season calibrated WP</h2>
+<p>This is an experimental estimate for the <b>same team as the current model forecast</b>. It uses realized results where the model and market probabilities fell in the same joint cell this season. It can update with the pregame forecast and price until tip; it is separate from live win chance and the saved locked pick.</p>
+<p><b>Calibrated WP = (prior cell wins + 100 × current market WP) ÷ (prior cell games + 100).</b> Market WP is the DraftKings moneyline probability with the bookmaker’s margin removed. With no prior games, the estimate equals market WP.</p>
+<p>Prior cell games are graded native v11 five-hour locks from <b>strictly earlier slates in the same season</b>. Historical replays, prior seasons, pending games and void locks do not enter. Early games and games 10+ share calibration evidence; opening games remain separate. The tracked early and 10+ records remain separate. Each prior game uses its model’s selected team, saved model probability, saved DraftKings probability and actual Win/Loss.</p>
+<p>Model bands: 50–60%, 60–70%, 70–80%, 80–100%. Market bands for that same team: below 50%, 50–60%, 60–70%, 70–80%, 80–100%. Boundaries enter the higher band; 100% enters the final band. The card shows the prior cell’s W/L and count; 100 is a fixed smoothing weight, not 100 additional observed games.</p>
+<p>This display estimate does not change the model, tracked picks or record. Sparse cells remain close to the market probability; an improvement or betting advantage has not been established.</p></section>
 <section><h2>The model</h2>
 <p>The same v11 model predicts a points margin and converts it to a win probability. Inputs include recent shooting, turnovers, rebounding and free-throw rates for and against; home court, back-to-backs and season phase; roster value and the NBA injury report. Last season’s team rating fades out over the first 10 games. Market prices are benchmarks, never model inputs.</p>""" + self.model_note() + """</section>
 """
