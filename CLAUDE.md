@@ -601,7 +601,9 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   [ATS signal](diagnostics/ats_signal/RESULTS.txt),
   [shrinkage](diagnostics/open_shrinkage/RESULTS.txt).
 - Margin/calibration alternatives: [margin model](diagnostics/margin_model/RESULTS.txt),
-  [model review](diagnostics/model_review/RESULTS.txt).
+  [model review](diagnostics/model_review/RESULTS.txt). A walk-forward stretch of P
+  (one scale on m / sigma, learned from earlier seasons) adds nothing:
+  [calibration stretch](diagnostics/calibration_stretch/RESULTS.txt).
 - Kalshi and live trading: [benchmark](diagnostics/kalshi_benchmark/RESULTS.txt),
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
   In-game win probability from the score and the pregame line (display only):
