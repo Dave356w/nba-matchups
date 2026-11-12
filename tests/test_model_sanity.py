@@ -113,3 +113,37 @@ def test_probability_is_the_normal_cdf_of_margin_over_sigma():
         up = x.copy()
         up[:, j] += 1
         assert (nc.predict(m, up) > p).all()
+
+
+def test_report_route_fit_is_least_squares_on_its_saved_training_games():
+    """model/logit_avail.json must be exactly the fit of model/avail_train.csv:
+    the per-slate refit starts from that file (player_availability.refit)."""
+    import player_availability as pav
+    m = nc.load_json("logit_avail.json")
+    train = pav.load_train(m)
+    feats = m["features"]
+    assert len(train) == m["n_games"]
+    assert sorted(train["season"].unique()) == m["years"]
+    assert np.isfinite(train[feats + ["margin"]].to_numpy(float)).all()
+    assert not train.duplicated(["slate_date", "home", "away"]).any()
+    assert (train["margin"] != 0).all()                  # a final margin is never a tie
+    fit = nc.fit_margin(train[feats].to_numpy(float), train["margin"], feats)
+    assert fit["intercept"] == pytest.approx(m["intercept"], abs=1e-5)
+    assert fit["coef"] == pytest.approx(m["coef"], abs=1e-5)
+    assert fit["sigma"] == pytest.approx(m["sigma"], abs=1e-5)
+    # a refit with no new games changes nothing; new games move it
+    assert pav.refit(m, None)["coef"] == m["coef"]
+    extra = train.tail(50).assign(margin=lambda d: d["margin"] + 30)
+    moved = pav.refit(m, extra, train=train)
+    assert moved["n_refit"] == 50 and moved["intercept"] > m["intercept"]
+
+
+def test_no_report_route_input_is_close_to_a_copy_of_the_others():
+    import player_availability as pav
+    m = nc.load_json("logit_avail.json")
+    X = pav.load_train(m)[m["features"]].to_numpy(float)
+    for j, name in enumerate(m["features"]):
+        others = np.column_stack([np.ones(len(X)), np.delete(X, j, 1)])
+        fitted = others @ np.linalg.lstsq(others, X[:, j], rcond=None)[0]
+        r2 = 1 - ((X[:, j] - fitted) ** 2).sum() / ((X[:, j] - X[:, j].mean()) ** 2).sum()
+        assert 1 / (1 - r2) < 10, f"{name}: variance inflation {1 / (1 - r2):.1f}"
