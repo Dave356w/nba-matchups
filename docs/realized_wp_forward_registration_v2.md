@@ -33,10 +33,11 @@ small cells stay noisy and the clip can still produce 0% or 100%.
 
 ## Record
 
-- v1 closes at this registration. Its saved captures stay unchanged in the
-  same files, are graded and reported under their own version, and are never
-  pooled with v2. No v1 capture is rescored or converted.
-- v2 captures start with the first production build after implementation. No
+- v1 closes when v2 is deployed (production keeps saving v1 until then). Its
+  saved captures stay unchanged in the same files, are graded and reported
+  under their own version, and are never pooled with v2. No v1 capture is
+  rescored or converted.
+- v2 captures start with the first production build after deployment. No
   backfill, including for games that already hold a v1 official observation;
   such a game may also receive its own v2 observation if a valid capture is
   saved before tip.

@@ -1,5 +1,5 @@
 {
-  "method": "Fixed raw latest-50 joint cell; previous + current season; earlier slates only; either-side +EV 1u.",
+  "method": "Fixed latest-50 joint cell, v1 raw rate and v2 band-adjusted (game no-vig WP + cell rate \u2212 cell mean no-vig WP); previous + current season; earlier slates only; either-side +EV 1u.",
   "source_sha256": "d62c3e294cb0005ea03269bf23361dcf110be8360ce8f598aab9ca5a3bf5cedf",
   "limitations": [
     "Exploratory retrospective replay, separate from immutable forward record.",
@@ -31,13 +31,21 @@
           "net_units": 0.0,
           "roi": null
         },
-        "realized": {
+        "realized v1 (raw cell rate)": {
           "brier": 0.21284739835252103,
           "log_loss": "infinity",
           "winner_accuracy": 0.6722830665543387,
           "bets": 907,
           "net_units": -89.06587044544854,
           "roi": -0.09819831361129938
+        },
+        "realized v2 (band-adjusted)": {
+          "brier": 0.2117806535532723,
+          "log_loss": "infinity",
+          "winner_accuracy": 0.6739679865206403,
+          "bets": 871,
+          "net_units": -44.90775376012845,
+          "roi": -0.051558844730342654
         }
       },
       "market_favorite": {
@@ -45,6 +53,17 @@
         "net_units": -55.787023700305056,
         "roi": -0.046998335046592295
       },
+      "slate_bootstrap_v2": {
+        "brier_delta_vs_market_95": [
+          0.006684120798610118,
+          0.017932184729620482
+        ],
+        "realized_roi_95": [
+          -0.13129052416271994,
+          0.02976894110970463
+        ]
+      },
+      "certainty_errors_v2": 8,
       "total_available": 1225,
       "uncovered": 38,
       "median_cell_games": 50.0,
@@ -81,13 +100,21 @@
           "net_units": 0.0,
           "roi": null
         },
-        "realized": {
+        "realized v1 (raw cell rate)": {
           "brier": 0.21248024472700455,
           "log_loss": "infinity",
           "winner_accuracy": 0.6790648246546227,
           "bets": 771,
           "net_units": -46.59502460752289,
           "roi": -0.06043453256488053
+        },
+        "realized v2 (band-adjusted)": {
+          "brier": 0.2091200793321383,
+          "log_loss": "infinity",
+          "winner_accuracy": 0.6843783209351754,
+          "bets": 775,
+          "net_units": -38.256018921945525,
+          "roi": -0.04936260506057487
         }
       },
       "market_favorite": {
@@ -95,6 +122,17 @@
         "net_units": -47.00610630230228,
         "roi": -0.04995335420010869
       },
+      "slate_bootstrap_v2": {
+        "brier_delta_vs_market_95": [
+          0.0054201359459077805,
+          0.023228596127394696
+        ],
+        "realized_roi_95": [
+          -0.15143746649030967,
+          0.06050411262808631
+        ]
+      },
+      "certainty_errors_v2": 8,
       "total_available": 964,
       "uncovered": 23,
       "median_cell_games": 42.0,

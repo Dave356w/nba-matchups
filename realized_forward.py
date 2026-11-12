@@ -20,8 +20,17 @@ import ledger
 import market
 import wp_calibration as calibration
 
-VERSION = 'realized_wp_rolling50_v1'
-REGISTERED = '2026-11-12T21:50:58Z'
+V1 = 'realized_wp_rolling50_v1'  # raw cell rate; closed, kept, never pooled
+VERSION = 'realized_wp_rolling50_bandadj_v2'
+REGISTERED_BY_VERSION = {V1: '2026-11-12T21:50:58Z', VERSION: '2026-11-12T22:35:12Z'}
+REGISTERED = REGISTERED_BY_VERSION[VERSION]
+
+
+def expected_pick_probability(version, q_pick, wins, games, members):
+    """The selected team's estimate each version registered, from its proof."""
+    if version == V1:
+        return wins/games
+    return calibration.band_adjusted(q_pick, wins, games, [m['market_probability'] for m in members])
 COLUMNS = ['snapshot_id', 'version', 'captured_utc', 'forecast_utc', 'tip_utc',
            'game_id', 'slate_date', 'season', 'stage', 'home', 'away', 'model_tag',
            'code_revision', 'book', 'model_pick', 'model_p_home', 'market_p_home',
@@ -230,10 +239,12 @@ def report(native, data_dir='data', out_dir='diagnostics/realized_wp_forward'):
             item['estimators'][name] = dict(p_home=p, side=side, price=price,
                                            expected_net_return=ev, net_units=units)
         observations.append(item)
-    payload = dict(shadow_research=True, registered_utc=REGISTERED, captures=len(all_rows),
+    payload = dict(shadow_research=True, registered_utc=REGISTERED_BY_VERSION, captures=len(all_rows),
                    versions=versions, official_observations=observations)
     atomic_text(Path(out_dir)/'RESULTS.json', json.dumps(payload, indent=2, allow_nan=False)+'\n')
     lines = ['# Realized WP shadow forward research', '',
+             f'Current version {VERSION}: this game\'s no-vig WP + (cell win rate − cell mean no-vig WP), clipped to 0–100%.',
+             f'{V1} (raw cell win rate) is closed; its captures stay graded under their own version, never pooled.', '',
              'First valid saved forecast within five hours of tip. No backfill. Each source forecast must also be within that window.',
              'Flat 1u only at positive expected return; either side; at most one position per estimator per game.',
              'All probability scores use the same official graded games, including abstentions. Saved prices are paper quotes.',
@@ -272,9 +283,11 @@ def validate(data_dir='data'):
                 if digest(identity) != r.snapshot_id:
                     raise ValueError('snapshot hash mismatch')
                 at, forecast, tip = [pd.to_datetime(r[k], utc=True, errors='raise') for k in ('captured_utc','forecast_utc','tip_utc')]
-                if not pd.Timestamp(REGISTERED) <= at < tip or not forecast <= at:
+                if r.version not in REGISTERED_BY_VERSION:
+                    raise ValueError('unregistered version, book or stage')
+                if not pd.Timestamp(REGISTERED_BY_VERSION[r.version]) <= at < tip or not forecast <= at:
                     raise ValueError('invalid forward timestamps')
-                if r.version != VERSION or r.book != 'dk' or r.stage not in ('opener','early','established'):
+                if r.book != 'dk' or r.stage not in ('opener','early','established'):
                     raise ValueError('unregistered version, book or stage')
                 if not r.code_revision or r.model_pick not in ('home','away'):
                     raise ValueError('missing provenance')
@@ -289,12 +302,14 @@ def validate(data_dir='data'):
                 n, w, previous, current = [int(r[k]) for k in ('cell_games','cell_wins','previous_games','current_games')]
                 if not 0 <= w <= n <= 50 or n == 0 or previous+current != n:
                     raise ValueError('invalid cell count')
-                if not math.isclose(realized if home else 1-realized, w/n, abs_tol=1e-15):
-                    raise ValueError('cell rate disagrees with frozen forecast')
-                if r.displayed_realized_wp != f'{100*w/n:.1f}%':
-                    raise ValueError('displayed rate mismatch')
                 proof = evidence[r.evidence_id]
                 members = proof['members']
+                pick = expected_pick_probability(r.version, q if home else 1-q, w, n, members)
+                if not math.isclose(realized if home else 1-realized, pick, abs_tol=1e-12):
+                    raise ValueError('cell estimate disagrees with frozen forecast')
+                if (not r.displayed_realized_wp.endswith('%')
+                        or abs(float(r.displayed_realized_wp[:-1]) - 100*pick) > .05 + 1e-9):
+                    raise ValueError('displayed rate mismatch')
                 if proof['window'] != 50 or len(members) != n or sum(m['won'] for m in members) != w:
                     raise ValueError('evidence count mismatch')
                 if len(set(m['game_id'] for m in members)) != n:

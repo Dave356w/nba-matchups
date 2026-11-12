@@ -362,6 +362,11 @@ class PublicSite:
         n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
         support = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams" if n
                    else 'No historical results in this cell yet')
+        if n:
+            gap = 100 * (estimate['cell_rate'] - estimate['cell_market'])
+            support += (f"</small><small data-cell-adjustment>Cell won {u.pct(estimate['cell_rate'])} against a "
+                        f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts), applied to this game’s "
+                        f"{u.pct(estimate['market_probability'])} no-vig WP")
         return (f"<div class='calibration-main' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
                 f"<small>Realized WP</small><strong>{u.pct(estimate['probability'])}</strong><small>{u.esc(team)} estimate</small></div>"
                 f"<div class='calibration-evidence'><small>{support}</small>"
@@ -824,7 +829,8 @@ class PublicSite:
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
 <section id='in-season-calibration'><h2>Realized WP</h2>
 <p>This experimental estimate is a lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
-<p><b>Realized WP = wins ÷ games among the latest 50 actual results in that cell.</b> There are no market pseudo-games and no shrinkage. Use all available results if a cell has fewer than 50; an empty cell has no estimate. A small cell can show 0% or 100%, which is an observed frequency and does not establish certainty about the next game.</p>
+<p><b>Realized WP = this game’s no-vig DraftKings WP + (cell win rate − cell average no-vig market WP)</b>, limited to 0–100%. The cell win rate is wins ÷ games among the latest 50 actual results in that cell, and the cell average is those same games’ no-vig DraftKings WP for their model-selected teams. A market band is 10 to 20 points wide, so the cell’s games rarely carry the same price as tonight’s game; the adjustment measures how far the cell beat or missed its own prices and applies that difference to this game’s price. Since November 12, 2026; before that the display was the raw cell win rate.</p>
+<p>There are no market pseudo-games and no shrinkage. Use all available results if a cell has fewer than 50; an empty cell has no estimate. With 50 games the cell win rate is uncertain by roughly ±6–7 points (1 SE), more than a typical bookmaker margin, and a small cell can push the estimate to 0% or 100%. That is an observed frequency and does not establish certainty about the next game.</p>
 <p>The <b>immediately previous season</b> supplies the starting matrix. Current-season evidence uses valid graded native v11 five-hour locks on strictly earlier slates. Same-season replay, older seasons, pending games and void locks do not enter. New results replace the oldest matching observations once the cell reaches 50. Order is slate date, then game ID for ties.</p>
 <p>Early games and games 10+ share calibration evidence; opening games remain separate. Each historical game contributes once, oriented to its model’s selected team. Model and market picks can disagree: a model-picked market underdog belongs in a market-WP-below-50% cell. The other side’s implied estimate is the complement; the two sides are not counted as independent results.</p>
 <p>Previous-season replay uses its saved v11 model forecast and DraftKings closing prices. Current native evidence uses saved five-hour model probabilities and prices. These price timings differ, and the available previous-season DraftKings seed contains games 10+ only. The card shows how many retained observations come from each season.</p>

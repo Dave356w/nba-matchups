@@ -45,21 +45,23 @@ def replay(data, book, season):
             n, w = len(prior), sum(r['won'] for r in prior)
             if int(row.season) == season:
                 rate = w/n if n else np.nan
-                out.append(dict(version=realized_forward.VERSION, game_id=str(row.game_id),
+                adjusted = wp_calibration.band_adjusted(q if home else 1-q, w, n, [r['market'] for r in prior])
+                out.append(dict(version=realized_forward.V1, game_id=str(row.game_id),
                     slate_date=str(date), season=int(row.season), stage=stage, book=book,
                     model_p_home=p, market_p_home=q, realized_p_home=rate if home else 1-rate,
+                    adjusted_p_home=adjusted if home else 1-adjusted,
                     home_ml=float(row.close_home_ml), away_ml=float(row.close_away_ml), home_won=y,
                     model_band=pb, market_band=qb, cell_games=n, cell_wins=w,
                     previous_games=sum(r['season']==season-1 for r in prior),
                     latest_evidence_date=max((r['date'] for r in prior), default='')))
-            pending.append((key, dict(season=int(row.season), date=str(date), game_id=str(row.game_id), won=int(y if home else 1-y))))
+            pending.append((key, dict(season=int(row.season), date=str(date), game_id=str(row.game_id), won=int(y if home else 1-y), market=float(q if home else 1-q))))
         # No outcome from this slate enters any of its estimates.
         for key, member in pending:
             cells.setdefault(key, []).append(member)
     return pd.DataFrame(out)
 
 
-def bootstrap(g, repeats=2000):
+def bootstrap(g, repeats=2000, column='realized_p_home'):
     """Paired slate bootstrap: preserve correlation among games on a date."""
     dates = sorted(g.slate_date.unique())
     if len(dates) < 2:
@@ -67,10 +69,10 @@ def bootstrap(g, repeats=2000):
     per_date = []
     for date in dates:
         d = g[g.slate_date.eq(date)]
-        delta = ((d.realized_p_home-d.home_won)**2-(d.market_p_home-d.home_won)**2).sum()
+        delta = ((d[column]-d.home_won)**2-(d.market_p_home-d.home_won)**2).sum()
         bets, units = 0, 0.
         for _, r in d.iterrows():
-            side = realized_forward.position(r.realized_p_home,r.home_ml,r.away_ml)
+            side = realized_forward.position(r[column],r.home_ml,r.away_ml)
             if side:
                 bets += 1
                 units += market.unit_profit(r.home_ml if side=='home' else r.away_ml,(side=='home')==bool(r.home_won))
@@ -107,6 +109,14 @@ def main():
         assert (covered.latest_evidence_date < covered.slate_date).all() and covered.cell_games.le(50).all()
         grades = covered[['game_id','home_won']].assign(basis='native')  # scorer API only; never persisted as native data
         scores = realized_forward.score(covered, grades)
+        # v2 (band-adjusted) on the identical games; reported beside v1's raw rate.
+        v2 = covered.assign(realized_p_home=covered.adjusted_p_home)
+        scores['estimators']['realized v2 (band-adjusted)'] = realized_forward.score(v2, grades)['estimators']['realized']
+        scores['estimators']['realized v1 (raw cell rate)'] = scores['estimators'].pop('realized')
+        scores['estimators']['realized v2 (band-adjusted)'] = scores['estimators'].pop('realized v2 (band-adjusted)')
+        scores['slate_bootstrap_v2'] = bootstrap(covered, column='adjusted_p_home')
+        scores['certainty_errors_v2'] = int(((covered.adjusted_p_home.eq(0)&covered.home_won.eq(1)) |
+                                             (covered.adjusted_p_home.eq(1)&covered.home_won.eq(0))).sum())
         scores.update(total_available=len(g), uncovered=len(g)-len(covered),
             median_cell_games=float(covered.cell_games.median()), slate_bootstrap=bootstrap(covered),
             certainty_errors=int(((covered.realized_p_home.eq(0)&covered.home_won.eq(1)) |
@@ -114,7 +124,7 @@ def main():
         label = f'{season-1}-{str(season)[2:]} {book}'
         results[label] = scores
         all_predictions.append(g)
-    payload = dict(method='Fixed raw latest-50 joint cell; previous + current season; earlier slates only; either-side +EV 1u.',
+    payload = dict(method='Fixed latest-50 joint cell, v1 raw rate and v2 band-adjusted (game no-vig WP + cell rate − cell mean no-vig WP); previous + current season; earlier slates only; either-side +EV 1u.',
         source_sha256=hashlib.sha256(Path(ledger.RECON_PATH).read_bytes()).hexdigest(),
         limitations=['Exploratory retrospective replay, separate from immutable forward record.',
           'Prices are historical closes, not first valid snapshots within five hours.',
@@ -137,8 +147,9 @@ def main():
             loss = f'{loss:.4f}' if isinstance(loss,float) else str(loss)
             lines.append(f"| {label} | {scores['graded_games']} / {scores['total_available']} | {name} | {stats['brier']:.4f} | {loss} | {stats['bets']} | {stats['net_units']:+.2f} | {stats['roi']:.1%} |" if stats['roi'] is not None else
                 f"| {label} | {scores['graded_games']} / {scores['total_available']} | {name} | {stats['brier']:.4f} | {loss} | 0 | 0 | — |")
-        lines += ['', f"{label}: {scores['certainty_errors']} contradicted 0%/100% estimates; median cell size {scores['median_cell_games']:.0f}.",
-                  'Slate bootstrap 95% intervals: '+json.dumps(scores['slate_bootstrap']), '']
+        lines += ['', f"{label}: contradicted 0%/100% estimates v1 {scores['certainty_errors']}, v2 {scores['certainty_errors_v2']}; median cell size {scores['median_cell_games']:.0f}.",
+                  'Slate bootstrap 95% intervals, v1: '+json.dumps(scores['slate_bootstrap']),
+                  'Slate bootstrap 95% intervals, v2: '+json.dumps(scores['slate_bootstrap_v2']), '']
     lines += ['No historical observation is added to the shadow forward files or public records.',
               'Reproduce: `python research/realized_wp_replay.py`. Causal evidence selection and input-order checks passed.']
     (root/'RESULTS.md').write_text('\n'.join(lines)+'\n')
