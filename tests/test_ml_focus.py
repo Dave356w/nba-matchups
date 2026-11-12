@@ -68,7 +68,7 @@ def test_replay_excludes_wrong_models_books_pending_prices_and_duplicate_ids():
     assert d.set_index('game_id').loc['r6', 'prediction_p'] == .8
 
 
-def test_mixed_headline_pools_sources_and_seasons_but_10_plus_stays_separate():
+def test_live_default_keeps_mixed_record_and_separate_source_summaries():
     native = rows().iloc[3:4].assign(home_won=1)
     d = analysis.model_prediction_moneyline(analysis.moneyline_model_predictions(native, replay_rows().iloc[:3]))
     established = d[d.prediction_stage.eq('established')]
@@ -78,7 +78,17 @@ def test_mixed_headline_pools_sources_and_seasons_but_10_plus_stays_separate():
     assert s['roi'] == pytest.approx((100/150 + 1.5 - 1)/3)
     site = PublicSite(ui, native, '2026-11-19', 'built', replay=replay_rows().iloc[:3])
     html = site.performance_page()
-    assert "data-stage='established' data-source='all' data-season='all'>" in html
+    from lxml import html as lh
+    tree = lh.fromstring(html)
+    visible = tree.xpath("//*[@data-ml-panel and not(@hidden)]")
+    assert len(visible) == 1 and visible[0].get('data-source') == 'live'
+    assert visible[0].get('data-stage') == 'established'
+    assert tree.xpath("//*[@data-ml-panel and @data-source='all']")
+    summary = tree.xpath("//*[@data-source-summary and not(@hidden)]")[0]
+    live, replay = summary.xpath('./article')
+    assert '1–0' in live.text_content() and '+66.7%' in live.text_content()
+    assert '1–1' in replay.text_content() and '+25.0%' in replay.text_content()
+    assert '2 graded' in replay.text_content()  # early replay excluded
     assert 'Mixed record:' in html and 'historical replays' in html
     assert 'Saved live locks' in html and 'Historical replay' in html
     assert "id='paper-performance'" not in html

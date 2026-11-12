@@ -5,6 +5,21 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Public clarity amendment — owner approval, November 12, 2026
+
+The owner approved all six site-review suggestions and merge after validation.
+This supersedes earlier presentation defaults: Performance now defaults to saved
+live locks, with live/replay summaries side by side and the mixed cumulative
+record retained in the source filter. Today distinguishes model probability,
+DraftKings price and raw break-even probability, consolidates the saved pick,
+combines separate stage/status filters, and uses a compact mobile introduction.
+Per-game model and no-vig market probabilities refer to the same team beside
+its actual Win/Loss; market timing is explicit. Realized win rates remain
+aggregate measures, never invented probabilities for individual final games.
+Explain accuracy, ROI and probability quality in plain language. No selection,
+model, saved price, lock, record membership, grading or data workflow changes.
+
+
 ### Public ML-only amendment — owner approval, November 10, 2026
 
 The owner explicitly requested removing tracked betting tests from every

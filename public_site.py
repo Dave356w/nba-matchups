@@ -122,7 +122,12 @@ CSS = """
 .ml-hero .prediction-comparison{max-width:650px}.confidence-bands small{display:block;color:var(--muted);font-size:10px;font-weight:400}.confidence-bands tfoot td{font-weight:700;border-bottom:0}.confidence-bands{margin-top:22px}.confidence-bands th,.confidence-bands td{white-space:normal;vertical-align:top}.ml-hero .public-note{margin-bottom:0}
 .record-label{color:var(--muted);font-size:12px}
 .forecast-readout.ml-focus{grid-template-columns:1.2fr 1fr}.stage-label{font-size:11px;color:var(--muted)}
-[data-ml-panel][hidden],.gcard[hidden]{display:none!important}
+[data-source-summary][hidden],[data-ml-panel][hidden],.gcard[hidden]{display:none!important}
+.game-filters{display:flex;flex-wrap:wrap;gap:8px 16px;margin:16px 0 12px}.filter-group>span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.filter-group .seg{display:flex;margin:0}
+.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}.lock-summary a{display:inline-block;margin-top:6px;font-size:11px}
+.source-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.source-summary article{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}.source-summary h3{margin:0 0 6px;font-size:15px}.source-summary p{font-size:12px;color:var(--muted);margin:6px 0}.source-summary strong{color:var(--ink)}
+.public-empty button{margin-top:14px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;cursor:pointer}
+@media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-note.public-note{display:none}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
 @media(max-width:640px){.ml-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.ml-hero{padding:18px}}
 @media(max-width:1000px){.tool-grid,.rule-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.public-head{display:block;margin:20px 0 18px}.public-head p{font-size:14px}.update{text-align:left;margin-top:12px;white-space:normal}.update time{display:inline;margin-left:6px}
@@ -138,16 +143,20 @@ CSS = """
 # re-sorts whenever the live-score overlay changes a card's state
 # (window.nbaCount) and moves nothing when the order is unchanged.
 FILTER_JS = """<script>(function(){var bar=document.querySelector('[data-filter]');if(!bar)return;bar.hidden=false;
-var grid=document.querySelector('.tool-grid[data-slate]'),rank={live:0,upcoming:1,final:2};
+var grid=document.querySelector('.tool-grid[data-slate]'),rank={live:0,upcoming:1,final:2},stage='established',state='all';
 function order(){if(!grid)return;var cs=[].slice.call(grid.querySelectorAll(':scope>.gcard')),
 s=cs.slice().sort(function(a,b){return(rank[a.dataset.state]-rank[b.dataset.state])||(a.dataset.order-b.dataset.order);});
 if(s.some(function(x,i){return x!==cs[i];}))s.forEach(function(x){grid.appendChild(x);});}
-var filter='established';function update(){order();var c={all:0,established:0,early:0,upcoming:0,live:0,final:0};
-document.querySelectorAll('.gcard').forEach(function(x){var s=x.dataset.state;c.all++;c[s]++;if(x.dataset.stage in c)c[x.dataset.stage]++;
-x.hidden=filter==='established'||filter==='early'?x.dataset.stage!==filter:filter!=='all'&&s!==filter;});
-bar.querySelectorAll('button').forEach(function(b){var k=b.dataset.show;b.querySelector('.ct').textContent=c[k];b.setAttribute('aria-pressed',k===filter?'true':'false');});
-var e=document.querySelector('[data-filter-empty]');if(e){e.hidden=!!c[filter];e.querySelector('p').textContent=filter==='established'?'No games with both teams at 10+ games today. Choose All games to see the full slate.':'No games match this filter.';}}
-window.nbaCount=update;bar.addEventListener('click',function(e){var b=e.target.closest('button');if(b){filter=b.dataset.show;update();}});update();})();</script>"""
+function update(){order();var cards=[].slice.call(document.querySelectorAll('.gcard')),n=0;
+cards.forEach(function(x){x.hidden=!(stage==='all'||x.dataset.stage===stage)||!(state==='all'||x.dataset.state===state);if(!x.hidden)n++;});
+bar.querySelectorAll('button[data-show]').forEach(function(b){var group=b.dataset.group,k=b.dataset.show;
+var count=cards.filter(function(x){return group==='stage'?(k==='all'||x.dataset.stage===k)&&(state==='all'||x.dataset.state===state):(k==='all'||x.dataset.state===k)&&(stage==='all'||x.dataset.stage===stage);}).length;
+b.querySelector('.ct').textContent=count;b.setAttribute('aria-pressed',k===(group==='stage'?stage:state)?'true':'false');});
+var e=document.querySelector('[data-filter-empty]');if(e){e.hidden=n>0;
+var scope=stage==='all'?'':stage==='early'?' in games 1–9':' with both teams at 10+ games';
+e.querySelector('p').textContent=state==='live'?'No games are live right now'+scope+'.':state==='upcoming'?'No upcoming games'+scope+' right now.':state==='final'?'No final games'+scope+' yet.':'No games'+scope+' today.';}}
+window.nbaCount=update;bar.addEventListener('click',function(e){var b=e.target.closest('button[data-show]');if(b){if(b.dataset.group==='stage')stage=b.dataset.show;else state=b.dataset.show;update();}});
+var reset=document.querySelector('[data-filter-reset]');if(reset)reset.addEventListener('click',function(){stage='all';state='all';update();});update();})();</script>"""
 
 PREDICTION_FILTER_JS = """<script>(function(){var controls=document.querySelectorAll('[data-prediction-filter]');
 function update(){var n=0;document.querySelectorAll('[data-prediction-row]').forEach(function(r){
@@ -157,7 +166,7 @@ controls.forEach(function(c){c.addEventListener('change',update);});update();
 })();</script>"""
 
 PERFORMANCE_FILTER_JS = """<script>(function(){var cs=document.querySelectorAll('[data-performance-filter]');
-function update(){document.querySelectorAll('[data-ml-panel]').forEach(function(p){var show=true;cs.forEach(function(c){if(p.dataset[c.dataset.performanceFilter]!==c.value)show=false;});p.hidden=!show;});}
+function update(){document.querySelectorAll('[data-ml-panel], [data-source-summary]').forEach(function(p){var show=true;cs.forEach(function(c){var key=c.dataset.performanceFilter;if(p.hasAttribute('data-source-summary')&&key==='source')return;if(p.dataset[key]!==c.value)show=false;});p.hidden=!show;});}
 cs.forEach(function(c){c.addEventListener('change',update);});update();})();</script>"""
 
 
@@ -278,8 +287,18 @@ class PublicSite:
             if not np.isfinite(margin):
                 margin = analysis.ATS_SIGMA * NormalDist().inv_cdf(min(max(p,1e-6),1-1e-6))
             margin_team = row.home if margin >= 0 else row.away
-            forecast = (f"<div class='forecast-readout ml-focus'><div><small>Model win chance</small><strong>{u.pct(prob,0)}</strong><span>{u.esc(team)}</span></div>"
-                        f"<div><small>Moneyline forecast</small><strong>{u.esc(team)}</strong><span>{u.ml_txt(number('pre_home_ml' if p >= .5 else 'pre_away_ml')) if dk else 'Price unavailable'}</span></div></div>")
+            price = number('pre_home_ml' if p >= .5 else 'pre_away_ml') if dk else np.nan
+            breakeven = market.implied(price)
+            forecast = (f"<div class='forecast-readout ml-focus'><div><small>Model probability</small><strong>{u.pct(prob)}</strong><span>{u.esc(team)} to win</span></div>"
+                        f"<div><small>DraftKings moneyline</small><strong>{u.ml_txt(price) if np.isfinite(breakeven) else '—'}</strong><span>{u.esc(team)}</span></div></div>")
+            q_home = number('pre_q_home') if dk else np.nan
+            q_pick = (q_home if p >= .5 else 1-q_home) if 0 < q_home < 1 else np.nan
+            actual = 'Pending' if not final else 'Win' if (p >= .5) == (number('home_won') == 1) else 'Loss'
+            forecast += (f"<div class='forecast-outcome'><div><small>Market implied · no vig</small><strong>{u.pct(q_pick)}</strong>"
+                         f"<small>{u.esc(team)} · pregame {u.tip_pt(row.get('snapshot_utc'))}</small></div>"
+                         f"<div><small>Actual result · {u.esc(team)}</small><strong data-forecast-result data-pick-side='{'home' if p >= .5 else 'away'}'>{actual}</strong></div></div>")
+            forecast += (f"<p class='break-even'>Price requires {u.pct(breakeven)} to break even. A likely winner may still be poor value.</p>"
+                         if np.isfinite(breakeven) else "<p class='break-even'>Break-even probability unavailable: no valid DraftKings price.</p>")
         else:
             forecast = "<div class='forecast-only'><b>Forecast unavailable</b><br>A required model input was unavailable.</div>"
         tracking = ""
@@ -297,13 +316,13 @@ class PublicSite:
             if len(saved):
                 pick = saved.iloc[0]
                 result = self.prediction_result(pick)
-                forecast += (f"<div class='model-pick'><span>Model pick · 5 h lock"
-                             f"<small>{u.esc(pick.prediction)} · {u.pct(pick.prediction_p)} at lock</small></span>"
-                             f"<b>{result}<small><a href='results.html'>ML record →</a></small></b></div>")
                 priced = analysis.model_prediction_moneyline(saved).iloc[0]
-                lock_price = u.ml_txt(priced.ml) if pd.notna(priced.ml) else 'No DraftKings lock price'
-                tracking = (f"<div class='tracked-box'><span class='tracked-label'>Locked ML · {lock_price}</span>"
-                            f"<span class='record-label'>{'10+ game record' if stage == 'established' else 'Separate stage record'} · 1 unit per priced pick</span></div>")
+                lock_price = u.ml_txt(priced.ml) if pd.notna(priced.ml) else 'price unavailable'
+                outcome = 'awaiting result' if result == 'Pending' else result
+                tracking = (f"<div class='tracked-box lock-summary'><strong class='tracked-label'>Locked pick: {u.esc(pick.prediction)} {lock_price} · {outcome}</strong>"
+                            f"<small>Saved {u.tip_pt(pick.get('lock_snapshot_utc'))} · {u.pct(pick.prediction_p)} at lock</small>"
+                            f"<small>{'10+ game record' if stage == 'established' else 'Separate stage record'} · 1 unit per priced pick</small>"
+                            "<a href='results.html'>ML record →</a></div>")
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
         live_spread, live = self.live_block(row, dk)
@@ -412,15 +431,20 @@ class PublicSite:
         u = self.ui
         day = self.native[self.native.slate_date.astype(str).eq(self.today)]
         title = pd.Timestamp(self.today).strftime("%A, %B %-d")
-        body = self.head(title, "Moneyline forecasts, focused on games where both teams have played at least 10 games.", True)
-        body += "<p class='public-note'><a href='performance.html'>View ML performance →</a> · One unit per locked winner. Early games have a separate record.</p>"
-        body += "<div class='public-intro'><p>DraftKings prices · All times Pacific (PT)<span data-scores-asof hidden> · Scores as of <time></time></span></p><a href='how-it-works.html'>How to read →</a></div>"
+        body = self.head(title, "ML forecasts · main record: both teams at 10+ games.", True).replace("class='public-head'", "class='public-head today-head'")
+        body += "<p class='public-note today-note'><a href='performance.html'>ML performance →</a> · Flat 1 unit per priced lock.</p>"
+        body += "<div class='public-intro today-intro'><p>DraftKings prices · All times Pacific (PT)<span data-scores-asof hidden> · Scores as of <time></time></span></p><a href='how-it-works.html'>How to read →</a></div>"
         if not len(day):
             body += "<div class='public-empty'><h2>No games to show</h2><p>There are no saved regular-season forecasts for this slate. Check back for the next update.</p></div>"
         else:
-            body += "<div class='seg' data-filter role='group' aria-label='Filter games' hidden>" + "".join(
-                f"<button type='button' data-show='{key}' aria-pressed='{'true' if key == 'established' else 'false'}'>{name}<span class='ct'>0</span></button>"
-                for key,name in (("established","10+ games"),("all","All games"),("early","Games 1–9"),("upcoming","Upcoming"),("live","Live"),("final","Final"))) + "</div>"
+            body += "<div class='game-filters' data-filter hidden>"
+            for group, label, default, options in (
+                    ('stage', 'Team experience', 'established', (("established", "10+ games"), ("all", "All games"), ("early", "Games 1–9"))),
+                    ('state', 'Game status', 'all', (("all", "All"), ("upcoming", "Upcoming"), ("live", "Live"), ("final", "Final")))):
+                body += f"<div class='filter-group'><span>{label}</span><div class='seg' role='group' aria-label='{label}'>" + "".join(
+                    f"<button type='button' data-group='{group}' data-show='{key}' aria-pressed='{'true' if key == default else 'false'}'>{name}<span class='ct'>0</span></button>"
+                    for key, name in options) + "</div></div>"
+            body += "</div>"
             # tip order, games already final at the bottom (the browser keeps
             # live games first and re-sorts as states change: FILTER_JS)
             rows = list(day.sort_values("tip_utc", kind="stable").iterrows())
@@ -428,7 +452,7 @@ class PublicSite:
             cards = sorted(((bool(f), i, self.card(r, i)) for i, ((_, r), f) in enumerate(zip(rows, done))),
                            key=lambda t: (t[0], t[1]))
             body += f"<div class='tool-grid' data-slate='{u.esc(self.today)}'>" + "".join(c for *_, c in cards) + "</div>"
-            body += ("<div class='public-empty' data-filter-empty hidden><p>No games match this filter.</p></div>"
+            body += ("<div class='public-empty' data-filter-empty role='status' hidden><p>No games match these filters.</p><button type='button' data-filter-reset>Show all games</button></div>"
                      + FILTER_JS + live_wp.script(self.live_fit) + u.SCORES_JS)
         return self.page("Today · NBA Composite", "index.html", body)
 
@@ -454,7 +478,7 @@ class PublicSite:
             f"<div><label for='prediction-{key}'>{name}</label><select id='prediction-{key}' data-prediction-filter='{key}'>"
             + "".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></div>"
             for key,name,opts in options) + "</div>"
-        labels = ["Game", "Stage / season", "Model pick", "Source / price", "Outcome", "Closing favorite",
+        labels = ["Game", "Stage / season", "Model vs market", "Source / price", "Actual result", "Closing favorite",
                   "Moneyline return", "Running ROI"]
         rows = []
         for _, r in d.sort_values(['tip_utc','game_id'], ascending=False).iterrows():
@@ -469,13 +493,22 @@ class PublicSite:
             else:
                 closing = '—<small>' + ('Close unavailable' if done else 'Awaiting close') + '</small>'
             replay = r.prediction_source == 'replay'
+            source_q_home = pd.to_numeric(r.get('close_q_home' if replay else 'lock_q_home'), errors='coerce')
+            source_book = r.get('close_book' if replay else 'lock_book')
+            same_home = r.prediction == r.home
+            source_q = (source_q_home if same_home else 1-source_q_home) if source_book == 'dk' and 0 < source_q_home < 1 else np.nan
+            close_q = (q if same_home else 1-q) if r.get('close_book') == 'dk' and 0 < q < 1 else np.nan
+            comparison = (f"{u.esc(r.prediction)}<small>Model: {u.pct(r.prediction_p)} · {'replay' if replay else '5 h lock'}</small>"
+                          f"<small>Market implied: {u.pct(source_q)} · {'close' if replay else '5 h lock'} · no vig</small>")
+            if not replay:
+                comparison += f"<small>Market implied: {u.pct(close_q)} · close · no vig</small>"
             provenance = (f"Historical replay<small>{u.esc(r.basis)} · DraftKings close</small>" if replay else
                           f"Saved live lock<small>{u.tip_pt(r.lock_snapshot_utc)} · {u.esc(str(r.lock_snapshot_utc)[:10])}</small>")
             cells = [f"{u.esc(r.away)} @ {u.esc(r.home)}<small>{u.esc(r.slate_date)} · {u.tip_pt(r.tip_utc)}</small>",
                      f"{dict(PREDICTION_STAGES)[r.prediction_stage]}<small>{u.season_txt(int(r.season))}</small>",
-                     f"{u.esc(r.prediction)}<small>{u.pct(r.prediction_p)} win chance · v11</small>",
+                     comparison,
                      provenance,
-                     f"<span class='prediction-badge'>{result}</span>", closing,
+                     f"<span class='prediction-badge'>{result}</span><small>{u.esc(r.prediction)}</small>", closing,
                      *self.prediction_moneyline_cells(r)]
             rows.append(f"<tr data-prediction-row data-stage='{r.prediction_stage}' data-season='{int(r.season)}' data-outcome='{result.lower()}' data-source='{r.prediction_source}'{' hidden' if r.prediction_stage != 'established' else ''}>"
                         + "".join(f"<td data-label='{label}'>{value}</td>" for label,value in zip(labels,cells))+"</tr>")
@@ -504,6 +537,7 @@ class PublicSite:
     def prediction_moneyline_note(self, d):
         return ("<p class='public-note' data-prediction-moneyline><b>Mixed v11 record · flat 1u.</b> Live picks use five-hour lock prices; "
                 "historical replays use closing prices. <a href='performance.html'>ML performance →</a></p>"
+                "<p class='public-note'>Model and market probabilities refer to the same selected team; Actual result is that team’s Win or Loss. Market implied probabilities remove the bookmaker’s margin. A realized win rate is measured across games on ML stats.</p>"
                 "<details class='public-note'><summary>Prices, sources and running ROI</summary>" + self.mixed_note()
                 + "<p><b>Moneyline return</b> stakes 1 unit per priced winner. "
                 "<b>Running ROI</b> combines live and replay within each season and stage in game order; changing a filter does not recalculate it. "
@@ -514,7 +548,7 @@ class PublicSite:
         u, d = self.ui, analysis.model_prediction_moneyline(self.predictions)
         seasons = sorted(set(d.season.astype(int)) if len(d) else {self.season}, reverse=True)
         stages = [(k, v) for k, v in PREDICTION_STAGES if k in ('established', 'early') or (len(d) and d.prediction_stage.eq(k).any())]
-        sources = [('all', 'Mixed · live + replay'), ('live', 'Saved live locks'), ('replay', 'Historical replay')]
+        sources = [('live', 'Saved live locks'), ('replay', 'Historical replay'), ('all', 'Mixed · live + replay')]
         season_options = [('all', 'All seasons')] + [(str(x), u.season_txt(x)) for x in seasons]
         options = [('stage', 'Model stage', stages), ('source', 'Record source', sources), ('season', 'Season', season_options)]
         body = "<section id='model-predictions'>" + self.mixed_note()
@@ -522,6 +556,28 @@ class PublicSite:
             f"<div><label for='performance-{key}'>{name}</label><select id='performance-{key}' data-performance-filter='{key}'>"
             + ''.join(f"<option value='{v}'>{label}</option>" for v, label in opts) + '</select></div>'
             for key, name, opts in options) + '</div>'
+        # Compare sources within the selected stage and season, independently of
+        # the detailed source filter. No sources or stages are pooled here.
+        for stage, label in stages:
+            for season, season_label in season_options:
+                part = d
+                if len(part):
+                    part = part[part.prediction_stage.eq(stage)]
+                    if season != 'all':
+                        part = part[part.season.astype(int).eq(int(season))]
+                hidden = '' if (stage, season) == ('established', 'all') else ' hidden'
+                body += f"<section class='source-summary' aria-label='Live and replay comparison' data-source-summary data-stage='{stage}' data-season='{season}'{hidden}>"
+                for source, name in [('live', 'Saved live locks'), ('replay', 'Historical replay')]:
+                    subset = part[part.prediction_source.eq(source)] if len(part) else part
+                    r = analysis.model_prediction_summary(subset)
+                    ml = analysis.model_prediction_moneyline_summary(subset)
+                    record = f"{r['w']}–{r['l']}" if r['n'] else '—'
+                    roi = f"{100 * ml['roi']:+.1f}%" if ml else '—'
+                    timing = 'Saved five-hour prices' if source == 'live' else 'Reconstructed at closing prices'
+                    body += (f"<article><h3>{name}</h3><p>{label} · {season_label}</p>"
+                             f"<p><strong>{record}</strong> W/L · <strong>{roi}</strong> ROI</p>"
+                             f"<p>{r['n']} graded · {r['pending']} pending · {ml['n'] if ml else 0} priced</p><p>{timing}</p></article>")
+                body += '</section>'
         for stage, label in stages:
             for source, source_label in sources:
                 for season, season_label in season_options:
@@ -532,7 +588,7 @@ class PublicSite:
                             part = part[part.prediction_source.eq(source)]
                         if season != 'all':
                             part = part[part.season.astype(int).eq(int(season))]
-                    hidden = '' if (stage, source, season) == ('established', 'all', 'all') else ' hidden'
+                    hidden = '' if (stage, source, season) == ('established', 'live', 'all') else ' hidden'
                     body += (f"<article class='ml-hero' data-ml-panel data-stage='{stage}' data-source='{source}' data-season='{season}'{hidden}>"
                              f"<h2>{label}</h2><div class='record-label'>{season_label} · {source_label} · v11</div>"
                              + self.ml_performance_panel(part) + '</article>')
@@ -566,6 +622,9 @@ class PublicSite:
             body += "<details><summary>Return over time</summary>" + u.units_svg(ordered.ml_units.tolist(), 'Cumulative ML return', width=800) + '</details>'
         else:
             body += "<p class='public-note'>No graded, priced ML picks yet. Pending games have no return.</p>"
+        body += "<p class='public-note'>Read these numbers together: accuracy counts winners; ROI includes the price paid. A high win rate can still lose money.</p>"
+        if ml and ml['n'] > 1 and np.isfinite(ml['roi_se']) and abs(ml['roi']) <= ml['roi_se']:
+            body += "<p class='public-note'>The observed ROI is within one standard error of zero; this sample does not separate the return from break-even at that uncertainty level.</p>"
         c = r['comparison']
         if c:
             mw, fw = (int(round(c[k]['acc'] * c['n'])) for k in ('model', 'market'))
@@ -575,6 +634,9 @@ class PublicSite:
                      "<thead><tr><th>Score</th><th>Model</th><th>Market at close</th></tr></thead><tbody>"
                      + ''.join(f"<tr><td>{name}</td><td>{c['model'][key]:.4f}</td><td>{c['market'][key]:.4f}</td></tr>"
                                for key, name in [('logloss', 'Log loss'), ('brier', 'Brier score')]) + '</tbody></table>')
+            losses = [c['model'][k] - c['market'][k] for k in ('logloss', 'brier')]
+            quality = 'worse than' if all(x > 0 for x in losses) else 'better than' if all(x < 0 for x in losses) else 'mixed against'
+            body += f"<p class='public-note'>The model’s probability scores are {quality} the closing market in this view. These scores measure how well probabilities match outcomes; lower is better. The closing market is a later benchmark than a five-hour pick.</p>"
         else:
             body += "<p class='public-note'>The market comparison appears when graded games have usable DraftKings closing prices.</p>"
         body += self.confidence_bands(part)
@@ -693,7 +755,7 @@ class PublicSite:
                 f"{d:%B} {d.day}, {d.year} games. Its picks are kept separately and are not included here.</p>")
 
     def performance_page(self):
-        body = self.head("ML performance", "The v11 moneyline record. Games 10+ lead; historical replays and saved live results are combined and identified.")
+        body = self.head("ML performance", "The v11 moneyline record. Saved live locks lead; historical replay is shown separately for comparison.")
         body += self.prediction_performance() + self.void_note()
         return self.page("Performance · NBA Composite", "performance.html", body)
 
@@ -705,12 +767,12 @@ class PublicSite:
 <p>A live pick freezes at the first valid priced snapshot within 5 hours of tip whose game data include every completed game. Later forecasts and closing prices never replace it. A missing lock or price means no ML return; a forecast without a price still keeps its winner W/L.</p>
 <p>This rule was frozen on November 10, 2026 after reviewing historical results. Future model families need a separate decision. Accuracy is a forecast measure; it does not establish a profitable bet.</p></section>
 <section><h2>Reading ML performance</h2>""" + self.mixed_note() + """
-<p>The default is the combined <b>games-10+ record across seasons</b>. Source and season filters let you inspect saved live locks or historical replay separately. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
+<p>The default is the <b>saved live games-10+ record across seasons</b>. Live and replay summaries appear side by side. Source and season filters retain the combined record and each source separately. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
 <p>Historical replays must carry a v11-family tag and a graded result, and use their saved DraftKings <b>closing</b> prices. They are reconstructed or rebuilt with historical inputs, rather than predictions captured live. Replays do not demonstrate executable five-hour returns. The record never uses another book’s prices.</p>
 <p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark.</p>
 <p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>Winner accuracy by stated win chance</b> groups those same games twice: the model’s picks by the model’s win chance, and the market’s favorites by their closing no-vig implied win chance. Each side should win about as often as it states. The bands are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI combines sources within that season and stage and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
-<p><b>Model win chance</b> is the probability of the favored team winning; its <b>moneyline forecast</b> shows the current DraftKings price. Both can update until tip. A saved <b>locked ML</b> pick is shown separately at its original price. Times are Pacific.</p>
+<p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings moneyline</b> is that team’s current market price. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
 <section><h2>The model</h2>
