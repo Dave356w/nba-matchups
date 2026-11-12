@@ -4,8 +4,15 @@ Use the latest 50 actual outcomes in each model-winner × market-WP cell:
 previous-season replay seeds plus current-season native five-hour locks.
 Early and 10+ share evidence; opening games remain separate. No market
 pseudo-games, model changes, price changes, or writes to saved results.
+
+The estimate is band-adjusted (v2, docs/realized_wp_forward_registration_v2.md):
+this game's no-vig market WP plus the cell's win rate minus the cell's mean
+no-vig market WP, so a game is not credited or penalised for where it sits
+inside a wide market band. The raw cell rate stays available as `cell_rate`.
 """
 from __future__ import annotations
+
+import math
 
 import numpy as np
 import pandas as pd
@@ -21,6 +28,14 @@ MARKET_BOUNDS = (0., .5, .6, .7, .8, 1.0)
 def band(value, bounds):
     """Lower-inclusive cells; the final cell includes probability 1."""
     return min(int(np.searchsorted(bounds, value, side='right') - 1), len(bounds) - 2)
+
+
+def band_adjusted(q_game, wins, games, member_market):
+    """q_game + (wins/games − mean member market WP), clipped to [0, 1]."""
+    if not games:
+        return float('nan')
+    # Rate first: identical prices leave the raw cell rate exactly unchanged.
+    return min(1., max(0., wins/games + (q_game - math.fsum(member_market)/games)))
 
 
 def stage(row):
@@ -89,7 +104,10 @@ class RollingCalibration:
         prior = sorted(prior, key=lambda r: (r['date'], r['game_id']))[-WINDOW_GAMES:]
         wins, n = sum(r['won'] for r in prior), len(prior)
         previous = sum(r['season'] == season-1 for r in prior)
-        return dict(probability=wins/n if n else np.nan,
+        member_market = [r['market_probability'] for r in prior]
+        return dict(probability=band_adjusted(q_pick, wins, n, member_market),
+                    cell_rate=wins/n if n else np.nan,
+                    cell_market=math.fsum(member_market)/n if n else np.nan,
                     market_probability=q_pick, games=n, wins=wins, losses=n-wins,
                     previous_games=previous, current_games=n-previous,
                     model_range=MODEL_BOUNDS[pb:pb+2], market_range=MARKET_BOUNDS[qb:qb+2],

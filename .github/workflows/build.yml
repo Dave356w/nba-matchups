@@ -82,7 +82,7 @@ jobs:
       - name: Validate and commit ledger
         if: ${{ !cancelled() }}
         run: |
-          python validate_data_files.py
+          python validate_data_files.py --shadow-warn
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/ model/dfs_simulation.json diagnostics/dfs_calibration/RESULTS.json

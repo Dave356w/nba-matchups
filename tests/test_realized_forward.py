@@ -13,6 +13,16 @@ from test_wp_calibration import record
 from wp_calibration import RollingCalibration
 
 NOW = pd.Timestamp('2026-11-12T22:00:00Z')
+V2_REGISTERED = forward.REGISTERED
+
+
+@pytest.fixture(autouse=True)
+def fixture_clock_predates_v2(monkeypatch):
+    # The fixtures' clock (22:00Z) is before v2's registration (22:35Z); the
+    # registration gate itself is tested with the real time below.
+    start = forward.REGISTERED_BY_VERSION[forward.V1]
+    monkeypatch.setattr(forward, 'REGISTERED', start)
+    monkeypatch.setitem(forward.REGISTERED_BY_VERSION, forward.VERSION, start)
 
 
 def fixture():
@@ -177,3 +187,74 @@ def test_production_recording_clock_is_refreshed_after_evidence_write(tmp_path, 
     assert forward.capture(site, tmp_path, code_revision='rev') == 0
     assert forward.read_all(tmp_path).empty
     assert (tmp_path/'realized_wp_cells_2027.csv').exists()
+
+
+def test_shadow_failure_never_blocks_render_or_ledger_validation(monkeypatch, capsys):
+    site, _ = fixture()
+    site.render = lambda: (_ for _ in ()).throw(RuntimeError('reached render'))
+    monkeypatch.setattr(build_site.public_site, 'PublicSite', lambda *a, **kw: site)
+    for broken in (dict(capture=lambda value: (_ for _ in ()).throw(OSError('disk'))),
+                   dict(capture=lambda value: 0, validate=lambda: ['bad shadow file'])):
+        for name, value in broken.items():
+            monkeypatch.setattr(forward, name, value)
+        with pytest.raises(RuntimeError, match='reached render'):
+            build_site.write_pages(site.native, pd.DataFrame(), site.today, True, capture_realized=True)
+        assert '::warning::shadow Realized WP capture failed' in capsys.readouterr().out
+    import validate_data_files
+    monkeypatch.setattr(forward, 'validate', lambda *a: ['bad shadow file'])
+    assert validate_data_files.main([]) == 1
+    assert validate_data_files.main(['--shadow-warn']) == 0
+    assert '::warning::SHADOW bad shadow file' in capsys.readouterr().out
+    monkeypatch.setattr(forward, 'validate', lambda *a: (_ for _ in ()).throw(RuntimeError('crash')))
+    assert validate_data_files.main([]) == 1
+    assert validate_data_files.main(['--shadow-warn']) == 0
+
+
+def test_v2_is_band_adjusted_gated_by_its_registration_and_keeps_v1_rows_valid(tmp_path, monkeypatch):
+    # Cell prices (-300/+300, 75%) differ from the game's (-150/+130).
+    site, _ = fixture()
+    site.native.loc[site.native.game_id.eq('target'), ['pre_home_ml', 'pre_away_ml']] = [-400., 320.]
+    target = site.native[site.native.game_id.eq('target')].iloc[0]
+    q = forward.market.devig(-400., 320.)
+    est = site.calibration.estimate(target)
+    assert est['cell_rate'] == .5 and est['cell_market'] == .75
+    assert est['probability'] == pytest.approx(q + .5 - .75) and est['probability'] != .5
+    # Not before the v2 registration; saved after it, and it validates.
+    monkeypatch.setattr(forward, 'REGISTERED', V2_REGISTERED)
+    monkeypatch.setitem(forward.REGISTERED_BY_VERSION, forward.VERSION, V2_REGISTERED)
+    assert forward.capture(site, tmp_path, NOW, 'rev') == 0
+    later = pd.Timestamp('2026-11-12T23:00:00Z')
+    assert forward.capture(site, tmp_path, later, 'rev') == 1
+    saved = forward.read_all(tmp_path).iloc[0]
+    assert saved.version == forward.VERSION == 'realized_wp_rolling50_bandadj_v2'
+    assert float(saved.realized_p_home) == pytest.approx(q - .25)
+    assert saved.displayed_realized_wp == f'{100*(q-.25):.1f}%'
+    assert forward.validate(tmp_path) == []
+    # A v2 row holding the raw cell rate is rejected.
+    path = tmp_path/'realized_wp_snapshots_2027.csv'
+    frame = forward.load(path, forward.COLUMNS)
+    raw = frame.copy()
+    raw.loc[0, ['realized_p_home', 'displayed_realized_wp']] = ['0.5', '50.0%']
+    identity = {k: str(raw.loc[0, k]) for k in forward.COLUMNS if k not in ('snapshot_id', 'captured_utc', 'code_revision')}
+    raw.loc[0, 'snapshot_id'] = forward.digest(identity)
+    raw.to_csv(path, index=False)
+    assert 'cell estimate disagrees' in forward.validate(tmp_path)[0]
+    # The same raw-rate row is what v1 registered, and stays valid as v1.
+    raw.loc[0, 'version'] = forward.V1
+    identity['version'] = forward.V1
+    raw.loc[0, 'snapshot_id'] = forward.digest(identity)
+    raw.to_csv(path, index=False)
+    assert forward.validate(tmp_path) == []
+
+
+def test_committed_shadow_files_validate_with_both_versions():
+    assert forward.validate() == []
+
+
+def test_band_adjustment_clips_and_identical_prices_leave_the_raw_rate():
+    from wp_calibration import band_adjusted
+    assert band_adjusted(.75, 3, 50, [.75]*50) == .06
+    assert band_adjusted(.95, 50, 50, [.85]*50) == 1.
+    assert band_adjusted(.05, 0, 10, [.4]*10) == 0.
+    assert np.isnan(band_adjusted(.6, 0, 0, []))
+    assert band_adjusted(.70, 43, 50, [.742]*50) == pytest.approx(.818)
