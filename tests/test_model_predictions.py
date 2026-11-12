@@ -166,3 +166,45 @@ def test_results_show_moneyline_return_and_running_roi_on_predictions_only():
     assert 'Moneyline ROI' in perf and 'data-ml-panel' in perf
     bare = PublicSite(ui, g.assign(lock_book='espnbet'), CLOSED, 'built').results_page()
     assert 'No DraftKings price at the lock' in bare and 'data-prediction-moneyline' in bare
+
+
+def test_confidence_bands_grade_model_and_market_on_the_same_games_by_their_own_probability():
+    g = forecasts()
+    d = analysis.model_predictions(g)
+    rows_, total = analysis.prediction_confidence_bands(d)
+    graded = d[d.prediction_won.notna()]
+    # identical games on both sides; each game in exactly one band per side
+    assert total['model']['n'] == total['market']['n'] == len(graded) == 4
+    for side in ('model', 'market'):
+        halves = [r[side] for r in rows_ if r[side]]
+        assert sum(h['n'] for h in halves) == total[side]['n']
+        assert sum(h['w'] for h in halves) == total[side]['w']
+    assert total['model']['w'] == int(graded.prediction_won.sum())
+    by = {r['lo']: r for r in rows_}
+    # the market's favourite is home at a no-vig 60% in every game: 3-1 there
+    assert (by[.6]['market']['n'], by[.6]['market']['w']) == (4, 3)
+    assert math.isclose(by[.6]['market']['stated'], .6)
+    assert all(r['market'] is None for r in rows_ if r['lo'] != .6)
+    # the model's picks sit at their frozen lock P: 50% (home, won), 60% (away, lost)
+    assert (by[.5]['model']['n'], by[.5]['model']['w']) == (1, 1)
+    assert (by[.6]['model']['n'], by[.6]['model']['w']) == (1, 0)
+    # a later forecast never moves a pick between bands
+    again, _ = analysis.prediction_confidence_bands(analysis.model_predictions(g.assign(p_home=.01)))
+    assert again == rows_
+    # a game without a DraftKings close leaves both sides together
+    fewer, t2 = analysis.prediction_confidence_bands(
+        analysis.model_predictions(g.assign(close_book=['dk'] + ['espnbet'] * (len(g) - 1))))
+    assert t2['model']['n'] == t2['market']['n'] == 1
+    assert analysis.prediction_confidence_bands(d.iloc[:0]) == ([], None)
+    assert analysis.prediction_confidence_bands(d[d.prediction_won.isna()]) == ([], None)
+
+
+def test_performance_shows_the_confidence_band_table_without_a_filter_claim():
+    site = PublicSite(ui, forecasts(), CLOSED, 'built')
+    perf = site.performance_page()
+    assert 'data-confidence-bands' in perf
+    assert 'Winner accuracy by stated win chance' in perf
+    assert 'Market favorites at close' in perf and 'avg. implied 60.0%' in perf
+    assert 'not a filter or a betting rule' in perf
+    assert 'Winner accuracy by stated win chance' in site.guide_page()
+    assert site.confidence_bands(site.predictions.iloc[:0]) == ''

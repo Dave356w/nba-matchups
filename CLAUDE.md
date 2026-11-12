@@ -498,6 +498,17 @@ information only, separate from DraftKings and native evidence.
   W/L and has no return. Lock values only; nothing rescored. Performance's
   prediction record and the tracked tests are unchanged.
 
+- **Winner accuracy by stated win chance (owner request, 2026-11-12).**
+  Each Performance view (stage × source × season) adds one table on its
+  graded games with a usable DraftKings closing pair: the model's picks by
+  the model's saved win probability beside the closing favourites by their
+  no-vig implied probability, each with W/L, accuracy and mean stated
+  probability (`analysis.prediction_confidence_bands`). Bands were fixed
+  before the table was drawn (5 points to 80%, 80–90%, 90%+). Both columns
+  hold the same games in total, not row by row. Lock P for live picks,
+  replay P for replays; nothing rescored. Descriptive only: never a filter,
+  rule or evidence for one, and the ML rule keeps no confidence filter.
+
 - **Live win chance (owner request, 2026-11-07).** Today cards show each
   team's in-game win chance while a game is in progress, computed in the
   reader's browser from the live ESPN score, period and clock the page

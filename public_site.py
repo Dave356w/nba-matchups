@@ -119,7 +119,7 @@ CSS = """
 .ml-hero{padding:24px;border:1px solid var(--line);border-radius:16px;background:var(--surface);margin:20px 0}
 .ml-hero h2{margin:0 0 8px;font-size:20px}.ml-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin:24px 0}
 .ml-metrics small{display:block;color:var(--muted);font-size:12px}.ml-metrics strong{display:block;font:700 clamp(24px,3vw,36px) var(--sans);letter-spacing:-.04em;margin-top:6px}
-.ml-hero .prediction-comparison{max-width:650px}.ml-hero .public-note{margin-bottom:0}
+.ml-hero .prediction-comparison{max-width:650px}.confidence-bands small{display:block;color:var(--muted);font-size:10px;font-weight:400}.confidence-bands tfoot td{font-weight:700;border-bottom:0}.confidence-bands{margin-top:22px}.confidence-bands th,.confidence-bands td{white-space:normal;vertical-align:top}.ml-hero .public-note{margin-bottom:0}
 .record-label{color:var(--muted);font-size:12px}
 .forecast-readout.ml-focus{grid-template-columns:1.2fr 1fr}.stage-label{font-size:11px;color:var(--muted)}
 [data-ml-panel][hidden],.gcard[hidden]{display:none!important}
@@ -577,7 +577,34 @@ class PublicSite:
                                for key, name in [('logloss', 'Log loss'), ('brier', 'Brier score')]) + '</tbody></table>')
         else:
             body += "<p class='public-note'>The market comparison appears when graded games have usable DraftKings closing prices.</p>"
+        body += self.confidence_bands(part)
         return body + "<p class='public-note'>Small samples have wide uncertainty. A high win rate alone does not establish profitable betting.</p>"
+
+    def confidence_bands(self, part):
+        """Winner accuracy by stated probability (owner request, 2026-11-12):
+        the model's picks by its own win chance beside closing favorites by
+        the market's implied chance, on the same graded games."""
+        u = self.ui
+        rows, total = analysis.prediction_confidence_bands(part)
+        if not rows:
+            return ""
+
+        def cell(h, word):
+            if not h:
+                return "<td>—</td>"
+            return (f"<td>{u.pct(h['accuracy'])}<small>{h['w']}–{h['l']}</small><small>{word} {u.pct(h['stated'])}</small></td>")
+
+        def label(r):
+            return f"{100 * r['lo']:.0f}%+" if r['hi'] >= 1 else f"{100 * r['lo']:.0f}–{100 * r['hi']:.0f}%"
+        body = ("<table class='prediction-comparison confidence-bands' data-confidence-bands>"
+                "<caption>Winner accuracy by stated win chance</caption>"
+                "<thead><tr><th>Stated win chance</th><th>Model picks</th><th>Market favorites at close</th></tr></thead><tbody>"
+                + ''.join(f"<tr><td>{label(r)}</td>{cell(r['model'], 'avg. model')}{cell(r['market'], 'avg. implied')}</tr>" for r in rows)
+                + f"</tbody><tfoot><tr><td>All</td>{cell(total['model'], 'avg. model')}{cell(total['market'], 'avg. implied')}</tr></tfoot></table>")
+        return body + (f"<p class='public-note'>The same {total['model']['n']} graded games with DraftKings closing prices, counted once in each column: "
+                       "by the model’s win chance for its pick, and by the closing no-vig implied win chance of the market favorite. "
+                       "One row therefore holds different games in each column. A well-calibrated forecast wins about as often as its average stated chance. "
+                       "Bands are descriptive, not a filter or a betting rule; bands with few games are mostly noise.</p>")
 
     def stage(self, hyp, season):
         u = self.ui
@@ -681,7 +708,7 @@ class PublicSite:
 <p>The default is the combined <b>games-10+ record across seasons</b>. Source and season filters let you inspect saved live locks or historical replay separately. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
 <p>Historical replays must carry a v11-family tag and a graded result, and use their saved DraftKings <b>closing</b> prices. They are reconstructed or rebuilt with historical inputs, rather than predictions captured live. Replays do not demonstrate executable five-hour returns. The record never uses another book’s prices.</p>
 <p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark.</p>
-<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. Results keeps each game, source, price and outcome. Its running ROI combines sources within that season and stage and does not change with filters.</p>""" + self.void_note() + """</section>
+<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>Winner accuracy by stated win chance</b> groups those same games twice: the model’s picks by the model’s win chance, and the market’s favorites by their closing no-vig implied win chance. Each side should win about as often as it states. The bands are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI combines sources within that season and stage and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
 <p><b>Model win chance</b> is the probability of the favored team winning; its <b>moneyline forecast</b> shows the current DraftKings price. Both can update until tip. A saved <b>locked ML</b> pick is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>
