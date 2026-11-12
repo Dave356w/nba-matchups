@@ -1,0 +1,44 @@
+Calibration stretch (research/calibration_stretch.py): P_k = Phi(k * m / sigma), k fitted on earlier walk-forward predictions only. ± is 95%.
+
+== games 10+: stretched minus base (negative = the stretch helps), ± 95%
+  2016-17  n  1074  own-season k 0.890 (slope 0.85)  k = 1: too few earlier games, not compared
+  2017-18  n  1075  own-season k 1.095 (slope 1.14)  prior k 0.890: log loss +0.0022 ± 0.0023, Brier +0.0008 ± 0.0009  |  expand k 0.890->0.994: +0.0012 ± 0.0015
+  2018-19  n  1074  own-season k 1.132 (slope 1.13)  prior k 0.986: log loss +0.0003 ± 0.0003, Brier +0.0001 ± 0.0001  |  expand k 0.986->1.030: +0.0000 ± 0.0005
+  2020-21  n   924  own-season k 1.013 (slope 1.08)  prior k 1.030: log loss +0.0000 ± 0.0007, Brier +0.0000 ± 0.0003  |  expand k 1.030->1.027: +0.0001 ± 0.0005
+  2021-22  n  1073  own-season k 1.009 (slope 1.07)  prior k 1.026: log loss +0.0000 ± 0.0006, Brier -0.0000 ± 0.0002  |  expand k 1.026->1.028: +0.0001 ± 0.0005
+  2022-23  n  1073  own-season k 1.068 (slope 1.04)  prior k 1.023: log loss -0.0001 ± 0.0004, Brier -0.0001 ± 0.0002  |  expand k 1.023->1.035: -0.0001 ± 0.0006
+  2023-24  n  1074  own-season k 1.074 (slope 1.17)  prior k 1.029: log loss -0.0003 ± 0.0007, Brier -0.0002 ± 0.0002  |  expand k 1.029->1.039: -0.0002 ± 0.0011
+  2024-25  n  1071  own-season k 1.068 (slope 1.11)  prior k 1.037: log loss -0.0003 ± 0.0009, Brier -0.0001 ± 0.0003  |  expand k 1.037->1.042: -0.0002 ± 0.0008
+  2025-26  n  1071  own-season k 1.146 (slope 1.18)  prior k 1.041: log loss -0.0008 ± 0.0009, Brier -0.0003 ± 0.0003  |  expand k 1.041->1.054: -0.0008 ± 0.0009
+  pooled   n  8435  prior: log loss +0.0001 ± 0.0004, Brier +0.0000 ± 0.0001, better in 4 of 8 seasons  |  expand: +0.0000 ± 0.0003, Brier -0.0000 ± 0.0001
+  pooled slope (1 = calibrated): base 1.118  prior 1.106  expand 1.094; mean k prior 1.007, one k on all compared games 1.079 (in-sample)
+
+== games 10+ against the close, each book x season alone (± 95%)
+  ESPN BET 2024-25  n  1071  base - close +0.0144 ± 0.0092  stretched - close +0.0141 ± 0.0093  stretched - base -0.0003 ± 0.0009
+  DraftKings 2025-26  n   964  base - close +0.0170 ± 0.0107  stretched - close +0.0163 ± 0.0107  stretched - base -0.0006 ± 0.0010
+  ESPN BET 2025-26  n   107  base - close -0.0041 ± 0.0305  stretched - close -0.0060 ± 0.0308  stretched - base -0.0019 ± 0.0028
+
+== games 1-9: stretched minus base (negative = the stretch helps), ± 95%
+  2016-17  n   140  own-season k 1.040 (slope 1.10)  k = 1: too few earlier games, not compared
+  2017-18  n   139  own-season k 0.500 (slope 0.43)  k = 1: too few earlier games, not compared
+  2018-19  n   140  own-season k 1.389 (slope 1.44)  k = 1: too few earlier games, not compared
+  2020-21  n   140  own-season k 0.500 (slope 0.38)  k = 1: too few earlier games, not compared
+  2021-22  n   141  own-season k 0.891 (slope 0.98)  prior k 0.751: log loss +0.0005 ± 0.0149, Brier +0.0007 ± 0.0058  |  expand k 0.751->0.774: +0.0010 ± 0.0146
+  2022-23  n   141  own-season k 1.161 (slope 1.03)  prior k 0.777: log loss +0.0056 ± 0.0105, Brier +0.0021 ± 0.0044  |  expand k 0.777->0.831: +0.0054 ± 0.0094
+  2023-24  n   141  own-season k 1.555 (slope 1.82)  prior k 0.823: log loss +0.0076 ± 0.0069, Brier +0.0032 ± 0.0030  |  expand k 0.823->0.879: +0.0064 ± 0.0061
+  2024-25  n   138  own-season k 1.165 (slope 1.12)  prior k 0.881: log loss +0.0035 ± 0.0063, Brier +0.0008 ± 0.0026  |  expand k 0.881->0.918: +0.0034 ± 0.0058
+  2025-26  n   138  own-season k 1.597 (slope 1.62)  prior k 0.920: log loss +0.0048 ± 0.0035, Brier +0.0017 ± 0.0014  |  expand k 0.920->0.978: +0.0032 ± 0.0025
+  pooled   n   699  prior: log loss +0.0044 ± 0.0042, Brier +0.0017 ± 0.0017, better in 0 of 5 seasons  |  expand: +0.0039 ± 0.0039, Brier +0.0015 ± 0.0016
+  pooled slope (1 = calibrated): base 1.216  prior 1.479  expand 1.449; mean k prior 0.830, one k on all compared games 1.226 (in-sample)
+
+== games 1-9 against the close, each book x season alone (± 95%)
+  ESPN BET 2024-25  n   138  base - close -0.0211 ± 0.0245  stretched - close -0.0176 ± 0.0264  stretched - base +0.0035 ± 0.0063
+  ESPN BET 2025-26  n   138  base - close +0.0071 ± 0.0270  stretched - close +0.0119 ± 0.0277  stretched - base +0.0048 ± 0.0035
+
+== Reading (fixed before the run; games 10+, prior arm)
+  FAIL  log loss negative, 95% interval excludes zero
+  FAIL  Brier agrees in sign
+  FAIL  better in a majority of seasons (4 of 8)
+  pass  not worse against the close, ESPN BET 2024-25
+  pass  not worse against the close, DraftKings 2025-26
+  NO STRETCH: at least one check fails
