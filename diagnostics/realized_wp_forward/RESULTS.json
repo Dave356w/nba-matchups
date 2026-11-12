@@ -1,0 +1,281 @@
+{
+  "shadow_research": true,
+  "registered_utc": "2026-11-12T21:50:58Z",
+  "captures": 4,
+  "versions": {
+    "realized_wp_rolling50_v1": {
+      "pooled": {
+        "official_games": 4,
+        "graded_games": 0,
+        "pending_games": 4,
+        "estimators": {
+          "model": {
+            "brier": null,
+            "log_loss": null,
+            "winner_accuracy": null,
+            "bets": 0,
+            "net_units": 0.0,
+            "roi": null
+          },
+          "market": {
+            "brier": null,
+            "log_loss": null,
+            "winner_accuracy": null,
+            "bets": 0,
+            "net_units": 0.0,
+            "roi": null
+          },
+          "realized": {
+            "brier": null,
+            "log_loss": null,
+            "winner_accuracy": null,
+            "bets": 0,
+            "net_units": 0.0,
+            "roi": null
+          }
+        },
+        "market_favorite": {
+          "bets": 0,
+          "net_units": 0,
+          "roi": null
+        }
+      },
+      "stages": {
+        "opener": {
+          "official_games": 0,
+          "graded_games": 0,
+          "pending_games": 0,
+          "estimators": {
+            "model": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "market": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "realized": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            }
+          },
+          "market_favorite": {
+            "bets": 0,
+            "net_units": 0,
+            "roi": null
+          }
+        },
+        "early": {
+          "official_games": 0,
+          "graded_games": 0,
+          "pending_games": 0,
+          "estimators": {
+            "model": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "market": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "realized": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            }
+          },
+          "market_favorite": {
+            "bets": 0,
+            "net_units": 0,
+            "roi": null
+          }
+        },
+        "established": {
+          "official_games": 4,
+          "graded_games": 0,
+          "pending_games": 4,
+          "estimators": {
+            "model": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "market": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "realized": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            }
+          },
+          "market_favorite": {
+            "bets": 0,
+            "net_units": 0,
+            "roi": null
+          }
+        }
+      }
+    }
+  },
+  "official_observations": [
+    {
+      "snapshot_id": "b8776c4a2b38b467119f56f8eb12ebe035c8882c8f7648b94374039d93bc96ce",
+      "version": "realized_wp_rolling50_v1",
+      "game_id": "401909976",
+      "captured_utc": "2026-11-12T22:07:50.023188+00:00",
+      "tip_utc": "2026-11-13T00:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.66618,
+          "side": "away",
+          "price": 221.0,
+          "expected_net_return": 0.07156220000000002,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.7008166895771004,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.86,
+          "side": "home",
+          "price": -270.0,
+          "expected_net_return": 0.1785185185185183,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "bcf47b6bdfccc9e4a25b1d776b1b03ecf48c74160e54bd36c94fb62f01a8b966",
+      "version": "realized_wp_rolling50_v1",
+      "game_id": "401909977",
+      "captured_utc": "2026-11-12T22:07:50.034613+00:00",
+      "tip_utc": "2026-11-13T00:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.24731,
+          "side": "home",
+          "price": 341.0,
+          "expected_net_return": 0.09063710000000014,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.21785080863952574,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.21999999999999997,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "9645bb8fe71ebddc19c21d3cc3308e364f58d14e770f578d559a606f595e9609",
+      "version": "realized_wp_rolling50_v1",
+      "game_id": "401909978",
+      "captured_utc": "2026-11-12T22:07:50.046456+00:00",
+      "tip_utc": "2026-11-13T01:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.62425,
+          "side": "away",
+          "price": 185.0,
+          "expected_net_return": 0.07088750000000021,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.6630327056491576,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.76,
+          "side": "home",
+          "price": -223.0,
+          "expected_net_return": 0.10080717488789226,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "b936a8764d743a4fa6a398ccb566d26eed1e75273a32a0b7037fe8cfcf25caf0",
+      "version": "realized_wp_rolling50_v1",
+      "game_id": "401909979",
+      "captured_utc": "2026-11-12T22:07:50.059014+00:00",
+      "tip_utc": "2026-11-13T02:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.76212,
+          "side": "home",
+          "price": -229.0,
+          "expected_net_return": 0.09492349344978179,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.6687141274796093,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.6216216216216216,
+          "side": "away",
+          "price": 190.0,
+          "expected_net_return": 0.09729729729729741,
+          "net_units": null
+        }
+      }
+    }
+  ]
+}
