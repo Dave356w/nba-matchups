@@ -57,7 +57,7 @@ jobs:
           restore-keys: bbr-
 
       - name: Grade, score slate, render
-        run: python build_site.py ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+        run: python build_site.py --capture-realized ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
 
       # DFS-only uncertainty fitting, once per ET morning after the build
       # has saved grading and today's pregame snapshots. Deferred runs retry
@@ -72,7 +72,7 @@ jobs:
 
       - name: Render with accepted DFS update
         if: ${{ steps.dfs_refit.outputs.updated == 'true' }}
-        run: python build_site.py --render-only
+        run: python build_site.py --render-only --capture-realized
 
       # Validate and commit even if the render step failed: a pregame row
       # already written to data/ cannot be re-derived after tip (the NFL
@@ -86,6 +86,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/ model/dfs_simulation.json diagnostics/dfs_calibration/RESULTS.json
+          if [ -d diagnostics/realized_wp_forward ]; then git add diagnostics/realized_wp_forward/; fi
           if git diff --cached --quiet; then echo "no data changes"; exit 0; fi
           git commit -m "ledger $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4; do

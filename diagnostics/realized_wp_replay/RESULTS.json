@@ -1,0 +1,114 @@
+{
+  "method": "Fixed raw latest-50 joint cell; previous + current season; earlier slates only; either-side +EV 1u.",
+  "source_sha256": "d62c3e294cb0005ea03269bf23361dcf110be8360ce8f598aab9ca5a3bf5cedf",
+  "limitations": [
+    "Exploratory retrospective replay, separate from immutable forward record.",
+    "Prices are historical closes, not first valid snapshots within five hours.",
+    "Base models are leave-one-season-out; earlier test years can use later training seasons.",
+    "No prior-season same-book seed exists for either primary cohort; cold-start cells abstain.",
+    "2024-25 ESPN BET is a separate bookmaker sensitivity, not DraftKings evidence.",
+    "Replay does not verify execution, publication or visitor views. No thresholds/windows optimized."
+  ],
+  "results": {
+    "2024-25 espnbet": {
+      "official_games": 1187,
+      "graded_games": 1187,
+      "pending_games": 0,
+      "estimators": {
+        "model": {
+          "brier": 0.20333949502468407,
+          "log_loss": 0.5918971634635136,
+          "winner_accuracy": 0.6790227464195451,
+          "bets": 886,
+          "net_units": -33.95145778574205,
+          "roi": -0.03831992978074723
+        },
+        "market": {
+          "brier": 0.19963577973234653,
+          "log_loss": 0.582482442059064,
+          "winner_accuracy": 0.6882898062342039,
+          "bets": 0,
+          "net_units": 0.0,
+          "roi": null
+        },
+        "realized": {
+          "brier": 0.21284739835252103,
+          "log_loss": "infinity",
+          "winner_accuracy": 0.6722830665543387,
+          "bets": 907,
+          "net_units": -89.06587044544854,
+          "roi": -0.09819831361129938
+        }
+      },
+      "market_favorite": {
+        "bets": 1187,
+        "net_units": -55.787023700305056,
+        "roi": -0.046998335046592295
+      },
+      "total_available": 1225,
+      "uncovered": 38,
+      "median_cell_games": 50.0,
+      "slate_bootstrap": {
+        "brier_delta_vs_market_95": [
+          0.007542908660347688,
+          0.019359971352555738
+        ],
+        "realized_roi_95": [
+          -0.17145287142461677,
+          -0.02661583577484822
+        ]
+      },
+      "certainty_errors": 13
+    },
+    "2025-26 dk": {
+      "official_games": 941,
+      "graded_games": 941,
+      "pending_games": 0,
+      "estimators": {
+        "model": {
+          "brier": 0.20086275211540916,
+          "log_loss": 0.5860535378908731,
+          "winner_accuracy": 0.7003188097768331,
+          "bets": 739,
+          "net_units": -85.39533624894551,
+          "roi": -0.11555525879424292
+        },
+        "market": {
+          "brier": 0.19507921191237312,
+          "log_loss": 0.5711628826244822,
+          "winner_accuracy": 0.6907545164718385,
+          "bets": 0,
+          "net_units": 0.0,
+          "roi": null
+        },
+        "realized": {
+          "brier": 0.21248024472700455,
+          "log_loss": "infinity",
+          "winner_accuracy": 0.6790648246546227,
+          "bets": 771,
+          "net_units": -46.59502460752289,
+          "roi": -0.06043453256488053
+        }
+      },
+      "market_favorite": {
+        "bets": 941,
+        "net_units": -47.00610630230228,
+        "roi": -0.04995335420010869
+      },
+      "total_available": 964,
+      "uncovered": 23,
+      "median_cell_games": 42.0,
+      "slate_bootstrap": {
+        "brier_delta_vs_market_95": [
+          0.008443344225708865,
+          0.026827993326419573
+        ],
+        "realized_roi_95": [
+          -0.15770559721525876,
+          0.0441699761848448
+        ]
+      },
+      "certainty_errors": 17
+    }
+  }
+}

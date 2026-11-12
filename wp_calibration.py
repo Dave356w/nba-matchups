@@ -54,7 +54,9 @@ class RollingCalibration:
             self.rows.append(dict(game_id=str(row.game_id), season=row.season,
                 date=str(row.slate_date), stage=row.prediction_stage, source=source,
                 model_band=band(p_pick, MODEL_BOUNDS), market_band=band(q_pick, MARKET_BOUNDS),
-                won=int(y if home else 1-y)))
+                won=int(y if home else 1-y), model_probability=float(p_pick),
+                market_probability=float(q_pick),
+                price=float(row.get(f'{prefix}_home_ml' if home else f'{prefix}_away_ml'))))
 
     def estimate(self, row):
         """Estimate the CURRENT model winner using current pregame DK prices.
@@ -90,4 +92,5 @@ class RollingCalibration:
         return dict(probability=wins/n if n else np.nan,
                     market_probability=q_pick, games=n, wins=wins, losses=n-wins,
                     previous_games=previous, current_games=n-previous,
-                    model_range=MODEL_BOUNDS[pb:pb+2], market_range=MARKET_BOUNDS[qb:qb+2])
+                    model_range=MODEL_BOUNDS[pb:pb+2], market_range=MARKET_BOUNDS[qb:qb+2],
+                    evidence=prior)
