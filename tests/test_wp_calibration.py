@@ -77,7 +77,7 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     target=record('target',date='2026-11-11',won=np.nan)
     site=PublicSite(ui,pd.DataFrame([record('prior'),target]),'2026-11-11','built')
     card=site.card(target)
-    assert 'Rolling calibrated WP' in card and '100.0%' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
+    assert 'Realized WP' in card and '100.0%' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
     assert 'latest 50 actual results in that cell' in site.guide_page()
     assert "data-cell-games='1'" in card
     assert 'No historical results in this cell yet' in site.card(record('empty',date='2026-11-09'))

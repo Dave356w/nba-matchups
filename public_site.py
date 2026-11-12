@@ -120,12 +120,13 @@ CSS = """
 .ml-hero{padding:24px;border:1px solid var(--line);border-radius:16px;background:var(--surface);margin:20px 0}
 .ml-hero h2{margin:0 0 8px;font-size:20px}.ml-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin:24px 0}
 .ml-metrics small{display:block;color:var(--muted);font-size:12px}.ml-metrics strong{display:block;font:700 clamp(24px,3vw,36px) var(--sans);letter-spacing:-.04em;margin-top:6px}
-.ml-hero .prediction-comparison{max-width:650px}.confidence-bands small{display:block;color:var(--muted);font-size:10px;font-weight:400}.confidence-bands tfoot td{font-weight:700;border-bottom:0}.confidence-bands{margin-top:22px}.confidence-bands th,.confidence-bands td{white-space:normal;vertical-align:top}.ml-hero .public-note{margin-bottom:0}
+.ml-hero .prediction-comparison{max-width:650px}.ml-hero .public-note{margin-bottom:0}
+.roi-matrix-wrap{margin-top:22px;max-width:100%}.roi-matrix{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px;font-size:12px;text-align:center}.roi-matrix caption{font-weight:700;text-align:left;margin-bottom:10px;font-size:15px}.roi-matrix th{text-align:center;font-size:11px;color:var(--muted);padding:8px 3px}.roi-matrix td{text-align:center;padding:12px 3px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:7px;vertical-align:middle}.roi-matrix strong{display:block;font:700 16px var(--mono);overflow-wrap:anywhere}.roi-matrix small{display:block;color:var(--muted);font-size:10px;margin-top:5px}.roi-matrix .positive{background:rgba(var(--good),.1)}.roi-matrix .negative{background:rgba(var(--bad),.1)}.roi-matrix .positive strong{color:rgb(var(--good))}.roi-matrix .negative strong{color:rgb(var(--bad))}@media(max-width:640px){.roi-matrix{border-spacing:2px}.roi-matrix th{font-size:9px;padding:6px 1px;overflow-wrap:anywhere}.roi-matrix td{padding:9px 1px}.roi-matrix strong{font-size:10px}.roi-matrix small{font-size:8px;overflow-wrap:anywhere}}
 .record-label{color:var(--muted);font-size:12px}
 .forecast-readout.ml-focus{grid-template-columns:1.2fr 1fr}.stage-label{font-size:11px;color:var(--muted)}
 [data-source-summary][hidden],[data-ml-panel][hidden],.gcard[hidden]{display:none!important}
 .game-filters{display:flex;flex-wrap:wrap;gap:8px 16px;margin:16px 0 12px}.filter-group>span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.filter-group .seg{display:flex;margin:0}
-.season-calibration{padding:10px 0;margin-bottom:10px;border-top:1px solid var(--line-2);font-size:12px}.season-calibration strong{font-size:18px;margin-left:8px}.season-calibration small{display:block;font-size:11px;color:var(--muted);margin-top:4px}.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}.lock-summary a{display:inline-block;margin-top:6px;font-size:11px}
+.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.calibration-main{order:0}.actual-result{order:1}.calibration-evidence{order:2;grid-column:1/-1}.forecast-outcome .calibration-main strong{font:750 22px/1.35 var(--sans)}.forecast-outcome .break-even{margin:0 0 8px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.forecast-outcome .calibration-evidence small{font-size:11px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}.lock-summary a{display:inline-block;margin-top:6px;font-size:11px}
 .source-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.source-summary article{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}.source-summary h3{margin:0 0 6px;font-size:15px}.source-summary p{font-size:12px;color:var(--muted);margin:6px 0}.source-summary strong{color:var(--ink)}
 .public-empty button{margin-top:14px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;cursor:pointer}
 @media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-note.public-note{display:none}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
@@ -291,19 +292,19 @@ class PublicSite:
             margin_team = row.home if margin >= 0 else row.away
             price = number('pre_home_ml' if p >= .5 else 'pre_away_ml') if dk else np.nan
             breakeven = market.implied(price)
-            forecast = (f"<div class='forecast-readout ml-focus'><div><small>Model probability</small><strong>{u.pct(prob)}</strong><span>{u.esc(team)} to win</span></div>"
-                        f"<div><small>DraftKings moneyline</small><strong>{u.ml_txt(price) if np.isfinite(breakeven) else '—'}</strong><span>{u.esc(team)}</span></div></div>")
             q_home = number('pre_q_home') if dk else np.nan
             q_pick = (q_home if p >= .5 else 1-q_home) if 0 < q_home < 1 else np.nan
+            forecast = (f"<div class='forecast-readout ml-focus'><div><small>Model probability</small><strong>{u.pct(prob)}</strong><span>{u.esc(team)} to win</span></div>"
+                        f"<div data-market-probability><small>DraftKings no vig</small><strong>{u.pct(q_pick)}</strong><span>{u.esc(team)}</span></div></div>")
             actual = 'Pending' if not final else 'Win' if (p >= .5) == (number('home_won') == 1) else 'Loss'
-            forecast += (f"<div class='forecast-outcome'><div><small>Market implied · no vig</small><strong>{u.pct(q_pick)}</strong>"
-                         f"<small>{u.esc(team)} · pregame {u.tip_pt(row.get('snapshot_utc'))}</small></div>"
-                         f"<div><small>Actual result · {u.esc(team)}</small><strong data-forecast-result data-pick-side='{'home' if p >= .5 else 'away'}'>{actual}</strong></div></div>")
-            forecast += self.calibrated_readout(row, team)
-            forecast += (f"<p class='break-even'>Price requires {u.pct(breakeven)} to break even. A likely winner may still be poor value.</p>"
-                         if np.isfinite(breakeven) else "<p class='break-even'>Break-even probability unavailable: no valid DraftKings price.</p>")
+            threshold = (f"Price requires {u.pct(breakeven)} to break even." if np.isfinite(breakeven)
+                         else 'Break-even probability unavailable: no valid DraftKings price.')
+            forecast += ("<div class='forecast-outcome'>" + self.calibrated_readout(row, team)
+                         + f"<div class='actual-result'><p class='break-even'>{threshold}</p><small>Actual result · {u.esc(team)}</small>"
+                         f"<strong data-forecast-result data-pick-side='{'home' if p >= .5 else 'away'}'>{actual}</strong></div></div>")
         else:
-            forecast = "<div class='forecast-only'><b>Forecast unavailable</b><br>A required model input was unavailable.</div>" + self.calibrated_readout(row, None)
+            forecast = ("<div class='forecast-only'><b>Forecast unavailable</b><br>A required model input was unavailable.</div>"
+                        + "<div class='forecast-outcome'>" + self.calibrated_readout(row, None) + "</div>")
         tracking = ""
         saved = self.predictions[self.predictions.game_id.astype(str).eq(str(row.game_id))] if len(self.predictions) else self.predictions
         if not len(saved):
@@ -356,17 +357,15 @@ class PublicSite:
         u = self.ui
         estimate = self.calibration.estimate(row)
         if estimate is None:
-            return ("<div class='season-calibration' data-season-calibration>Rolling calibrated WP <strong>—</strong>"
+            return ("<div class='calibration-main' data-season-calibration><small>Realized WP</small><strong>—</strong>"
                     "<small>Requires a v11 forecast, team experience and valid DraftKings prices.</small></div>")
         n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
-        pool = 'early + 10+ pooled' if wp_calibration.stage(row) in ('early', 'established') else 'opening games only'
         support = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams" if n
                    else 'No historical results in this cell yet')
-        return (f"<div class='season-calibration' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
-                f"Rolling calibrated WP <strong>{u.pct(estimate['probability'])}</strong>"
-                f"<small>{u.esc(team)} estimate · {support}</small>"
-                f"<small>{estimate['previous_games']} previous season + {estimate['current_games']} current season · latest 50 per cell · {pool}. "
-                "<a href='how-it-works.html#in-season-calibration'>How calculated</a></small></div>")
+        return (f"<div class='calibration-main' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
+                f"<small>Realized WP</small><strong>{u.pct(estimate['probability'])}</strong><small>{u.esc(team)} estimate</small></div>"
+                f"<div class='calibration-evidence'><small>{support}</small>"
+                f"<small>{estimate['previous_games']} previous season + {estimate['current_games']} current season · pregame {u.tip_pt(row.get('snapshot_utc'))}</small></div>")
 
     def live_block(self, row, dk):
         """The live win chance (owner request, 2026-11-07; live_wp.py): the
@@ -658,34 +657,63 @@ class PublicSite:
             body += f"<p class='public-note'>The model’s probability scores are {quality} the closing market in this view. These scores measure how well probabilities match outcomes; lower is better. The closing market is a later benchmark than a five-hour pick.</p>"
         else:
             body += "<p class='public-note'>The market comparison appears when graded games have usable DraftKings closing prices.</p>"
-        body += self.confidence_bands(part)
+        body += self.roi_matrix(part)
         return body + "<p class='public-note'>Small samples have wide uncertainty. A high win rate alone does not establish profitable betting.</p>"
 
-    def confidence_bands(self, part):
-        """Winner accuracy by stated probability (owner request, 2026-11-12):
-        the model's picks by its own win chance beside closing favorites by
-        the market's implied chance, on the same graded games."""
+    def roi_matrix(self, part):
+        """Latest 50 graded, priced model-winner picks per joint WP cell.
+
+        Part already has the page's stage/source/season filters. Native rows
+        use saved lock P/prices; replay rows use saved model P/closing prices.
+        """
+        if not len(part):
+            return ''
         u = self.ui
-        rows, total = analysis.prediction_confidence_bands(part)
-        if not rows:
-            return ""
-
-        def cell(h, word):
-            if not h:
-                return "<td>—</td>"
-            return (f"<td>{u.pct(h['accuracy'])}<small>{h['w']}–{h['l']}</small><small>{word} {u.pct(h['stated'])}</small></td>")
-
-        def label(r):
-            return f"{100 * r['lo']:.0f}%+" if r['hi'] >= 1 else f"{100 * r['lo']:.0f}–{100 * r['hi']:.0f}%"
-        body = ("<table class='prediction-comparison confidence-bands' data-confidence-bands>"
-                "<caption>Winner accuracy by stated win chance</caption>"
-                "<thead><tr><th>Stated win chance</th><th>Model picks</th><th>Market favorites at close</th></tr></thead><tbody>"
-                + ''.join(f"<tr><td>{label(r)}</td>{cell(r['model'], 'avg. model')}{cell(r['market'], 'avg. implied')}</tr>" for r in rows)
-                + f"</tbody><tfoot><tr><td>All</td>{cell(total['model'], 'avg. model')}{cell(total['market'], 'avg. implied')}</tr></tfoot></table>")
-        return body + (f"<p class='public-note'>The same {total['model']['n']} graded games with DraftKings closing prices, counted once in each column: "
-                       "by the model’s win chance for its pick, and by the closing no-vig implied win chance of the market favorite. "
-                       "One row therefore holds different games in each column. A well-calibrated forecast wins about as often as its average stated chance. "
-                       "Bands are descriptive, not a filter or a betting rule; bands with few games are mostly noise.</p>")
+        d = analysis.model_prediction_moneyline(part)
+        cells = {}
+        for _, r in d.sort_values(['slate_date', 'game_id'], kind='stable').iterrows():
+            if pd.isna(r.ml_units) or pd.isna(r.prediction_won):
+                continue
+            prefix = 'lock' if r.prediction_source == 'live' else 'close'
+            q_home = market.devig(r.get(f'{prefix}_home_ml'), r.get(f'{prefix}_away_ml'))
+            if not np.isfinite(q_home):
+                continue
+            q = q_home if r.prediction == r.home else 1-q_home
+            key = (wp_calibration.band(r.prediction_p, wp_calibration.MODEL_BOUNDS),
+                   wp_calibration.band(q, wp_calibration.MARKET_BOUNDS))
+            cells.setdefault(key, []).append(r)
+        model_labels = ['50–60%', '60–70%', '70–80%', '80–100%']
+        market_labels = ['<50%', '50–60%', '60–70%', '70–80%', '80–100%']
+        body = ("<div class='roi-matrix-wrap'><table class='roi-matrix' data-roi-matrix>"
+                "<caption>ROI lookup matrix · latest 50 per cell</caption>"
+                "<thead><tr><th scope='col'>Model WP ↓<br>Market WP →</th>"
+                + ''.join(f"<th scope='col'>{label}</th>" for label in market_labels) + '</tr></thead><tbody>')
+        retained, units = 0, 0.0
+        for pb, label in enumerate(model_labels):
+            body += f"<tr><th scope='row'>{label}</th>"
+            for qb in range(len(market_labels)):
+                cell = cells.get((pb, qb), [])[-wp_calibration.WINDOW_GAMES:]
+                n = len(cell)
+                if not n:
+                    body += f"<td data-model-band='{pb}' data-market-band='{qb}' data-n='0'>—</td>"
+                    continue
+                profit = sum(float(r.ml_units) for r in cell)
+                wins = sum(int(r.prediction_won) for r in cell)
+                roi = profit/n
+                color = 'positive' if profit > 0 else 'negative' if profit < 0 else 'neutral'
+                body += (f"<td class='{color}' data-model-band='{pb}' data-market-band='{qb}' data-n='{n}'>"
+                         f"<strong>{100*roi:+.1f}%</strong><small>{n} game{'s' if n != 1 else ''} · {wins}–{n-wins}</small>"
+                         f"<small>{profit:+.2f}u</small></td>")
+                retained += n
+                units += profit
+            body += '</tr>'
+        body += '</tbody></table></div>'
+        return body + (f"<p class='public-note'>{retained} retained priced results · {units:+.2f}u. "
+                       "Each square stakes 1 unit on the model’s selected team; both WP bands refer to that same team, across all NBA teams. "
+                       "Market WP removes the bookmaker’s margin. Below 50% includes model-picked market underdogs. "
+                       "Uses the current stage/source/season filters, then the latest 50 graded priced games per cell; pending and unpriced games are excluded. "
+                       "Live uses five-hour lock probabilities and prices; replay uses historical model forecasts and closing prices. "
+                       "Cells are descriptive, not a filter or a betting rule. Small samples can show extreme ROI.</p>")
 
     def stage(self, hyp, season):
         u = self.ui
@@ -789,14 +817,14 @@ class PublicSite:
 <p>The default is the <b>saved live games-10+ record across seasons</b>. Live and replay summaries appear side by side. Source and season filters retain the combined record and each source separately. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
 <p>Historical replays must carry a v11-family tag and a graded result, and use their saved DraftKings <b>closing</b> prices. They are reconstructed or rebuilt with historical inputs, rather than predictions captured live. Replays do not demonstrate executable five-hour returns. The record never uses another book’s prices.</p>
 <p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark.</p>
-<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>Winner accuracy by stated win chance</b> groups those same games twice: the model’s picks by the model’s win chance, and the market’s favorites by their closing no-vig implied win chance. Each side should win about as often as it states. The bands are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI combines sources within that season and stage and does not change with filters.</p>""" + self.void_note() + """</section>
+<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the stage, source and season filters, then retains the latest 50 completed priced picks in each cell, ordered by slate date and game ID. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI combines sources within that season and stage and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
-<p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings moneyline</b> is that team’s current market price. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
+<p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
-<section id='in-season-calibration'><h2>Rolling calibrated WP</h2>
+<section id='in-season-calibration'><h2>Realized WP</h2>
 <p>This experimental estimate is a lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
-<p><b>Rolling calibrated WP = wins ÷ games among the latest 50 actual results in that cell.</b> There are no market pseudo-games and no shrinkage. Use all available results if a cell has fewer than 50; an empty cell has no estimate. A small cell can show 0% or 100%, which is an observed frequency and does not establish certainty about the next game.</p>
+<p><b>Realized WP = wins ÷ games among the latest 50 actual results in that cell.</b> There are no market pseudo-games and no shrinkage. Use all available results if a cell has fewer than 50; an empty cell has no estimate. A small cell can show 0% or 100%, which is an observed frequency and does not establish certainty about the next game.</p>
 <p>The <b>immediately previous season</b> supplies the starting matrix. Current-season evidence uses valid graded native v11 five-hour locks on strictly earlier slates. Same-season replay, older seasons, pending games and void locks do not enter. New results replace the oldest matching observations once the cell reaches 50. Order is slate date, then game ID for ties.</p>
 <p>Early games and games 10+ share calibration evidence; opening games remain separate. Each historical game contributes once, oriented to its model’s selected team. Model and market picks can disagree: a model-picked market underdog belongs in a market-WP-below-50% cell. The other side’s implied estimate is the complement; the two sides are not counted as independent results.</p>
 <p>Previous-season replay uses its saved v11 model forecast and DraftKings closing prices. Current native evidence uses saved five-hour model probabilities and prices. These price timings differ, and the available previous-season DraftKings seed contains games 10+ only. The card shows how many retained observations come from each season.</p>

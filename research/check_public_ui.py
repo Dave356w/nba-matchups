@@ -184,7 +184,7 @@ def main():
                     page.goto(f'{base}/fixture/index.html')
                     assert page.locator('.gcard:visible').count()==1
                     assert page.locator('.gcard:visible [data-season-calibration]').count()==1
-                    assert 'No historical results in this cell yet' in page.locator('.gcard:visible [data-season-calibration]').inner_text()
+                    assert 'No historical results in this cell yet' in page.locator('.gcard:visible').inner_text()
                     page.locator('[data-group="stage"][data-show="all"]').click()
                     assert page.locator('.gcard:visible').count()==5
                     # Stage and status compose; counts reflect the other group.
@@ -241,9 +241,11 @@ def main():
                     assert page.locator('[data-ml-panel]:visible .ml-metrics').get_by_text('3–1',exact=True).count()==1
                     assert page.locator('[data-source-summary]:visible article').count()==2
 
-                    # the band table repeats the matched record in its All row
-                    assert panel.locator('[data-confidence-bands]').count()==1
-                    assert panel.locator('[data-confidence-bands] tfoot').get_by_text('3–1',exact=True).count()>=1
+                    assert panel.locator('[data-roi-matrix]').count()==1
+                    assert panel.locator('[data-confidence-bands]').count()==0
+                    counts=panel.locator('[data-roi-matrix] [data-n]').evaluate_all("els => els.map(e => Number(e.dataset.n))")
+                    assert sum(counts)==4 and max(counts)<=50
+                    assert panel.locator('[data-model-band="3"][data-market-band="1"]').get_by_text('+11.1%',exact=True).count()==1
                     assert panel.get_by_text('Log loss',exact=True).count()==1
                     assert panel.get_by_text('Brier score',exact=True).count()==1
                     page.get_by_label('Record source',exact=True).select_option('replay')
