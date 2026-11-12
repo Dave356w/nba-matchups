@@ -3527,13 +3527,21 @@ def write_research(native, recon, today, model_ok, pre=None, out_dir=None):
     return text
 
 
-def write_pages(native, recon, today, model_ok, pre=None, page_day=None):
+def write_pages(native, recon, today, model_ok, pre=None, page_day=None, capture_realized=False):
     """Publish an explicit allowlist; retain the complete workbench elsewhere.
     The public pages show `page_day` (page_slate), the workbench `today`."""
     built = datetime.now(PT).strftime("%a %b %-d, %Y · %-I:%M %p PT")
     replay = pd.concat([recon, ledger.load(ledger.REBUILT_PATH)], ignore_index=True)
-    pages = public_site.PublicSite(sys.modules[__name__], native, page_day or today, built,
-                                  model_ok, replay=replay).render()
+    site = public_site.PublicSite(sys.modules[__name__], native, page_day or today, built,
+                                  model_ok, replay=replay)
+    if capture_realized:
+        import realized_forward
+        log(f"saved {realized_forward.capture(site)} new shadow Realized WP forecast(s)")
+        errors = realized_forward.validate()
+        if errors:
+            raise ValueError('; '.join(errors))
+        realized_forward.report(native)
+    pages = site.render()
     internal = OUT_DIR.parent / "diagnostics" / "site"
     text = write_research(native, recon, today, model_ok, pre, out_dir=internal)
     (internal / "how-it-works.html").write_text(pages["how-it-works.html"], encoding="utf-8")
@@ -3565,6 +3573,7 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--date", default=None, help="ET slate date (default today)")
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--capture-realized", action="store_true", help="save production-only shadow Realized WP forecasts")
     a = ap.parse_args(argv)
     today = a.date or et_today()
     native = ledger.load(ledger.NATIVE_PATH)
@@ -3601,7 +3610,7 @@ def main(argv=None):
     day = today if a.date else page_slate(native, today)
     if day != today:
         log(f"public pages show the {day} slate until {SLATE_ROLLOVER_HOUR}:00 ET")
-    text = write_pages(native, recon, today, model_ok, page_day=day)
+    text = write_pages(native, recon, today, model_ok, page_day=day, capture_realized=a.capture_realized)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(text, encoding="utf-8")
     log(f"wrote {OUT_DIR}/" + ", ".join(h for h, _ in PAGES)

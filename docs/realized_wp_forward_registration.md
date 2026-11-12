@@ -15,13 +15,15 @@ alone does not create a historical forward capture.
 
 One official observation per game and algorithm version: the first valid saved
 capture whose recording time is within five hours of its saved tip and strictly
-before tip. Earlier captures remain audit history; later forecasts never replace
+before tip. The source forecast must also be timestamped within that five-hour
+window, so a stale forecast cannot acquire a fresh official timestamp. Earlier captures remain audit history; later forecasts never replace
 the official observation. A game with no valid capture in that window is not
 scored. Activation does not reconstruct locks that predate this logger.
 
 Freeze native model P, no-vig DraftKings Q, Realized WP, both quoted moneylines,
 model-selected team, forecast/capture/tip timestamps, season, experience stage,
 model tag, algorithm version, source revision, cell W/L/count/season composition,
+the displayed rounded percentage alongside the full-precision probabilities,
 and a content-addressed copy of the matrix evidence. The displayed probability
 is the existing raw wins/games in the latest 50 joint-cell observations; early
 and 10+ calibration evidence is pooled, with openers separate. None of that

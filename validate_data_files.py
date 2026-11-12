@@ -396,7 +396,9 @@ def check_ou3_rescore(path=None, native_path=ledger.NATIVE_PATH):
 
 
 def main():
-    errs = check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
+    import realized_forward
+    errs = realized_forward.validate()
+    errs += check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
     errs += check_ou_rescore() + check_ou3_rescore()
     errs += check_sleeper()
     errs += check_yahoo()
