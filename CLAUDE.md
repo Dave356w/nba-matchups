@@ -5,6 +5,21 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Rolling matrix amendment — owner approval, November 12, 2026
+
+The owner selected the latest 50 results per joint model-WP × market-WP cell,
+seeded with the immediately previous season and updated with completed earlier
+current-season slates. This supersedes the 100-market-prior display below.
+Use actual cell wins/games without shrinkage; an empty cell is unavailable.
+Current-season evidence remains valid native v11 five-hour locks; historical
+seeding uses eligible v11 replay at its DraftKings close. Exclude same-season
+replay, older seasons, pending/void games and same/later slates. Preserve native
+precedence and one observation per game. Order by date and game ID. Pool early
+and 10+ calibration evidence across all teams; openers remain separate. Include
+model/market disagreement and market-underdog cells. Show actual W/L, window
+size and season composition, and explain the historical close/live-lock timing
+difference. No production model, tracked rule, lock, grade or record changes.
+
 ### In-season calibrated WP — owner approval, November 12, 2026
 
 The owner requested the exact joint-cell estimate on each game card:

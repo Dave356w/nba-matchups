@@ -191,7 +191,7 @@ class PublicSite:
         # reader's browser computes it from ESPN's live score (display only)
         self.live_fit = live_wp.load()
         self.predictions = analysis.moneyline_model_predictions(self.native, replay)
-        self.calibration = wp_calibration.SeasonCalibration(self.native)
+        self.calibration = wp_calibration.RollingCalibration(self.native, replay)
         # the O/U rows of the live totals model: ou3's once Fit model has
         # written it (or a native lock carries it), else ou2's
         self.ou = "ou3" if analysis.ou3_active(self.native) else "ou2"
@@ -356,16 +356,17 @@ class PublicSite:
         u = self.ui
         estimate = self.calibration.estimate(row)
         if estimate is None:
-            return ("<div class='season-calibration' data-season-calibration>In-season calibrated WP <strong>—</strong>"
+            return ("<div class='season-calibration' data-season-calibration>Rolling calibrated WP <strong>—</strong>"
                     "<small>Requires a v11 forecast, team experience and valid DraftKings prices.</small></div>")
         n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
-        support = f"{wins}–{losses} from {n} prior cell game{'s' if n != 1 else ''} this season"
         pool = 'early + 10+ pooled' if wp_calibration.stage(row) in ('early', 'established') else 'opening games only'
-        fallback = " · no prior games; equals market WP" if not n else ''
+        support = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams" if n
+                   else 'No historical results in this cell yet')
         return (f"<div class='season-calibration' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
-                f"In-season calibrated WP <strong>{u.pct(estimate['probability'])}</strong>"
-                f"<small>{u.esc(team)} · {support}{fallback}</small>"
-                f"<small>Earlier slates · {pool} · market prior: 100 games. <a href='how-it-works.html#in-season-calibration'>How calculated</a></small></div>")
+                f"Rolling calibrated WP <strong>{u.pct(estimate['probability'])}</strong>"
+                f"<small>{u.esc(team)} estimate · {support}</small>"
+                f"<small>{estimate['previous_games']} previous season + {estimate['current_games']} current season · latest 50 per cell · {pool}. "
+                "<a href='how-it-works.html#in-season-calibration'>How calculated</a></small></div>")
 
     def live_block(self, row, dk):
         """The live win chance (owner request, 2026-11-07; live_wp.py): the
@@ -793,12 +794,14 @@ class PublicSite:
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings moneyline</b> is that team’s current market price. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
-<section id='in-season-calibration'><h2>In-season calibrated WP</h2>
-<p>This is an experimental estimate for the <b>same team as the current model forecast</b>. It uses realized results where the model and market probabilities fell in the same joint cell this season. It can update with the pregame forecast and price until tip; it is separate from live win chance and the saved locked pick.</p>
-<p><b>Calibrated WP = (prior cell wins + 100 × current market WP) ÷ (prior cell games + 100).</b> Market WP is the DraftKings moneyline probability with the bookmaker’s margin removed. With no prior games, the estimate equals market WP.</p>
-<p>Prior cell games are graded native v11 five-hour locks from <b>strictly earlier slates in the same season</b>. Historical replays, prior seasons, pending games and void locks do not enter. Early games and games 10+ share calibration evidence; opening games remain separate. The tracked early and 10+ records remain separate. Each prior game uses its model’s selected team, saved model probability, saved DraftKings probability and actual Win/Loss.</p>
-<p>Model bands: 50–60%, 60–70%, 70–80%, 80–100%. Market bands for that same team: below 50%, 50–60%, 60–70%, 70–80%, 80–100%. Boundaries enter the higher band; 100% enters the final band. The card shows the prior cell’s W/L and count; 100 is a fixed smoothing weight, not 100 additional observed games.</p>
-<p>This display estimate does not change the model, tracked picks or record. Sparse cells remain close to the market probability; an improvement or betting advantage has not been established.</p></section>
+<section id='in-season-calibration'><h2>Rolling calibrated WP</h2>
+<p>This experimental estimate is a lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
+<p><b>Rolling calibrated WP = wins ÷ games among the latest 50 actual results in that cell.</b> There are no market pseudo-games and no shrinkage. Use all available results if a cell has fewer than 50; an empty cell has no estimate. A small cell can show 0% or 100%, which is an observed frequency and does not establish certainty about the next game.</p>
+<p>The <b>immediately previous season</b> supplies the starting matrix. Current-season evidence uses valid graded native v11 five-hour locks on strictly earlier slates. Same-season replay, older seasons, pending games and void locks do not enter. New results replace the oldest matching observations once the cell reaches 50. Order is slate date, then game ID for ties.</p>
+<p>Early games and games 10+ share calibration evidence; opening games remain separate. Each historical game contributes once, oriented to its model’s selected team. Model and market picks can disagree: a model-picked market underdog belongs in a market-WP-below-50% cell. The other side’s implied estimate is the complement; the two sides are not counted as independent results.</p>
+<p>Previous-season replay uses its saved v11 model forecast and DraftKings closing prices. Current native evidence uses saved five-hour model probabilities and prices. These price timings differ, and the available previous-season DraftKings seed contains games 10+ only. The card shows how many retained observations come from each season.</p>
+<p>Model bands: 50–60%, 60–70%, 70–80%, 80–100%. Market bands: below 50%, 50–60%, 60–70%, 70–80%, 80–100%. Boundaries enter the higher band; 100% enters the final band.</p>
+<p>The current forecast and price define the new game’s cell and can update until tip. This display is separate from live win chance and the frozen pick. It does not change the model, tracked selections, grades or separate early/10+ performance records. A predictive or betting advantage has not been established.</p></section>
 <section><h2>The model</h2>
 <p>The same v11 model predicts a points margin and converts it to a win probability. Inputs include recent shooting, turnovers, rebounding and free-throw rates for and against; home court, back-to-backs and season phase; roster value and the NBA injury report. Last season’s team rating fades out over the first 10 games. Market prices are benchmarks, never model inputs.</p>""" + self.model_note() + """</section>
 """
