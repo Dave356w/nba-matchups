@@ -5,6 +5,15 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Realized WP shadow forward record — owner approval, November 12, 2026
+
+The owner explicitly requests immutable pre-tip Realized WP capture and matched
+model/market accuracy and ROI tracking, shadow research only. Fixed terms are
+in `docs/realized_wp_forward_registration.md`, committed before implementation.
+Use the first saved valid capture within five hours of tip; retain all pre-tip
+captures; +EV flat 1u, either side, at most one per game. No historical backfill,
+public forward section, model change, or alteration of existing ML records.
+
 ### Break-even headline — owner approval, November 12, 2026
 
 Display "Price required break even" as a metric label with its calculated
