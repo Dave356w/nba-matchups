@@ -395,10 +395,26 @@ def check_ou3_rescore(path=None, native_path=ledger.NATIVE_PATH):
     return errs
 
 
-def main():
-    import realized_forward
-    errs = realized_forward.validate()
-    errs += check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
+def shadow_errors():
+    """Problems in the shadow Realized WP files (research only)."""
+    try:
+        import realized_forward
+        return list(realized_forward.validate())
+    except Exception as exc:
+        return [f"shadow Realized WP validation crashed: {exc!r}"]
+
+
+def main(argv=None):
+    # The build passes --shadow-warn: a bad shadow research file is reported
+    # but never holds back the ledger commit (pregame snapshots cannot be
+    # re-derived after tip). Without the flag (PRs, manual runs) it fails.
+    shadow_warn = "--shadow-warn" in (sys.argv[1:] if argv is None else argv)
+    shadow = shadow_errors()
+    if shadow_warn:
+        for e in shadow:
+            print(f"::warning::SHADOW {e}")
+        shadow = []
+    errs = shadow + check(ledger.NATIVE_PATH) + check(ledger.RECON_PATH) + check_injuries()
     errs += check_ou_rescore() + check_ou3_rescore()
     errs += check_sleeper()
     errs += check_yahoo()

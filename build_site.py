@@ -3535,12 +3535,17 @@ def write_pages(native, recon, today, model_ok, pre=None, page_day=None, capture
     site = public_site.PublicSite(sys.modules[__name__], native, page_day or today, built,
                                   model_ok, replay=replay)
     if capture_realized:
-        import realized_forward
-        log(f"saved {realized_forward.capture(site)} new shadow Realized WP forecast(s)")
-        errors = realized_forward.validate()
-        if errors:
-            raise ValueError('; '.join(errors))
-        realized_forward.report(native)
+        # Shadow research never blocks the render, the ledger commit or
+        # publication: a failure is reported and the build carries on.
+        try:
+            import realized_forward
+            log(f"saved {realized_forward.capture(site)} new shadow Realized WP forecast(s)")
+            errors = realized_forward.validate()
+            if errors:
+                raise ValueError('; '.join(errors))
+            realized_forward.report(native)
+        except Exception as exc:
+            log(f"::warning::shadow Realized WP capture failed, build continues: {exc!r}")
     pages = site.render()
     internal = OUT_DIR.parent / "diagnostics" / "site"
     text = write_research(native, recon, today, model_ok, pre, out_dir=internal)

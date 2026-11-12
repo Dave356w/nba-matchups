@@ -177,3 +177,24 @@ def test_production_recording_clock_is_refreshed_after_evidence_write(tmp_path, 
     assert forward.capture(site, tmp_path, code_revision='rev') == 0
     assert forward.read_all(tmp_path).empty
     assert (tmp_path/'realized_wp_cells_2027.csv').exists()
+
+
+def test_shadow_failure_never_blocks_render_or_ledger_validation(monkeypatch, capsys):
+    site, _ = fixture()
+    site.render = lambda: (_ for _ in ()).throw(RuntimeError('reached render'))
+    monkeypatch.setattr(build_site.public_site, 'PublicSite', lambda *a, **kw: site)
+    for broken in (dict(capture=lambda value: (_ for _ in ()).throw(OSError('disk'))),
+                   dict(capture=lambda value: 0, validate=lambda: ['bad shadow file'])):
+        for name, value in broken.items():
+            monkeypatch.setattr(forward, name, value)
+        with pytest.raises(RuntimeError, match='reached render'):
+            build_site.write_pages(site.native, pd.DataFrame(), site.today, True, capture_realized=True)
+        assert '::warning::shadow Realized WP capture failed' in capsys.readouterr().out
+    import validate_data_files
+    monkeypatch.setattr(forward, 'validate', lambda *a: ['bad shadow file'])
+    assert validate_data_files.main([]) == 1
+    assert validate_data_files.main(['--shadow-warn']) == 0
+    assert '::warning::SHADOW bad shadow file' in capsys.readouterr().out
+    monkeypatch.setattr(forward, 'validate', lambda *a: (_ for _ in ()).throw(RuntimeError('crash')))
+    assert validate_data_files.main([]) == 1
+    assert validate_data_files.main(['--shadow-warn']) == 0
