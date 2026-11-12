@@ -411,6 +411,64 @@ def model_prediction_summary(predictions):
                 low=low, high=high, comparison=scoring(paired))
 
 
+# Winner accuracy by stated probability (owner request, 2026-11-12). Fixed
+# before the table was drawn: 5-point bands to 80%, then 80-90% and 90%+.
+# Descriptive monitoring dimensions, never a filter or a rule.
+CONFIDENCE_BANDS = (0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.90, 1.0)
+
+
+def prediction_confidence_bands(predictions, bands=CONFIDENCE_BANDS):
+    """Model picks by the model's probability beside closing favourites by
+    the market's no-vig probability, on identical games.
+
+    The games are model_prediction_summary's matched set: graded, with a
+    usable DraftKings closing pair. Each game enters once per side, in the
+    band of that side's own probability: the model's pick at its saved P
+    (live lock P, replay P), the favourite at the closing no-vig q (home at
+    exactly 50%). So one row's two halves hold different games; the totals
+    hold the same ones. Returns (rows, total): rows of dict(lo, hi, model,
+    market), each half dict(n, w, l, accuracy, stated, se) or None when
+    empty, se the spread of the win rate if the stated probability were
+    right. ([], None) without matched games.
+    """
+    d = predictions
+    if d is None or not len(d):
+        return [], None
+    graded = d[d['prediction_won'].notna()]
+    replay = graded['basis'].isin(('reconstructed', 'rebuilt'))
+    paired = with_close(graded.assign(
+        p_home=graded['lock_p_home'].where(~replay, graded['p_home']), lean=graded['prediction']))
+    paired = paired[paired['close_book'].eq(HYPOTHESIS_BOOK)]
+    if not len(paired):
+        return [], None
+    y = pd.to_numeric(paired['home_won']).to_numpy(float)
+    q = pd.to_numeric(paired['close_q_home']).to_numpy(float)
+    fav_home = q >= 0.5
+    sides = dict(
+        model=(pd.to_numeric(paired['prediction_p']).to_numpy(float),
+               pd.to_numeric(paired['prediction_won']).to_numpy(float)),
+        market=(np.where(fav_home, q, 1 - q), np.where(fav_home, y, 1 - y)))
+
+    def half(p, won):
+        n = len(p)
+        if not n:
+            return None
+        w = int(won.sum())
+        return dict(n=n, w=w, l=n - w, accuracy=w / n, stated=float(p.mean()),
+                    se=market.excess_se(p))
+
+    edges = np.asarray(bands[1:-1], float)
+    rows = []
+    for j in range(len(bands) - 1):
+        row = dict(lo=bands[j], hi=bands[j + 1])
+        for key, (p, won) in sides.items():
+            m = np.digitize(p, edges) == j
+            row[key] = half(p[m], won[m])
+        if row['model'] or row['market']:
+            rows.append(row)
+    return rows, {key: half(p, won) for key, (p, won) in sides.items()}
+
+
 def calibration_slope(p, y, min_n=30, iters=50):
     """(slope, se, intercept, se) of the outcome on logit(p): 1 / 0 for a
     calibrated forecast (slope < 1: too confident, > 1: too timid). NaNs
