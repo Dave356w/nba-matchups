@@ -5,6 +5,12 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Break-even headline — owner approval, November 12, 2026
+
+Display "Price required break even" as a metric label with its calculated
+percentage in the same prominent style as Realized WP, above Actual result.
+This replaces the sentence format only; pricing and calculations are unchanged.
+
 ### ML stats ROI matrix — owner approval, November 12, 2026
 
 Replace the Winner accuracy by stated win chance table with a joint model-WP
