@@ -124,6 +124,7 @@ CSS = """
 .roi-matrix-wrap{margin-top:22px;max-width:100%}.roi-matrix{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px;font-size:12px;text-align:center}.roi-matrix caption{font-weight:700;text-align:left;margin-bottom:10px;font-size:15px}.roi-matrix th{white-space:normal;text-align:center;font-size:11px;color:var(--muted);padding:8px 3px}.roi-matrix td{white-space:normal;text-align:center;padding:12px 3px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:7px;vertical-align:middle}.roi-matrix strong{display:block;font:700 16px var(--mono);overflow-wrap:anywhere}.roi-matrix small{display:block;color:var(--muted);font-size:10px;margin-top:5px}.roi-matrix .positive{background:rgba(var(--good),.1)}.roi-matrix .negative{background:rgba(var(--bad),.1)}.roi-matrix .positive strong{color:rgb(var(--good))}.roi-matrix .negative strong{color:rgb(var(--bad))}@media(max-width:640px){.roi-matrix{border-spacing:2px}.roi-matrix th{font-size:9px;padding:6px 1px;overflow-wrap:anywhere}.roi-matrix td{padding:9px 1px}.roi-matrix strong{font-size:10px}.roi-matrix small{font-size:8px;overflow-wrap:anywhere}}
 .record-label{color:var(--muted);font-size:12px}
 .intro-links{display:flex;gap:18px;flex-wrap:wrap}
+@media(max-width:640px){.intro-extra{display:none}.today-intro.public-intro{align-items:center}.intro-links{gap:12px;flex-wrap:nowrap}.intro-links a{font-size:12px}}
 .table-more{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 0;font-size:13px;color:var(--muted)}
 .table-more button{min-height:42px;padding:8px 16px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-weight:650;cursor:pointer}
 .table-more[hidden]{display:none}
@@ -473,8 +474,8 @@ class PublicSite:
         u = self.ui
         day = self.native[self.native.slate_date.astype(str).eq(self.today)]
         title = pd.Timestamp(self.today).strftime("%A, %B %-d")
-        body = self.head(title, "Model win probabilities for every game, beside the DraftKings price. Each pick locks five hours before tip.", True).replace("class='public-head'", "class='public-head today-head'")
-        body += ("<div class='public-intro today-intro'><p>DraftKings prices · Pacific time · Main record: both teams at 10+ games"
+        body = self.head(title, "Model win chances for each game. Picks lock five hours before tip.", True).replace("class='public-head'", "class='public-head today-head'")
+        body += ("<div class='public-intro today-intro'><p>DraftKings prices · Pacific time<span class='intro-extra'> · Main record: both teams at 10+ games</span>"
                  "<span data-scores-asof hidden> · Scores as of <time></time></span></p>"
                  "<span class='intro-links'><a href='performance.html'>ML performance →</a><a href='how-it-works.html'>How to read →</a></span></div>")
         if not len(day):
