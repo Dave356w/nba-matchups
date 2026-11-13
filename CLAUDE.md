@@ -5,6 +5,15 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### ROI matrix window switch — owner approval, November 13, 2026
+
+ML stats' ROI matrix gets a window switch: **Latest 50** per cell (default,
+the owner's earlier selection), **Latest 100** per cell, and **All games** in
+the selected source and season. The switch applies to every panel and keeps
+the existing filters, ordering (slate date, game ID), stake, price timing and
+exclusions. Card Realized WP keeps its fixed latest-50 window. Presentation
+only: no rule, record, lock, grade or data change.
+
 ### Public games 1+ and source simplification — owner approval, November 13, 2026
 
 The owner asked to combine games 1–9 and 10+ and to drop the mixed source on
