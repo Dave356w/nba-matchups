@@ -5,6 +5,18 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Realized WP window 200 (v3) — owner instruction, November 13, 2026
+
+The owner asked to update Realized WP with the best researched window. The
+matrix window backtest's pre-set reading picks **200** (lowest walk-forward
+Brier against the price on 2025-26 DraftKings replay; no window beats the
+price). Cards and the guide show the band-adjusted estimate over the latest
+200 cell results; everything else in v2 is unchanged. The shadow record
+continues as v3; v2 closes, kept and never pooled. Fixed terms are in
+`docs/realized_wp_forward_registration_v3.md`, committed before
+implementation. The ROI matrix switch (Latest 50 default), model, locks,
+grades and records are unchanged.
+
 ### ROI matrix window switch — owner approval, November 13, 2026
 
 ML stats' ROI matrix gets a window switch: **Latest 50** per cell (default,
