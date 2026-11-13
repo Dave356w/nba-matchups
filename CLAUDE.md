@@ -737,6 +737,9 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   [model review](diagnostics/model_review/RESULTS.txt). A walk-forward stretch of P
   (one scale on m / sigma, learned from earlier seasons) adds nothing:
   [calibration stretch](diagnostics/calibration_stretch/RESULTS.txt).
+  The model-WP x market-WP cell carries no walk-forward signal at any
+  window (10 .. all); larger windows only sit closer to the price:
+  [matrix window](diagnostics/matrix_window/RESULTS.txt).
 - Kalshi and live trading: [benchmark](diagnostics/kalshi_benchmark/RESULTS.txt),
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
   In-game win probability from the score and the pregame line (display only):
