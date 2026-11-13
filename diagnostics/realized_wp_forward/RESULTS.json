@@ -5,13 +5,13 @@
     "realized_wp_rolling50_bandadj_v2": "2026-11-12T22:35:12Z",
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z"
   },
-  "captures": 82,
+  "captures": 91,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
-        "official_games": 0,
+        "official_games": 2,
         "graded_games": 0,
-        "pending_games": 0,
+        "pending_games": 2,
         "estimators": {
           "model": {
             "brier": null,
@@ -118,9 +118,9 @@
           }
         },
         "established": {
-          "official_games": 0,
+          "official_games": 2,
           "graded_games": 0,
-          "pending_games": 0,
+          "pending_games": 2,
           "estimators": {
             "model": {
               "brier": null,
@@ -698,6 +698,68 @@
           "price": 190.0,
           "expected_net_return": 0.0868866681889977,
           "net_units": -1.0
+        }
+      }
+    },
+    {
+      "snapshot_id": "dbe4bd3f171c884d4eca336b095e31208125a10a7e96d22bb26a5abde46ccbcb",
+      "version": "realized_wp_rolling200_bandadj_v3",
+      "game_id": "401909296",
+      "captured_utc": "2026-11-13T19:02:49.462493+00:00",
+      "tip_utc": "2026-11-14T00:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.37926,
+          "side": "home",
+          "price": 271.0,
+          "expected_net_return": 0.40705459999999993,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.2589982634670207,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.26837792275931494,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "9993f6539908e10eda949859423293bc1f3d0cb9223d306d989415eb980b3fe7",
+      "version": "realized_wp_rolling200_bandadj_v3",
+      "game_id": "401909297",
+      "captured_utc": "2026-11-13T19:02:49.482191+00:00",
+      "tip_utc": "2026-11-14T00:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.73241,
+          "side": "away",
+          "price": 312.0,
+          "expected_net_return": 0.10247080000000008,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.7667734640030155,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.7642737269067232,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
         }
       }
     }
