@@ -940,3 +940,14 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   Games 10+ (n 18) are too few to fit. Monitoring only: no rule, filter or
   recalibration; any change to sigma or P needs an owner amendment and a new
   model tag.
+- Model–market blend shadow record (owner's registration,
+  2026-11-13T15:24:49Z; `docs/blend_wp_forward_registration.md`,
+  `research/blend_forward.py`, [results](../diagnostics/blend_forward/RESULTS.md)).
+  P_blend = σ(logit q_lock + 0.40 · (logit P_lock − logit q_lock)), the
+  existing shrink weight, scored forward on native v11 locks from the
+  2026-11-13 slate against the lock price alone, games 1–9 and 10+ separate.
+  Hindsight before registration: at the open, blend minus market −0.0006 ±
+  0.0066 and −0.0048 ± 0.0034 out of sample; at the close, weight ≈ 0.08 and
+  no gain; binned matrix cells worse than the market at both. Primary
+  reading: games 10+, 2026-27, 95% interval on the log-loss difference.
+  Internal only; no display, rule or record.

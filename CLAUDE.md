@@ -5,6 +5,18 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Model–market blend shadow record — owner approval, November 13, 2026
+
+The owner registered a fixed blend of lock model P and lock no-vig DraftKings
+q as internal shadow research: P_blend = σ(logit q + 0.40 · (logit P − logit
+q)), `analysis.shrink_p` at the existing SHRINK_W, never refitted. Native v11
+five-hour locks (`model_predictions`, voids out, both lock prices) from the
+2026-11-13 slate; games 1–9 and 10+ separate; no backfill. Primary reading:
+games 10+, 2026-27, blend minus lock-price log loss at 95%. Internal only: no
+card, page or guide display. Fixed terms are in
+`docs/blend_wp_forward_registration.md`, committed before implementation.
+The model, locks, Realized WP, ML record and tracked tests are unchanged.
+
 ### Realized WP band adjustment (v2) — owner instruction, November 12, 2026
 
 After a sanity check showed the raw cell rate is biased by where a game sits in
