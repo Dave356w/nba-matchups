@@ -1,0 +1,54 @@
+Report-name suffix fix: v11's report route, walk-forward (G7 gate).
+
+== 1. Listed players matched to a box score (report rows for the game's teams)
+  2022-23 lead  0.5 h  listed 10692  matched old 10227  fixed 10227  (+0)
+  2022-23 lead 18.0 h  listed  8424  matched old  8034  fixed  8034  (+0)
+  2022-23 lead  5.0 h  listed 10447  matched old  9980  fixed  9980  (+0)
+  2023-24 lead  0.5 h  listed 11112  matched old  9777  fixed 10632  (+855)
+  2023-24 lead 18.0 h  listed  8733  matched old  7679  fixed  8330  (+651)
+  2023-24 lead  5.0 h  listed 10830  matched old  9521  fixed 10347  (+826)
+  2024-25 lead  0.5 h  listed 12052  matched old 10778  fixed 11499  (+721)
+  2024-25 lead 18.0 h  listed  9339  matched old  8351  fixed  8898  (+547)
+  2024-25 lead  5.0 h  listed 11798  matched old 10547  fixed 11248  (+701)
+  2025-26 lead  0.5 h  listed 11841  matched old 10330  fixed 11110  (+780)
+  2025-26 lead 18.0 h  listed  9117  matched old  7936  fixed  8525  (+589)
+  2025-26 lead  5.0 h  listed 11555  matched old 10073  fixed 10833  (+760)
+  play rates (report seasons 2022-23 .. 2025-26):
+     0.5 h  Out 0.000->0.000  Doubtful 0.000->0.000  Questionable 0.507->0.506  Probable 0.924->0.925  Available 0.853->0.852
+    18.0 h  Out 0.011->0.011  Doubtful 0.046->0.045  Questionable 0.493->0.490  Probable 0.868->0.870  Available 0.794->0.805
+     5.0 h  Out 0.003->0.003  Doubtful 0.021->0.020  Questionable 0.481->0.478  Probable 0.908->0.907  Available 0.737->0.742
+
+== 2. Against outcomes, games 1+: qS minus q (± 95%; negative = better)
+  lead 18.0 h  n 3633  report route 2530  q log loss 0.5920  |dP| > 0.01: 156, max 0.049
+    all        +0.0000 ± 0.0003  Brier -0.0000 ± 0.0001  MSE -0.09 ± 0.14
+    2023-24    +0.0003 ± 0.0005  Brier +0.0001 ± 0.0002  MSE -0.01 ± 0.28
+    2024-25    +0.0000 ± 0.0005  Brier +0.0000 ± 0.0002  MSE -0.13 ± 0.23
+    2025-26    -0.0003 ± 0.0005  Brier -0.0001 ± 0.0002  MSE -0.14 ± 0.21
+    games 1-9  +0.0003 ± 0.0005  Brier +0.0001 ± 0.0002  MSE +0.21 ± 0.27
+    games 10+  -0.0000 ± 0.0003  Brier -0.0000 ± 0.0001  MSE -0.13 ± 0.15
+  lead  5.0 h  n 3633  report route 3617  q log loss 0.5906  |dP| > 0.01: 263, max 0.049
+    all        -0.0002 ± 0.0004  Brier -0.0001 ± 0.0002  MSE -0.16 ± 0.20
+    2023-24    -0.0000 ± 0.0007  Brier -0.0000 ± 0.0003  MSE -0.10 ± 0.32
+    2024-25    +0.0003 ± 0.0007  Brier +0.0001 ± 0.0003  MSE +0.18 ± 0.29
+    2025-26    -0.0010 ± 0.0007  Brier -0.0004 ± 0.0003  MSE -0.57 ± 0.42
+    games 1-9  -0.0000 ± 0.0008  Brier -0.0000 ± 0.0004  MSE +0.05 ± 0.34
+    games 10+  -0.0002 ± 0.0004  Brier -0.0001 ± 0.0002  MSE -0.19 ± 0.22
+
+== 3. Against the close, games 10+: arm - close log loss (± 95%); [qS - q, Brier]
+  reconstructed dk      2026 lead 18.0 h n  964  q +0.0202 ± 0.0112  qS +0.0197 ± 0.0112  [-0.0005 ± 0.0005, Brier -0.0002 ± 0.0002]
+  reconstructed dk      2026 lead  5.0 h n  964  q +0.0163 ± 0.0105  qS +0.0150 ± 0.0105  [-0.0013 ± 0.0008, Brier -0.0006 ± 0.0004]
+  reconstructed espnbet 2025 lead 18.0 h n 1071  q +0.0144 ± 0.0103  qS +0.0145 ± 0.0103  [+0.0001 ± 0.0005, Brier +0.0000 ± 0.0002]
+  reconstructed espnbet 2025 lead  5.0 h n 1071  q +0.0150 ± 0.0097  qS +0.0154 ± 0.0098  [+0.0004 ± 0.0007, Brier +0.0002 ± 0.0003]
+  reconstructed espnbet 2026 lead 18.0 h n  107  q -0.0068 ± 0.0327  qS -0.0054 ± 0.0318  [+0.0014 ± 0.0022, Brier +0.0007 ± 0.0011]
+  reconstructed espnbet 2026 lead  5.0 h n  107  q -0.0122 ± 0.0331  qS -0.0114 ± 0.0321  [+0.0009 ± 0.0024, Brier +0.0005 ± 0.0011]
+
+== 4. Gate (G7, set before the run), leads 18 h, 5 h
+  qS FAIL  18 h: dk 2026 -0.0005 (Brier -0.0002); espnbet 2025 +0.0001 (Brier +0.0000); games 1+ +0.0000 ± 0.0003 | 5 h: dk 2026 -0.0013 (Brier -0.0006); espnbet 2025 +0.0004 (Brier +0.0002); games 1+ -0.0002 ± 0.0004
+
+== 5. ou3 report stage, walk-forward: squared error on the total, ou3S minus ou3 (points², ± 95%; negative = better)
+  games 1+  n 3633  -0.299 ± 0.300  |dT| > 0.5 pt: 147, max 2.16
+    2023-24  n 1215  -0.244 ± 0.261
+    2024-25  n 1209  -0.042 ± 0.420
+    2025-26  n 1209  -0.610 ± 0.754
+    games 1-9 n 417  -0.016 ± 0.420
+    games 10+ n 3216  -0.335 ± 0.335

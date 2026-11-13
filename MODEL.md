@@ -806,7 +806,18 @@ live effect is the walk-forward above. The games 1–9 tests accept `_v9`,
   report terms `totals_hl25_form5_rep_rest_sfx_ou3` (neutral unchanged).
   Both continue their families and rows; nothing native is rescored.
 - **Gate** (`research/report_name_suffix.py`,
-  `diagnostics/report_name_suffix/RESULTS.txt`): results to follow before activation.
+  `diagnostics/report_name_suffix/RESULTS.txt`): walk-forward 2023-24 ..
+  2025-26, fixed minus current on identical games, ± 95%. Games 1+: +0.0000 ±
+  0.0003 at 18 h (+0.000003), −0.0002 ± 0.0004 at 5 h. Games 10+ against
+  the close: DraftKings 2025-26 −0.0005 ± 0.0005 (18 h) and −0.0013 ±
+  0.0008 (5 h); ESPN BET 2024-25 +0.0001 ± 0.0005 and +0.0004 ± 0.0007,
+  Brier agreeing. The fix therefore **fails** the G7 rule set before the
+  run (ESPN BET 2024-25 slightly worse, games 1+ at 18 h not better), every
+  difference inside its interval. 2026-27 locks rebuilt with the new files
+  (107 non-void): 13 move > 0.5 points of P, 5 > 2 points (largest 4.3), log
+  loss −0.0001 ± 0.0027 on 101 graded. ou3 report stage, walk-forward
+  squared error on the total, games 1+: −0.30 ± 0.30 points² (2023-24 −0.24,
+  2024-25 −0.04, 2025-26 −0.61). Activation is the owner's decision.
 
 ## Five-hour lock (owner's decision, 2026-10-28)
 
