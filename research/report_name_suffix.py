@@ -29,6 +29,16 @@ Gate (G7, as for v11): qS passes if at both leads its log loss is not worse
 than q's on both large priced book-seasons (reconstructed DraftKings 2025-26
 and ESPN BET 2024-25, games 10+), Brier agreeing, and not worse against
 outcomes on games 1+; a season gain over 0.008 is a leakage tripwire.
+
+ou3 (the fix's ou3 amendment, same date): the totals model's report stage,
+walk-forward on 2023-24 .. 2025-26, each fold fitted on the earlier report
+seasons (from 2022-23) on the deployed T*'s residual at the 300-minute lead;
+arms ou3 (existing matcher, q_rates.json's table) and ou3S (the fix and its
+table). Squared error on the total, games 1+, ou3S minus ou3 (± 95%), by
+season and stage; information for the owner, no pass rule. T* is the
+deployed fit (all seasons) and both tables span the report seasons: the same
+in both arms, so the difference isolates the matcher.
+
 Research only: nothing here touches the ledgers, the pages or model/*.json.
 """
 from __future__ import annotations
@@ -150,6 +160,67 @@ def fold(Y):
     return P[cols]
 
 
+def ou3_run(seasons):
+    """Walk-forward report stage for ou3 (old vs fixed matcher)."""
+    import json
+    import nba_composite as nc
+    import totals
+    model = totals.load()
+    base = {k: v for k, v in model.items() if k != "report"}
+    rows = totals.training_rows({y: nc.load_logs(y) for y in totals._years(totals.FIT_YEARS)})
+    rows = rows[rows["season"].isin(qw.REPORT_YEARS)].copy()
+    rows["T0"] = [totals.predict(base, f)[0] for f in rows.to_dict("records")]
+    tables = {False: json.load(open(pav.Q_RATES_FILE))["rates"],
+              True: json.load(open(pav.Q_RATES_SFX_FILE))["rates"]}
+    out = []
+    for split in (False, True):
+        arm = "ou3S" if split else "ou3"
+        av = {}
+        for t in qw.REPORT_YEARS:
+            av.update(pav.season_totals_terms(t, totals.REPORT_LEAD, tables[split], split=split))
+        R = rows.copy()
+        for k in totals.REPORT_TERMS:
+            R[k] = [av.get((d, h, w), {}).get(k, 0.0)
+                    for d, h, w in zip(R["date"], R["home"], R["away"])]
+        for Y in seasons:
+            fm = totals.fit_report(base, R[R["season"] < Y])
+            c = fm["report"]["coef"]
+            te = R[(R["season"] == Y) & (np.fmin(R["gp_home"], R["gp_away"]) >= 1)].copy()
+            te[f"T_{arm}"] = te["T0"] + c["intercept"] + sum(c[k] * te[k] for k in totals.REPORT_TERMS)
+            out.append(te[["season", "date", "home", "away", "gp_home", "gp_away", "total",
+                           f"T_{arm}"]])
+    a = pd.concat([o for o in out if "T_ou3" in o], ignore_index=True)
+    b = pd.concat([o for o in out if "T_ou3S" in o], ignore_index=True)
+    P = a.merge(b[["season", "date", "home", "away", "T_ou3S"]],
+                on=["season", "date", "home", "away"])
+    P.to_csv(os.path.join(OUT, "predictions_ou3.csv"), index=False, float_format="%.6g")
+
+
+def ou3_lines():
+    path = os.path.join(OUT, "predictions_ou3.csv")
+    if not os.path.exists(path):
+        return []
+    P = pd.read_csv(path)
+    L = ["", "== 5. ou3 report stage, walk-forward: squared error on the total, ou3S minus ou3 "
+             "(points², ± 95%; negative = better)"]
+
+    def d(g):
+        return dyn.ci((g["total"] - g["T_ou3S"]) ** 2 - (g["total"] - g["T_ou3"]) ** 2)
+    mn = np.fmin(P["gp_home"], P["gp_away"])
+    P["stage"] = np.where(mn < 10, "games 1-9", "games 10+")
+    m = d(P)
+    moved = (P["T_ou3S"] - P["T_ou3"]).abs()
+    L.append(f"  games 1+  n {len(P)}  {m[0]:+.3f} ± {m[1]:.3f}  "
+             f"|dT| > 0.5 pt: {(moved > 0.5).sum()}, max {moved.max():.2f}")
+    for s, g in P.groupby("season"):
+        x = d(g)
+        L.append(f"    {s - 1}-{str(s)[2:]}  n {len(g)}  {x[0]:+.3f} ± {x[1]:.3f}")
+    for st, g in P.groupby("stage"):
+        x = d(g)
+        L.append(f"    {st:9s} n {len(g)}  {x[0]:+.3f} ± {x[1]:.3f}")
+    return L
+
+
 def run(seasons):
     orb_pct.use("pct")
     os.makedirs(OUT, exist_ok=True)
@@ -254,7 +325,7 @@ def report():
     L = [__doc__.strip().splitlines()[0], ""]
     L += match_lines() + outcome_lines(P)
     m, gate = market_lines(P)
-    L += m + gate_lines(P, gate)
+    L += m + gate_lines(P, gate) + ou3_lines()
     with open(os.path.join(OUT, "RESULTS.txt"), "w") as f:
         f.write("\n".join(L) + "\n")
     print("\n".join(L))
@@ -265,11 +336,15 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--ou3", action="store_true", help="also run the ou3 report-stage walk-forward")
     ap.add_argument("--seasons", nargs="+", type=int, default=list(SEASONS))
     a = ap.parse_args()
     if a.run:
         run(a.seasons)
-    if a.report or a.run:
+    if a.ou3:
+        os.makedirs(OUT, exist_ok=True)
+        ou3_run(a.seasons)
+    if a.report or a.run or a.ou3:
         report()
 
 
