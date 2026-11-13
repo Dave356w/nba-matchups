@@ -725,7 +725,7 @@ class PublicSite:
                 "<p class='public-note'>Each square: 1 unit on the model’s pick, latest 50 priced results in that band pair.</p>"
                 "<div class='roi-matrix-wrap'><table class='roi-matrix' data-roi-matrix>"
                 "<caption class='sr-only'>ROI lookup matrix · latest 50 per cell</caption>"
-                "<thead><tr><th scope='col'>Model WP ↓<br>Market WP →</th>"
+                "<thead><tr><th scope='col'>Market WP →<br>Model WP ↓</th>"
                 + ''.join(f"<th scope='col'>{label}</th>" for label in market_labels) + '</tr></thead><tbody>')
         retained, units = 0, 0.0
         for pb, label in enumerate(model_labels):
