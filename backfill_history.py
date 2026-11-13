@@ -88,6 +88,7 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
                           talent0=None, weight_years=WEIGHT_YEARS,
                           phase_years=PHASE_YEARS, report_years=REPORT_YEARS,
                           game_years=GAME_YEARS, margin=False, v10=False, v11=False,
+                          split=False,
                           score_terms=None):
     """Reconstruct with the same v9 base/report arms as live scoring.
     Optional missing terms contribute zero and receive neutral-input tags;
@@ -106,11 +107,14 @@ def reconstruct_season_v8(y, terms=None, walk_forward=False, talent=None,
     margin = margin or v10
     fit = ((lambda X, t, f: nc.fit_margin(X, t["margin"], f)) if margin else
            (lambda X, t, f: nc.fit_logit(X, t["win"], f)))
-    tag, tag_av = ((build_site.MODEL_TAG_V11, build_site.MODEL_TAG_V11_AVAIL) if v11 else
+    tag, tag_av = ((build_site.MODEL_TAG_V11, build_site.MODEL_TAG_V11_SFX_AVAIL) if v11 and split
+                   else (build_site.MODEL_TAG_V11, build_site.MODEL_TAG_V11_AVAIL) if v11 else
                    (build_site.MODEL_TAG_V10, build_site.MODEL_TAG_V10_AVAIL) if v10 else
                    (build_site.MODEL_TAG_V9, build_site.MODEL_TAG_V9_AVAIL) if margin
                    else (build_site.MODEL_TAG_V8, build_site.MODEL_TAG_V8_AVAIL))
-    tag_n, tag_nav = ((build_site.MODEL_TAG_V11_NEUTRAL, build_site.MODEL_TAG_V11_NEUTRAL_AVAIL)
+    tag_n, tag_nav = ((build_site.MODEL_TAG_V11_NEUTRAL, build_site.MODEL_TAG_V11_SFX_NEUTRAL_AVAIL)
+                      if v11 and split else
+                      (build_site.MODEL_TAG_V11_NEUTRAL, build_site.MODEL_TAG_V11_NEUTRAL_AVAIL)
                       if v11 else
                       (build_site.MODEL_TAG_V10_NEUTRAL, build_site.MODEL_TAG_V10_NEUTRAL_AVAIL)
                       if v10 else (build_site.MODEL_TAG_V9_NEUTRAL,
@@ -349,6 +353,11 @@ def main(argv=None):
         v11 = not older and build_site.is_v11(nc.load_json("logit.json"))
     except (FileNotFoundError, ValueError):
         v10 = v11 = False
+    # report-name suffix fix (CLAUDE.md 2026-11-13): as the fitted report file says
+    try:
+        split = v11 and pav.splits_suffix(nc.load_json(pav.MODEL_FILE))
+    except (FileNotFoundError, ValueError):
+        split = False
     terms = None
     if not a.no_avail:
         archive = pav.ReportArchive(os.path.join(a.cache, "injury_reports"))
@@ -358,7 +367,8 @@ def main(argv=None):
             # own reports too; it is never a training season
             for t in sorted(set(REPORT_YEARS) | {y for y in a.seasons if y > max(REPORT_YEARS)}):
                 try:
-                    terms[t], s = (pav.season_terms(t, archive, a.cache, rookies=True) if v10
+                    terms[t], s = (pav.season_terms(t, archive, a.cache, rookies=True,
+                                                    split=split) if v10
                                    else pav.season_terms(t, archive, a.cache))
                 except Exception as e:  # noqa: BLE001 - that season scores without the report
                     if t in REPORT_YEARS:
@@ -381,9 +391,11 @@ def main(argv=None):
                 if y not in terms:
                     continue
                 others = [t for t in REPORT_YEARS if t != y and t in terms]
-                table = pav.q_rates(others, a.cache, leads=(pav.LEAD_MINUTES,), archive=archive)
+                table = pav.q_rates(others, a.cache, leads=(pav.LEAD_MINUTES,), archive=archive,
+                                    split=split)
                 rates = pav.lead_rates(table, pav.LEAD_MINUTES)
-                score_terms[y], _ = pav.season_terms(y, archive, a.cache, rookies=True, rates=rates)
+                score_terms[y], _ = pav.season_terms(y, archive, a.cache, rookies=True, rates=rates,
+                                                     split=split)
                 print(f"season {y}: v11 q rates {rates} (from {others})", flush=True)
         finally:
             archive.save()
@@ -393,7 +405,7 @@ def main(argv=None):
     def season(y):
         if v8:
             return reconstruct_season_v8(y, terms=terms, margin=margin, v10=v10, v11=v11,
-                                         score_terms=score_terms)
+                                         score_terms=score_terms, split=split)
         return reconstruct_season(y, terms=terms, v5=not a.v4, v6=not (a.v4 or a.v5),
                                   v7=not (a.v4 or a.v5 or a.v6))
     if a.rescore:

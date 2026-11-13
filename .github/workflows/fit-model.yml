@@ -102,8 +102,10 @@ jobs:
           # v11 reads its Questionable play-rate table from the research output
           # (player_availability.py q-rates over a complete archive): the NBA's CDN
           # throttles the runner, so it does not download every edition again.
+          # v11 with the report-name suffix fix (CLAUDE.md 2026-11-13): the route's
+          # table is q_rates_sfx.json; q_rates.json stays the totals model's table.
           python player_availability.py fit --${{ inputs.version }} --years ${{ inputs.avail_years }} \
-            ${{ inputs.version == 'v11' && '--q-rates diagnostics/questionable_weight/q_rates.json' || '' }}
+            ${{ inputs.version == 'v11' && '--split-suffix --q-rates diagnostics/questionable_weight/q_rates_sfx.json' || '' }}
       - name: Fit totals (O/U) model
         id: totals
         # Completed seasons' report terms are read from model/totals_report_terms.csv

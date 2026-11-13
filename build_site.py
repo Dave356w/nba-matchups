@@ -92,14 +92,22 @@ MODEL_TAG_V11_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_
 MODEL_TAG_V11_NEUTRAL = 'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11'
 MODEL_TAG_V11_NEUTRAL_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
                                'qweight_margin_neutral_avail_v11')
+# Report-name suffix fix (CLAUDE.md, 2026-11-13): the report route refitted
+# with joined suffixes matched; it continues the v11 family. Base tags unchanged.
+MODEL_TAG_V11_SFX_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_'
+                           'qweight_sfx_margin_avail_v11')
+MODEL_TAG_V11_SFX_NEUTRAL_AVAIL = ('fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_'
+                                   'rookies_qweight_sfx_margin_neutral_avail_v11')
 NEUTRAL_TAGS = (MODEL_TAG_V9_NEUTRAL, MODEL_TAG_V9_NEUTRAL_AVAIL,
                 MODEL_TAG_V10_NEUTRAL, MODEL_TAG_V10_NEUTRAL_AVAIL,
-                MODEL_TAG_V11_NEUTRAL, MODEL_TAG_V11_NEUTRAL_AVAIL)
+                MODEL_TAG_V11_NEUTRAL, MODEL_TAG_V11_NEUTRAL_AVAIL,
+                MODEL_TAG_V11_SFX_NEUTRAL_AVAIL)
 PRESEASON_TAG = 'fourfactors_hl25_b2b_carry25_preseason_g0'
 AVAIL_TAGS = (MODEL_TAG_V3, MODEL_TAG_V4_AVAIL, MODEL_TAG_V5_AVAIL,
               MODEL_TAG_V6_AVAIL, MODEL_TAG_V8_AVAIL, MODEL_TAG_V9_AVAIL,
               MODEL_TAG_V9_NEUTRAL_AVAIL, MODEL_TAG_V10_AVAIL, MODEL_TAG_V10_NEUTRAL_AVAIL,
-              MODEL_TAG_V11_AVAIL, MODEL_TAG_V11_NEUTRAL_AVAIL)
+              MODEL_TAG_V11_AVAIL, MODEL_TAG_V11_NEUTRAL_AVAIL,
+              MODEL_TAG_V11_SFX_AVAIL, MODEL_TAG_V11_SFX_NEUTRAL_AVAIL)
 ACTIVE_TAGS = [MODEL_TAG]          # set by main() from the fitted model files
 TEAM_NAMES = {
     "ATL": "Hawks", "BOS": "Celtics", "BRK": "Nets", "CHO": "Hornets",
@@ -199,6 +207,8 @@ def is_v11(model):
 def neutral_tag(model, avail):
     """The neutral-input tag of a v9 / v10 / v11 route."""
     if is_v11(model):
+        if avail and pav.splits_suffix(model):
+            return MODEL_TAG_V11_SFX_NEUTRAL_AVAIL
         return MODEL_TAG_V11_NEUTRAL_AVAIL if avail else MODEL_TAG_V11_NEUTRAL
     if is_v10(model):
         return MODEL_TAG_V10_NEUTRAL_AVAIL if avail else MODEL_TAG_V10_NEUTRAL
@@ -213,6 +223,8 @@ def is_early_talent(early):
 def model_tag(model, avail=False):
     """The tag for a row scored by `model` (the availability logit if avail)."""
     if is_v11(model):
+        if avail and pav.splits_suffix(model):
+            return MODEL_TAG_V11_SFX_AVAIL
         return MODEL_TAG_V11_AVAIL if avail else MODEL_TAG_V11
     if is_v10(model):
         return MODEL_TAG_V10_AVAIL if avail else MODEL_TAG_V10
@@ -234,6 +246,9 @@ def active_tags(model, avail_model, fallback=None, early=None):
     including the v4 fallback's when the base model is v5 and the v7 early
     tag when the early logit has talent."""
     if is_v11(model):
+        if pav.splits_suffix(avail_model):
+            return [MODEL_TAG_V11, MODEL_TAG_V11_SFX_AVAIL, MODEL_TAG_V11_NEUTRAL,
+                    MODEL_TAG_V11_SFX_NEUTRAL_AVAIL]
         return [MODEL_TAG_V11, MODEL_TAG_V11_AVAIL, MODEL_TAG_V11_NEUTRAL,
                 MODEL_TAG_V11_NEUTRAL_AVAIL]
     if is_v10(model):
@@ -538,7 +553,9 @@ def score_slate(today, weights, model, now=None, finals=None):
     if is_v10(avail_model):
         avail_model = refit_avail(avail_model, today, weights, live, prior)
     # v11: the report route scores Questionable players at their play rate
-    q_rates = avail_model.get("q_rates") if is_v11(avail_model) else None
+    # (the suffix fix's own table when the file has it, pav.route_q_rates)
+    q_rates = pav.route_q_rates(avail_model) if is_v11(avail_model) else None
+    split = pav.splits_suffix(avail_model)
     opening = nc.season_opening(logs) or pd.Timestamp(today)
     talent = getattr(live, "talent", None)
     talent0 = getattr(live, "talent0", None)
@@ -554,7 +571,8 @@ def score_slate(today, weights, model, now=None, finals=None):
             try:
                 # v11 only: earlier versions call exactly as before
                 terms = (live.terms(g["game_id"], g["home"], g["away"], today,
-                                    tip_utc=g["tip_utc"], q_rates=q_rates) if q_rates else
+                                    tip_utc=g["tip_utc"], q_rates=q_rates, split=split)
+                         if q_rates else
                          live.terms(g["game_id"], g["home"], g["away"], today))
             except Exception as e:  # noqa: BLE001
                 log(f"availability {g['game_id']}: {e!r}")
@@ -573,7 +591,7 @@ def score_slate(today, weights, model, now=None, finals=None):
             try:              # ou2's report terms; a failure leaves the game neutral
                 ou_terms = live.totals_terms(g["game_id"], g["home"], g["away"], today,
                                              tip_utc=g["tip_utc"],
-                                             q_rates=(avail_model or {}).get("q_rates"))
+                                             q_rates=(avail_model or {}).get("q_rates"))  # ou3: old matcher
             except Exception as e:  # noqa: BLE001
                 log(f"totals report terms {g['game_id']}: {e!r}")
         add_totals(r, ou_model, ou_season, ou_terms)
@@ -639,7 +657,8 @@ def refit_avail(avail_model, today, weights, live, prior=None):
         archive = pav.ReportArchive(live.report_dir, now=live.now_et)
         try:
             extra = pav.season_rows(season_for(today), today, weights, live.box, live.value,
-                                    live.talent, live.talent0, tips, archive, prior)
+                                    live.talent, live.talent0, tips, archive, prior,
+                                    split=pav.splits_suffix(avail_model))
         finally:
             archive.save()
         m = pav.refit(avail_model, extra)

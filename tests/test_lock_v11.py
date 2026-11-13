@@ -235,7 +235,8 @@ def test_live_terms_use_the_q_rule_only_with_a_rate_table():
     try:
         pav.covers = lambda *a: True
         pav.report_coverage = lambda *a: None
-        pav.od_present = lambda rep, box, gid, teams, slate, rates=None: seen.update(rates=rates) or {}
+        pav.od_present = lambda rep, box, gid, teams, slate, rates=None, split=False: \
+            seen.update(rates=rates, split=split) or {}
         pav.upcoming_terms = lambda *a: (0.0, 0.0, 0.0)
         table = {"1080": {"Questionable": 0.5}, "300": {"Questionable": 0.48}}
         Live().terms("g", "GSW", "UTA", "2026-11-19")
@@ -318,7 +319,7 @@ def test_only_a_missing_object_is_remembered_as_a_miss(tmp_path, monkeypatch):
 def test_q_rates_refuse_an_incomplete_archive(monkeypatch):
     monkeypatch.setattr(pav, "fetch_box", lambda t, cache_dir=None: pd.DataFrame())
     monkeypatch.setattr(pav, "fetch_tips", lambda t, cache_dir=None: {})
-    monkeypatch.setattr(pav, "game_statuses", lambda box, tips, arch, lead: (
+    monkeypatch.setattr(pav, "game_statuses", lambda box, tips, arch, lead, split=False: (
         pd.DataFrame(columns=["status", "played"]), dict(games=100, with_report=90)))
 
     class Arch:
