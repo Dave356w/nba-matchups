@@ -622,6 +622,75 @@ information only, separate from DraftKings and native evidence.
   - The margin model, v11's maths, snapshots, tags, the other tests' rules,
     thresholds and records, and the model-prediction record are unchanged.
 
+- **Report-name suffix fix (owner's decision, registered 2026-11-13T21:21:58Z).**
+  Committed on its own before any fix or refit code: the native ledger at
+  `788f38d` has 183 rows, the last lock at 2026-11-13T20:32:32Z, and no
+  first or lock tag containing `_sfx_`.
+  - **Defect.** Since 2023-24 the NBA injury-report PDF prints suffixes
+    joined to the last name (`MurphyIII,Trey`, `OubreJr.,Kelly`;
+    2022-23 printed `Oubre Jr., Kelly`). `norm_name` strips a suffix only as
+    its own word, so these players never match a box score: listed Out,
+    they count as playing. The same misses are in v11's training terms
+    (2023-24 .. 2025-26), its Questionable play-rate table and the
+    per-slate refit rows. Sanity check of 2026-27 (owner request, this
+    date): 107 of 115 report-route locks reproduce within 0.005 (the other
+    8 are the voided stale-log locks); 15 players who had played this
+    season were unmatched; fixing the match in both the refit rows and live
+    terms (fit file unchanged) moves 16 locks by more than 0.5 points of P
+    and 6 by more than 2 (largest 4.3), with no change of winner.
+  - **Fix.** Before matching, a report name's last-name part has a joined
+    suffix (Jr, Jr., Sr, Sr., II, III, IV, directly after a lower-case
+    letter or a period) separated by a space; `norm_name` is then
+    unchanged. It applies to the margin model's report route everywhere it
+    reads the report: the fit's training terms (od rule, last report ≥ 30
+    min before tip), the Questionable play-rate table (six leads), the
+    per-slate refit rows and live scoring. The model file records it.
+  - **Refit.** `model/logit_avail.json` and `model/avail_train.csv` are
+    refitted with the fix on the same seasons (2023-26), features, od fit
+    rule, 30-minute lead, rookies and weights; the play-rate table is
+    recomputed with the fix on the same seasons and leads. Before that, the
+    unchanged code must reproduce the current file. The base model, weights,
+    rules and thresholds are unchanged.
+  - **Tags and record.** The report route's tags become
+    `..._rookies_qweight_sfx_margin_avail_v11` and
+    `..._rookies_qweight_sfx_margin_neutral_avail_v11`; the base route's
+    tags are unchanged. Ending `_v11`, the fix **continues the v11
+    family**: same rows, rules, thresholds, stages and lock timing. A
+    by-tag split is kept internally. Native first and lock snapshots,
+    probabilities and tags recorded before activation are immutable and
+    never rescored. Reconstructed and rebuilt rows are rescored with the
+    fix by the usual post-change checks.
+  - **Out of scope.** The totals model (ou3) keeps the existing matcher,
+    with which its report stage was fitted; changing it needs its own
+    amendment. No public page change beyond the generated model
+    description; no hindsight figure on public pages.
+  - **ou3 amendment (owner's decision, registered 2026-11-13T21:52:10Z).**
+    Committed on its own before any ou3 change: the native ledger's O/U
+    lock tags all end `_ou1`, `_ou2` or `_ou3`, none containing `_sfx_`.
+    The owner extends the fix to the totals model, superseding "Out of
+    scope" above for ou3. ou3's report terms (av_o, av_d, av_m) use the
+    fixed matcher in live scoring and in the fit's report terms (300-minute
+    lead), with the fixed play-rate table, which the margin route and ou3
+    now share (one table, `q_rates`, recorded as fixed). Only the report
+    stage is refitted, on the same seasons (2023-26) and lead on ou3's T*
+    residual; T*'s coefficients and sigmas are unchanged. Tag with report
+    terms `totals_hl25_form5_rep_rest_sfx_ou3`; a game without report terms
+    is scored as before and keeps `totals_hl25_form5_rep_rest_neutral_ou3`.
+    Ending `_ou3`, it continues OU·L·ou3 and OU·E·L·ou3 with the unchanged
+    O/U rule. Native `first_ou_*` / `lock_ou_*` values, earlier O/U locks
+    and `data/nba_ou3_rescore.csv` are unchanged; nothing is rescored.
+    Before activation, beside the gate below: a walk-forward of the report
+    stage on 2023-24 .. 2025-26 (each fold fitted on earlier report
+    seasons), squared error on the total, games 1+, fixed minus current
+    (± 95%), reviewed by the owner; no other pass rule is set.
+  - **Gate.** Before activation (merging the fitted files): data
+    validation, the full test suite, the reproduction above, a walk-forward
+    G7 comparison of the fixed against the current report route on the
+    report seasons (log loss and Brier, production routing, identical
+    games) and the 2026-27 lock reconstruction, reviewed by the owner. After
+    activation: rescore, rebuild, build, model review, DraftKings and
+    History backtests.
+
 ## Sources of truth and engineering rules
 
 - **Public matchup context (owner request, 2026-11-01).** Today cards show

@@ -102,8 +102,10 @@ jobs:
           # v11 reads its Questionable play-rate table from the research output
           # (player_availability.py q-rates over a complete archive): the NBA's CDN
           # throttles the runner, so it does not download every edition again.
+          # v11 with the report-name suffix fix (CLAUDE.md 2026-11-13): the fixed
+          # play-rate table, q_rates_sfx.json (q_rates.json is the earlier one).
           python player_availability.py fit --${{ inputs.version }} --years ${{ inputs.avail_years }} \
-            ${{ inputs.version == 'v11' && '--q-rates diagnostics/questionable_weight/q_rates.json' || '' }}
+            ${{ inputs.version == 'v11' && '--split-suffix --q-rates diagnostics/questionable_weight/q_rates_sfx.json' || '' }}
       - name: Fit totals (O/U) model
         id: totals
         # Completed seasons' report terms are read from model/totals_report_terms.csv
@@ -122,7 +124,9 @@ jobs:
         # v11's play-rate table in model/logit_avail.json. ou3 (CLAUDE.md
         # amendment 2026-11-06): the fit includes both teams' days of rest,
         # so the first run after it activates ou3's tags and rows.
-        run: python totals.py fit --years "2017-2019 2021-2026" --report-years "2023-2026"
+        # Suffix fix (CLAUDE.md ou3 amendment, 2026-11-13): the report terms match
+        # joined suffixes, with the fixed play rates in model/logit_avail.json.
+        run: python totals.py fit --years "2017-2019 2021-2026" --report-years "2023-2026" --split-suffix
       - name: Keep fetched injury reports even if a step failed
         if: always()
         uses: actions/cache/save@v4

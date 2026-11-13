@@ -968,10 +968,34 @@ def team_code(full_name):
     return hits[0] if len(hits) == 1 else None
 
 
-def report_name_to_first_last(name):
-    """'Porter Jr., Michael' -> 'Michael Porter Jr.'."""
+# Report-name suffix fix (CLAUDE.md, 2026-11-13): since 2023-24 the report
+# prints a suffix joined to the last name ('MurphyIII,Trey', 'OubreJr.,Kelly'),
+# which norm_name (a suffix only as its own word) cannot strip.
+_JOINED_SUFFIX = re.compile(r"(?<=[a-z.])(Jr\.?|Sr\.?|II|III|IV)$")
+
+
+def split_suffix(last):
+    """'MurphyIII' -> 'Murphy III', 'PorterJr.' -> 'Porter Jr.'; else unchanged."""
+    return _JOINED_SUFFIX.sub(r" \1", str(last).strip())
+
+
+def report_name_to_first_last(name, split=False):
+    """'Porter Jr., Michael' -> 'Michael Porter Jr.'. split=True (the margin
+    model's report route from the suffix fix) first separates a suffix joined
+    to the last name, so 'PorterJr.,Michael' gives the same."""
     last, _, first = str(name).partition(",")
-    return f"{first.strip()} {last.strip()}".strip()
+    last = split_suffix(last) if split else last.strip()
+    return f"{first.strip()} {last}".strip()
+
+
+SPLIT_SUFFIX = "split_suffix"     # model file "report_names" with the fix
+
+
+def splits_suffix(model):
+    """True when a report-route model file was fitted with the suffix fix."""
+    return bool(model) and model.get("report_names") == SPLIT_SUFFIX
+
+
 
 
 def report_date(s):
@@ -1053,11 +1077,12 @@ def fetch_tips(y, cache_dir=None):
 
 
 # --------------------------------------------------------- statuses -------
-def game_statuses(box, tips, archive, lead_minutes):
+def game_statuses(box, tips, archive, lead_minutes, split=False):
     """One row per (game, report-listed player matched to the box): game_id,
     team, player_id, status, played, report time, lead (minutes before tip).
     stats['covered'] is the set of game_ids the report covers (see covers());
-    only those may use report-based availability terms."""
+    only those may use report-based availability terms. split: the
+    suffix fix (report_name_to_first_last)."""
     games = box.drop_duplicates(["game_id", "team"])[["game_id", "date", "team"]]
     names = {}                                  # (team, norm name) -> player_id
     for r in box.drop_duplicates(["team", "player_id"]).itertuples(index=False):
@@ -1111,7 +1136,7 @@ def game_statuses(box, tips, archive, lead_minutes):
                     or r.status == NOT_SUBMITTED):
                 continue
             stats["listed"] += 1
-            pid = names.get((code, norm_name(report_name_to_first_last(r.player))))
+            pid = names.get((code, norm_name(report_name_to_first_last(r.player, split))))
             if pid is None:
                 continue
             stats["matched"] += 1
@@ -1186,10 +1211,11 @@ def update_box(y, today, data_dir="data", sleep=0.15):
     return df
 
 
-def od_present(report_rows, box, gid, teams, slate, rates=None):
+def od_present(report_rows, box, gid, teams, slate, rates=None, split=False):
     """{(gid, player_id): 0/1} from report rows for `teams` on `slate`: Out or
     Doubtful -> 0, any other listed status -> 1 (the od rule). With `rates`
-    (v11, {status: play rate}): the q rule instead (q_status_p)."""
+    (v11, {status: play rate}): the q rule instead (q_status_p). split: the
+    suffix fix (report_name_to_first_last)."""
     names = {}
     for r in box.drop_duplicates(["team", "player_id"]).itertuples(index=False):
         names.setdefault((r.team, norm_name(r.name)), r.player_id)
@@ -1199,7 +1225,7 @@ def od_present(report_rows, box, gid, teams, slate, rates=None):
         if (code not in teams or report_date(r.game_date) != slate
                 or r.status == NOT_SUBMITTED):
             continue
-        pid = names.get((code, norm_name(report_name_to_first_last(r.player))))
+        pid = names.get((code, norm_name(report_name_to_first_last(r.player, split))))
         if pid is not None:
             out[(gid, pid)] = (q_status_p(r.status, rates) if rates is not None else
                                0.0 if r.status in ("Out", "Doubtful") else 1.0)
@@ -1221,7 +1247,7 @@ def q_status_p(status, rates):
     return {"Out": 0.0, "Available": 1.0}.get(status, float(rates.get(status, 1.0)))
 
 
-def q_rates(years, cache_dir=DEFAULT_CACHE, leads=Q_LEADS, archive=None):
+def q_rates(years, cache_dir=DEFAULT_CACHE, leads=Q_LEADS, archive=None, split=False):
     """{"<lead>": {status: share of listed players with that status who
     logged minutes}} over the report seasons `years`, from the last report at
     least `lead` minutes before each tip (game_statuses; v11's fitted table)."""
@@ -1240,7 +1266,7 @@ def q_rates(years, cache_dir=DEFAULT_CACHE, leads=Q_LEADS, archive=None):
         archive.save()
         parts = []
         for t in years:
-            st_t, s = game_statuses(boxes[t], tips[t], archive, lead)
+            st_t, s = game_statuses(boxes[t], tips[t], archive, lead, split=split)
             if s["with_report"] < Q_MIN_COVERAGE * s["games"]:
                 raise SystemExit(f"q rates: a report found for only {s['with_report']} of "
                                  f"{s['games']} games of {t} at {lead} min; refusing to fit "
@@ -1259,19 +1285,27 @@ def q_rates(years, cache_dir=DEFAULT_CACHE, leads=Q_LEADS, archive=None):
 Q_RATES_FILE = os.path.join("diagnostics", "questionable_weight", "q_rates.json")
 
 
-def save_q_rates(table, years, path=Q_RATES_FILE):
+Q_RATES_SFX_FILE = os.path.join("diagnostics", "questionable_weight", "q_rates_sfx.json")
+
+
+def save_q_rates(table, years, path=Q_RATES_FILE, split=False):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    json.dump({"years": [int(y) for y in years], "leads": [int(x) for x in Q_LEADS],
+    extra = {"report_names": SPLIT_SUFFIX} if split else {}
+    json.dump({"years": [int(y) for y in years], "leads": [int(x) for x in Q_LEADS], **extra,
                "rule": "share of listed players with each status who logged minutes, "
                        "last report at least <lead> minutes before tip (q_rates)",
                "rates": table}, open(path, "w"), indent=1)
     print(f"wrote {path}", flush=True)
 
 
-def load_q_rates(path, years):
-    """The table save_q_rates wrote, checked against the fit's seasons and
-    leads (a table for other seasons or leads is refused)."""
+def load_q_rates(path, years, split=False):
+    """The table save_q_rates wrote, checked against the fit's seasons, leads
+    and name matching (a table for other seasons, leads or matching is
+    refused)."""
     d = json.load(open(path))
+    if (d.get("report_names") == SPLIT_SUFFIX) != bool(split):
+        raise SystemExit(f"{path}: q rates {'without' if split else 'with'} the suffix fix; "
+                         "rerun the q-rates command with matching --split-suffix")
     if [int(y) for y in d["years"]] != [int(y) for y in years] or \
             [int(x) for x in d["leads"]] != list(Q_LEADS) or \
             set(d["rates"]) != {str(x) for x in Q_LEADS}:
@@ -1315,12 +1349,13 @@ def stat_values(box, prev_season):
 
 
 def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
-                 values, q_rates):
+                 values, q_rates, split=False):
     """dict(av_o, av_d, av_m, report) for an upcoming game, both teams summed,
     from one parsed report (published at report_time, ET naive) and the box
     rows before the game, under the q rule at the report's lead before tip;
     None when the report does not cover the game or a team has no history
-    (the neutral ou2 route)."""
+    (the neutral ou2 route). split: the suffix fix (ou3 amendment,
+    CLAUDE.md 2026-11-13), as the totals model file records it."""
     if report_rows is None or report_time is None or not values:
         return None
     slate = pd.Timestamp(date).strftime("%Y-%m-%d")
@@ -1331,7 +1366,7 @@ def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
     if q_rates and tip is not None:
         lead = (tip.astimezone(ET).replace(tzinfo=None) - report_time).total_seconds() / 60
         rates = lead_rates(q_rates, lead)
-    present = od_present(report_rows, box, gid, {home, away}, slate, rates)
+    present = od_present(report_rows, box, gid, {home, away}, slate, rates, split=split)
     out = dict(av_o=0.0, av_d=0.0, av_m=0.0)
     for team in (home, away):
         o = upcoming_terms(box, team, gid, date, values["OBPM"], present)
@@ -1345,13 +1380,14 @@ def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
     return out
 
 
-def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None, health=None):
+def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None, health=None,
+                        split=False):
     """(slate date, home, away) -> dict(av_o, av_d, av_m) for every game of
     season t from the last report at least `lead` minutes before tip (the
     ou2 fit; research/totals_report.py arm rep5h). Uncovered games get 0.
     `health` (a dict, optional) receives parse_failed: reports that could not
     be read, whose games fell back to 0 (totals.report_terms stores no season
-    with any)."""
+    with any). split: the suffix fix."""
     box = fetch_box(t, cache_dir=cache_dir)
     tips = fetch_tips(t, cache_dir)
     archive = archive or ReportArchive(REPORT_DIR)
@@ -1361,7 +1397,7 @@ def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None,
         if tip is not None:
             cut.append(tip.astimezone(ET).replace(tzinfo=None) - timedelta(minutes=lead))
     archive.prefetch(cut)
-    st, s = game_statuses(box, tips, archive, lead)
+    st, s = game_statuses(box, tips, archive, lead, split=split)
     archive.save()
     if health is not None:
         health["parse_failed"] = int(s["parse_failed"])
@@ -1414,12 +1450,13 @@ class LiveAvailability:
         except Exception as e:  # noqa: BLE001 - talent still usable
             print(f"injury report unavailable ({e!r})", flush=True)
 
-    def terms(self, gid, home, away, date, tip_utc=None, q_rates=None):
+    def terms(self, gid, home, away, date, tip_utc=None, q_rates=None, split=False):
         """{'av_min', 'av_bpm', 'report'} (home - away), or None -- the base
         model -- when the report does not cover this game (none, empty or
         unparsed, not on it, a team not yet submitted) or a team has no box
         history. v11 (`q_rates`, the fitted table, and the game's tip): the
-        q rule at the report's lead before tip instead of od."""
+        q rule at the report's lead before tip instead of od. split: the
+        suffix fix (report_name_to_first_last)."""
         if self.report is None:
             return None
         slate = pd.Timestamp(date).strftime("%Y-%m-%d")
@@ -1431,7 +1468,8 @@ class LiveAvailability:
             lead = (tip.astimezone(ET).replace(tzinfo=None) - self.report_time
                     ).total_seconds() / 60
             rates = lead_rates(q_rates, lead)
-        present = od_present(self.report, self.box, gid, {home, away}, slate, rates)
+        present = od_present(self.report, self.box, gid, {home, away}, slate, rates,
+                             split=split)
         th = upcoming_terms(self.box, home, gid, date, self.value, present)
         ta = upcoming_terms(self.box, away, gid, date, self.value, present)
         if th is None or ta is None:
@@ -1439,7 +1477,7 @@ class LiveAvailability:
         return dict(av_min=th[0] - ta[0], av_bpm=th[2] - ta[2],
                     report=f"{self.report_time:%Y-%m-%d %H:%M}")
 
-    def totals_terms(self, gid, home, away, date, tip_utc=None, q_rates=None):
+    def totals_terms(self, gid, home, away, date, tip_utc=None, q_rates=None, split=False):
         """The totals model's report terms (ou2; totals_terms) from this
         build's report, or None (neutral). Last season's OBPM / DBPM load on
         first use; a failure leaves every game neutral, never the build."""
@@ -1450,20 +1488,20 @@ class LiveAvailability:
                 print(f"totals report terms unavailable ({e!r})", flush=True)
                 self._stat_values = {}
         return totals_terms(self.report, self.report_time, self.box, gid, home, away, date,
-                            tip_utc, self._stat_values, q_rates)
+                            tip_utc, self._stat_values, q_rates, split=split)
 
 
 def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES,
-                 rookies=False, rates=None):
+                 rookies=False, rates=None, split=False):
     """Pregame od availability terms (home - away) for every game of season t,
     from box scores before each game and the NBA report at least
     `lead_minutes` before tip. Independent of the composite weights.
     Only games the report covers get terms; the rest fall back to the base
     model (the same routing as LiveAvailability.terms). `rates` (v11,
-    {status: play rate}): the q rule instead of od."""
+    {status: play rate}): the q rule instead of od. split: the suffix fix."""
     box = fetch_box(t, cache_dir=cache_dir)
     value, _, _ = player_values(box, load_bpm(t - 1), rookies_for(t) if rookies else None)
-    st, s = game_statuses(box, fetch_tips(t, cache_dir), archive, lead_minutes)
+    st, s = game_statuses(box, fetch_tips(t, cache_dir), archive, lead_minutes, split=split)
     archive.save()
     av = game_availability(box, value, present=(present_map(st, "q", rates) if rates
                                                 else present_map(st, "od")))
@@ -1499,7 +1537,8 @@ def fit_fixed(G, base, fixed=FIXED_V5, features=None):
 
 
 def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
-        v5=True, v6=True, v8=False, v9=False, v10=False, v11=False, q_rates_file=None):
+        v5=True, v6=True, v8=False, v9=False, v10=False, v11=False, q_rates_file=None,
+        split=False):
     """Fit model/logit_avail.json on games 10+ of `years` (see module doc).
     phase=True (v4) adds delta * season phase to the v3 features; v5=True
     also adds luck_def and talent_diff (needs the seasons' box scores);
@@ -1514,7 +1553,12 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     v11=True: v10 plus "q_rates", the play-rate table the build scores the
     report route with (q_rates; the fit itself stays od). `q_rates_file`
     reads that table from a file the q-rates command wrote over the same
-    seasons, instead of downloading every report edition again."""
+    seasons, instead of downloading every report edition again.
+    split=True (with v11; the suffix fix, CLAUDE.md 2026-11-13): every report
+    read matches joined suffixes, the play-rate table included (one table,
+    shared with the totals model); the file records "report_names"."""
+    if split and not v11:
+        raise SystemExit("--split-suffix needs --v11")
     v10 = v10 or v11
     v9 = v9 or v10
     v8 = v8 or v9
@@ -1527,7 +1571,7 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     frames = []
     try:
         for t in years:
-            terms, s = season_terms(t, archive, cache_dir, lead_minutes, rookies=v10)
+            terms, s = season_terms(t, archive, cache_dir, lead_minutes, rookies=v10, split=split)
             if v8:
                 g = with_terms(nc.fade_v8_games(
                     t, weights, talent=season_talent(t, cache_dir, rookies=v10),
@@ -1560,10 +1604,12 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
         m.update({"version": nc.V11 if v11 else nc.V10, "orb": nc.ORB_PCT, "refit": "slate",
                   "train_file": TRAIN_FILE, "rookies": rookie_meta(max(years) + 1)})
     if v11:
-        table = (load_q_rates(q_rates_file, years) if q_rates_file else
-                 q_rates(years, cache_dir))
+        table = (load_q_rates(q_rates_file, years, split) if q_rates_file else
+                 q_rates(years, cache_dir, split=split))
         m.update({"score_rule": "q", "q_rates": table,
                   "q_rates_source": q_rates_file or "fit"})
+        if split:
+            m["report_names"] = SPLIT_SUFFIX
         G["season"] = G["year"]
         save_train(G, feats)
     nc.save_json(m, MODEL_FILE)
@@ -1613,12 +1659,13 @@ def refit(model, extra, train=None):
 
 
 def season_rows(season, before, weights, box, value, talent, talent0, tips, archive,
-                prior_logs=None, lead_minutes=LEAD_MINUTES):
+                prior_logs=None, lead_minutes=LEAD_MINUTES, split=False):
     """Season `season`'s covered games 1+ played before `before`, with the
     report route's features and the margin: the rows v10's refit adds.
     Features as fade_v8_games builds them (games strictly before each date);
     av terms from the last report at least `lead_minutes` before each tip
-    (game_statuses), the same od rule as live scoring."""
+    (game_statuses), the same od rule as live scoring. split: the suffix
+    fix, as the model file records it."""
     before = pd.Timestamp(before)
     g = nc.fade_v8_games(season, weights, talent=talent, talent0=talent0,
                          prior_logs=prior_logs)
@@ -1626,7 +1673,7 @@ def season_rows(season, before, weights, box, value, talent, talent0, tips, arch
     played = box[pd.to_datetime(box["date"]) < before]
     if not len(g) or not len(played):
         return pd.DataFrame()
-    st, s = game_statuses(played, tips, archive, lead_minutes)
+    st, s = game_statuses(played, tips, archive, lead_minutes, split=split)
     av = game_availability(played, value, present=present_map(st, "od"))
     av = av[av["game_id"].isin(s["covered"])]
     out = with_terms(g, av[["slate_date", "home", "away", "av_min", "av_bpm"]])
@@ -1660,14 +1707,19 @@ def main(argv=None):
                     help="fit --v11: read the play-rate table from this file (written by "
                          "the q-rates command) instead of downloading every report edition; "
                          "q-rates: the file to write")
+    ap.add_argument("--split-suffix", action="store_true",
+                    help="the report-name suffix fix (CLAUDE.md 2026-11-13): fit --v11 and "
+                         "q-rates match suffixes joined to the last name")
     a = ap.parse_args(argv)
     if a.cmd == "q-rates":
         years = nc.parse_years(a.years)
-        save_q_rates(q_rates(years, a.cache), years, a.q_rates or Q_RATES_FILE)
+        save_q_rates(q_rates(years, a.cache, split=a.split_suffix), years,
+                     a.q_rates or (Q_RATES_SFX_FILE if a.split_suffix else Q_RATES_FILE),
+                     split=a.split_suffix)
         return 0
     fit(nc.parse_years(a.years), a.cache, a.lead_minutes, phase=not a.no_phase,
         v5=not (a.v4 or a.no_phase), v6=not (a.v5 or a.v4 or a.no_phase), v8=a.v8,
-        v9=a.v9, v10=a.v10, v11=a.v11, q_rates_file=a.q_rates)
+        v9=a.v9, v10=a.v10, v11=a.v11, q_rates_file=a.q_rates, split=a.split_suffix)
     return 0
 
 
