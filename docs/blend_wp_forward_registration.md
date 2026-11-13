@@ -1,9 +1,10 @@
-# Model–market blend shadow forward record — DRAFT
+# Model–market blend shadow forward record
 
-**Status: draft for the owner's review. Not registered.** The registration
-timestamp, the ledger commit it cites and the first slate are filled in when
-the owner approves. That commit holds this file alone, before any blend code.
-Algorithm version: `blend_shrink40_v1`.
+Registered 2026-11-13T15:24:49Z, on the owner's approval (keep w = 0.40, internal only),
+committed on its own before any blend code. The native ledger at `a242853`
+has 183 rows, the last lock at 2026-11-12T21:02:31Z, and no lock on the
+2026-11-13 slate (9 games, first tip 2026-11-14T00:00Z, first lock window
+opens 2026-11-13T19:00Z). Algorithm version: `blend_shrink40_v1`.
 
 ## Question
 
@@ -52,8 +53,9 @@ weight and no update during the record. Away is 1 − home.
   valid lock window. Stale-log void locks are excluded.
 - Both lock moneylines and a usable `lock_q_home` (strictly between 0 and 1)
   are required. Pending, postponed and unpriced games do not enter.
-- Starts with the first slate on which no game had locked at registration.
-  Nothing earlier enters: no backfill.
+- Starts with the **2026-11-13 slate**: games with `slate_date` ≥
+  2026-11-13 and a lock snapshot after 2026-11-13T15:24:49Z. Nothing earlier enters: no
+  backfill.
 - Games 1–9 and games 10+ are separate rows, per season. Openers and unknown
   stages are left out. Never pooled with Realized WP v1/v2, the ML record or
   any tracked test.
@@ -108,5 +110,6 @@ owner amendment.
 - Tests: the estimate equals `shrink_p` at w = 0.40. The population matches
   `model_predictions` minus the start-slate cut. Void and off-family locks are
   excluded. Stages are never pooled. No later price replaces a lock value.
-- It is not shown on any public page and adds no workflow, data file or ledger
-  column.
+- Internal only (owner's decision at registration): not shown on any public
+  page, card or guide, and it adds no workflow, data file or ledger column.
+  Any display needs its own amendment.
