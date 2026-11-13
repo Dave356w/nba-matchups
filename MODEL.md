@@ -772,6 +772,42 @@ backtests, reviewed before activation. The History backtest reads the
 live effect is the walk-forward above. The games 1–9 tests accept `_v9`,
 `_v10` and `_v11` tags.
 
+### Report-name suffix fix (owner's decision, 2026-11-13)
+
+- **Defect:** since 2023-24 the NBA report prints suffixes joined to the
+  last name (`MurphyIII,Trey`); `norm_name` strips a suffix only as its own
+  word, so those players never matched a box score and, listed Out, counted
+  as playing (2022-23 printed `Murphy III, Trey`).
+- **Fix** (`player_availability.split_suffix`,
+  `report_name_to_first_last(name, split=True)`): Jr, Jr., Sr, Sr., II, III
+  or IV directly after a lower-case letter or a period, at the end of the
+  last name, is separated before matching. Applied to every report read of
+  the margin model's report route (training terms, play-rate table,
+  per-slate refit rows, live scoring) and of ou3's report terms, when the
+  fitted file records it (`"report_names": "split_suffix"`;
+  `player_availability.splits_suffix`, `totals.splits_suffix`).
+- **Play rates:** `q-rates --split-suffix` writes
+  `diagnostics/questionable_weight/q_rates_sfx.json`, the one table both
+  routes read (`q_rates`). Without the fix the same computation reproduces
+  `q_rates.json` exactly at all six leads; with it, about 1,800–2,400 more
+  listings match per lead and no rate moves by 0.003 (5 h: Doubtful 0.020,
+  Questionable 0.478, Probable 0.907).
+- **Refit:** `fit --v11 --split-suffix` on 2023-26, the same 4,847 games.
+  Unchanged code first reproduced every report-derived input exactly; the
+  BPM-derived inputs (av_bpm, talent_diff, the rookie curve) differ a
+  little because Basketball-Reference's pages have changed since the
+  previous fit. Against that reproduction: av_min 1.032 → 1.063, av_bpm
+  0.307 → 0.306, sigma 13.63 → 13.62. ou3: `totals.py fit --report-only
+  --split-suffix`, T* unchanged; report stage av_o 0.909 → 0.951, av_d
+  −1.232 → −1.285, av_m 0.357 → 0.324, sigma 18.04 / 18.51 unchanged (these
+  also absorb the OBPM / DBPM page drift).
+- **Tags:** report route `..._rookies_qweight_sfx_margin_avail_v11` and
+  `..._qweight_sfx_margin_neutral_avail_v11` (base tags unchanged); ou3 with
+  report terms `totals_hl25_form5_rep_rest_sfx_ou3` (neutral unchanged).
+  Both continue their families and rows; nothing native is rescored.
+- **Gate** (`research/report_name_suffix.py`,
+  `diagnostics/report_name_suffix/RESULTS.txt`): results to follow before activation.
+
 ## Five-hour lock (owner's decision, 2026-10-28)
 
 `ledger.LOCK_COLUMNS` are written once, like `first_*`, from the first
