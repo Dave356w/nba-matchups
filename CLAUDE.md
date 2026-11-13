@@ -696,7 +696,7 @@ information only, separate from DraftKings and native evidence.
   Pre-tip build (owner request, 2026-11-13): the lock watcher also
   dispatches one build 20 minutes before each tip (retried once 6 minutes
   later, never within 10 minutes of tip; skipped when the game's saved
-  snapshot is already that recent), so `pre_spread` sits close to the
+  snapshot is already that recent and holds a DraftKings spread), so `pre_spread` sits close to the
   close. Before this the saved spread was a median 82 minutes old at tip
   and differed from the close in 41 of 173 graded games. Locks, the lock
   rule and every record are unchanged; the card and guide name the input

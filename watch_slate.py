@@ -27,7 +27,7 @@ DraftKings spread saved before tip (pre_spread). With builds only at the
 lock windows, that spread was a median 82 minutes old at tip and differed
 from the close in 41 of 173 graded games. So the shift also dispatches one
 build PRETIP_LEAD before each tip, unless the game's saved snapshot is
-already that recent, and retries it once PRETIP_RETRY_SECONDS later while
+already that recent and holds a DraftKings spread, and retries it once PRETIP_RETRY_SECONDS later while
 the game is still more than MIN_BEFORE from tip. One build covers every
 game it reaches; games sharing a tip share the build.
 
@@ -42,6 +42,7 @@ Stdlib only, so a shift costs no install and sleeps almost all of its time.
 import csv
 import io
 import json
+import math
 import os
 import subprocess
 import sys
@@ -152,10 +153,25 @@ def locked(row):
     return row is not None and all((row.get(c) or "").strip() for c in LOCK_MARKERS)
 
 
+def has_dk_spread(row):
+    """The saved snapshot holds what live win chance reads: a DraftKings
+    pregame spread (public_site.live_block shows nothing otherwise)."""
+    row = row or {}
+    if (row.get("pre_book") or "").strip() != "dk":
+        return False
+    try:
+        return math.isfinite(float(row.get("pre_spread")))
+    except (TypeError, ValueError):
+        return False
+
+
 def pretip_done(row, tip):
-    """The game's saved pregame snapshot is already within PRETIP_LEAD of tip."""
+    """The game's saved pregame snapshot is already within PRETIP_LEAD of tip
+    and holds a DraftKings spread. A build whose odds fetch failed (or fell
+    back to another book) still advances snapshot_utc, so the timestamp
+    alone would skip the retry."""
     snap = parse_utc((row or {}).get("snapshot_utc"))
-    return snap is not None and snap >= tip - PRETIP_LEAD
+    return snap is not None and snap >= tip - PRETIP_LEAD and has_dk_spread(row)
 
 
 def retry_after(key):
