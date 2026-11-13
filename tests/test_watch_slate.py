@@ -17,10 +17,12 @@ def _game(gid, tip, state="pre"):
     return {"game_id": gid, "tip": tip, "state": state}
 
 
-def _row(gid, tip, locked=False, ou_locked=None, slate=DAY, snapshot=None):
+def _row(gid, tip, locked=False, ou_locked=None, slate=DAY, snapshot=None,
+         book="dk", spread="-4.5"):
     ou_locked = locked if ou_locked is None else ou_locked
     return {"game_id": gid, "slate_date": slate, "tip_utc": ledger.fmt_utc(tip),
             "home_won": "", "snapshot_utc": ledger.fmt_utc(snapshot) if snapshot else "",
+            "pre_book": book, "pre_spread": spread,
             "lock_snapshot_utc": "2026-10-29T19:30:00Z" if locked else "",
             "lock_ou_snapshot_utc": "2026-10-29T19:30:00Z" if ou_locked else ""}
 
@@ -161,6 +163,37 @@ def test_an_unlocked_game_is_retried_until_tip_and_failed_dispatches_soon():
     assert gaps and all(g == ws.RETRY_SECONDS for g in gaps)
     assert tip - ws.PRETIP_LEAD in builds       # the pre-tip build still lands
     assert builds[-1] < tip - ws.MIN_BEFORE
+
+
+def test_a_recent_snapshot_without_a_draftkings_spread_is_not_done():
+    tip = T0 + timedelta(minutes=30)
+    at = tip - ws.PRETIP_LEAD
+    good = _row("a", tip, locked=True, snapshot=at)
+    assert ws.pretip_done(good, tip)
+    for bad in (dict(spread=""), dict(spread="nan"), dict(spread="x"), dict(book="espnbet"),
+                dict(book="")):
+        row = _row("a", tip, locked=True, snapshot=at, **bad)
+        assert not ws.pretip_done(row, tip)
+        # still due, so the retry runs
+        assert ws.plan([_game("a", tip)], {"a": row}, DAY, at)[1] == ["a" + ws.PRETIP]
+    assert not ws.pretip_done(None, tip)
+
+
+def test_a_failed_pretip_fetch_gets_its_retry():
+    # the build runs (snapshot_utc advances) but saves no spread both times
+    tip = T0 + timedelta(hours=1)
+    rows = {"a": _row("a", tip, locked=True, snapshot=T0)}
+    sim = Sim([_game("a", tip)], rows)
+    send = sim.send
+
+    def blank(wf):
+        ok = send(wf)
+        rows["a"] = dict(rows["a"], pre_spread="")
+        return ok
+    sim.send = blank
+    assert sim.run() == 2
+    assert [t for t, _ in sim.sent] == [tip - ws.PRETIP_LEAD,
+                                       tip - ws.PRETIP_LEAD + timedelta(seconds=ws.PRETIP_RETRY_SECONDS)]
 
 
 def test_a_pretip_build_that_saves_nothing_is_retried_once_before_tip():
