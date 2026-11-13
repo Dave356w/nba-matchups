@@ -968,3 +968,21 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   every window; 2026-27 native locks (98 games) separate nothing. No window
   makes the cell predictive; the choice among windows is display stability.
   Research only: the cards keep latest 50 unless the owner amends it.
+- Shrunk cell + drift backtest (owner's question, 2026-11-13;
+  `research/shrunk_drift_backtest.py`,
+  [results](../diagnostics/shrunk_drift/RESULTS.txt)). Can Realized WP stay on
+  the latest 200 cell results and still respond to recent results? Same
+  walk-forward and cohorts as the matrix window backtest. Candidate: the cell
+  adjustment × n/(n+200), plus one pooled drift (exponentially weighted mean
+  of won − q over the latest 600 picks of every cell, half-life 100 picks,
+  200 pseudo-games at zero). Primary, 2025-26 DraftKings replay at the close
+  (963 games): candidate −0.0009 ± 0.0012 Brier against the price, v3 +0.0024
+  ± 0.0022, paired candidate − v3 −0.0033 ± 0.0019; largest single adjustment
+  6.4 points against 32.1. 2024-25 ESPN BET cold start (1,187 games):
+  candidate +0.0007 ± 0.0007, v3 +0.0113 ± 0.0061; the drift alone is
+  slightly worse than the price there (+0.0004 ± 0.0004). 2026-27 native
+  locks (98 games) separate nothing. The candidate is better than v3 on both
+  replay seasons and does not beat the price on either; nearly all of the
+  gain is the shrinkage. Constants were picked the same day from a small grid
+  on these seasons (in-sample). Research only; the estimate changes only by
+  the owner's amendment.
