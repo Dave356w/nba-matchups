@@ -10,18 +10,18 @@
     "ft_diff"
   ],
   "link": "margin",
-  "intercept": 2.0621355733474065,
+  "intercept": 2.058418929727583,
   "coef": [
-    0.14014462842604256,
-    2.2260254158924293,
-    1.037932178611553,
-    0.30448793880411446,
-    0.17093727164382844,
-    0.10762095651027664,
-    0.3000801835027281,
-    0.14872342487308124
+    0.14032007257869236,
+    2.2111783930755045,
+    1.0624799508990843,
+    0.30602856472484796,
+    0.17046536935080653,
+    0.1074185942354764,
+    0.3009296754018758,
+    0.14720821988771857
   ],
-  "sigma": 13.626630317987926,
+  "sigma": 13.622500550390491,
   "season_days": 175.0,
   "fade_rho": 0.25,
   "fade_games": 10,
@@ -44,8 +44,8 @@
   "rookies": {
     "season": 2027,
     "curve": [
-      -1.0461715807036005,
-      -0.5250685041180178,
+      -1.0410911528608393,
+      -0.5215557384134065,
       601
     ],
     "picks": {
@@ -114,35 +114,36 @@
   "score_rule": "q",
   "q_rates": {
     "1080": {
-      "Doubtful": 0.0457,
-      "Questionable": 0.4926,
-      "Probable": 0.8684
+      "Doubtful": 0.0448,
+      "Questionable": 0.4899,
+      "Probable": 0.8696
     },
     "720": {
-      "Doubtful": 0.0443,
-      "Questionable": 0.4921,
-      "Probable": 0.868
+      "Doubtful": 0.0434,
+      "Questionable": 0.4895,
+      "Probable": 0.8694
     },
     "480": {
-      "Doubtful": 0.0301,
-      "Questionable": 0.4837,
-      "Probable": 0.8733
+      "Doubtful": 0.0296,
+      "Questionable": 0.4821,
+      "Probable": 0.8735
     },
     "300": {
-      "Doubtful": 0.0211,
-      "Questionable": 0.481,
-      "Probable": 0.9078
+      "Doubtful": 0.0197,
+      "Questionable": 0.4783,
+      "Probable": 0.9074
     },
     "120": {
-      "Doubtful": 0.0159,
-      "Questionable": 0.4968,
-      "Probable": 0.911
+      "Doubtful": 0.0149,
+      "Questionable": 0.4957,
+      "Probable": 0.9126
     },
     "30": {
       "Doubtful": 0.0,
-      "Questionable": 0.5067,
-      "Probable": 0.9241
+      "Questionable": 0.5062,
+      "Probable": 0.925
     }
   },
-  "q_rates_source": "diagnostics/questionable_weight/q_rates.json"
+  "q_rates_source": "diagnostics/questionable_weight/q_rates_sfx.json",
+  "report_names": "split_suffix"
 }
