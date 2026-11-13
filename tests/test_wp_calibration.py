@@ -79,7 +79,7 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     card=site.card(target)
     assert 'Realized WP' in card and '100.0%' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
     assert 'data-cell-adjustment' in card and 'market average' in card
-    assert 'latest 50 actual results in that cell' in site.guide_page()
+    assert 'latest 200 actual results in that cell' in site.guide_page()
     assert "data-cell-games='1'" in card
     assert 'No historical results in this cell yet' in site.card(record('empty',date='2026-11-09'))
 
@@ -98,15 +98,16 @@ def replay(gid, date='2025-12-01', won=1, **changes):
                   close_book='dk',close_home_ml=-300,close_away_ml=300,**changes)
 
 
-def test_previous_season_seed_rolls_to_latest_fifty_with_live_updates():
-    history=pd.DataFrame([replay(f's{i:02d}',won=int(i<10)) for i in range(60)])
+def test_previous_season_seed_rolls_to_latest_two_hundred_with_live_updates():
+    # Realized WP v3 (2026-11-13): the latest 200 per cell, previously 50
+    history=pd.DataFrame([replay(f's{i:03d}',won=int(i<10)) for i in range(210)])
     live=pd.DataFrame([record(f'live{i}',date=f'2026-11-{8+i:02d}') for i in range(3)])
     target=record('target',date='2026-11-11')
     before=history.copy(deep=True)
     c=RollingCalibration(live,history)
     est=c.estimate(target)
-    assert est['games']==50 and est['wins']==3 and est['probability']==.06
-    assert est['previous_games']==47 and est['current_games']==3
+    assert est['games']==200 and est['wins']==3 and est['probability']==pytest.approx(3/200)
+    assert est['previous_games']==197 and est['current_games']==3
     # Result-independent tie ordering and input-order independence.
     shuffled=RollingCalibration(live.sample(frac=1,random_state=1),history.sample(frac=1,random_state=2))
     assert shuffled.estimate(target)==est
