@@ -5,6 +5,27 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Realized WP shrunk cell + drift (v4) — owner instruction, November 13, 2026
+
+The owner asked whether Realized WP can stay on the latest 200 cell results
+and still respond to the live locks, then asked for the v4 patch.
+**Realized WP = this game's no-vig DraftKings WP + (cell win rate − cell mean
+no-vig WP) × n/(n+200) + drift**, clipped to 0–100%. The cell is v3's latest
+200; the drift is one number per slate, an exponentially weighted mean of
+(won − no-vig WP) over the latest 600 picks of every cell and stage,
+half-life 100 picks, 200 pseudo-games at zero. The four constants are fixed.
+`research/shrunk_drift_backtest.py`: better than v3 on both replay seasons
+(2025-26 paired Brier −0.0033 ± 0.0019), level with the price, not better
+than it; the constants were picked in-sample the same day. Cards state the
+shrunk cell adjustment and the drift; the guide explains both. The shadow
+record continues as v4 with the drift's pooled picks saved as their own
+content-addressed proof; v3 closes, kept and never pooled. Fixed terms and
+the primary reading are in `docs/realized_wp_forward_registration_v4.md`,
+committed before implementation. A positive drift raises every card of a
+slate together: describe it as recent results against prices, never as an
+edge. The ROI matrix and its switch, model, locks, grades and records are
+unchanged.
+
 ### Realized WP window 200 (v3) — owner instruction, November 13, 2026
 
 The owner asked to update Realized WP with the best researched window. The

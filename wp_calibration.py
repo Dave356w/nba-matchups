@@ -1,14 +1,20 @@
 """Display-only rolling joint calibration of v11 ML forecasts.
 
-Use the latest 50 actual outcomes in each model-winner × market-WP cell:
+Use the latest 200 actual outcomes in each model-winner × market-WP cell:
 previous-season replay seeds plus current-season native five-hour locks.
-Early and 10+ share evidence; opening games remain separate. No market
-pseudo-games, model changes, price changes, or writes to saved results.
+Early and 10+ share evidence; opening games remain separate. No model
+changes, price changes, or writes to saved results.
 
-The estimate is band-adjusted (v2, docs/realized_wp_forward_registration_v2.md):
-this game's no-vig market WP plus the cell's win rate minus the cell's mean
-no-vig market WP, so a game is not credited or penalised for where it sits
-inside a wide market band. The raw cell rate stays available as `cell_rate`.
+The cell adjustment is band-adjusted (v2, docs/realized_wp_forward_registration_v2.md):
+the cell's win rate minus the cell's mean no-vig market WP, so a game is not
+credited or penalised for where it sits inside a wide market band. The raw
+cell rate stays available as `cell_rate`.
+
+Realized WP v4 (docs/realized_wp_forward_registration_v4.md) shrinks that
+adjustment by n/(n + SHRINK_GAMES) and adds one pooled drift term: an
+exponentially weighted mean of (won − no-vig market WP) over the latest
+DRIFT_GAMES picks of every cell and stage, with DRIFT_PSEUDO pseudo-games at
+zero. The drift is the same for every game of a slate.
 """
 from __future__ import annotations
 
@@ -21,6 +27,11 @@ import analysis
 import market
 
 WINDOW_GAMES = 200   # Realized WP v3 (2026-11-13); v1/v2 used 50
+# Realized WP v4 (2026-11-13), fixed by its registration
+SHRINK_GAMES = 200      # pseudo-games at zero on the cell adjustment
+DRIFT_HALF_LIFE = 100   # picks
+DRIFT_PSEUDO = 200      # pseudo-games at zero on the drift
+DRIFT_GAMES = 600       # latest pooled picks read by the drift
 MODEL_BOUNDS = (.5, .6, .7, .8, 1.0)
 MARKET_BOUNDS = (0., .5, .6, .7, .8, 1.0)
 
@@ -36,6 +47,32 @@ def band_adjusted(q_game, wins, games, member_market):
         return float('nan')
     # Rate first: identical prices leave the raw cell rate exactly unchanged.
     return min(1., max(0., wins/games + (q_game - math.fsum(member_market)/games)))
+
+
+def drift(members):
+    """Pooled drift from (won, market WP) pairs ordered oldest to newest:
+    sum(w × (won − q)) / (sum(w) + DRIFT_PSEUDO), w halving every
+    DRIFT_HALF_LIFE picks back from the most recent. Empty history is 0."""
+    if not members:
+        return 0.
+    k = len(members)
+    weights = [.5 ** ((k - 1 - i) / DRIFT_HALF_LIFE) for i in range(k)]
+    total = math.fsum(w * (won - q) for w, (won, q) in zip(weights, members))
+    return total / (math.fsum(weights) + DRIFT_PSEUDO)
+
+
+def shrunk_cell(wins, games, member_market):
+    """The cell's (win rate − mean market WP) × games/(games + SHRINK_GAMES)."""
+    if not games:
+        return 0.
+    return (wins - math.fsum(member_market)) / (games + SHRINK_GAMES)
+
+
+def shrunk_with_drift(q_game, wins, games, member_market, pooled_drift):
+    """q_game + shrunk cell adjustment + drift, clipped to [0, 1] (v4)."""
+    if not games:
+        return float('nan')
+    return min(1., max(0., q_game + shrunk_cell(wins, games, member_market) + pooled_drift))
 
 
 def stage(row):
@@ -94,18 +131,29 @@ class RollingCalibration:
         season = pd.to_numeric(row.get('season'), errors='coerce')
         if not np.isfinite(season):
             return None
-        prior = [r for r in self.rows
-                 if ((r['season'] == season and r['source'] == 'live') or r['season'] == season-1)
-                 and (r['stage'] in ('early', 'established') if experience in ('early', 'established') else r['stage'] == experience)
-                 and r['date'] < str(row.get('slate_date'))
-                 and r['game_id'] != str(row.get('game_id'))
+        # Earlier slates of this season's native locks and last season's replay.
+        earlier = [r for r in self.rows
+                   if ((r['season'] == season and r['source'] == 'live') or r['season'] == season-1)
+                   and r['date'] < str(row.get('slate_date'))
+                   and r['game_id'] != str(row.get('game_id'))]
+        prior = [r for r in earlier
+                 if (r['stage'] in ('early', 'established') if experience in ('early', 'established') else r['stage'] == experience)
                  and r['model_band'] == pb and r['market_band'] == qb]
         # Date and ID provide deterministic order, independent of outcomes.
-        prior = sorted(prior, key=lambda r: (r['date'], r['game_id']))[-WINDOW_GAMES:]
+        order = lambda r: (r['date'], r['game_id'])  # noqa: E731
+        prior = sorted(prior, key=order)[-WINDOW_GAMES:]
         wins, n = sum(r['won'] for r in prior), len(prior)
         previous = sum(r['season'] == season-1 for r in prior)
         member_market = [r['market_probability'] for r in prior]
-        return dict(probability=band_adjusted(q_pick, wins, n, member_market),
+        # v4 drift: every cell and stage pooled, the latest DRIFT_GAMES picks.
+        pool = sorted(earlier, key=order)[-DRIFT_GAMES:]
+        pooled_drift = drift([(r['won'], r['market_probability']) for r in pool])
+        return dict(probability=shrunk_with_drift(q_pick, wins, n, member_market, pooled_drift),
+                    band_adjusted=band_adjusted(q_pick, wins, n, member_market),
+                    cell_adjustment=shrunk_cell(wins, n, member_market) if n else np.nan,
+                    drift=pooled_drift, drift_games=len(pool),
+                    drift_evidence=[[r['date'], r['game_id'], r['season'], r['source'], r['won'],
+                                     r['market_probability']] for r in pool],
                     cell_rate=wins/n if n else np.nan,
                     cell_market=math.fsum(member_market)/n if n else np.nan,
                     market_probability=q_pick, games=n, wins=wins, losses=n-wins,
