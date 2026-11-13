@@ -8,7 +8,7 @@ Flat 1u only at positive expected return; either side; at most one position per 
 All probability scores use the same official graded games, including abstentions. Saved prices are paper quotes.
 Build-time saves do not prove publication, viewing or executable prices. Public records and picks are unchanged.
 
-Saved distinct pre-tip captures: 145.
+Saved distinct pre-tip captures: 154.
 
 ## realized_wp_rolling200_bandadj_v3
 
@@ -144,7 +144,7 @@ Same-game market favorite: {"bets":4,"net_units":1.4837925886344416,"roi":0.3709
 
 ## realized_wp_shrunk200_drift_v4
 
-Official games: 7; graded: 0; pending: 7.
+Official games: 8; graded: 0; pending: 8.
 
 ### pooled
 
