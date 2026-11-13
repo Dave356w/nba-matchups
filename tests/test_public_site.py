@@ -59,7 +59,7 @@ def test_pending_selections_never_fabricate_results_and_ignore_later_refreshes()
     fresh = PublicSite(ui,changed,CLOSED,'built')
     assert [site.selection(r) for r in site.records] == [fresh.selection(r) for r in fresh.records]
     html = fresh.results_page()
-    assert html.count("class='prediction-badge'>Pending") == len(fresh.predictions)
+    assert html.count("class='prediction-badge'>Pending") == len(analysis.public_predictions(fresh.predictions))
     assert 'No graded, priced ML picks yet' in fresh.performance_page()
     assert '>+999<' not in html and '>-999<' not in html
 
@@ -92,7 +92,7 @@ def test_results_keep_losses_pushes_pending_overlap_and_seasons_separate():
     assert len(site.records) == 6
     perf=site.performance_page()
     assert '2025-26' in perf and '2026-27' in perf
-    assert 'Early · games 1–9' in perf and 'Established · games 10+' in perf
+    assert 'Games 1+' in perf and 'Early · games 1–9' not in perf and 'Established · games 10+' not in perf
     assert 'Paper tracking' not in perf
     # An actual loss remains a negative return, not an empty or hidden cell.
     assert '-1.00u' in result

@@ -184,22 +184,19 @@ def main():
                         assert shot.stat().st_size > 0, f'empty screenshot: {shot}'
                         checks.append(f'{device}: {label} · navigation, overflow and screenshot passed')
                     page.goto(f'{base}/fixture/index.html')
-                    assert page.locator('.gcard:visible').count()==1
-                    assert page.locator('.gcard:visible [data-season-calibration]').count()==1
-                    assert 'No historical results in this cell yet' in page.locator('.gcard:visible').inner_text()
-                    page.locator('[data-group="stage"][data-show="all"]').click()
+                    # Public games 1+ (owner approval, 2026-11-13): no stage filter;
+                    # early and 10+ games show together by default.
+                    assert page.locator('[data-group="stage"]').count()==0
                     assert page.locator('.gcard:visible').count()==5
-                    # Stage and status compose; counts reflect the other group.
+                    assert page.locator('.gcard:visible [data-season-calibration]').count()==5
+                    assert 'No historical results in this cell yet' in page.locator('.gcard:visible').first.inner_text()
                     page.locator('[data-group="state"][data-show="final"]').click()
                     assert page.locator('.gcard:visible').count()==4
-                    page.locator('[data-group="stage"][data-show="early"]').click()
-                    assert page.locator('.gcard:visible').count()==4
-                    page.locator('[data-group="stage"][data-show="established"]').click()
-                    assert page.locator('.gcard:visible').count()==0
-                    assert 'No final games with both teams at 10+ games yet.' in page.locator('[data-filter-empty]').inner_text()
-                    page.get_by_role('button',name='Show all games',exact=True).click()
+                    page.locator('[data-group="state"][data-show="upcoming"]').click()
+                    assert page.locator('.gcard:visible').count()==1
+                    page.locator('[data-group="state"][data-show="all"]').click()
                     assert page.locator('.gcard:visible').count()==5
-                    assert page.locator('[data-filter] [aria-pressed="true"]').count()==2
+                    assert page.locator('[data-filter] [aria-pressed="true"]').count()==1
                     page.locator('[data-group="state"][data-show="live"]').click()
                     assert 'No games are live right now.' in page.locator('[data-filter-empty]').inner_text()
                     page.get_by_role('button',name='Show all games',exact=True).click()
@@ -218,15 +215,19 @@ def main():
                     assert page.locator('html').get_attribute('data-theme') in ('dark','light')
                     page.screenshot(path=str(out/f'{device}-fixture-tracked.jpg'),full_page=True,type='jpeg',quality=85)
                     page.goto(f'{base}/fixture/results.html')
-                    assert page.locator('[data-prediction-row]:visible').count()==1
+                    assert page.get_by_label('Prediction stage',exact=True).count()==0
+                    assert page.get_by_label('Record source',exact=True).input_value()=='live'
+                    assert page.locator('#prediction-source option[value="all"]').count()==0
+                    assert page.locator('[data-prediction-row]:visible').count()==5
                     assert page.locator('[data-prediction-row][data-outcome="loss"]').count()==1
                     page.get_by_label('Prediction outcome',exact=True).select_option('pending')
                     assert page.locator('[data-prediction-row]:visible').count()==1
-                    page.get_by_label('Prediction stage',exact=True).select_option('early')
+                    page.get_by_label('Record source',exact=True).select_option('replay')
                     assert page.locator('[data-prediction-row]:visible').count()==0
                     assert page.locator('[data-predictions-empty]').is_visible()
+                    page.get_by_label('Record source',exact=True).select_option('live')
                     page.get_by_label('Prediction outcome',exact=True).select_option('all')
-                    assert page.locator('[data-prediction-row]:visible').count()==4
+                    assert page.locator('[data-prediction-row]:visible').count()==5
                     page.screenshot(path=str(out/f'{device}-fixture-model-results.jpg'),full_page=True,type='jpeg',quality=85)
                     assert page.locator('[data-result-row]').count()==0
                     assert page.locator('#paper-results').count()==0
@@ -235,13 +236,11 @@ def main():
                     assert page.locator('[data-ml-panel]:visible').count()==1
                     assert page.get_by_label('Record source',exact=True).input_value()=='live'
                     assert page.locator('[data-source-summary]:visible article').count()==2
-                    page.get_by_label('Model stage',exact=True).select_option('early')
+                    assert page.get_by_label('Model stage',exact=True).count()==0
+                    assert page.locator('#performance-source option[value="all"]').count()==0
+                    # games 1+: the 3–1 early games and the pending 10+ game share one record
                     panel = page.locator('[data-ml-panel]:visible')
                     assert panel.locator('.ml-metrics').get_by_text('3–1',exact=True).count()==1
-                    assert page.locator('[data-source-summary]:visible').get_attribute('data-stage')=='early'
-                    page.get_by_label('Record source',exact=True).select_option('all')
-                    assert page.locator('[data-ml-panel]:visible .ml-metrics').get_by_text('3–1',exact=True).count()==1
-                    assert page.locator('[data-source-summary]:visible article').count()==2
 
                     assert panel.locator('[data-roi-matrix]').count()==1
                     assert panel.locator('[data-confidence-bands]').count()==0
@@ -255,7 +254,7 @@ def main():
                     page.get_by_label('Record source',exact=True).select_option('live')
                     assert page.locator('[data-ml-panel]:visible .ml-metrics').get_by_text('3–1',exact=True).count()==1
                     assert page.locator('#paper-performance').count()==0
-                    checks.append(f'{device}: ML focus · 10+ default, separate early record, W/L, matched scores, source/outcome/stage filters, empty states and exclusion of betting tests passed')
+                    checks.append(f'{device}: ML record · games 1+ together, live default, live/replay only, W/L, matched scores, source/outcome filters, empty states and exclusion of betting tests passed')
                     panel = page.locator('[data-ml-panel]:visible')
                     panel.get_by_text('Return over time',exact=True).click()
                     page.screenshot(path=str(out/f'{device}-fixture-performance.jpg'),full_page=True,type='jpeg',quality=85)
