@@ -123,13 +123,25 @@ CSS = """
 .ml-hero .prediction-comparison{max-width:650px}.ml-hero .public-note{margin-bottom:0}
 .roi-matrix-wrap{margin-top:22px;max-width:100%}.roi-matrix{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px;font-size:12px;text-align:center}.roi-matrix caption{font-weight:700;text-align:left;margin-bottom:10px;font-size:15px}.roi-matrix th{white-space:normal;text-align:center;font-size:11px;color:var(--muted);padding:8px 3px}.roi-matrix td{white-space:normal;text-align:center;padding:12px 3px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:7px;vertical-align:middle}.roi-matrix strong{display:block;font:700 16px var(--mono);overflow-wrap:anywhere}.roi-matrix small{display:block;color:var(--muted);font-size:10px;margin-top:5px}.roi-matrix .positive{background:rgba(var(--good),.1)}.roi-matrix .negative{background:rgba(var(--bad),.1)}.roi-matrix .positive strong{color:rgb(var(--good))}.roi-matrix .negative strong{color:rgb(var(--bad))}@media(max-width:640px){.roi-matrix{border-spacing:2px}.roi-matrix th{font-size:9px;padding:6px 1px;overflow-wrap:anywhere}.roi-matrix td{padding:9px 1px}.roi-matrix strong{font-size:10px}.roi-matrix small{font-size:8px;overflow-wrap:anywhere}}
 .record-label{color:var(--muted);font-size:12px}
+.intro-links{display:flex;gap:18px;flex-wrap:wrap}
+@media(max-width:640px){.intro-extra{display:none}.game-filters .filter-group>span{display:none}.today-intro.public-intro{align-items:center}.intro-links{gap:12px;flex-wrap:nowrap}.intro-links a{font-size:12px}}
+.table-more{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 0;font-size:13px;color:var(--muted)}
+.table-more button{min-height:42px;padding:8px 16px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-weight:650;cursor:pointer}
+.table-more[hidden]{display:none}
+@media(max-width:640px){.public-filters{display:grid;grid-template-columns:1fr 1fr;gap:10px}.public-filters select{width:100%;font-size:14px;padding-right:24px}.table-more{flex-direction:column;align-items:stretch;text-align:center}}
+.prediction-table td{vertical-align:top}.prediction-table td:first-child{font-weight:650}
+details.public-note summary{cursor:pointer;color:rgb(var(--accent-tx));font-weight:650}details.public-note p{margin:10px 0}
+.panel-facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 6px;padding:0;list-style:none;font-size:13px;color:var(--muted)}.panel-facts b{color:var(--ink);font-weight:650}
+.ml-hero details{margin-top:14px;font-size:13px}.ml-hero details>summary{cursor:pointer;color:rgb(var(--accent-tx));font-weight:650;padding:4px 0}
+.ml-hero details>p{color:var(--muted);max-width:780px}
+.ml-section{margin-top:28px;padding-top:20px;border-top:1px solid var(--line-2)}.ml-section>h3{font-size:15px;margin:0 0 6px}
 .forecast-readout.ml-focus{grid-template-columns:1.2fr 1fr}.stage-label{font-size:11px;color:var(--muted)}
 [data-source-summary][hidden],[data-ml-panel][hidden],.gcard[hidden]{display:none!important}
 .game-filters{display:flex;flex-wrap:wrap;gap:8px 16px;margin:16px 0 12px}.filter-group>span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.filter-group .seg{display:flex;margin:0}
-.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.calibration-main{order:0}.actual-result{order:1}.calibration-evidence{order:2;grid-column:1/-1}.forecast-outcome .calibration-main strong,.forecast-outcome .break-even strong{font:750 22px/1.35 var(--sans);color:var(--ink)}.forecast-outcome .break-even{margin:0 0 8px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.forecast-outcome .calibration-evidence small{font-size:11px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}.lock-summary a{display:inline-block;margin-top:6px;font-size:11px}
+.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.calibration-main{order:0}.actual-result{order:1}.calibration-evidence{order:2;grid-column:1/-1}.forecast-outcome .calibration-main strong,.forecast-outcome .break-even strong{font:750 22px/1.35 var(--sans);color:var(--ink)}.forecast-outcome .break-even{margin:0 0 8px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.forecast-outcome .calibration-evidence small{font-size:11px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
 .source-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.source-summary article{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}.source-summary h3{margin:0 0 6px;font-size:15px}.source-summary p{font-size:12px;color:var(--muted);margin:6px 0}.source-summary strong{color:var(--ink)}
 .public-empty button{margin-top:14px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;cursor:pointer}
-@media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-note.public-note{display:none}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
+@media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
 @media(max-width:640px){.ml-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.ml-hero{padding:18px}}
 @media(max-width:1000px){.tool-grid,.rule-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.public-head{display:block;margin:20px 0 18px}.public-head p{font-size:14px}.update{text-align:left;margin-top:12px;white-space:normal}.update time{display:inline;margin-left:6px}
@@ -160,11 +172,21 @@ e.querySelector('p').textContent=state==='live'?'No games are live right now'+sc
 window.nbaCount=update;bar.addEventListener('click',function(e){var b=e.target.closest('button[data-show]');if(b){if(b.dataset.group==='stage')stage=b.dataset.show;else state=b.dataset.show;update();}});
 var reset=document.querySelector('[data-filter-reset]');if(reset)reset.addEventListener('click',function(){stage='all';state='all';update();});update();})();</script>"""
 
-PREDICTION_FILTER_JS = """<script>(function(){var controls=document.querySelectorAll('[data-prediction-filter]');
-function update(){var n=0;document.querySelectorAll('[data-prediction-row]').forEach(function(r){
-var show=true;controls.forEach(function(f){if(f.value!=='all'&&r.dataset[f.dataset.predictionFilter]!==f.value)show=false;});r.hidden=!show;if(show)n++;});
-var empty=document.querySelector('[data-predictions-empty]');if(empty)empty.hidden=n>0;}
-controls.forEach(function(c){c.addEventListener('change',update);});update();
+# Results shows the matching rows a page at a time (newest first); a filter
+# change starts again from the first page. Nothing is recalculated.
+PREDICTION_PAGE = 50
+PREDICTION_PAGE_MOBILE = 20
+PREDICTION_FILTER_JS = """<script>(function(){var controls=document.querySelectorAll('[data-prediction-filter]'),
+rows=[].slice.call(document.querySelectorAll('[data-prediction-row]')),more=document.querySelector('[data-predictions-more]'),
+step=window.matchMedia&&matchMedia('(max-width:640px)').matches?""" + str(PREDICTION_PAGE_MOBILE) + """:""" + str(PREDICTION_PAGE) + """,limit=step;
+function update(){var n=0;rows.forEach(function(r){
+var show=true;controls.forEach(function(f){if(f.value!=='all'&&r.dataset[f.dataset.predictionFilter]!==f.value)show=false;});
+r.hidden=!(show&&n<limit);if(show)n++;});
+var empty=document.querySelector('[data-predictions-empty]');if(empty)empty.hidden=n>0;
+if(more){more.hidden=n<=limit;more.querySelector('[data-predictions-count]').textContent='Showing '+Math.min(n,limit)+' of '+n;
+more.querySelector('button').textContent='Show '+Math.min(step,Math.max(n-limit,0))+' more';}}
+controls.forEach(function(c){c.addEventListener('change',function(){limit=step;update();});});
+if(more)more.querySelector('button').addEventListener('click',function(){limit+=step;update();});update();
 })();</script>"""
 
 PERFORMANCE_FILTER_JS = """<script>(function(){var cs=document.querySelectorAll('[data-performance-filter]');
@@ -324,9 +346,8 @@ class PublicSite:
                 lock_price = u.ml_txt(priced.ml) if pd.notna(priced.ml) else 'price unavailable'
                 outcome = 'awaiting result' if result == 'Pending' else result
                 tracking = (f"<div class='tracked-box lock-summary'><strong class='tracked-label'>Locked pick: {u.esc(pick.prediction)} {lock_price} · {outcome}</strong>"
-                            f"<small>Saved {u.tip_pt(pick.get('lock_snapshot_utc'))} · {u.pct(pick.prediction_p)} at lock</small>"
-                            f"<small>{'10+ game record' if stage == 'established' else 'Separate stage record'} · 1 unit per priced pick</small>"
-                            "<a href='results.html'>ML record →</a></div>")
+                            f"<small>Saved {u.tip_pt(pick.get('lock_snapshot_utc'))} · {u.pct(pick.prediction_p)} at lock · "
+                            f"{'10+ game record' if stage == 'established' else 'Separate stage record'} · 1 unit</small></div>")
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
         live_spread, live = self.live_block(row, dk)
@@ -364,13 +385,12 @@ class PublicSite:
                    else 'No historical results in this cell yet')
         if n:
             gap = 100 * (estimate['cell_rate'] - estimate['cell_market'])
-            support += (f"</small><small data-cell-adjustment>Cell won {u.pct(estimate['cell_rate'])} against a "
-                        f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts), applied to this game’s "
-                        f"{u.pct(estimate['market_probability'])} no-vig WP")
+            support += (f" · <span data-cell-adjustment>won {u.pct(estimate['cell_rate'])} vs a "
+                        f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts)</span>")
         return (f"<div class='calibration-main' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
                 f"<small>Realized WP</small><strong>{u.pct(estimate['probability'])}</strong><small>{u.esc(team)} estimate</small></div>"
                 f"<div class='calibration-evidence'><small>{support}</small>"
-                f"<small>{estimate['previous_games']} previous season + {estimate['current_games']} current season · pregame {u.tip_pt(row.get('snapshot_utc'))}</small></div>")
+                f"<small>{estimate['previous_games']} previous season + {estimate['current_games']} current season · prices at {u.tip_pt(row.get('snapshot_utc'))}</small></div>")
 
     def live_block(self, row, dk):
         """The live win chance (owner request, 2026-11-07; live_wp.py): the
@@ -454,9 +474,10 @@ class PublicSite:
         u = self.ui
         day = self.native[self.native.slate_date.astype(str).eq(self.today)]
         title = pd.Timestamp(self.today).strftime("%A, %B %-d")
-        body = self.head(title, "ML forecasts · main record: both teams at 10+ games.", True).replace("class='public-head'", "class='public-head today-head'")
-        body += "<p class='public-note today-note'><a href='performance.html'>ML performance →</a> · Flat 1 unit per priced lock.</p>"
-        body += "<div class='public-intro today-intro'><p>DraftKings prices · All times Pacific (PT)<span data-scores-asof hidden> · Scores as of <time></time></span></p><a href='how-it-works.html'>How to read →</a></div>"
+        body = self.head(title, "Model win chances for each game. Picks lock five hours before tip.", True).replace("class='public-head'", "class='public-head today-head'")
+        body += ("<div class='public-intro today-intro'><p>DraftKings prices · Pacific time<span class='intro-extra'> · Main record: both teams at 10+ games</span>"
+                 "<span data-scores-asof hidden> · Scores as of <time></time></span></p>"
+                 "<span class='intro-links'><a href='performance.html'>ML performance →</a><a href='how-it-works.html'>How to read →</a></span></div>")
         if not len(day):
             body += "<div class='public-empty'><h2>No games to show</h2><p>There are no saved regular-season forecasts for this slate. Check back for the next update.</p></div>"
         else:
@@ -480,7 +501,7 @@ class PublicSite:
         return self.page("Today · NBA Composite", "index.html", body)
 
     def results_page(self):
-        body = self.head("ML results", "Every v11 ML winner, with live locks and historical replays identified. Games 10+ are shown first.")
+        body = self.head("ML results", "Every v11 moneyline pick and how it finished, newest first. Live picks and historical replays are labeled.")
         body += self.prediction_results() + self.void_note() + PREDICTION_FILTER_JS
         return self.page("Results · NBA Composite", "results.html", body)
 
@@ -501,8 +522,9 @@ class PublicSite:
             f"<div><label for='prediction-{key}'>{name}</label><select id='prediction-{key}' data-prediction-filter='{key}'>"
             + "".join(f"<option value='{v}'>{label}</option>" for v,label in opts)+"</select></div>"
             for key,name,opts in options) + "</div>"
-        labels = ["Game", "Stage / season", "Model vs market", "Source / price", "Actual result", "Closing favorite",
+        labels = ["Game", "Model vs market", "Source / price", "Actual result", "Closing favorite",
                   "Moneyline return", "Running ROI"]
+        widths = (17, 21, 14, 10, 12, 12, 14)
         rows = []
         for _, r in d.sort_values(['tip_utc','game_id'], ascending=False).iterrows():
             result = self.prediction_result(r)
@@ -527,16 +549,18 @@ class PublicSite:
                 comparison += f"<small>Market implied: {u.pct(close_q)} · close · no vig</small>"
             provenance = (f"Historical replay<small>{u.esc(r.basis)} · DraftKings close</small>" if replay else
                           f"Saved live lock<small>{u.tip_pt(r.lock_snapshot_utc)} · {u.esc(str(r.lock_snapshot_utc)[:10])}</small>")
-            cells = [f"{u.esc(r.away)} @ {u.esc(r.home)}<small>{u.esc(r.slate_date)} · {u.tip_pt(r.tip_utc)}</small>",
-                     f"{dict(PREDICTION_STAGES)[r.prediction_stage]}<small>{u.season_txt(int(r.season))}</small>",
+            cells = [f"{u.esc(r.away)} @ {u.esc(r.home)}<small>{u.esc(r.slate_date)} · {u.tip_pt(r.tip_utc)}</small>"
+                     f"<small>{dict(PREDICTION_STAGES)[r.prediction_stage]} · {u.season_txt(int(r.season))}</small>",
                      comparison,
                      provenance,
                      f"<span class='prediction-badge'>{result}</span><small>{u.esc(r.prediction)}</small>", closing,
                      *self.prediction_moneyline_cells(r)]
             rows.append(f"<tr data-prediction-row data-stage='{r.prediction_stage}' data-season='{int(r.season)}' data-outcome='{result.lower()}' data-source='{r.prediction_source}'{' hidden' if r.prediction_stage != 'established' else ''}>"
                         + "".join(f"<td data-label='{label}'>{value}</td>" for label,value in zip(labels,cells))+"</tr>")
-        return (body + "<table class='public-table'><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)
+        return (body + "<table class='public-table prediction-table'><colgroup>" + "".join(f"<col style='width:{w}%'>" for w in widths)
+                + "</colgroup><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)
                 + "</tr></thead><tbody>"+"".join(rows)+"</tbody></table>"
+                + "<div class='table-more' data-predictions-more hidden><span data-predictions-count></span><button type='button'>Show more</button></div>"
                 + "<div class='public-empty' data-predictions-empty hidden><p>No predictions match these filters.</p></div>")
 
     def prediction_moneyline_cells(self, r):
@@ -560,8 +584,9 @@ class PublicSite:
     def prediction_moneyline_note(self, d):
         return ("<p class='public-note' data-prediction-moneyline><b>Mixed v11 record · flat 1u.</b> Live picks use five-hour lock prices; "
                 "historical replays use closing prices. <a href='performance.html'>ML performance →</a></p>"
-                "<p class='public-note'>Model and market probabilities refer to the same selected team; Actual result is that team’s Win or Loss. Market implied probabilities remove the bookmaker’s margin. A realized win rate is measured across games on ML stats.</p>"
-                "<details class='public-note'><summary>Prices, sources and running ROI</summary>" + self.mixed_note()
+                "<details class='public-note'><summary>How to read this table</summary>"
+                "<p>Model and market probabilities refer to the same selected team; Actual result is that team’s Win or Loss. Market implied probabilities remove the bookmaker’s margin. A realized win rate is measured across games on ML stats.</p>"
+                + self.mixed_note()
                 + "<p><b>Moneyline return</b> stakes 1 unit per priced winner. "
                 "<b>Running ROI</b> combines live and replay within each season and stage in game order; changing a filter does not recalculate it. "
                 "Missing prices keep their forecast W/L but have no return. No edge or confidence filter. "
@@ -625,45 +650,52 @@ class PublicSite:
             return "<div class='public-empty'><h3>No predictions in this view yet</h3><p>Games enter the 10+ record only after both teams have completed 10 games and a valid prediction is available.</p></div>"
         live_n = int(part.prediction_source.eq('live').sum())
         replay_n = len(part) - live_n
-        body = f"<p class='public-note'>{live_n} saved live locks · {replay_n} historical replays · {r['pending']} pending. Every result is retained.</p>"
         roi = f"{100 * ml['roi']:+.1f}%" if ml else '—'
         units = f"{ml['units']:+.2f}u" if ml else '—'
         record = f"{r['w']}–{r['l']}" if r['n'] else '—'
-        body += ("<div class='ml-metrics'>"
-                 f"<div><small>Moneyline ROI</small><strong>{roi}</strong></div>"
-                 f"<div><small>Net return · flat 1u</small><strong>{units}</strong></div>"
-                 f"<div><small>Winner record</small><strong class='record'>{record}</strong></div>"
-                 f"<div><small>Winner accuracy</small><strong>{u.pct(r['accuracy'])}</strong></div></div>")
-        body += f"<p class='public-note'>{r['n']} graded · {r['pending']} pending. 95% Wilson interval: {u.pct(r['low'], 0)}–{u.pct(r['high'], 0)}.</p>"
+        body = ("<div class='ml-metrics'>"
+                f"<div><small>Moneyline ROI</small><strong>{roi}</strong></div>"
+                f"<div><small>Net return · flat 1u</small><strong>{units}</strong></div>"
+                f"<div><small>Winner record</small><strong class='record'>{record}</strong></div>"
+                f"<div><small>Winner accuracy</small><strong>{u.pct(r['accuracy'])}</strong></div></div>")
+        facts = [f"{r['n']} graded · {r['pending']} pending",
+                 f"{live_n} saved live locks · {replay_n} historical replays",
+                 f"95% Wilson interval: {u.pct(r['low'], 0)}–{u.pct(r['high'], 0)}"]
         if ml:
             error = f"±{u.se_txt(ml['roi_se'])} pp (1 SE)" if np.isfinite(ml['roi_se']) and ml['n'] > 1 else 'not estimable from one pick'
             null = f"{100 * ml['roi_null']:+.1f}%" if np.isfinite(ml['roi_null']) else 'unavailable'
             bench = f"{100 * ml['fav_roi']:+.1f}% on {ml['fav_n']} matched priced games" if ml['fav_n'] else 'unavailable'
-            body += (f"<p class='public-note'>{ml['n']} priced picks · ROI uncertainty {error}. Market-price baseline {null}. "
-                     f"Same-game market favorite ROI: {bench}. Missing-price forecasts stay in winner W/L.</p>")
+            facts += [f"{ml['n']} priced picks · ROI uncertainty {error}",
+                      f"Market-price baseline {null}", f"Same-game market favorite ROI: {bench}"]
+        body += "<ul class='panel-facts'>" + "".join(f"<li>{f}</li>" for f in facts) + "</ul>"
+        if ml:
             ordered = part[part.ml_units.notna()].sort_values(['tip_utc', 'game_id'])
             body += "<details><summary>Return over time</summary>" + u.units_svg(ordered.ml_units.tolist(), 'Cumulative ML return', width=800) + '</details>'
         else:
             body += "<p class='public-note'>No graded, priced ML picks yet. Pending games have no return.</p>"
-        body += "<p class='public-note'>Read these numbers together: accuracy counts winners; ROI includes the price paid. A high win rate can still lose money.</p>"
         if ml and ml['n'] > 1 and np.isfinite(ml['roi_se']) and abs(ml['roi']) <= ml['roi_se']:
             body += "<p class='public-note'>The observed ROI is within one standard error of zero; this sample does not separate the return from break-even at that uncertainty level.</p>"
+        body += ("<p class='public-note'>Every result is retained. Accuracy counts winners; ROI includes the price paid, so a high win rate can still lose money. "
+                 "Missing-price forecasts stay in winner W/L. Small samples have wide uncertainty; a high win rate alone does not establish profitable betting.</p>")
         c = r['comparison']
+        body += "<section class='ml-section'><h3>Against the closing market</h3>"
         if c:
             mw, fw = (int(round(c[k]['acc'] * c['n'])) for k in ('model', 'market'))
+            losses = [c['model'][k] - c['market'][k] for k in ('logloss', 'brier')]
+            quality = 'worse than' if all(x > 0 for x in losses) else 'better than' if all(x < 0 for x in losses) else 'mixed against'
             body += (f"<p class='public-note'>Closing favorite: {fw}–{c['n']-fw} · {u.pct(c['market']['acc'])}. "
-                     f"Model on those same {c['n']} games: {mw}–{c['n']-mw}.</p>"
+                     f"Model on those same {c['n']} games: {mw}–{c['n']-mw}. "
+                     f"The model’s probability scores are {quality} the closing market in this view.</p>"
                      "<table class='prediction-comparison'><caption>Probability quality · lower is better</caption>"
                      "<thead><tr><th>Score</th><th>Model</th><th>Market at close</th></tr></thead><tbody>"
                      + ''.join(f"<tr><td>{name}</td><td>{c['model'][key]:.4f}</td><td>{c['market'][key]:.4f}</td></tr>"
-                               for key, name in [('logloss', 'Log loss'), ('brier', 'Brier score')]) + '</tbody></table>')
-            losses = [c['model'][k] - c['market'][k] for k in ('logloss', 'brier')]
-            quality = 'worse than' if all(x > 0 for x in losses) else 'better than' if all(x < 0 for x in losses) else 'mixed against'
-            body += f"<p class='public-note'>The model’s probability scores are {quality} the closing market in this view. These scores measure how well probabilities match outcomes; lower is better. The closing market is a later benchmark than a five-hour pick.</p>"
+                               for key, name in [('logloss', 'Log loss'), ('brier', 'Brier score')]) + '</tbody></table>'
+                     "<details><summary>What these scores mean</summary><p>Log loss and Brier score measure how well probabilities match outcomes; lower is better. "
+                     "The closing market is a later benchmark than a five-hour pick: it has seen more news.</p></details>")
         else:
             body += "<p class='public-note'>The market comparison appears when graded games have usable DraftKings closing prices.</p>"
-        body += self.roi_matrix(part)
-        return body + "<p class='public-note'>Small samples have wide uncertainty. A high win rate alone does not establish profitable betting.</p>"
+        body += "</section>"
+        return body + self.roi_matrix(part)
 
     def roi_matrix(self, part):
         """Latest 50 graded, priced model-winner picks per joint WP cell.
@@ -689,8 +721,10 @@ class PublicSite:
             cells.setdefault(key, []).append(r)
         model_labels = ['50–60%', '60–70%', '70–80%', '80–100%']
         market_labels = ['<50%', '50–60%', '60–70%', '70–80%', '80–100%']
-        body = ("<div class='roi-matrix-wrap'><table class='roi-matrix' data-roi-matrix>"
-                "<caption>ROI lookup matrix · latest 50 per cell</caption>"
+        body = ("<section class='ml-section'><h3>ROI by model and market win probability</h3>"
+                "<p class='public-note'>Each square: 1 unit on the model’s pick, latest 50 priced results in that band pair.</p>"
+                "<div class='roi-matrix-wrap'><table class='roi-matrix' data-roi-matrix>"
+                "<caption class='sr-only'>ROI lookup matrix · latest 50 per cell</caption>"
                 "<thead><tr><th scope='col'>Model WP ↓<br>Market WP →</th>"
                 + ''.join(f"<th scope='col'>{label}</th>" for label in market_labels) + '</tr></thead><tbody>')
         retained, units = 0, 0.0
@@ -714,11 +748,12 @@ class PublicSite:
             body += '</tr>'
         body += '</tbody></table></div>'
         return body + (f"<p class='public-note'>{retained} retained priced results · {units:+.2f}u. "
+                       "Cells are descriptive, not a filter or a betting rule. Small samples can show extreme ROI.</p>"
+                       "<details><summary>How the matrix works</summary><p>"
                        "Each square stakes 1 unit on the model’s selected team; both WP bands refer to that same team, across all NBA teams. "
                        "Market WP removes the bookmaker’s margin. Below 50% includes model-picked market underdogs. "
                        "Uses the current stage/source/season filters, then the latest 50 graded priced games per cell; pending and unpriced games are excluded. "
-                       "Live uses five-hour lock probabilities and prices; replay uses historical model forecasts and closing prices. "
-                       "Cells are descriptive, not a filter or a betting rule. Small samples can show extreme ROI.</p>")
+                       "Live uses five-hour lock probabilities and prices; replay uses historical model forecasts and closing prices.</p></details></section>")
 
     def stage(self, hyp, season):
         u = self.ui

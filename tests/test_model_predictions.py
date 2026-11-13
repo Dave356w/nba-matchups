@@ -270,3 +270,19 @@ def test_results_market_probability_refers_to_locked_pick_not_closing_favorite()
     assert 'Market implied: 60.0% · 5 h lock · no vig' in comparison
     assert 'Market implied: 20.0% · close · no vig' in comparison
     assert 'Win' in tree.xpath("//td[@data-label='Actual result']")[0].text_content()
+
+
+def test_results_page_the_table_without_dropping_rows_or_columns():
+    g = forecasts().assign(lock_book='dk', lock_home_ml=-150, lock_away_ml=130, lock_q_home=.6)
+    site = PublicSite(ui, g, CLOSED, 'built')
+    html = site.results_page()
+    # every prediction is still rendered; the browser shows them a page at a time
+    assert html.count('data-prediction-row ') == len(site.predictions)
+    assert 'data-predictions-more' in html and 'data-predictions-count' in html
+    import public_site
+    assert f"{public_site.PREDICTION_PAGE}" in public_site.PREDICTION_FILTER_JS
+    assert f"{public_site.PREDICTION_PAGE_MOBILE}" in public_site.PREDICTION_FILTER_JS
+    # stage and season stay visible, inside the game cell
+    from lxml import html as lh
+    game = lh.fromstring(html).xpath("//td[@data-label='Game']")[0].text_content()
+    assert 'games' in game and '20' in game
