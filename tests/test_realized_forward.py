@@ -10,6 +10,7 @@ import pytest
 import build_site
 import realized_forward as forward
 from test_wp_calibration import record
+import wp_calibration
 from wp_calibration import RollingCalibration
 
 NOW = pd.Timestamp('2026-11-12T22:00:00Z')
@@ -34,6 +35,35 @@ def fixture():
     return SimpleNamespace(native=native, today='2026-11-12', calibration=RollingCalibration(history)), target
 
 
+# The fixture's v4 estimate: two prior results (1-1) priced at 75%, game at 75%.
+POOL = [(0, .75), (1, .75)]                       # date, then game ID: prior-loss, prior-win
+EXPECTED = wp_calibration.shrunk_with_drift(.75, 1, 2, [.75, .75], wp_calibration.drift(POOL))
+
+
+def proofs_of(tmp_path):
+    """(cell proof, drift proof) saved for the fixture's single capture."""
+    rows = forward.load(tmp_path/'realized_wp_cells_2027.csv', forward.EVIDENCE_COLUMNS)
+    values = {r.evidence_id: json.loads(r.evidence_json) for r in rows.itertuples()}
+    cell = next(v for v in values.values() if 'model_range' in v)
+    return cell, values[cell['drift_id']]
+
+
+def rewrite_chain(tmp_path, cell, pool):
+    """Save edited proofs with consistent hashes so validation reaches their content."""
+    pool_id = forward.digest(pool)
+    cell = dict(cell, drift_id=pool_id)
+    cell_id = forward.digest(cell)
+    pd.DataFrame([dict(evidence_id=pool_id, evidence_json=forward.canonical(pool)),
+                  dict(evidence_id=cell_id, evidence_json=forward.canonical(cell))]).to_csv(
+        tmp_path/'realized_wp_cells_2027.csv', index=False)
+    path = tmp_path/'realized_wp_snapshots_2027.csv'
+    frame = forward.load(path, forward.COLUMNS)
+    frame.loc[0, 'evidence_id'] = cell_id
+    ident = {k: str(frame.loc[0, k]) for k in forward.COLUMNS if k not in ('snapshot_id', 'captured_utc', 'code_revision')}
+    frame.loc[0, 'snapshot_id'] = forward.digest(ident)
+    frame.to_csv(path, index=False)
+
+
 def save(tmp_path, now=NOW):
     site, target = fixture()
     assert forward.capture(site, tmp_path, now, 'a'*40) == 1
@@ -44,12 +74,18 @@ def save(tmp_path, now=NOW):
 def test_save_provenance_and_exact_cell_and_no_duplicate_on_rerender(tmp_path):
     site, _, frame = save(tmp_path)
     saved = frame.iloc[0]
-    assert saved.displayed_realized_wp == '50.0%'
-    assert float(saved.realized_p_home) == .5
-    proofs = forward.load(tmp_path/'realized_wp_cells_2027.csv', forward.EVIDENCE_COLUMNS)
-    proof = json.loads(proofs.iloc[0].evidence_json)
+    assert saved.version == forward.VERSION
+    assert saved.displayed_realized_wp == '74.5%'
+    assert float(saved.realized_p_home) == pytest.approx(EXPECTED) and .74 < EXPECTED < .75
+    proof, pool = proofs_of(tmp_path)
     assert [r['game_id'] for r in proof['members']] == ['prior-loss', 'prior-win']
     assert proof['members'][0]['model_probability'] == .65
+    # v4: the shrinkage, the drift and its own content-addressed pooled picks
+    assert proof['window'] == 200 and proof['shrink'] == 200
+    assert proof['drift'] == pytest.approx(wp_calibration.drift(POOL))
+    assert {k: pool[k] for k in ('half_life', 'pseudo', 'window')} == dict(half_life=100, pseudo=200, window=600)
+    assert pool['members'] == [['2026-11-10', 'prior-loss', 2027, 'live', 0, .75],
+                               ['2026-11-10', 'prior-win', 2027, 'live', 1, .75]]
     before = (tmp_path/'realized_wp_snapshots_2027.csv').read_bytes()
     assert forward.capture(site, tmp_path, NOW+pd.Timedelta(minutes=10), 'b'*40) == 0
     assert (tmp_path/'realized_wp_snapshots_2027.csv').read_bytes() == before
@@ -115,8 +151,8 @@ def test_score_uses_saved_prices_and_same_graded_games_including_abstentions(tmp
     assert score['estimators']['model']['brier'] == pytest.approx(.65**2)
     assert score['estimators']['market']['brier'] == pytest.approx(.75**2)
     realized = score['estimators']['realized']
-    assert realized['brier'] == .25
-    assert realized['log_loss'] == pytest.approx(-math.log(.5))
+    assert realized['brier'] == pytest.approx(EXPECTED**2)
+    assert realized['log_loss'] == pytest.approx(-math.log(1-EXPECTED))
     assert realized['bets'] == 1 and realized['net_units'] == 3 and realized['roi'] == 3
     assert score['market_favorite']['net_units'] == -1
     assert score['estimators']['market']['bets'] == 0
@@ -218,7 +254,9 @@ def test_band_adjusted_versions_gated_by_registration_and_own_window_and_keep_v1
     q = forward.market.devig(-400., 320.)
     est = site.calibration.estimate(target)
     assert est['cell_rate'] == .5 and est['cell_market'] == .75
-    assert est['probability'] == pytest.approx(q + .5 - .75) and est['probability'] != .5
+    assert est['band_adjusted'] == pytest.approx(q + .5 - .75) and est['band_adjusted'] != .5
+    v4 = wp_calibration.shrunk_with_drift(q, 1, 2, [.75, .75], wp_calibration.drift(POOL))
+    assert est['probability'] == pytest.approx(v4) and est['probability'] != est['band_adjusted']
     # Not before the v2 registration; saved after it, and it validates.
     monkeypatch.setattr(forward, 'REGISTERED', V2_REGISTERED)
     monkeypatch.setitem(forward.REGISTERED_BY_VERSION, forward.VERSION, V2_REGISTERED)
@@ -226,22 +264,32 @@ def test_band_adjusted_versions_gated_by_registration_and_own_window_and_keep_v1
     later = pd.Timestamp('2026-11-12T23:00:00Z')
     assert forward.capture(site, tmp_path, later, 'rev') == 1
     saved = forward.read_all(tmp_path).iloc[0]
-    # the current version (v3, latest 200) shares v2's band-adjusted estimate
-    assert saved.version == forward.VERSION == 'realized_wp_rolling200_bandadj_v3'
-    assert float(saved.realized_p_home) == pytest.approx(q - .25)
-    assert saved.displayed_realized_wp == f'{100*(q-.25):.1f}%'
+    # the current version (v4) shrinks the latest-200 band adjustment and adds the drift
+    assert saved.version == forward.VERSION == 'realized_wp_shrunk200_drift_v4'
+    assert float(saved.realized_p_home) == pytest.approx(v4)
+    assert saved.displayed_realized_wp == f'{100*v4:.1f}%'
     assert forward.validate(tmp_path) == []
     path = tmp_path/'realized_wp_snapshots_2027.csv'
     frame = forward.load(path, forward.COLUMNS)
-    # Each version is checked against its own frozen window: this capture's
-    # evidence records 200, so relabelled as v2 (window 50) it is rejected.
-    assert forward.WINDOW_BY_VERSION == {forward.V1: 50, forward.V2: 50, forward.VERSION: 200}
-    as_v2 = frame.copy()
-    as_v2.loc[0, 'version'] = forward.V2
-    ident = {k: str(as_v2.loc[0, k]) for k in forward.COLUMNS if k not in ('snapshot_id', 'captured_utc', 'code_revision')}
-    as_v2.loc[0, 'snapshot_id'] = forward.digest(ident)
-    as_v2.to_csv(path, index=False)
-    assert 'evidence count mismatch' in forward.validate(tmp_path)[0]
+    # Each version is checked against its own formula and frozen window: this
+    # v4 value relabelled as v3 or v2 (unshrunk, no drift) is rejected.
+    assert forward.WINDOW_BY_VERSION == {forward.V1: 50, forward.V2: 50, forward.V3: 200, forward.VERSION: 200}
+    monkeypatch.setitem(forward.REGISTERED_BY_VERSION, forward.V3, V2_REGISTERED)   # v3's own clock is later than this fixture
+    for closed in (forward.V3, forward.V2):
+        relabelled = frame.copy()
+        relabelled.loc[0, 'version'] = closed
+        ident = {k: str(relabelled.loc[0, k]) for k in forward.COLUMNS if k not in ('snapshot_id', 'captured_utc', 'code_revision')}
+        relabelled.loc[0, 'snapshot_id'] = forward.digest(ident)
+        relabelled.to_csv(path, index=False)
+        assert 'cell estimate disagrees' in forward.validate(tmp_path)[0]
+    frame.to_csv(path, index=False)
+    # The unshrunk band-adjusted value (v3's) is rejected under v4.
+    unshrunk = frame.copy()
+    unshrunk.loc[0, ['realized_p_home', 'displayed_realized_wp']] = [repr(q-.25), f'{100*(q-.25):.1f}%']
+    ident = {k: str(unshrunk.loc[0, k]) for k in forward.COLUMNS if k not in ('snapshot_id', 'captured_utc', 'code_revision')}
+    unshrunk.loc[0, 'snapshot_id'] = forward.digest(ident)
+    unshrunk.to_csv(path, index=False)
+    assert 'cell estimate disagrees' in forward.validate(tmp_path)[0]
     frame.to_csv(path, index=False)
     # A row holding the raw cell rate is rejected.
     raw = frame.copy()
@@ -262,6 +310,40 @@ def test_band_adjusted_versions_gated_by_registration_and_own_window_and_keep_v1
 
 def test_committed_shadow_files_validate_with_both_versions():
     assert forward.validate() == []
+
+
+def test_v4_validation_recomputes_the_drift_and_fails_closed_on_its_evidence(tmp_path):
+    save(tmp_path)
+    cell, pool = proofs_of(tmp_path)
+    rewrite_chain(tmp_path, cell, pool)                       # an unchanged, re-hashed chain still validates
+    assert forward.validate(tmp_path) == []
+
+    def rejected(cell_changes=None, pool_changes=None, members=None):
+        new_pool = dict(pool, **(pool_changes or {}))
+        if members is not None:
+            new_pool['members'] = members
+        rewrite_chain(tmp_path, dict(cell, **(cell_changes or {})), new_pool)
+        errors = forward.validate(tmp_path)
+        assert len(errors) == 1
+        return errors[0]
+
+    loss, win = pool['members']
+    assert 'drift disagrees with its evidence' in rejected(cell_changes=dict(drift=cell['drift']+.01))
+    assert 'drift disagrees with its evidence' in rejected(members=[loss[:4]+[1, .75], win])   # a flipped result
+    assert 'unregistered shrinkage' in rejected(cell_changes=dict(shrink=50))
+    assert 'unregistered drift terms' in rejected(pool_changes=dict(half_life=25))
+    assert 'unregistered drift terms' in rejected(pool_changes=dict(pseudo=0))
+    same_slate = ['2026-11-12', 'same-slate', 2027, 'live', 1, .75]
+    assert 'noncausal or mismatched drift evidence' in rejected(members=[loss, win, same_slate])
+    assert 'noncausal or mismatched drift evidence' in rejected(members=[loss[:3]+['replay']+loss[4:], win])
+    assert 'noncausal or mismatched drift evidence' in rejected(members=[[loss[0], loss[1], 2025]+loss[3:], win])
+    assert 'out of order or duplicated' in rejected(members=[win, loss])
+    assert 'out of order or duplicated' in rejected(members=[loss, loss])
+    # a missing drift proof is a validation error, not a crash
+    rewrite_chain(tmp_path, cell, pool)
+    rows = forward.load(tmp_path/'realized_wp_cells_2027.csv', forward.EVIDENCE_COLUMNS)
+    rows[rows.evidence_json.str.contains('model_range')].to_csv(tmp_path/'realized_wp_cells_2027.csv', index=False)
+    assert len(forward.validate(tmp_path)) == 1
 
 
 def test_band_adjustment_clips_and_identical_prices_leave_the_raw_rate():

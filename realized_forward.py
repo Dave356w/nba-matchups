@@ -23,20 +23,50 @@ import wp_calibration as calibration
 V1 = 'realized_wp_rolling50_v1'  # raw cell rate; closed, kept, never pooled
 V2 = 'realized_wp_rolling50_bandadj_v2'  # band-adjusted, latest 50; closed, kept, never pooled
 # v3 (docs/realized_wp_forward_registration_v3.md): band-adjusted over the
-# latest 200, the matrix window backtest's pre-set pick
-VERSION = 'realized_wp_rolling200_bandadj_v3'
+# latest 200, the matrix window backtest's pre-set pick; closed, kept, never pooled
+V3 = 'realized_wp_rolling200_bandadj_v3'
+# v4 (docs/realized_wp_forward_registration_v4.md): the latest-200 cell
+# adjustment shrunk by n/(n+200), plus one pooled exponentially weighted drift
+VERSION = 'realized_wp_shrunk200_drift_v4'
 REGISTERED_BY_VERSION = {V1: '2026-11-12T21:50:58Z', V2: '2026-11-12T22:35:12Z',
-                         VERSION: '2026-11-13T17:02:13Z'}
+                         V3: '2026-11-13T17:02:13Z', VERSION: '2026-11-13T20:03:04Z'}
 # Each version's frozen cell window; a capture is validated against its own.
-WINDOW_BY_VERSION = {V1: 50, V2: 50, VERSION: 200}
+WINDOW_BY_VERSION = {V1: 50, V2: 50, V3: 200, VERSION: 200}
 REGISTERED = REGISTERED_BY_VERSION[VERSION]
+# v4's frozen shrinkage and drift terms, recorded in every v4 proof.
+DRIFT_TERMS = dict(half_life=calibration.DRIFT_HALF_LIFE, pseudo=calibration.DRIFT_PSEUDO,
+                   window=calibration.DRIFT_GAMES)
 
 
-def expected_pick_probability(version, q_pick, wins, games, members):
+def expected_pick_probability(version, q_pick, wins, games, members, pooled_drift=0.):
     """The selected team's estimate each version registered, from its proof."""
     if version == V1:
         return wins/games
-    return calibration.band_adjusted(q_pick, wins, games, [m['market_probability'] for m in members])
+    member_market = [m['market_probability'] for m in members]
+    if version == VERSION:
+        return calibration.shrunk_with_drift(q_pick, wins, games, member_market, pooled_drift)
+    return calibration.band_adjusted(q_pick, wins, games, member_market)
+
+
+def checked_drift(proof, evidence, season, slate_date):
+    """A v4 proof's drift, recomputed from its own saved pooled picks."""
+    if proof.get('shrink') != calibration.SHRINK_GAMES:
+        raise ValueError('unregistered shrinkage')
+    pool = evidence[proof['drift_id']]
+    members = pool['members']
+    if {k: pool.get(k) for k in DRIFT_TERMS} != DRIFT_TERMS or len(members) > DRIFT_TERMS['window']:
+        raise ValueError('unregistered drift terms')
+    if ([m[:2] for m in members] != sorted(m[:2] for m in members)
+            or len(set(m[1] for m in members)) != len(members)):
+        raise ValueError('drift evidence out of order or duplicated')
+    for date, _, member_season, source, won, q in members:
+        if (date >= slate_date or won not in (0, 1) or not 0 < q < 1
+                or not ((member_season == season and source == 'live') or member_season == season-1)):
+            raise ValueError('noncausal or mismatched drift evidence')
+    value = calibration.drift([(m[4], m[5]) for m in members])
+    if not math.isclose(value, proof['drift'], abs_tol=1e-12):
+        raise ValueError('drift disagrees with its evidence')
+    return value
 COLUMNS = ['snapshot_id', 'version', 'captured_utc', 'forecast_utc', 'tip_utc',
            'game_id', 'slate_date', 'season', 'stage', 'home', 'away', 'model_tag',
            'code_revision', 'book', 'model_pick', 'model_p_home', 'market_p_home',
@@ -121,8 +151,12 @@ def snapshot(row, estimate, now, code_revision):
     if (row.get('pre_book') != 'dk' or not all(math.isfinite(v) and 0 <= v <= 1 for v in (p, q, r))):
         return None
     home = p >= .5
+    # The pooled drift picks are one proof per slate, referenced by each cell proof.
+    pool = dict(DRIFT_TERMS, members=estimate['drift_evidence'])
+    pool_id = digest(pool)
     proof = dict(window=calibration.WINDOW_GAMES, model_range=estimate['model_range'],
-                 market_range=estimate['market_range'], members=estimate['evidence'])
+                 market_range=estimate['market_range'], members=estimate['evidence'],
+                 shrink=calibration.SHRINK_GAMES, drift=float(estimate['drift']), drift_id=pool_id)
     proof_id = digest(proof)
     values = dict(version=VERSION, captured_utc=now.isoformat(), forecast_utc=forecast.isoformat(),
                   tip_utc=tip.isoformat(), game_id=str(row['game_id']), slate_date=str(row['slate_date']),
@@ -137,7 +171,8 @@ def snapshot(row, estimate, now, code_revision):
     # An unchanged native forecast rendered again is not an independent capture.
     identity = {k: str(v) for k, v in values.items() if k not in ('captured_utc', 'code_revision')}
     values['snapshot_id'] = digest(identity)
-    return values, dict(evidence_id=proof_id, evidence_json=canonical(proof))
+    return values, [dict(evidence_id=pool_id, evidence_json=canonical(pool)),
+                    dict(evidence_id=proof_id, evidence_json=canonical(proof))]
 
 
 def capture(site, data_dir='data', now=None, code_revision=None):
@@ -152,7 +187,7 @@ def capture(site, data_dir='data', now=None, code_revision=None):
         season, root = int(row.season), Path(data_dir)
         # Persist proof before assigning the recording time. If processing or
         # disk I/O crosses tip, keep only an orphan proof, never a late capture.
-        append(root / f'realized_wp_cells_{season}.csv', [item[1]], EVIDENCE_COLUMNS)
+        append(root / f'realized_wp_cells_{season}.csv', item[1], EVIDENCE_COLUMNS)
         path = root / f'realized_wp_snapshots_{season}.csv'
         old = load(path, COLUMNS).set_index('snapshot_id')
         item = snapshot(row, estimate, now if now is not None else ledger.utc_now(), code_revision)
@@ -249,8 +284,9 @@ def report(native, data_dir='data', out_dir='diagnostics/realized_wp_forward'):
                    versions=versions, official_observations=observations)
     atomic_text(Path(out_dir)/'RESULTS.json', json.dumps(payload, indent=2, allow_nan=False)+'\n')
     lines = ['# Realized WP shadow forward research', '',
-             f'Current version {VERSION}: this game\'s no-vig WP + (cell win rate − cell mean no-vig WP) over the latest 200 cell results, clipped to 0–100%.',
-             f'{V2} (the same estimate over the latest 50) and {V1} (raw cell win rate) are closed; their captures stay graded under their own versions, never pooled.', '',
+             f'Current version {VERSION}: this game\'s no-vig WP + (cell win rate − cell mean no-vig WP) × n/(n+{calibration.SHRINK_GAMES}) over the latest 200 cell results'
+             f' + pooled drift (half-life {calibration.DRIFT_HALF_LIFE} picks, {calibration.DRIFT_PSEUDO} pseudo-games, latest {calibration.DRIFT_GAMES}), clipped to 0–100%.',
+             f'{V3} (the unshrunk cell adjustment over the latest 200, no drift), {V2} (the same over the latest 50) and {V1} (raw cell win rate) are closed; their captures stay graded under their own versions, never pooled.', '',
              'First valid saved forecast within five hours of tip. No backfill. Each source forecast must also be within that window.',
              'Flat 1u only at positive expected return; either side; at most one position per estimator per game.',
              'All probability scores use the same official graded games, including abstentions. Saved prices are paper quotes.',
@@ -310,7 +346,9 @@ def validate(data_dir='data'):
                     raise ValueError('invalid cell count')
                 proof = evidence[r.evidence_id]
                 members = proof['members']
-                pick = expected_pick_probability(r.version, q if home else 1-q, w, n, members)
+                season = int(r.season)
+                pooled_drift = checked_drift(proof, evidence, season, r.slate_date) if r.version == VERSION else 0.
+                pick = expected_pick_probability(r.version, q if home else 1-q, w, n, members, pooled_drift)
                 if not math.isclose(realized if home else 1-realized, pick, abs_tol=1e-12):
                     raise ValueError('cell estimate disagrees with frozen forecast')
                 if (not r.displayed_realized_wp.endswith('%')
@@ -320,7 +358,6 @@ def validate(data_dir='data'):
                     raise ValueError('evidence count mismatch')
                 if len(set(m['game_id'] for m in members)) != n:
                     raise ValueError('duplicate cell observation')
-                season = int(r.season)
                 pb = calibration.band(p if home else 1-p, calibration.MODEL_BOUNDS)
                 qb = calibration.band(q if home else 1-q, calibration.MARKET_BOUNDS)
                 if (proof['model_range'] != list(calibration.MODEL_BOUNDS[pb:pb+2])
