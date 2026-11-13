@@ -326,6 +326,44 @@ def as_of(*frames):
     return (max(snaps) if snaps else "none", max(slates) if slates else "none")
 
 
+def blend_block(native):
+    """The blend shadow record (docs/blend_wp_forward_registration.md):
+    internal research beside the records, never pooled with them. +/- 1 SE
+    as elsewhere in the report; the registered reading is at 95%. A failure
+    here leaves one line and never stops the report or the build."""
+    try:
+        from research import blend_forward as bf
+        pop = bf.population(native)
+        g = bf.graded(pop)
+        lines = [f"== BLEND SHADOW ({bf.VERSION}; registered {bf.REGISTERED_UTC}): internal research, "
+                 "never a rule, display or record; not pooled with anything above",
+                 f"  P_blend = sigma(logit q_lock + {bf.W:.2f} x (logit P_lock - logit q_lock)); native v11 "
+                 f"5 h locks from the {bf.START_SLATE} slate, voids out. +/- is 1 SE.",
+                 f"  {len(pop)} locked, {len(g)} graded, {len(pop) - len(g)} pending."]
+        primary = None
+        for season in sorted(g["season"].unique()) if len(g) else []:
+            for key, name in bf.STAGES:
+                cell = g[(g["season"] == season) & (g["prediction_stage"] == key)]
+                if not len(cell):
+                    continue
+                s = bf.scores(cell)
+                if (key, int(season)) == bf.PRIMARY:
+                    primary = s
+                r, d, m = s["rows"], s["diffs"]["blend − lock price"], s["diffs"]["blend − model"]
+                lines.append(f"  {_season(season)} {name:<10} n={s['n']:<4} log loss blend {r['blend']['ll']:.4f}"
+                             f"  lock price {r['lock price']['ll']:.4f}  model {r['model']['ll']:.4f}")
+                lines.append(f"    blend - lock price {_f(d['ll'], '+.4f')} +/- {_f(d['ll_se'], '.4f')}"
+                             f"   blend - model {_f(m['ll'], '+.4f')} +/- {_f(m['ll_se'], '.4f')}"
+                             f"   accuracy blend {100 * r['blend']['acc']:.1f}% lock {100 * r['lock price']['acc']:.1f}%")
+                b = bf.paper_bets(cell)
+                lines.append("    " + roi_line("paper, flat 1u at lock",
+                                              analysis.roi_row("paper", b) if len(b) else None))
+        lines.append(f"  Primary (games 10+ 2026-27, 95%, fixed at registration): {bf.reading(primary)}.")
+        return lines
+    except Exception as exc:          # shadow research never stops the report
+        return [f"== BLEND SHADOW: unavailable ({type(exc).__name__}: {exc})"]
+
+
 def report_text(native, recon, pre=None, tags=()):
     snap, slate = as_of(native)
     lines = [f"NBA ledger report -- latest pregame snapshot {snap}; latest graded "
@@ -351,7 +389,7 @@ def report_text(native, recon, pre=None, tags=()):
              ""]
     nv, rv = analysis.market_view(native), analysis.market_view(recon)
     for block in (native_block(nv), hypotheses_block(native, recon),
-                  reconstructed_block(rv)):
+                  blend_block(native), reconstructed_block(rv)):
         lines += block + [""]
     return "\n".join(lines)
 

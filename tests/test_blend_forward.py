@@ -118,3 +118,33 @@ def test_render_keeps_stages_and_seasons_apart():
     assert "## 2026-27 · Games 1–9" in text and "## 2026-27 · Games 10+" in text
     assert "Primary, games 10+ 2026-27" in text
     assert "no graded games yet" in bf.render(bf.population(d.iloc[:0]))
+
+
+def test_report_block_shows_the_record_at_one_se_beside_the_registered_reading():
+    import report
+    d = pd.concat([_rows(60), _rows(20, seed=9, gp_home=4, gp_away=4)], ignore_index=True)
+    d.loc[60:, "game_id"] = [str(900000 + i) for i in range(20)]
+    lines = report.blend_block(d)
+    text = "\n".join(lines)
+    assert lines[0].startswith("== BLEND SHADOW (blend_shrink40_v1")
+    assert "+/- is 1 SE" in text and "95%, fixed at registration" in text
+    assert "2026-27 Games 1–9" in text and "2026-27 Games 10+" in text
+    g = bf.graded(bf.population(d))
+    s = bf.scores(g[g["prediction_stage"] == "established"])
+    assert f"{s['diffs']['blend − lock price']['ll']:+.4f}" in text
+    assert bf.reading(s) in text
+    full = report.report_text(d, ledger.empty())
+    assert full.index("== BLEND SHADOW") < full.index("== RECONSTRUCTED")
+
+
+def test_report_block_failure_never_stops_the_report(monkeypatch):
+    import report
+
+    def boom(native):
+        raise RuntimeError("broken shadow")
+    monkeypatch.setattr(bf, "population", boom)
+    monkeypatch.setitem(sys.modules, "research.blend_forward", bf)
+    import research
+    monkeypatch.setattr(research, "blend_forward", bf, raising=False)
+    assert report.blend_block(_rows(5)) == ["== BLEND SHADOW: unavailable (RuntimeError: broken shadow)"]
+    assert "== BLEND SHADOW: unavailable" in report.report_text(_rows(5), ledger.empty())
