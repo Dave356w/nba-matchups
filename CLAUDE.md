@@ -664,6 +664,25 @@ information only, separate from DraftKings and native evidence.
     with which its report stage was fitted; changing it needs its own
     amendment. No public page change beyond the generated model
     description; no hindsight figure on public pages.
+  - **ou3 amendment (owner's decision, registered 2026-11-13T21:52:10Z).**
+    Committed on its own before any ou3 change: the native ledger's O/U
+    lock tags all end `_ou1`, `_ou2` or `_ou3`, none containing `_sfx_`.
+    The owner extends the fix to the totals model, superseding "Out of
+    scope" above for ou3. ou3's report terms (av_o, av_d, av_m) use the
+    fixed matcher in live scoring and in the fit's report terms (300-minute
+    lead), with the fixed play-rate table, which the margin route and ou3
+    now share (one table, `q_rates`, recorded as fixed). Only the report
+    stage is refitted, on the same seasons (2023-26) and lead on ou3's T*
+    residual; T*'s coefficients and sigmas are unchanged. Tag with report
+    terms `totals_hl25_form5_rep_rest_sfx_ou3`; a game without report terms
+    is scored as before and keeps `totals_hl25_form5_rep_rest_neutral_ou3`.
+    Ending `_ou3`, it continues OU·L·ou3 and OU·E·L·ou3 with the unchanged
+    O/U rule. Native `first_ou_*` / `lock_ou_*` values, earlier O/U locks
+    and `data/nba_ou3_rescore.csv` are unchanged; nothing is rescored.
+    Before activation, beside the gate below: a walk-forward of the report
+    stage on 2023-24 .. 2025-26 (each fold fitted on earlier report
+    seasons), squared error on the total, games 1+, fixed minus current
+    (± 95%), reviewed by the owner; no other pass rule is set.
   - **Gate.** Before activation (merging the fitted files): data
     validation, the full test suite, the reproduction above, a walk-forward
     G7 comparison of the fixed against the current report route on the
