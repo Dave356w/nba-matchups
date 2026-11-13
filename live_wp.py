@@ -2,8 +2,9 @@
 
 Display only (owner request, 2026-11-07; CLAUDE.md "Live win chance"). It is
 computed in the reader's browser from ESPN's live score and clock, the same
-public scoreboard the Today page already fetches, and the game's DraftKings
-spread frozen at tip (`pre_spread`). Nothing here is written to data/, read
+public scoreboard the Today page already fetches, and the last DraftKings
+spread saved before tip (`pre_spread`; watch_slate.py dispatches a build
+about 20 minutes before each tip to refresh it). Nothing here is written to data/, read
 by the prediction model, graded, or used by a tracked test or record.
 
   P(home wins) = Phi( a(tau) * lead / sqrt(tau) + b(tau) * mu * sqrt(tau) )

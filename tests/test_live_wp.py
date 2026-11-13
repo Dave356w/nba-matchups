@@ -68,6 +68,11 @@ def test_card_carries_the_frozen_spread_and_an_empty_hidden_readout():
     assert "<div class='live-wp' data-live-wp hidden>" in card
     assert "<em data-wp='away'>—</em>" in card and "<em data-wp='home'>—</em>" in card
     assert 'live win chance' in card
+    assert 'the last DraftKings spread saved before tip' in card and 'spread at tip' not in card
+    assert f"fitted on {FIT['games']:,} past NBA games" in card
+    assert 'Score, time left and last pregame spread' in card
+    guide = site.guide_page()
+    assert 'last DraftKings spread saved before tip' in guide and 'about 20 minutes before each tip' in guide
     today = PublicSite(ui, g, '2026-11-19', 'built').today_page()
     assert 'window.nbaLive=function' in today
     assert today.index('window.nbaLive=function') < today.index('scoreboard?limit=100')

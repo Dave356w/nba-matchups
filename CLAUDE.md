@@ -676,7 +676,7 @@ information only, separate from DraftKings and native evidence.
 - **Live win chance (owner request, 2026-11-07).** Today cards show each
   team's in-game win chance while a game is in progress, computed in the
   reader's browser from the live ESPN score, period and clock the page
-  already fetches and the game's DraftKings spread frozen at tip
+  already fetches and the last DraftKings spread saved before tip
   (`pre_spread`): P(home) = Φ(a(τ)·lead/√τ + b(τ)·μ·√τ), μ = −pre_spread,
   τ = regulation left / 48 min (overtime: the period's time left / 48 min).
   `live_wp.py` holds the formula and its browser copy; `model/live_wp.json`
@@ -693,6 +693,14 @@ information only, separate from DraftKings and native evidence.
   Today lists live games first, then upcoming, then final (tip order within
   each), re-sorting as the overlay changes a game's state (owner request,
   2026-11-07).
+  Pre-tip build (owner request, 2026-11-13): the lock watcher also
+  dispatches one build 20 minutes before each tip (retried once 6 minutes
+  later, never within 10 minutes of tip; skipped when the game's saved
+  snapshot is already that recent), so `pre_spread` sits close to the
+  close. Before this the saved spread was a median 82 minutes old at tip
+  and differed from the close in 41 of 173 graded games. Locks, the lock
+  rule and every record are unchanged; the card and guide name the input
+  as the last DraftKings spread saved before tip.
   The public pages' slate rolls over at 6:00 ET, not midnight: before then
   they show the previous ET slate when it had games, so late West Coast games
   stay on Today; grading and snapshots keep the ET date (owner request,
@@ -798,8 +806,8 @@ closed workflows can be recovered from git history.
 Exactly nine remain: `build`, `watch`, `tests`, `fit-model`, `backfill`,
 `rebuild`, `box-history`, `history-backtest`, `margin-model`. `watch` writes
 no data: it long-polls each slate and dispatches `build` at every game's
-five-hour lock window (`watch_slate.py`), since GitHub drops most scheduled
-builds. Fifteen closed research workflows are retired. Fit model already
+five-hour lock window and 20 minutes before each tip (`watch_slate.py`),
+since GitHub drops most scheduled builds. Fifteen closed research workflows are retired. Fit model already
 fits availability.
 
 DFS uncertainty also refits inside the serialized Build workflow, once per

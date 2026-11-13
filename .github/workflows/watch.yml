@@ -4,8 +4,9 @@ name: Lock watch (long poll)
 # snapshot. watch_slate.py's docstring carries the measured cron delivery and
 # the missed locks it cost. A shift sleeps until each game's five-hour lock
 # window opens, dispatches build.yml there, retries any game still unlocked,
-# and hands over to a fresh shift before GitHub's 6-hour cap while games
-# remain. build.yml also starts a shift after any build when none is running.
+# dispatches one more build 20 minutes before each tip (pre_spread for live
+# win chance), and hands over to a fresh shift before GitHub's 6-hour cap
+# while games remain. build.yml also starts a shift after any build when none is running.
 #
 # THIS ADDS A PATH, IT DOES NOT REPLACE ONE. build.yml keeps its own schedule:
 # a shift is started by crons GitHub can drop as well, so the paths are
