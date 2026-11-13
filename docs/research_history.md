@@ -951,3 +951,20 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   no gain; binned matrix cells worse than the market at both. Primary
   reading: games 10+, 2026-27, 95% interval on the log-loss difference.
   Internal only; no display, rule or record.
+- Matrix window backtest (owner's question, 2026-11-13;
+  `research/matrix_window_backtest.py`,
+  [results](../diagnostics/matrix_window/RESULTS.txt)). Walk-forward, earlier
+  slates only, previous + current season, the joint model-WP x market-WP cell
+  cut to its latest N results (10 .. 300, all), scored as Realized WP v2 and
+  as the matrix's trailing ROI; reading fixed before the run. Primary,
+  2025-26 DraftKings replay at the close (963 games, seeded by 2024-25 ESPN
+  BET): every window scores worse than the price alone (Brier +0.0188 at 10,
+  +0.0051 ± 0.0035 at 50, +0.0024 ± 0.0022 at 200; no window below zero at
+  95%); the cell's gap to its prices does not carry over (slope −0.0 to −0.6,
+  intervals spanning 0) and trailing cell ROI mean-reverts (ROI slope about
+  −1.3 to −1.6 ± 0.7 at 75–300). Larger windows lose less only because they
+  pull the estimate toward the market; jitter falls from 3.5 points at 10 to
+  0.8 at 50 and 0.3–0.5 at 100+. 2024-25 ESPN BET (cold start) is worse at
+  every window; 2026-27 native locks (98 games) separate nothing. No window
+  makes the cell predictive; the choice among windows is display stability.
+  Research only: the cards keep latest 50 unless the owner amends it.

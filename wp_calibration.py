@@ -20,7 +20,7 @@ import pandas as pd
 import analysis
 import market
 
-WINDOW_GAMES = 50
+WINDOW_GAMES = 200   # Realized WP v3 (2026-11-13); v1/v2 used 50
 MODEL_BOUNDS = (.5, .6, .7, .8, 1.0)
 MARKET_BOUNDS = (0., .5, .6, .7, .8, 1.0)
 

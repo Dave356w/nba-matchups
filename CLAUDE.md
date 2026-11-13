@@ -5,6 +5,27 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Realized WP window 200 (v3) — owner instruction, November 13, 2026
+
+The owner asked to update Realized WP with the best researched window. The
+matrix window backtest's pre-set reading picks **200** (lowest walk-forward
+Brier against the price on 2025-26 DraftKings replay; no window beats the
+price). Cards and the guide show the band-adjusted estimate over the latest
+200 cell results; everything else in v2 is unchanged. The shadow record
+continues as v3; v2 closes, kept and never pooled. Fixed terms are in
+`docs/realized_wp_forward_registration_v3.md`, committed before
+implementation. The ROI matrix switch (Latest 50 default), model, locks,
+grades and records are unchanged.
+
+### ROI matrix window switch — owner approval, November 13, 2026
+
+ML stats' ROI matrix gets a window switch: **Latest 50** per cell (default,
+the owner's earlier selection), **Latest 100** per cell, and **All games** in
+the selected source and season. The switch applies to every panel and keeps
+the existing filters, ordering (slate date, game ID), stake, price timing and
+exclusions. Card Realized WP keeps its fixed latest-50 window. Presentation
+only: no rule, record, lock, grade or data change.
+
 ### Public games 1+ and source simplification — owner approval, November 13, 2026
 
 The owner asked to combine games 1–9 and 10+ and to drop the mixed source on
@@ -728,6 +749,9 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   [model review](diagnostics/model_review/RESULTS.txt). A walk-forward stretch of P
   (one scale on m / sigma, learned from earlier seasons) adds nothing:
   [calibration stretch](diagnostics/calibration_stretch/RESULTS.txt).
+  The model-WP x market-WP cell carries no walk-forward signal at any
+  window (10 .. all); larger windows only sit closer to the price:
+  [matrix window](diagnostics/matrix_window/RESULTS.txt).
 - Kalshi and live trading: [benchmark](diagnostics/kalshi_benchmark/RESULTS.txt),
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
   In-game win probability from the score and the pregame line (display only):

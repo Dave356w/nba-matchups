@@ -242,11 +242,19 @@ def main():
                     panel = page.locator('[data-ml-panel]:visible')
                     assert panel.locator('.ml-metrics').get_by_text('3–1',exact=True).count()==1
 
-                    assert panel.locator('[data-roi-matrix]').count()==1
+                    assert panel.locator('[data-roi-matrix]:visible').count()==1
+                    assert panel.locator('[data-matrix-show="50"]').get_attribute('aria-pressed')=='true'
                     assert panel.locator('[data-confidence-bands]').count()==0
-                    counts=panel.locator('[data-roi-matrix] [data-n]').evaluate_all("els => els.map(e => Number(e.dataset.n))")
+                    counts=panel.locator('[data-roi-matrix]:visible [data-n]').evaluate_all("els => els.map(e => Number(e.dataset.n))")
                     assert sum(counts)==4 and max(counts)<=50
-                    assert panel.locator('[data-model-band="3"][data-market-band="1"]').get_by_text('+11.1%',exact=True).count()==1
+                    assert panel.locator('[data-roi-matrix]:visible [data-model-band="3"][data-market-band="1"]').get_by_text('+11.1%',exact=True).count()==1
+                    # the window switch: one choice for every panel, same cells here (4 games)
+                    panel.locator('[data-matrix-show="all"]').click()
+                    assert page.locator('[data-matrix-window="all"]:visible').count()==1
+                    assert page.locator('[data-matrix-window="50"]:visible').count()==0
+                    assert panel.locator('[data-matrix-show="all"]').get_attribute('aria-pressed')=='true'
+                    assert sum(panel.locator('[data-roi-matrix]:visible [data-n]').evaluate_all("els => els.map(e => Number(e.dataset.n))"))==4
+                    panel.locator('[data-matrix-show="50"]').click()
                     assert panel.get_by_text('Log loss',exact=True).count()==1
                     assert panel.get_by_text('Brier score',exact=True).count()==1
                     page.get_by_label('Record source',exact=True).select_option('replay')

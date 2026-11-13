@@ -13,7 +13,7 @@ from test_wp_calibration import record
 from wp_calibration import RollingCalibration
 
 NOW = pd.Timestamp('2026-11-12T22:00:00Z')
-V2_REGISTERED = forward.REGISTERED
+V2_REGISTERED = forward.REGISTERED_BY_VERSION[forward.V2]
 
 
 @pytest.fixture(autouse=True)
@@ -210,7 +210,7 @@ def test_shadow_failure_never_blocks_render_or_ledger_validation(monkeypatch, ca
     assert validate_data_files.main(['--shadow-warn']) == 0
 
 
-def test_v2_is_band_adjusted_gated_by_its_registration_and_keeps_v1_rows_valid(tmp_path, monkeypatch):
+def test_band_adjusted_versions_gated_by_registration_and_own_window_and_keep_v1_rows_valid(tmp_path, monkeypatch):
     # Cell prices (-300/+300, 75%) differ from the game's (-150/+130).
     site, _ = fixture()
     site.native.loc[site.native.game_id.eq('target'), ['pre_home_ml', 'pre_away_ml']] = [-400., 320.]
@@ -226,25 +226,38 @@ def test_v2_is_band_adjusted_gated_by_its_registration_and_keeps_v1_rows_valid(t
     later = pd.Timestamp('2026-11-12T23:00:00Z')
     assert forward.capture(site, tmp_path, later, 'rev') == 1
     saved = forward.read_all(tmp_path).iloc[0]
-    assert saved.version == forward.VERSION == 'realized_wp_rolling50_bandadj_v2'
+    # the current version (v3, latest 200) shares v2's band-adjusted estimate
+    assert saved.version == forward.VERSION == 'realized_wp_rolling200_bandadj_v3'
     assert float(saved.realized_p_home) == pytest.approx(q - .25)
     assert saved.displayed_realized_wp == f'{100*(q-.25):.1f}%'
     assert forward.validate(tmp_path) == []
-    # A v2 row holding the raw cell rate is rejected.
     path = tmp_path/'realized_wp_snapshots_2027.csv'
     frame = forward.load(path, forward.COLUMNS)
+    # Each version is checked against its own frozen window: this capture's
+    # evidence records 200, so relabelled as v2 (window 50) it is rejected.
+    assert forward.WINDOW_BY_VERSION == {forward.V1: 50, forward.V2: 50, forward.VERSION: 200}
+    as_v2 = frame.copy()
+    as_v2.loc[0, 'version'] = forward.V2
+    ident = {k: str(as_v2.loc[0, k]) for k in forward.COLUMNS if k not in ('snapshot_id', 'captured_utc', 'code_revision')}
+    as_v2.loc[0, 'snapshot_id'] = forward.digest(ident)
+    as_v2.to_csv(path, index=False)
+    assert 'evidence count mismatch' in forward.validate(tmp_path)[0]
+    frame.to_csv(path, index=False)
+    # A row holding the raw cell rate is rejected.
     raw = frame.copy()
     raw.loc[0, ['realized_p_home', 'displayed_realized_wp']] = ['0.5', '50.0%']
     identity = {k: str(raw.loc[0, k]) for k in forward.COLUMNS if k not in ('snapshot_id', 'captured_utc', 'code_revision')}
     raw.loc[0, 'snapshot_id'] = forward.digest(identity)
     raw.to_csv(path, index=False)
     assert 'cell estimate disagrees' in forward.validate(tmp_path)[0]
-    # The same raw-rate row is what v1 registered, and stays valid as v1.
+    # A raw-rate row labelled v1 is still checked against v1's own window (50),
+    # so this window-200 evidence cannot pass as v1 either; the committed v1
+    # and v2 rows keep validating (test_committed_shadow_files_validate...).
     raw.loc[0, 'version'] = forward.V1
     identity['version'] = forward.V1
     raw.loc[0, 'snapshot_id'] = forward.digest(identity)
     raw.to_csv(path, index=False)
-    assert forward.validate(tmp_path) == []
+    assert 'evidence count mismatch' in forward.validate(tmp_path)[0]
 
 
 def test_committed_shadow_files_validate_with_both_versions():

@@ -21,8 +21,14 @@ import market
 import wp_calibration as calibration
 
 V1 = 'realized_wp_rolling50_v1'  # raw cell rate; closed, kept, never pooled
-VERSION = 'realized_wp_rolling50_bandadj_v2'
-REGISTERED_BY_VERSION = {V1: '2026-11-12T21:50:58Z', VERSION: '2026-11-12T22:35:12Z'}
+V2 = 'realized_wp_rolling50_bandadj_v2'  # band-adjusted, latest 50; closed, kept, never pooled
+# v3 (docs/realized_wp_forward_registration_v3.md): band-adjusted over the
+# latest 200, the matrix window backtest's pre-set pick
+VERSION = 'realized_wp_rolling200_bandadj_v3'
+REGISTERED_BY_VERSION = {V1: '2026-11-12T21:50:58Z', V2: '2026-11-12T22:35:12Z',
+                         VERSION: '2026-11-13T17:02:13Z'}
+# Each version's frozen cell window; a capture is validated against its own.
+WINDOW_BY_VERSION = {V1: 50, V2: 50, VERSION: 200}
 REGISTERED = REGISTERED_BY_VERSION[VERSION]
 
 
@@ -243,8 +249,8 @@ def report(native, data_dir='data', out_dir='diagnostics/realized_wp_forward'):
                    versions=versions, official_observations=observations)
     atomic_text(Path(out_dir)/'RESULTS.json', json.dumps(payload, indent=2, allow_nan=False)+'\n')
     lines = ['# Realized WP shadow forward research', '',
-             f'Current version {VERSION}: this game\'s no-vig WP + (cell win rate − cell mean no-vig WP), clipped to 0–100%.',
-             f'{V1} (raw cell win rate) is closed; its captures stay graded under their own version, never pooled.', '',
+             f'Current version {VERSION}: this game\'s no-vig WP + (cell win rate − cell mean no-vig WP) over the latest 200 cell results, clipped to 0–100%.',
+             f'{V2} (the same estimate over the latest 50) and {V1} (raw cell win rate) are closed; their captures stay graded under their own versions, never pooled.', '',
              'First valid saved forecast within five hours of tip. No backfill. Each source forecast must also be within that window.',
              'Flat 1u only at positive expected return; either side; at most one position per estimator per game.',
              'All probability scores use the same official graded games, including abstentions. Saved prices are paper quotes.',
@@ -300,7 +306,7 @@ def validate(data_dir='data'):
                 if r.model_pick != ('home' if home else 'away'):
                     raise ValueError('inconsistent model side')
                 n, w, previous, current = [int(r[k]) for k in ('cell_games','cell_wins','previous_games','current_games')]
-                if not 0 <= w <= n <= 50 or n == 0 or previous+current != n:
+                if not 0 <= w <= n <= WINDOW_BY_VERSION.get(r.version, 0) or n == 0 or previous+current != n:
                     raise ValueError('invalid cell count')
                 proof = evidence[r.evidence_id]
                 members = proof['members']
@@ -310,7 +316,7 @@ def validate(data_dir='data'):
                 if (not r.displayed_realized_wp.endswith('%')
                         or abs(float(r.displayed_realized_wp[:-1]) - 100*pick) > .05 + 1e-9):
                     raise ValueError('displayed rate mismatch')
-                if proof['window'] != 50 or len(members) != n or sum(m['won'] for m in members) != w:
+                if proof['window'] != WINDOW_BY_VERSION[r.version] or len(members) != n or sum(m['won'] for m in members) != w:
                     raise ValueError('evidence count mismatch')
                 if len(set(m['game_id'] for m in members)) != n:
                     raise ValueError('duplicate cell observation')
