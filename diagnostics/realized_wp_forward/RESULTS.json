@@ -2,10 +2,159 @@
   "shadow_research": true,
   "registered_utc": {
     "realized_wp_rolling50_v1": "2026-11-12T21:50:58Z",
-    "realized_wp_rolling50_bandadj_v2": "2026-11-12T22:35:12Z"
+    "realized_wp_rolling50_bandadj_v2": "2026-11-12T22:35:12Z",
+    "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z"
   },
-  "captures": 64,
+  "captures": 73,
   "versions": {
+    "realized_wp_rolling200_bandadj_v3": {
+      "pooled": {
+        "official_games": 0,
+        "graded_games": 0,
+        "pending_games": 0,
+        "estimators": {
+          "model": {
+            "brier": null,
+            "log_loss": null,
+            "winner_accuracy": null,
+            "bets": 0,
+            "net_units": 0.0,
+            "roi": null
+          },
+          "market": {
+            "brier": null,
+            "log_loss": null,
+            "winner_accuracy": null,
+            "bets": 0,
+            "net_units": 0.0,
+            "roi": null
+          },
+          "realized": {
+            "brier": null,
+            "log_loss": null,
+            "winner_accuracy": null,
+            "bets": 0,
+            "net_units": 0.0,
+            "roi": null
+          }
+        },
+        "market_favorite": {
+          "bets": 0,
+          "net_units": 0,
+          "roi": null
+        }
+      },
+      "stages": {
+        "opener": {
+          "official_games": 0,
+          "graded_games": 0,
+          "pending_games": 0,
+          "estimators": {
+            "model": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "market": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "realized": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            }
+          },
+          "market_favorite": {
+            "bets": 0,
+            "net_units": 0,
+            "roi": null
+          }
+        },
+        "early": {
+          "official_games": 0,
+          "graded_games": 0,
+          "pending_games": 0,
+          "estimators": {
+            "model": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "market": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "realized": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            }
+          },
+          "market_favorite": {
+            "bets": 0,
+            "net_units": 0,
+            "roi": null
+          }
+        },
+        "established": {
+          "official_games": 0,
+          "graded_games": 0,
+          "pending_games": 0,
+          "estimators": {
+            "model": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "market": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            },
+            "realized": {
+              "brier": null,
+              "log_loss": null,
+              "winner_accuracy": null,
+              "bets": 0,
+              "net_units": 0.0,
+              "roi": null
+            }
+          },
+          "market_favorite": {
+            "bets": 0,
+            "net_units": 0,
+            "roi": null
+          }
+        }
+      }
+    },
     "realized_wp_rolling50_bandadj_v2": {
       "pooled": {
         "official_games": 4,
