@@ -368,8 +368,11 @@ class PublicSite:
                   f"Market home win probability: {u.pct(q)} with the bookmaker margin removed. "
                   f"Forecast saved at {u.tip_pt(row.get('snapshot_utc'))}. Prices and forecasts freeze at tip.</p>")
         if live:
-            detail += ("<p>During the game, <b>live win chance</b> updates with the score from the current margin, "
-                       "the time left and the DraftKings spread at tip, using a formula fitted on past NBA games. "
+            fitted = self.live_fit.get("games") if isinstance(self.live_fit, dict) else None
+            games = f"{fitted:,} past NBA games" if isinstance(fitted, int) and fitted > 0 else "past NBA games"
+            detail += ("<p>During the game, <b>live win chance</b> updates every 30 seconds from the current score margin, "
+                       "the time left and the last DraftKings spread saved before tip, "
+                       f"using a formula fitted on {games}. "
                        "It is not the model’s forecast, is not saved and never changes a saved ML pick.</p>")
         if np.isfinite(p):
             detail += f"<p>Predicted margin: {u.esc(margin_team)} by {abs(margin):.1f} points. This is forecast context.</p>"
@@ -419,7 +422,7 @@ class PublicSite:
             return "", ""
         side = lambda s: f"<b>{u.esc(row[s])}</b>"  # noqa: E731
         block = ("<div class='live-wp' data-live-wp hidden><div class='lwp-head'><small>Live win chance</small>"
-                 "<span>Score, time left and spread at tip</span></div>"
+                 "<span>Score, time left and last pregame spread</span></div>"
                  f"<div class='lwp-row'><span>{side('away')} <em data-wp='away'>—</em></span>"
                  "<span class='lwp-bar' aria-hidden='true'><i></i></span>"
                  f"<span><em data-wp='home'>—</em> {side('home')}</span></div></div>")
@@ -878,7 +881,7 @@ class PublicSite:
 <p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the source and season filters, then retains the latest 50 completed priced picks in each cell by default, ordered by slate date and game ID; a switch shows the latest 100 or all games in the selection instead. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI accumulates within each season and source and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
-<p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>
+<p><b>Live win chance</b> updates every 30 seconds while games are in progress, from the current score, the time left and the last DraftKings spread saved before tip. A build runs about 20 minutes before each tip so that spread is close to the closing line; a line that moves in the final minutes is not captured. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
 <section id='in-season-calibration'><h2>Realized WP</h2>
 <p>This experimental estimate is a lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>

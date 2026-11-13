@@ -80,7 +80,8 @@ attempted every 30 minutes through each slate's afternoon and evening.
 GitHub drops most scheduled runs, so Lock watch (`watch_slate.py`) also
 long-polls each slate: one delivered run sleeps until each game's five-hour
 lock window opens and dispatches a build there, retrying a game until it
-locks. Build preserves captured ledger rows even if rendering fails, subject
+locks, and dispatches one more 20 minutes before each tip so the saved
+pregame spread is close to the close. Build preserves captured ledger rows even if rendering fails, subject
 to data validation.
 
 ```bash

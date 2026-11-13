@@ -22,6 +22,15 @@ build from any path (a push, a dispatch, a delivered cron) also starts a
 shift when none is running (build.yml, `--check`). So one delivered run
 covers the rest of the slate, and the chain ends when every game has tipped.
 
+PRE-TIP BUILD (owner request, 2026-11-13). Live win chance reads the last
+DraftKings spread saved before tip (pre_spread). With builds only at the
+lock windows, that spread was a median 82 minutes old at tip and differed
+from the close in 41 of 173 graded games. So the shift also dispatches one
+build PRETIP_LEAD before each tip, unless the game's saved snapshot is
+already that recent, and retries it once PRETIP_RETRY_SECONDS later while
+the game is still more than MIN_BEFORE from tip. One build covers every
+game it reaches; games sharing a tip share the build.
+
 WHAT IT DOES NOT CHANGE. The lock is still the first pregame snapshot within
 five hours of tip with current game logs (ledger.upsert_pregame; a stale-log
 snapshot leaves the game unlocked, so it is retried like a failed build), and
@@ -54,6 +63,11 @@ OPEN_MARGIN = timedelta(minutes=2)
 MIN_BEFORE = timedelta(minutes=10)
 # A game still unlocked this long after its last dispatch is dispatched again.
 RETRY_SECONDS = 30 * 60
+# The pre-tip build (live win chance's spread): this long before tip, retried
+# once after PRETIP_RETRY_SECONDS if the game's snapshot is still older.
+PRETIP_LEAD = timedelta(minutes=20)
+PRETIP_RETRY_SECONDS = 6 * 60
+PRETIP = ":pretip"     # suffix of a game's pre-tip key in plan()'s `due`
 # Longest sleep between slate re-reads (tip times and the ledger move).
 RECHECK_SECONDS = 30 * 60
 # After a failed dispatch, come back soon rather than at the next target.
@@ -138,13 +152,25 @@ def locked(row):
     return row is not None and all((row.get(c) or "").strip() for c in LOCK_MARKERS)
 
 
+def pretip_done(row, tip):
+    """The game's saved pregame snapshot is already within PRETIP_LEAD of tip."""
+    snap = parse_utc((row or {}).get("snapshot_utc"))
+    return snap is not None and snap >= tip - PRETIP_LEAD
+
+
+def retry_after(key):
+    return timedelta(seconds=PRETIP_RETRY_SECONDS if key.endswith(PRETIP) else RETRY_SECONDS)
+
+
 def plan(games, rows, day, now):
     """Which games still need a build, and when.
 
     Returns (pending, due, openings): pending = game ids still more than
-    MIN_BEFORE from tip and not locked; due = those a build should cover now
-    (no ledger row yet, or inside their lock window); openings = future
-    window openings (+ OPEN_MARGIN) of the rest. `games` None means the
+    MIN_BEFORE from tip that are not locked or lack their pre-tip snapshot;
+    due = keys a build should cover now: the game id for a lock (no ledger
+    row yet, or inside its lock window), the game id + PRETIP once its
+    pre-tip time has come; openings = the future lock-window openings
+    (+ OPEN_MARGIN) and pre-tip times of the rest. `games` None means the
     scoreboard failed: the ledger's own rows for `day` stand in for it.
     """
     if games is None:
@@ -156,15 +182,23 @@ def plan(games, rows, day, now):
         tip = g["tip"]
         if tip is None or g["state"] not in (None, "pre") or tip - now <= MIN_BEFORE:
             continue
-        row = rows.get(g["game_id"])
-        if locked(row):
+        gid, row = g["game_id"], rows.get(g["game_id"])
+        need_lock, need_pretip = not locked(row), not pretip_done(row, tip)
+        if not (need_lock or need_pretip):
             continue
-        pending.append(g["game_id"])
-        opens = tip - LOCK_LEAD + OPEN_MARGIN
-        if row is None or now >= opens:
-            due.append(g["game_id"])
-        else:
-            openings.append(opens)
+        pending.append(gid)
+        if need_lock:
+            opens = tip - LOCK_LEAD + OPEN_MARGIN
+            if row is None or now >= opens:
+                due.append(gid)
+            else:
+                openings.append(opens)
+        if need_pretip:
+            at = tip - PRETIP_LEAD
+            if now >= at:
+                due.append(gid + PRETIP)
+            else:
+                openings.append(at)
     return pending, due, sorted(openings)
 
 
@@ -198,10 +232,10 @@ def dispatch(repo, token, workflow):
 def watch(deadline, send, clock=time.time, sleep=time.sleep,
           now_utc=lambda: datetime.now(timezone.utc),
           games_fn=fetch_games, ledger_fn=fetch_ledger):
-    """Dispatch builds at the slate's lock windows until `deadline` (a
-    clock() value). `send(workflow)` dispatches and returns whether it
+    """Dispatch builds at the slate's lock windows and pre-tip times until
+    `deadline` (a clock() value). `send(workflow)` dispatches and returns whether it
     landed. Returns the number of builds dispatched."""
-    last = {}          # game id (or "slate") -> when a build was last sent for it
+    last = {}          # due key (game id, game id + PRETIP, "slate") -> last build sent for it
     sent = 0
     while True:
         now = now_utc()
@@ -221,21 +255,20 @@ def watch(deadline, send, clock=time.time, sleep=time.sleep,
         unknown = games is None and not any(r.get("slate_date") == day
                                             for r in rows.values())
         if not pending and not unknown:
-            log(f"{stamp} nothing left to lock on {day}; {sent} build(s) dispatched")
+            log(f"{stamp} nothing left to lock or refresh before tip on {day}; {sent} build(s) dispatched")
             return sent
         if unknown:
             due = ["slate"]   # neither source lists the slate; a build can
-        retry = timedelta(seconds=RETRY_SECONDS)
         wait = RECHECK_SECONDS
-        if any(g not in last or now - last[g] >= retry for g in due):
+        if any(g not in last or now - last[g] >= retry_after(g) for g in due):
             if send(BUILD_WORKFLOW):
                 sent += 1
                 last.update((g, now) for g in due)
                 log(f"{stamp} dispatched build for {len(due)} game(s): {', '.join(due)}")
             else:
                 wait = FAILED_SECONDS
-        wakes = openings + [last[g] + retry for g in due
-                            if g in last and last[g] + retry > now]
+        wakes = openings + [last[g] + retry_after(g) for g in due
+                            if g in last and last[g] + retry_after(g) > now]
         if wakes:
             wait = min(wait, max(1.0, (min(wakes) - now).total_seconds()))
         remaining = deadline - clock()
@@ -247,17 +280,17 @@ def watch(deadline, send, clock=time.time, sleep=time.sleep,
                     break
                 sleep(RELAY_SECONDS / 4)
             log(f"{stamp} shift ends; {sent} build(s) dispatched"
-                + (f"; next shift dispatched for {len(pending)} unlocked game(s)"
+                + (f"; next shift dispatched for {len(pending)} game(s) still to lock or refresh"
                    if relayed else ""))
             return sent
         nxt = (now + timedelta(seconds=wait)).strftime("%H:%MZ")
-        log(f"{stamp} {len(pending)} game(s) unlocked; next check {nxt}")
+        log(f"{stamp} {len(pending)} game(s) to lock or refresh before tip; next check {nxt}")
         sleep(min(wait, remaining - RELAY_SECONDS))
 
 
 def needs_watch(now=None, games_fn=fetch_games, ledger_fn=local_ledger):
-    """For build.yml: does today's slate still have a game to lock?
-    True when the scoreboard fails (the shift then decides)."""
+    """For build.yml: does today's slate still have a game to lock or to
+    refresh before tip? True when the scoreboard fails (the shift decides)."""
     now = now or datetime.now(timezone.utc)
     day = slate_date(now)
     try:
@@ -271,7 +304,7 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv == ["--check"]:
         need = needs_watch()
-        log("lock watch needed" if need else "no game left to lock today")
+        log("lock watch needed" if need else "no game left to lock or refresh today")
         return 0 if need else 3
     repo, token = os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GITHUB_TOKEN")
     if not repo or not token:
@@ -279,7 +312,8 @@ def main(argv=None):
         return 2
     shift = float(os.environ.get("SHIFT_SECONDS", SHIFT_SECONDS))
     log(f"watching {repo} for {shift / 3600:.2f} h: a build at each lock window "
-        f"(tip - {LOCK_LEAD} + {OPEN_MARGIN}), retried every {RETRY_SECONDS // 60} min")
+        f"(tip - {LOCK_LEAD} + {OPEN_MARGIN}), retried every {RETRY_SECONDS // 60} min, "
+        f"and at tip - {PRETIP_LEAD}, retried once after {PRETIP_RETRY_SECONDS // 60} min")
     watch(time.time() + shift, lambda wf: dispatch(repo, token, wf))
     return 0
 
