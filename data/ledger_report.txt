@@ -1,4 +1,4 @@
-NBA ledger report -- latest pregame snapshot 2026-11-13T15:09:52Z; latest graded slate 2026-11-12 (native rows)
+NBA ledger report -- latest pregame snapshot 2026-11-13T15:38:27Z; latest graded slate 2026-11-12 (native rows)
 Model tags: fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_avail_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_margin_neutral_v11 / fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_margin_neutral_avail_v11
 Sources: data/nba_ledger.csv (native, pregame-locked); data/nba_reconstructed.csv (reconstructed, hindsight).
 Headline: flat 1u on the LEAN (model's side), at the price named. Value-side bets are graded only as the pre-registered hypotheses (the blanket value bet was retired 2026-10-06).
@@ -283,6 +283,11 @@ Nothing priced by ESPN BET (no longer offered) is shown, as on the pages: all of
     H5·L·v11 reconstructed @ open: same bets as H5 above
     H5·E·L·v11 DraftKings 2026-27 @ 5 h lock  n=59    23-36       -15.23u  ROI  -25.8% +/- 12.2  (null -4.5%, z -1.7)  win 39.0% vs q 50.2%  | fav +14.0%
     H5·E·L·v11 reconstructed @ open           no bets
+
+== BLEND SHADOW (blend_shrink40_v1; registered 2026-11-13T15:24:49Z): internal research, never a rule, display or record; not pooled with anything above
+  P_blend = sigma(logit q_lock + 0.40 x (logit P_lock - logit q_lock)); native v11 5 h locks from the 2026-11-13 slate, voids out. +/- is 1 SE.
+  0 locked, 0 graded, 0 pending.
+  Primary (games 10+ 2026-27, 95%, fixed at registration): no graded games yet.
 
 == RECONSTRUCTED (leave-one-season-out, closing price: HINDSIGHT, never forward evidence)
   Season table (lean at the close):
