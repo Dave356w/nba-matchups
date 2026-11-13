@@ -922,3 +922,21 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   spread of team-season comebacks minus expected (sd 3.66) is no larger than
   chance alone (3.83). Walk-forward comeback and hold records added to the
   live win chance change test log loss by −0.0000 ± 0.0001. Research only.
+- Model calibration check (owner request, 2026-11-13;
+  `research/model_calibration_check.py`,
+  [results](../diagnostics/model_calibration/RESULTS.txt)). A repeatable,
+  descriptive check of the margin model's probabilities against the
+  DraftKings close, by basis × book × season × stage, never pooled: native
+  five-hour locks (the public record: v11 family, void locks out), native
+  _v11 first snapshots, the hindsight rebuild and the reconstructed replay.
+  Per cell: SD of logit(P) beside the close's, calibration slope and
+  intercept (the close's slope beside it), joint logistic weights on the
+  model and the close, log loss and Brier minus the close, and the home lean;
+  ± 95%. First reading (ledger at `1ffbabe`): 2026-27 games 1–9 at the lock
+  (n 80) spread 0.77 of the close's (replays 0.84–0.87), log loss +0.047 ±
+  0.029 worse than the close, joint model weight −1.35 ± 2.28; the close's own
+  slope on the same games is 1.62 ± 0.74, so the slope near 1.7 mostly
+  reflects this season's lopsided outcomes rather than the model alone.
+  Games 10+ (n 18) are too few to fit. Monitoring only: no rule, filter or
+  recalibration; any change to sigma or P needs an owner amendment and a new
+  model tag.

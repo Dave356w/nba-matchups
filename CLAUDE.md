@@ -675,7 +675,9 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   separate and every result reported. One season is not a general verdict.
 - A truly pregame roster and newly-out-player adjustment, once injury/Sleeper
   snapshots cover enough games; walk-forward gate before any model use.
-- Early-season calibration and home lean; watch without fitting to thin data.
+- Early-season calibration and home lean; watch without fitting to thin data
+  (repeatable check: `research/model_calibration_check.py`,
+  [model calibration](diagnostics/model_calibration/RESULTS.txt)).
 - Re-measure the shrinkage weight at the first snapshot when native coverage
   supports it. Rookies by draft slot remain a small candidate for a future
   tagged change, not part of this simplification.
