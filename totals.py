@@ -54,6 +54,10 @@ import nba_composite as nc
 TAG = "totals_hl25_form5_rep_rest_ou3"           # ou3 with report terms
 TAG_NEUTRAL = "totals_hl25_form5_rep_rest_neutral_ou3"  # ou3, no report terms for the game
 TAG_SUFFIX = "_ou3"
+# Report-name suffix fix (CLAUDE.md ou3 amendment, 2026-11-13): report stage
+# refitted with joined suffixes matched; T* and the neutral tag unchanged.
+TAG_SFX = "totals_hl25_form5_rep_rest_sfx_ou3"
+SPLIT_SUFFIX = "split_suffix"
 TAG_OU2 = "totals_hl25_form5_rep_ou2"            # ou2 (history; until Fit model writes ou3)
 TAG_NEUTRAL_OU2 = "totals_hl25_form5_rep_neutral_ou2"
 TAG_OU1 = "totals_hl25_form5_ou1"                # the closed first O/U model (history)
@@ -237,12 +241,12 @@ def fit(rows, feats=FEATURES):
                 lg_prior=LG_PRIOR, regress=REGRESS)
 
 
-def fit_report(model, rows):
+def fit_report(model, rows, split=False):
     """ou2's report stage on the base model's residual: rows carry the base
     features, total, lg_total, gp_* and REPORT_TERMS (0 where the report did
     not cover the game). Least squares with an intercept on games 1+;
     returns model with model["report"] = dict(coef, sigma_early, sigma_late,
-    n_games, seasons, lead)."""
+    n_games, seasons, lead; report_names with the suffix fix)."""
     tr = rows[np.fmin(rows["gp_home"], rows["gp_away"]) >= 1]
     base = np.array([predict(model, f)[0] for f in tr.to_dict("records")])
     res = tr["total"].to_numpy(float) - base
@@ -250,11 +254,14 @@ def fit_report(model, rows):
     b = np.linalg.lstsq(X, res, rcond=None)[0]
     r2 = res - X @ b
     early = (np.fmin(tr["gp_home"], tr["gp_away"]) < 10).to_numpy()
-    out = dict(model, tag=model_tags(model)[0])
+    out = dict(model)
     out["report"] = dict(coef=dict(zip(("intercept",) + REPORT_TERMS, map(float, b))),
                          sigma_early=float(r2[early].std()), sigma_late=float(r2[~early].std()),
                          n_games=int(len(tr)), lead=REPORT_LEAD,
                          seasons=sorted(int(s) for s in tr["season"].unique()))
+    if split:
+        out["report"]["report_names"] = SPLIT_SUFFIX
+    out["tag"] = model_tags(out)[0]
     return out
 
 
@@ -300,12 +307,19 @@ def adjust(model, T, gp, av, sigma=None):
     return float(T), float(rep["sigma_early"] if early else rep["sigma_late"]), model_tags(model)[0]
 
 
+def splits_suffix(model):
+    """True when the model's report stage was fitted with the suffix fix, so
+    its live report terms must match joined suffixes too."""
+    return bool(model) and (model.get("report") or {}).get("report_names") == SPLIT_SUFFIX
+
+
 def model_tags(model):
     """(full tag, neutral tag) of a model file with a report stage: ou3's for
     a file fitted with rest_tot, ou2's for the ou2 file (so the deployed ou2
-    model keeps its tags until Fit model writes ou3)."""
+    model keeps its tags until Fit model writes ou3). An ou3 report stage
+    fitted with the suffix fix tags its full rows TAG_SFX."""
     if "rest_tot" in model.get("coef", {}) or str(model.get("tag", "")).endswith(TAG_SUFFIX):
-        return TAG, TAG_NEUTRAL
+        return (TAG_SFX if splits_suffix(model) else TAG), TAG_NEUTRAL
     return TAG_OU2, TAG_NEUTRAL_OU2
 
 
@@ -321,12 +335,16 @@ def season_inputs(logs, prev_logs=None):
     return Season(logs, prev)
 
 
-def terms_key(q_table, lead=REPORT_LEAD):
-    """Fingerprint of the report terms' inputs beyond the box scores."""
+def terms_key(q_table, lead=REPORT_LEAD, split=False):
+    """Fingerprint of the report terms' inputs beyond the box scores (the
+    suffix fix enters only when on, so earlier fingerprints stand)."""
     import hashlib
     import player_availability as pav
     rates = pav.lead_rates(q_table, lead)
-    blob = json.dumps(dict(lead=int(lead), rates=rates, parser=pav.PARSER_VERSION), sort_keys=True)
+    d = dict(lead=int(lead), rates=rates, parser=pav.PARSER_VERSION)
+    if split:
+        d["report_names"] = SPLIT_SUFFIX
+    blob = json.dumps(d, sort_keys=True)
     return hashlib.sha1(blob.encode()).hexdigest()[:12]
 
 
@@ -337,16 +355,16 @@ def current_season(today=None):
 
 
 def report_terms(years, q_table, lead=REPORT_LEAD, path=TERMS_PATH, compute=None, today=None,
-                 log=print):
+                 log=print, split=False):
     """{(date, home, away): {av_o, av_d, av_m}} for the report seasons `years`:
     from the stored terms when a season's rows match the fingerprint, else
     computed from the NBA reports (player_availability.season_totals_terms)
     and, for a completed season whose reports all parsed, stored for the
-    next fit."""
+    next fit. split: the suffix fix (its own fingerprint)."""
     if compute is None:
         import player_availability as pav
         compute = pav.season_totals_terms
-    key = terms_key(q_table, lead)
+    key = terms_key(q_table, lead, split)
     path = Path(path)
     try:
         stored = pd.read_csv(path, dtype={"key": str})
@@ -361,7 +379,8 @@ def report_terms(years, q_table, lead=REPORT_LEAD, path=TERMS_PATH, compute=None
             log(f"report terms {y}: {len(have)} games from {path.name}")
             continue
         health = {}
-        got = compute(y, lead, q_table, health=health)
+        got = (compute(y, lead, q_table, health=health, split=True) if split else
+               compute(y, lead, q_table, health=health))
         out.update(got)
         failed = int(health.get("parse_failed", 0))
         log(f"report terms {y}: {len(got)} games computed from the NBA reports"
@@ -397,20 +416,34 @@ def main():
                    help="ou2's report seasons ('' fits the base model only)")
     f.add_argument("--q-rates", default=str(Path(__file__).resolve().parent / "model" / "logit_avail.json"),
                    help="a file whose q_rates table gives v11's play rates by lead")
+    f.add_argument("--split-suffix", action="store_true",
+                   help="the report-name suffix fix (CLAUDE.md ou3 amendment, 2026-11-13)")
+    f.add_argument("--report-only", action="store_true",
+                   help="keep the fitted T* stage of --out and refit only the report stage")
     a = ap.parse_args()
     years = _years(a.years)
+    if a.report_only:
+        if not a.report_years:
+            raise SystemExit("--report-only needs --report-years")
+        # T* as fitted; rows over the fit's seasons, as each season's prior
+        # chains from the one before
+        m = {k: v for k, v in load(a.out).items() if k != "report"}
     rows = training_rows({y: nc.load_logs(y) for y in years})
-    m = fit(rows)
+    if not a.report_only:
+        m = fit(rows)
     if a.report_years:
         q = json.loads(Path(a.q_rates).read_text())
+        if (q.get("report_names") == SPLIT_SUFFIX) != a.split_suffix:
+            raise SystemExit(f"{a.q_rates}: play rates {'without' if a.split_suffix else 'with'} "
+                             "the suffix fix; match --split-suffix to the table")
         q = q.get("q_rates", q)
         ry = _years(a.report_years)
-        terms = report_terms(ry, q)
+        terms = report_terms(ry, q, split=a.split_suffix)
         rr = rows[rows["season"].isin(ry)].copy()
         for k in REPORT_TERMS:
             rr[k] = [terms.get((d, h, w), {}).get(k, 0.0)
                      for d, h, w in zip(rr["date"], rr["home"], rr["away"])]
-        m = fit_report(m, rr)
+        m = fit_report(m, rr, split=a.split_suffix)
         print(f"report stage on {m['report']['n_games']} games: {m['report']['coef']}, "
               f"sigma {m['report']['sigma_early']:.2f} / {m['report']['sigma_late']:.2f}")
     Path(a.out).write_text(json.dumps(m, indent=1) + "\n")

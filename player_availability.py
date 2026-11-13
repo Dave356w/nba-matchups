@@ -996,13 +996,6 @@ def splits_suffix(model):
     return bool(model) and model.get("report_names") == SPLIT_SUFFIX
 
 
-def route_q_rates(model):
-    """The play-rate table the margin model's report route scores with: the
-    suffix-fixed table ("q_rates_sfx") for a fixed file, else "q_rates" (which
-    stays the totals model's table, fitted with the old matcher)."""
-    if not model:
-        return None
-    return model.get("q_rates_sfx") if splits_suffix(model) else model.get("q_rates")
 
 
 def report_date(s):
@@ -1356,12 +1349,13 @@ def stat_values(box, prev_season):
 
 
 def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
-                 values, q_rates):
+                 values, q_rates, split=False):
     """dict(av_o, av_d, av_m, report) for an upcoming game, both teams summed,
     from one parsed report (published at report_time, ET naive) and the box
     rows before the game, under the q rule at the report's lead before tip;
     None when the report does not cover the game or a team has no history
-    (the neutral ou2 route)."""
+    (the neutral ou2 route). split: the suffix fix (ou3 amendment,
+    CLAUDE.md 2026-11-13), as the totals model file records it."""
     if report_rows is None or report_time is None or not values:
         return None
     slate = pd.Timestamp(date).strftime("%Y-%m-%d")
@@ -1372,7 +1366,7 @@ def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
     if q_rates and tip is not None:
         lead = (tip.astimezone(ET).replace(tzinfo=None) - report_time).total_seconds() / 60
         rates = lead_rates(q_rates, lead)
-    present = od_present(report_rows, box, gid, {home, away}, slate, rates)
+    present = od_present(report_rows, box, gid, {home, away}, slate, rates, split=split)
     out = dict(av_o=0.0, av_d=0.0, av_m=0.0)
     for team in (home, away):
         o = upcoming_terms(box, team, gid, date, values["OBPM"], present)
@@ -1386,13 +1380,14 @@ def totals_terms(report_rows, report_time, box, gid, home, away, date, tip_utc,
     return out
 
 
-def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None, health=None):
+def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None, health=None,
+                        split=False):
     """(slate date, home, away) -> dict(av_o, av_d, av_m) for every game of
     season t from the last report at least `lead` minutes before tip (the
     ou2 fit; research/totals_report.py arm rep5h). Uncovered games get 0.
     `health` (a dict, optional) receives parse_failed: reports that could not
     be read, whose games fell back to 0 (totals.report_terms stores no season
-    with any)."""
+    with any). split: the suffix fix."""
     box = fetch_box(t, cache_dir=cache_dir)
     tips = fetch_tips(t, cache_dir)
     archive = archive or ReportArchive(REPORT_DIR)
@@ -1402,7 +1397,7 @@ def season_totals_terms(t, lead, q_table, cache_dir=DEFAULT_CACHE, archive=None,
         if tip is not None:
             cut.append(tip.astimezone(ET).replace(tzinfo=None) - timedelta(minutes=lead))
     archive.prefetch(cut)
-    st, s = game_statuses(box, tips, archive, lead)
+    st, s = game_statuses(box, tips, archive, lead, split=split)
     archive.save()
     if health is not None:
         health["parse_failed"] = int(s["parse_failed"])
@@ -1482,7 +1477,7 @@ class LiveAvailability:
         return dict(av_min=th[0] - ta[0], av_bpm=th[2] - ta[2],
                     report=f"{self.report_time:%Y-%m-%d %H:%M}")
 
-    def totals_terms(self, gid, home, away, date, tip_utc=None, q_rates=None):
+    def totals_terms(self, gid, home, away, date, tip_utc=None, q_rates=None, split=False):
         """The totals model's report terms (ou2; totals_terms) from this
         build's report, or None (neutral). Last season's OBPM / DBPM load on
         first use; a failure leaves every game neutral, never the build."""
@@ -1493,7 +1488,7 @@ class LiveAvailability:
                 print(f"totals report terms unavailable ({e!r})", flush=True)
                 self._stat_values = {}
         return totals_terms(self.report, self.report_time, self.box, gid, home, away, date,
-                            tip_utc, self._stat_values, q_rates)
+                            tip_utc, self._stat_values, q_rates, split=split)
 
 
 def season_terms(t, archive, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES,
@@ -1560,9 +1555,8 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     reads that table from a file the q-rates command wrote over the same
     seasons, instead of downloading every report edition again.
     split=True (with v11; the suffix fix, CLAUDE.md 2026-11-13): every report
-    read matches joined suffixes; the file records "report_names" and keeps
-    "q_rates" (the totals model's table, old matcher) beside the route's
-    "q_rates_sfx", read from Q_RATES_FILE and `q_rates_file` respectively."""
+    read matches joined suffixes, the play-rate table included (one table,
+    shared with the totals model); the file records "report_names"."""
     if split and not v11:
         raise SystemExit("--split-suffix needs --v11")
     v10 = v10 or v11
@@ -1612,14 +1606,10 @@ def fit(years, cache_dir=DEFAULT_CACHE, lead_minutes=LEAD_MINUTES, phase=True,
     if v11:
         table = (load_q_rates(q_rates_file, years, split) if q_rates_file else
                  q_rates(years, cache_dir, split=split))
+        m.update({"score_rule": "q", "q_rates": table,
+                  "q_rates_source": q_rates_file or "fit"})
         if split:
-            m.update({"score_rule": "q", "report_names": SPLIT_SUFFIX,
-                      "q_rates": load_q_rates(Q_RATES_FILE, years),
-                      "q_rates_source": Q_RATES_FILE,
-                      "q_rates_sfx": table, "q_rates_sfx_source": q_rates_file or "fit"})
-        else:
-            m.update({"score_rule": "q", "q_rates": table,
-                      "q_rates_source": q_rates_file or "fit"})
+            m["report_names"] = SPLIT_SUFFIX
         G["season"] = G["year"]
         save_train(G, feats)
     nc.save_json(m, MODEL_FILE)

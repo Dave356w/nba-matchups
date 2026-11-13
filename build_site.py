@@ -553,8 +553,7 @@ def score_slate(today, weights, model, now=None, finals=None):
     if is_v10(avail_model):
         avail_model = refit_avail(avail_model, today, weights, live, prior)
     # v11: the report route scores Questionable players at their play rate
-    # (the suffix fix's own table when the file has it, pav.route_q_rates)
-    q_rates = pav.route_q_rates(avail_model) if is_v11(avail_model) else None
+    q_rates = avail_model.get("q_rates") if is_v11(avail_model) else None
     split = pav.splits_suffix(avail_model)
     opening = nc.season_opening(logs) or pd.Timestamp(today)
     talent = getattr(live, "talent", None)
@@ -591,7 +590,8 @@ def score_slate(today, weights, model, now=None, finals=None):
             try:              # ou2's report terms; a failure leaves the game neutral
                 ou_terms = live.totals_terms(g["game_id"], g["home"], g["away"], today,
                                              tip_utc=g["tip_utc"],
-                                             q_rates=(avail_model or {}).get("q_rates"))  # ou3: old matcher
+                                             q_rates=(avail_model or {}).get("q_rates"),
+                                             split=totals.splits_suffix(ou_model))
             except Exception as e:  # noqa: BLE001
                 log(f"totals report terms {g['game_id']}: {e!r}")
         add_totals(r, ou_model, ou_season, ou_terms)

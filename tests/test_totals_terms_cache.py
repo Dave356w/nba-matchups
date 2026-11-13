@@ -53,13 +53,18 @@ def test_changed_inputs_recompute_and_replace_the_season(tmp_path):
 
 def test_the_committed_file_matches_the_deployed_play_rates():
     """The stored terms carry the fingerprint of model/logit_avail.json's
-    q_rates at the 300-minute lead, for every report season of the fit."""
+    q_rates at the 300-minute lead (and its name matching), for every report
+    season of the fit."""
     import json
     if not totals.TERMS_PATH.exists():
         pytest.skip("no stored terms")
-    q = json.loads((totals.MODEL_PATH.parent / "logit_avail.json").read_text())["q_rates"]
+    avail = json.loads((totals.MODEL_PATH.parent / "logit_avail.json").read_text())
+    q = avail["q_rates"]
+    # the suffix fix (CLAUDE.md ou3 amendment, 2026-11-13) has its own fingerprint
+    split = avail.get("report_names") == totals.SPLIT_SUFFIX
     d = pd.read_csv(totals.TERMS_PATH, dtype={"key": str})
-    assert set(d["key"]) == {totals.terms_key(q)} and set(d["lead"]) == {totals.REPORT_LEAD}
+    assert set(d["key"]) == {totals.terms_key(q, split=split)} \
+        and set(d["lead"]) == {totals.REPORT_LEAD}
     assert set(d["season"]) == set(totals._years(totals.REPORT_YEARS))
     assert not d.duplicated(["date", "home", "away"]).any()
 
