@@ -128,6 +128,8 @@ CSS = """
 .table-more{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 0;font-size:13px;color:var(--muted)}
 .table-more button{min-height:42px;padding:8px 16px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-weight:650;cursor:pointer}
 .table-more[hidden]{display:none}
+.matrix-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.matrix-head .public-note{margin:6px 0}
+.matrix-tabs{display:flex}.matrix-tabs button{font-size:13px;padding:6px 12px}[data-matrix-window][hidden]{display:none!important}
 @media(max-width:640px){.public-filters{display:grid;grid-template-columns:1fr 1fr;gap:10px}.public-filters select{width:100%;font-size:14px;padding-right:24px}.table-more{flex-direction:column;align-items:stretch;text-align:center}}
 .prediction-table td{vertical-align:top}.prediction-table td:first-child{font-weight:650}
 details.public-note summary{cursor:pointer;color:rgb(var(--accent-tx));font-weight:650}details.public-note p{margin:10px 0}
@@ -188,6 +190,14 @@ more.querySelector('button').textContent='Show '+Math.min(step,Math.max(n-limit,
 controls.forEach(function(c){c.addEventListener('change',function(){limit=step;update();});});
 if(more)more.querySelector('button').addEventListener('click',function(){limit+=step;update();});update();
 })();</script>"""
+
+# ROI matrix window switch (owner approval, 2026-11-13): one choice for every
+# panel, so it survives source and season changes.
+MATRIX_WINDOWS = (("50", "Latest 50", 50), ("100", "Latest 100", 100), ("all", "All games", None))
+MATRIX_DEFAULT = "50"
+MATRIX_JS = """<script>(function(){document.addEventListener('click',function(e){var b=e.target.closest('[data-matrix-show]');if(!b)return;
+var k=b.dataset.matrixShow;document.querySelectorAll('[data-matrix-window]').forEach(function(w){w.hidden=w.dataset.matrixWindow!==k;});
+document.querySelectorAll('[data-matrix-show]').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.matrixShow===k?'true':'false');});});})();</script>"""
 
 PERFORMANCE_FILTER_JS = """<script>(function(){var cs=document.querySelectorAll('[data-performance-filter]');
 function update(){document.querySelectorAll('[data-ml-panel], [data-source-summary]').forEach(function(p){var show=true;cs.forEach(function(c){var key=c.dataset.performanceFilter;if(p.hasAttribute('data-source-summary')&&key==='source')return;if(p.dataset[key]!==c.value)show=false;});p.hidden=!show;});}
@@ -638,7 +648,7 @@ class PublicSite:
                 body += (f"<article class='ml-hero' data-ml-panel data-source='{source}' data-season='{season}'{hidden}>"
                          f"<h2>{source_label}</h2><div class='record-label'>Games 1+ · {season_label} · v11</div>"
                          + self.ml_performance_panel(part) + '</article>')
-        return body + '</section>' + PERFORMANCE_FILTER_JS
+        return body + '</section>' + PERFORMANCE_FILTER_JS + MATRIX_JS
 
     def ml_performance_panel(self, part):
         u = self.ui
@@ -693,7 +703,8 @@ class PublicSite:
         return body + self.roi_matrix(part)
 
     def roi_matrix(self, part):
-        """Latest 50 graded, priced model-winner picks per joint WP cell.
+        """Graded, priced model-winner picks per joint WP cell, cut to each
+        MATRIX_WINDOWS option (latest 50 by default).
 
         Part already has the page's stage/source/season filters. Native rows
         use saved lock P/prices; replay rows use saved model P/closing prices.
@@ -716,38 +727,48 @@ class PublicSite:
             cells.setdefault(key, []).append(r)
         model_labels = ['50–60%', '60–70%', '70–80%', '80–100%']
         market_labels = ['<50%', '50–60%', '60–70%', '70–80%', '80–100%']
+        # Window switch (owner approval, 2026-11-13): the same cells, cut to
+        # the latest N per cell in slate order, or all games in the selection.
         body = ("<section class='ml-section'><h3>ROI by model and market win probability</h3>"
-                "<p class='public-note'>Each square: 1 unit on the model’s pick, latest 50 priced results in that band pair.</p>"
-                "<div class='roi-matrix-wrap'><table class='roi-matrix' data-roi-matrix>"
-                "<caption class='sr-only'>ROI lookup matrix · latest 50 per cell</caption>"
-                "<thead><tr><th scope='col'>Market WP →<br>Model WP ↓</th>"
-                + ''.join(f"<th scope='col'>{label}</th>" for label in market_labels) + '</tr></thead><tbody>')
-        retained, units = 0, 0.0
-        for pb, label in enumerate(model_labels):
-            body += f"<tr><th scope='row'>{label}</th>"
-            for qb in range(len(market_labels)):
-                cell = cells.get((pb, qb), [])[-wp_calibration.WINDOW_GAMES:]
-                n = len(cell)
-                if not n:
-                    body += f"<td data-model-band='{pb}' data-market-band='{qb}' data-n='0'>—</td>"
-                    continue
-                profit = sum(float(r.ml_units) for r in cell)
-                wins = sum(int(r.prediction_won) for r in cell)
-                roi = profit/n
-                color = 'positive' if profit > 0 else 'negative' if profit < 0 else 'neutral'
-                body += (f"<td class='{color}' data-model-band='{pb}' data-market-band='{qb}' data-n='{n}'>"
-                         f"<strong>{100*roi:+.1f}%</strong><small>{n} game{'s' if n != 1 else ''} · {wins}–{n-wins}</small>"
-                         f"<small>{profit:+.2f}u</small></td>")
-                retained += n
-                units += profit
-            body += '</tr>'
-        body += '</tbody></table></div>'
-        return body + (f"<p class='public-note'>{retained} retained priced results · {units:+.2f}u. "
-                       "Cells are descriptive, not a filter or a betting rule. Small samples can show extreme ROI.</p>"
-                       "<details><summary>How the matrix works</summary><p>"
+                "<div class='matrix-head'><p class='public-note'>Each square: 1 unit on the model’s pick, by model and market win probability.</p>"
+                "<div class='seg matrix-tabs' role='group' aria-label='Results per square'>"
+                + ''.join(f"<button type='button' data-matrix-show='{key}' aria-pressed='{'true' if key == MATRIX_DEFAULT else 'false'}'>{name}</button>"
+                          for key, name, _ in MATRIX_WINDOWS) + "</div></div>")
+        for key, name, window in MATRIX_WINDOWS:
+            scope = f"latest {window} per cell" if window else "all games in this selection"
+            body += (f"<div class='matrix-window' data-matrix-window='{key}'{'' if key == MATRIX_DEFAULT else ' hidden'}>"
+                     "<div class='roi-matrix-wrap'><table class='roi-matrix' data-roi-matrix>"
+                     f"<caption class='sr-only'>ROI lookup matrix · {scope}</caption>"
+                     "<thead><tr><th scope='col'>Market WP →<br>Model WP ↓</th>"
+                     + ''.join(f"<th scope='col'>{label}</th>" for label in market_labels) + '</tr></thead><tbody>')
+            retained, units = 0, 0.0
+            for pb, label in enumerate(model_labels):
+                body += f"<tr><th scope='row'>{label}</th>"
+                for qb in range(len(market_labels)):
+                    cell = cells.get((pb, qb), [])
+                    if window:
+                        cell = cell[-window:]
+                    n = len(cell)
+                    if not n:
+                        body += f"<td data-model-band='{pb}' data-market-band='{qb}' data-n='0'>—</td>"
+                        continue
+                    profit = sum(float(r.ml_units) for r in cell)
+                    wins = sum(int(r.prediction_won) for r in cell)
+                    roi = profit/n
+                    color = 'positive' if profit > 0 else 'negative' if profit < 0 else 'neutral'
+                    body += (f"<td class='{color}' data-model-band='{pb}' data-market-band='{qb}' data-n='{n}'>"
+                             f"<strong>{100*roi:+.1f}%</strong><small>{n} game{'s' if n != 1 else ''} · {wins}–{n-wins}</small>"
+                             f"<small>{profit:+.2f}u</small></td>")
+                    retained += n
+                    units += profit
+                body += '</tr>'
+            body += ('</tbody></table></div>'
+                     f"<p class='public-note'>{scope.capitalize()}: {retained} priced results · {units:+.2f}u. "
+                     "Cells are descriptive, not a filter or a betting rule. Small samples can show extreme ROI.</p></div>")
+        return body + ("<details><summary>How the matrix works</summary><p>"
                        "Each square stakes 1 unit on the model’s selected team; both WP bands refer to that same team, across all NBA teams. "
                        "Market WP removes the bookmaker’s margin. Below 50% includes model-picked market underdogs. "
-                       "Uses the current source and season filters (games 1+), then the latest 50 graded priced games per cell; pending and unpriced games are excluded. "
+                       "Uses the current source and season filters (games 1+), then keeps the latest 50 or 100 graded priced games per cell, ordered by slate date and game ID, or all of them; pending and unpriced games are excluded. "
                        "Live uses five-hour lock probabilities and prices; replay uses historical model forecasts and closing prices.</p></details></section>")
 
     def stage(self, hyp, season):
@@ -852,7 +873,7 @@ class PublicSite:
 <p>The default is the <b>saved live record across seasons</b>. Live and replay summaries appear side by side and are never added together. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
 <p>Historical replays must carry a v11-family tag and a graded result, and use their saved DraftKings <b>closing</b> prices. They are reconstructed or rebuilt with historical inputs, rather than predictions captured live. Replays do not demonstrate executable five-hour returns. The record never uses another book’s prices.</p>
 <p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark.</p>
-<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the source and season filters, then retains the latest 50 completed priced picks in each cell, ordered by slate date and game ID. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI accumulates within each season and source and does not change with filters.</p>""" + self.void_note() + """</section>
+<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the source and season filters, then retains the latest 50 completed priced picks in each cell by default, ordered by slate date and game ID; a switch shows the latest 100 or all games in the selection instead. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI accumulates within each season and source and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>

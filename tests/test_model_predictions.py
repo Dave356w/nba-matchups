@@ -215,7 +215,7 @@ def test_performance_replaces_confidence_bands_with_roi_lookup_matrix():
     assert site.roi_matrix(site.predictions.iloc[:0]) == ''
 
 
-def test_roi_matrix_caps_graded_priced_results_at_fifty_per_cell():
+def test_roi_matrix_windows_cap_latest_50_or_100_per_cell_or_keep_all():
     from lxml import html as lh
     g=pd.concat([forecasts().iloc[3:4]]*55,ignore_index=True)
     g['game_id']=[f'matrix-{i:03d}' for i in range(len(g))]
@@ -223,11 +223,22 @@ def test_roi_matrix_caps_graded_priced_results_at_fifty_per_cell():
     g.loc[54,'lock_home_ml']=np.nan
     site=PublicSite(ui,g,CLOSED,'built')
     tree=lh.fromstring(site.roi_matrix(site.predictions))
-    cell=tree.xpath("//*[@data-model-band='3' and @data-market-band='1']")[0]
+    def window(key):
+        return tree.xpath(f"//*[@data-matrix-window='{key}']")[0]
+    # the default window is the latest 50 per cell; the others start hidden
+    assert window('50').get('hidden') is None
+    assert window('100').get('hidden') is not None and window('all').get('hidden') is not None
+    cell=window('50').xpath(".//*[@data-model-band='3' and @data-market-band='1']")[0]
     assert cell.get('data-n')=='50'
     assert '-100.0%' in cell.text_content() and '-50.00u' in cell.text_content()
     assert '0–50' in cell.text_content()
-    assert sum(int(x) for x in tree.xpath('//*[@data-n]/@data-n'))==50
+    assert sum(int(x) for x in window('50').xpath('.//*[@data-n]/@data-n'))==50
+    # latest 100 and all games keep every graded priced pick (53); pending and
+    # unpriced picks never enter any window
+    for key in ('100', 'all'):
+        cell=window(key).xpath(".//*[@data-model-band='3' and @data-market-band='1']")[0]
+        assert cell.get('data-n')=='53' and '3–50' in cell.text_content()
+    assert [b.get('data-matrix-show') for b in tree.xpath('//button[@data-matrix-show]')]==['50','100','all']
 
 
 def test_roi_matrix_places_replay_model_underdog_at_closing_price():
