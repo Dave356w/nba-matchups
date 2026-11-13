@@ -68,7 +68,9 @@ def test_replay_excludes_wrong_models_books_pending_prices_and_duplicate_ids():
     assert d.set_index('game_id').loc['r6', 'prediction_p'] == .8
 
 
-def test_live_default_keeps_mixed_record_and_separate_source_summaries():
+def test_live_default_and_separate_source_summaries_without_a_mixed_option():
+    # Public games 1+ and source simplification (owner approval, 2026-11-13):
+    # live and replay only, never pooled; no stage split on the public pages.
     native = rows().iloc[3:4].assign(home_won=1)
     d = analysis.model_prediction_moneyline(analysis.moneyline_model_predictions(native, replay_rows().iloc[:3]))
     established = d[d.prediction_stage.eq('established')]
@@ -82,20 +84,23 @@ def test_live_default_keeps_mixed_record_and_separate_source_summaries():
     tree = lh.fromstring(html)
     visible = tree.xpath("//*[@data-ml-panel and not(@hidden)]")
     assert len(visible) == 1 and visible[0].get('data-source') == 'live'
-    assert visible[0].get('data-stage') == 'established'
-    assert tree.xpath("//*[@data-ml-panel and @data-source='all']")
+    assert visible[0].get('data-stage') is None
+    assert not tree.xpath("//*[@data-ml-panel and @data-source='all']")
+    assert "value='all'>Mixed" not in html and 'Mixed record:' not in html
     summary = tree.xpath("//*[@data-source-summary and not(@hidden)]")[0]
     live, replay = summary.xpath('./article')
     assert '1–0' in live.text_content() and '+66.7%' in live.text_content()
-    assert '1–1' in replay.text_content() and '+25.0%' in replay.text_content()
-    assert '2 graded' in replay.text_content()  # early replay excluded
-    assert 'Mixed record:' in html and 'historical replays' in html
+    # games 1+: the early replay now counts with the 10+ replays
+    assert '2–1' in replay.text_content() and '+66.7%' in replay.text_content()
+    assert '3 graded' in replay.text_content()
+    assert 'data-source-note' in html and 'never added to the live record' in html
     assert 'Saved live locks' in html and 'Historical replay' in html
     assert "id='paper-performance'" not in html
     results = site.results_page()
     assert "data-source='replay'" in results and 'DraftKings close' in results
     assert "data-source='live'" in results and 'Saved live lock' in results
-    assert 'The 10+ game ML rule' in site.guide_page()
+    guide = site.guide_page()
+    assert 'The ML record' in guide and 'at least 10 games' in guide and 'Since November 13, 2026' in guide
 
 
 def test_tracked_betting_tests_are_absent_even_from_collapsed_public_markup():

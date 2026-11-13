@@ -5,6 +5,24 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Public games 1+ and source simplification — owner approval, November 13, 2026
+
+The owner asked to combine games 1–9 and 10+ and to drop the mixed source on
+the public pages, for clarity. Today, Results, ML stats and How it works show
+one public record of every native v11 five-hour lock (and, under its own
+source, eligible v11 replay) from **game 1 on**: early and established games
+together. Opening games (game 0) and unknown stages stay out of that record;
+openers still appear on Today as forecasts. Sources are **Saved live locks**
+(default) and **Historical replay**, never pooled: the Mixed option and the
+mixed cumulative headline leave the public pages. Running ROI on Results is
+per season × source over games 1+. This supersedes, for public pages only,
+the ML focus amendment's mixed headline and separate public stages, the
+public model-prediction record's stage split and the public clarity
+amendment's mixed source filter. The frozen 10+ ML rule, its internal
+records, `data/ledger_report.txt`, the tracked tests, Realized WP, locks,
+grades and data are unchanged. Pages say once that the public record
+includes early-season games and that the registered rule counts 10+ only.
+
 ### Model–market blend shadow record — owner approval, November 13, 2026
 
 The owner registered a fixed blend of lock model P and lock no-vig DraftKings

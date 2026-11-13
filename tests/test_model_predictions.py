@@ -100,25 +100,27 @@ def test_pages_show_forecast_only_games_and_keep_betting_records_separate():
     assert 'Log loss' in perf and 'Brier score' in perf and '95% Wilson interval' in perf
     card = site.card(g.iloc[0])
     assert 'Locked pick:' in card and 'Loss' in card and '51.0%' in card
-    assert card.count("class='tracked-label'") == 1 and 'Separate stage record' in card
+    assert card.count("class='tracked-label'") == 1 and 'Public record' in card
     assert 'Saved 1:07 PM PT' in card
-    assert 'The 10+ game ML rule' in site.guide_page()
+    assert 'The ML record' in site.guide_page()
 
 
-def test_prediction_performance_keeps_stage_and_season_views():
+def test_prediction_performance_shows_games_1_plus_by_source_and_season():
     g = forecasts().iloc[1:5].copy()
     g['season'] = [2026, 2027, 2027, 2027]
     site = PublicSite(ui, g, CLOSED, 'built')
     html = site.prediction_performance()
-    # Owner-approved mixed headline pools seasons, with exact season/stage views retained.
+    # Public games 1+ (owner approval, 2026-11-13): early and 10+ games share
+    # one record per source and season; seasons stay separate views.
     from lxml import html as lh
     panels = lh.fromstring(html)
-    def panel(stage, season):
-        return " ".join(panels.xpath(f"//*[@data-ml-panel and @data-stage='{stage}' and @data-source='live' and @data-season='{season}']")[0].itertext())
-    assert '0–1' in panel('early', '2026')
-    assert '0–1' in panel('early', '2027')
-    assert '1–0' in panel('established', '2027')
-    assert '1 graded · 1 pending' in panel('established', '2027')
+    def panel(season):
+        return " ".join(panels.xpath(f"//*[@data-ml-panel and @data-source='live' and @data-season='{season}']")[0].itertext())
+    assert '0–1' in panel('2026') and '1 graded · 0 pending' in panel('2026')
+    assert '1–1' in panel('2027') and '2 graded · 1 pending' in panel('2027')   # early 0–1 + 10+ 1–0
+    assert '1–2' in panel('all') and '3 graded · 1 pending' in panel('all')
+    assert not panels.xpath("//*[@data-ml-panel and @data-stage]")
+    assert not panels.xpath("//select[@data-performance-filter='stage']")
 
 
 def test_moneyline_return_reads_only_the_lock_price_and_never_pools_stages():
@@ -159,9 +161,11 @@ def test_results_show_moneyline_return_and_running_roi_on_predictions_only():
     d = analysis.model_prediction_moneyline(site.predictions)
     html = site.results_page()
     assert '<th>Moneyline return</th><th>Running ROI</th>' in html
-    assert html.count("data-label='Running ROI'") == len(d)
-    assert html.count("data-label='Running ROI'>—</td>") == int(d.ml_units.isna().sum())
-    assert 'not a pure forward test' in html and 'data-prediction-moneyline' in html
+    public = d[d.prediction_stage.isin(analysis.PUBLIC_STAGES)]   # openers stay out
+    assert len(public) < len(d)
+    assert html.count("data-label='Running ROI'") == len(public)
+    assert html.count("data-label='Running ROI'>—</td>") == int(public.ml_units.isna().sum())
+    assert 'neither is a pure forward test' in html and 'data-prediction-moneyline' in html
     assert 'market-price baseline' in html
     perf = site.performance_page()
     assert 'Moneyline ROI' in perf and 'data-ml-panel' in perf
@@ -277,12 +281,12 @@ def test_results_page_the_table_without_dropping_rows_or_columns():
     site = PublicSite(ui, g, CLOSED, 'built')
     html = site.results_page()
     # every prediction is still rendered; the browser shows them a page at a time
-    assert html.count('data-prediction-row ') == len(site.predictions)
+    assert html.count('data-prediction-row ') == len(analysis.public_predictions(site.predictions))
     assert 'data-predictions-more' in html and 'data-predictions-count' in html
     import public_site
     assert f"{public_site.PREDICTION_PAGE}" in public_site.PREDICTION_FILTER_JS
     assert f"{public_site.PREDICTION_PAGE_MOBILE}" in public_site.PREDICTION_FILTER_JS
-    # stage and season stay visible, inside the game cell
+    # the season stays visible inside the game cell; stages share one record
     from lxml import html as lh
     game = lh.fromstring(html).xpath("//td[@data-label='Game']")[0].text_content()
-    assert 'games' in game and '20' in game
+    assert '2026-27' in game and 'games 10+' not in game

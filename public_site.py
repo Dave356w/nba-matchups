@@ -157,7 +157,7 @@ details.public-note summary{cursor:pointer;color:rgb(var(--accent-tx));font-weig
 # re-sorts whenever the live-score overlay changes a card's state
 # (window.nbaCount) and moves nothing when the order is unchanged.
 FILTER_JS = """<script>(function(){var bar=document.querySelector('[data-filter]');if(!bar)return;bar.hidden=false;
-var grid=document.querySelector('.tool-grid[data-slate]'),rank={live:0,upcoming:1,final:2},stage='established',state='all';
+var grid=document.querySelector('.tool-grid[data-slate]'),rank={live:0,upcoming:1,final:2},stage='all',state='all';
 function order(){if(!grid)return;var cs=[].slice.call(grid.querySelectorAll(':scope>.gcard')),
 s=cs.slice().sort(function(a,b){return(rank[a.dataset.state]-rank[b.dataset.state])||(a.dataset.order-b.dataset.order);});
 if(s.some(function(x,i){return x!==cs[i];}))s.forEach(function(x){grid.appendChild(x);});}
@@ -287,7 +287,10 @@ class PublicSite:
         p = number("p_home")
         gp = np.minimum(number("gp_home"), number("gp_away"))
         stage = 'established' if gp >= 10 else 'early' if 1 <= gp <= 9 else 'opener' if gp == 0 else 'unknown'
-        stage_text = dict(PREDICTION_STAGES)[stage]
+        # games 1+ share one public record (owner approval, 2026-11-13); only
+        # openers and unknown stages carry a label
+        stage_text = {'opener': 'Opening game · forecast only, not in the record',
+                      'unknown': 'Stage unavailable · not in the record'}.get(stage, '')
         dk = str(row.get("pre_book")) == "dk"
         final = np.isfinite(number("home_won"))
         status = "Final" if final else "Pregame"
@@ -347,7 +350,7 @@ class PublicSite:
                 outcome = 'awaiting result' if result == 'Pending' else result
                 tracking = (f"<div class='tracked-box lock-summary'><strong class='tracked-label'>Locked pick: {u.esc(pick.prediction)} {lock_price} · {outcome}</strong>"
                             f"<small>Saved {u.tip_pt(pick.get('lock_snapshot_utc'))} · {u.pct(pick.prediction_p)} at lock · "
-                            f"{'10+ game record' if stage == 'established' else 'Separate stage record'} · 1 unit</small></div>")
+                            f"{'Public record' if stage in analysis.PUBLIC_STAGES else 'Not in the public record'} · 1 unit</small></div>")
         book = "DraftKings" if dk else "DraftKings unavailable; no market"
         q = number("pre_q_home") if dk else np.nan
         live_spread, live = self.live_block(row, dk)
@@ -370,7 +373,7 @@ class PublicSite:
         order_attr = f" data-order='{int(order)}'" if order is not None else ""
         return (f"<details class='gcard tool-card' data-gid='{u.esc(row.game_id)}' data-tracked='{int(bool(len(saved)))}' data-state='{'final' if final else 'upcoming'}'{order_attr} data-stage='{stage}'{live_spread}>"
                 f"<summary><div class='g-meta'><span>{u.tip_pt(row.tip_utc)}</span><span class='badge st'>{status}</span></div>"
-                + "".join(teams) + f"<div class='stage-label'>{stage_text}</div>" + live + forecast + tracking
+                + "".join(teams) + (f"<div class='stage-label'>{stage_text}</div>" if stage_text else "") + live + forecast + tracking
                 + "<span class='details-cue'>Game details<i aria-hidden='true'>⌄</i></span></summary>"
                 + f"<div class='g-detail'>{detail}</div></details>")
 
@@ -475,7 +478,7 @@ class PublicSite:
         day = self.native[self.native.slate_date.astype(str).eq(self.today)]
         title = pd.Timestamp(self.today).strftime("%A, %B %-d")
         body = self.head(title, "Model win chances for each game. Picks lock five hours before tip.", True).replace("class='public-head'", "class='public-head today-head'")
-        body += ("<div class='public-intro today-intro'><p>DraftKings prices · Pacific time<span class='intro-extra'> · Main record: both teams at 10+ games</span>"
+        body += ("<div class='public-intro today-intro'><p>DraftKings prices · Pacific time<span class='intro-extra'> · Record: every game after each team’s opener</span>"
                  "<span data-scores-asof hidden> · Scores as of <time></time></span></p>"
                  "<span class='intro-links'><a href='performance.html'>ML performance →</a><a href='how-it-works.html'>How to read →</a></span></div>")
         if not len(day):
@@ -483,8 +486,7 @@ class PublicSite:
         else:
             body += "<div class='game-filters' data-filter hidden>"
             for group, label, default, options in (
-                    ('stage', 'Team experience', 'established', (("established", "10+ games"), ("all", "All games"), ("early", "Games 1–9"))),
-                    ('state', 'Game status', 'all', (("all", "All"), ("upcoming", "Upcoming"), ("live", "Live"), ("final", "Final")))):
+                    ('state', 'Game status', 'all', (("all", "All"), ("upcoming", "Upcoming"), ("live", "Live"), ("final", "Final"))),):
                 body += f"<div class='filter-group'><span>{label}</span><div class='seg' role='group' aria-label='{label}'>" + "".join(
                     f"<button type='button' data-group='{group}' data-show='{key}' aria-pressed='{'true' if key == default else 'false'}'>{name}<span class='ct'>0</span></button>"
                     for key, name in options) + "</div></div>"
@@ -510,12 +512,12 @@ class PublicSite:
         return "Pending" if pd.isna(row.prediction_won) else "Win" if row.prediction_won == 1 else "Loss"
 
     def prediction_results(self):
-        u, d = self.ui, analysis.model_prediction_moneyline(self.predictions)
+        u = self.ui
+        d = analysis.model_prediction_moneyline(analysis.public_predictions(self.predictions), by="source")
         body = self.prediction_moneyline_note(d)
         if not len(d):
             return body + "<div class='public-empty'><h3>No locked v11 predictions yet</h3><p>Predictions appear here after a valid five-hour snapshot is saved.</p></div>"
-        options = (("stage", "Prediction stage", list(PREDICTION_STAGES)+[("all", "All stages")]),
-                   ("source", "Record source", [("all", "Mixed · live + replay"),("live", "Saved live locks"),("replay", "Historical replay")]),
+        options = (("source", "Record source", [("live", "Saved live locks"),("replay", "Historical replay")]),
                    ("season", "Prediction season", [("all", "All seasons")]+[(str(s),u.season_txt(s)) for s in sorted(set(d.season.astype(int)), reverse=True)]),
                    ("outcome", "Prediction outcome", [("all", "All outcomes"),("win", "Win"),("loss", "Loss"),("pending", "Pending")]))
         body += "<div class='public-filters'>" + "".join(
@@ -550,12 +552,12 @@ class PublicSite:
             provenance = (f"Historical replay<small>{u.esc(r.basis)} · DraftKings close</small>" if replay else
                           f"Saved live lock<small>{u.tip_pt(r.lock_snapshot_utc)} · {u.esc(str(r.lock_snapshot_utc)[:10])}</small>")
             cells = [f"{u.esc(r.away)} @ {u.esc(r.home)}<small>{u.esc(r.slate_date)} · {u.tip_pt(r.tip_utc)}</small>"
-                     f"<small>{dict(PREDICTION_STAGES)[r.prediction_stage]} · {u.season_txt(int(r.season))}</small>",
+                     f"<small>{u.season_txt(int(r.season))}</small>",
                      comparison,
                      provenance,
                      f"<span class='prediction-badge'>{result}</span><small>{u.esc(r.prediction)}</small>", closing,
                      *self.prediction_moneyline_cells(r)]
-            rows.append(f"<tr data-prediction-row data-stage='{r.prediction_stage}' data-season='{int(r.season)}' data-outcome='{result.lower()}' data-source='{r.prediction_source}'{' hidden' if r.prediction_stage != 'established' else ''}>"
+            rows.append(f"<tr data-prediction-row data-stage='{r.prediction_stage}' data-season='{int(r.season)}' data-outcome='{result.lower()}' data-source='{r.prediction_source}'{' hidden' if r.prediction_source != 'live' else ''}>"
                         + "".join(f"<td data-label='{label}'>{value}</td>" for label,value in zip(labels,cells))+"</tr>")
         return (body + "<table class='public-table prediction-table'><colgroup>" + "".join(f"<col style='width:{w}%'>" for w in widths)
                 + "</colgroup><thead><tr>"+"".join(f"<th>{l}</th>" for l in labels)
@@ -566,7 +568,7 @@ class PublicSite:
     def prediction_moneyline_cells(self, r):
         """Results' two moneyline cells for one prediction (owner request,
         2026-11-09): its flat 1-unit return at the DraftKings lock price,
-        and its season × stage's ROI through that game."""
+        and its season × source's ROI through that game (games 1+)."""
         u = self.ui
         if pd.isna(r.ml):
             return ["—<small>No DraftKings price at the lock</small>", "—"]
@@ -576,70 +578,66 @@ class PublicSite:
         return [f"{r.ml_units:+.2f}u" + price,
                 f"{100 * r.ml_run_roi:+.1f}%<small>{int(r.ml_run_n)} priced · {r.ml_run_units:+.2f}u</small>"]
 
-    def mixed_note(self):
-        return ("<p class='public-note'><b>Mixed record:</b> historical v11 replays and saved live picks are combined, "
-                "without duplicate games. Replays use DraftKings closing prices; live picks use five-hour lock prices. "
-                "The ML rule was selected after historical outcomes were known. This is not a pure forward test.</p>")
+    def source_note(self):
+        """The two public sources and the games 1+ scope (owner approval,
+        2026-11-13): never pooled, the replay labelled as hindsight."""
+        return ("<p class='public-note' data-source-note><b>Saved live locks</b> are the picks saved five hours before tip, at those prices. "
+                "<b>Historical replay</b> runs the v11 model on past games at DraftKings closing prices: hindsight, shown separately and never added to the live record. "
+                "The ML rule was chosen after historical outcomes were known, so neither is a pure forward test. "
+                "Both count every game after each team’s opener; the registered rule tracks games with both teams at 10+ separately.</p>")
 
     def prediction_moneyline_note(self, d):
-        return ("<p class='public-note' data-prediction-moneyline><b>Mixed v11 record · flat 1u.</b> Live picks use five-hour lock prices; "
-                "historical replays use closing prices. <a href='performance.html'>ML performance →</a></p>"
+        return ("<p class='public-note' data-prediction-moneyline><b>v11 moneyline record · flat 1u · games 1+.</b> Saved live locks use five-hour lock prices; "
+                "historical replay uses closing prices and is shown separately. <a href='performance.html'>ML performance →</a></p>"
                 "<details class='public-note'><summary>How to read this table</summary>"
                 "<p>Model and market probabilities refer to the same selected team; Actual result is that team’s Win or Loss. Market implied probabilities remove the bookmaker’s margin. A realized win rate is measured across games on ML stats.</p>"
-                + self.mixed_note()
+                + self.source_note()
                 + "<p><b>Moneyline return</b> stakes 1 unit per priced winner. "
-                "<b>Running ROI</b> combines live and replay within each season and stage in game order; changing a filter does not recalculate it. "
+                "<b>Running ROI</b> accumulates within each season and source in game order; changing a filter does not recalculate it. "
                 "Missing prices keep their forecast W/L but have no return. No edge or confidence filter. "
                 "<a href='performance.html'>ROI, uncertainty and market-price baseline →</a></p></details>")
 
     def prediction_performance(self):
-        u, d = self.ui, analysis.model_prediction_moneyline(self.predictions)
+        u = self.ui
+        d = analysis.model_prediction_moneyline(analysis.public_predictions(self.predictions), by="source")
         seasons = sorted(set(d.season.astype(int)) if len(d) else {self.season}, reverse=True)
-        stages = [(k, v) for k, v in PREDICTION_STAGES if k in ('established', 'early') or (len(d) and d.prediction_stage.eq(k).any())]
-        sources = [('live', 'Saved live locks'), ('replay', 'Historical replay'), ('all', 'Mixed · live + replay')]
+        sources = [('live', 'Saved live locks'), ('replay', 'Historical replay')]
         season_options = [('all', 'All seasons')] + [(str(x), u.season_txt(x)) for x in seasons]
-        options = [('stage', 'Model stage', stages), ('source', 'Record source', sources), ('season', 'Season', season_options)]
-        body = "<section id='model-predictions'>" + self.mixed_note()
+        options = [('source', 'Record source', sources), ('season', 'Season', season_options)]
+        body = "<section id='model-predictions'>" + self.source_note()
         body += "<div class='public-filters'>" + ''.join(
             f"<div><label for='performance-{key}'>{name}</label><select id='performance-{key}' data-performance-filter='{key}'>"
             + ''.join(f"<option value='{v}'>{label}</option>" for v, label in opts) + '</select></div>'
             for key, name, opts in options) + '</div>'
-        # Compare sources within the selected stage and season, independently of
-        # the detailed source filter. No sources or stages are pooled here.
-        for stage, label in stages:
+        # Live and replay side by side for the selected season; never pooled.
+        for season, season_label in season_options:
+            part = d
+            if len(part) and season != 'all':
+                part = part[part.season.astype(int).eq(int(season))]
+            hidden = '' if season == 'all' else ' hidden'
+            body += f"<section class='source-summary' aria-label='Live and replay comparison' data-source-summary data-season='{season}'{hidden}>"
+            for source, name in sources:
+                subset = part[part.prediction_source.eq(source)] if len(part) else part
+                r = analysis.model_prediction_summary(subset)
+                ml = analysis.model_prediction_moneyline_summary(subset)
+                record = f"{r['w']}–{r['l']}" if r['n'] else '—'
+                roi = f"{100 * ml['roi']:+.1f}%" if ml else '—'
+                timing = 'Saved five-hour prices' if source == 'live' else 'Reconstructed at closing prices'
+                body += (f"<article><h3>{name}</h3><p>Games 1+ · {season_label}</p>"
+                         f"<p><strong>{record}</strong> W/L · <strong>{roi}</strong> ROI</p>"
+                         f"<p>{r['n']} graded · {r['pending']} pending · {ml['n'] if ml else 0} priced</p><p>{timing}</p></article>")
+            body += '</section>'
+        for source, source_label in sources:
             for season, season_label in season_options:
                 part = d
                 if len(part):
-                    part = part[part.prediction_stage.eq(stage)]
+                    part = part[part.prediction_source.eq(source)]
                     if season != 'all':
                         part = part[part.season.astype(int).eq(int(season))]
-                hidden = '' if (stage, season) == ('established', 'all') else ' hidden'
-                body += f"<section class='source-summary' aria-label='Live and replay comparison' data-source-summary data-stage='{stage}' data-season='{season}'{hidden}>"
-                for source, name in [('live', 'Saved live locks'), ('replay', 'Historical replay')]:
-                    subset = part[part.prediction_source.eq(source)] if len(part) else part
-                    r = analysis.model_prediction_summary(subset)
-                    ml = analysis.model_prediction_moneyline_summary(subset)
-                    record = f"{r['w']}–{r['l']}" if r['n'] else '—'
-                    roi = f"{100 * ml['roi']:+.1f}%" if ml else '—'
-                    timing = 'Saved five-hour prices' if source == 'live' else 'Reconstructed at closing prices'
-                    body += (f"<article><h3>{name}</h3><p>{label} · {season_label}</p>"
-                             f"<p><strong>{record}</strong> W/L · <strong>{roi}</strong> ROI</p>"
-                             f"<p>{r['n']} graded · {r['pending']} pending · {ml['n'] if ml else 0} priced</p><p>{timing}</p></article>")
-                body += '</section>'
-        for stage, label in stages:
-            for source, source_label in sources:
-                for season, season_label in season_options:
-                    part = d
-                    if len(part):
-                        part = part[part.prediction_stage.eq(stage)]
-                        if source != 'all':
-                            part = part[part.prediction_source.eq(source)]
-                        if season != 'all':
-                            part = part[part.season.astype(int).eq(int(season))]
-                    hidden = '' if (stage, source, season) == ('established', 'live', 'all') else ' hidden'
-                    body += (f"<article class='ml-hero' data-ml-panel data-stage='{stage}' data-source='{source}' data-season='{season}'{hidden}>"
-                             f"<h2>{label}</h2><div class='record-label'>{season_label} · {source_label} · v11</div>"
-                             + self.ml_performance_panel(part) + '</article>')
+                hidden = '' if (source, season) == ('live', 'all') else ' hidden'
+                body += (f"<article class='ml-hero' data-ml-panel data-source='{source}' data-season='{season}'{hidden}>"
+                         f"<h2>{source_label}</h2><div class='record-label'>Games 1+ · {season_label} · v11</div>"
+                         + self.ml_performance_panel(part) + '</article>')
         return body + '</section>' + PERFORMANCE_FILTER_JS
 
     def ml_performance_panel(self, part):
@@ -647,9 +645,7 @@ class PublicSite:
         r = analysis.model_prediction_summary(part)
         ml = analysis.model_prediction_moneyline_summary(part)
         if not len(part):
-            return "<div class='public-empty'><h3>No predictions in this view yet</h3><p>Games enter the 10+ record only after both teams have completed 10 games and a valid prediction is available.</p></div>"
-        live_n = int(part.prediction_source.eq('live').sum())
-        replay_n = len(part) - live_n
+            return "<div class='public-empty'><h3>No predictions in this view yet</h3><p>Games enter once both teams have played their opener and a valid five-hour prediction is saved.</p></div>"
         roi = f"{100 * ml['roi']:+.1f}%" if ml else '—'
         units = f"{ml['units']:+.2f}u" if ml else '—'
         record = f"{r['w']}–{r['l']}" if r['n'] else '—'
@@ -659,7 +655,6 @@ class PublicSite:
                 f"<div><small>Winner record</small><strong class='record'>{record}</strong></div>"
                 f"<div><small>Winner accuracy</small><strong>{u.pct(r['accuracy'])}</strong></div></div>")
         facts = [f"{r['n']} graded · {r['pending']} pending",
-                 f"{live_n} saved live locks · {replay_n} historical replays",
                  f"95% Wilson interval: {u.pct(r['low'], 0)}–{u.pct(r['high'], 0)}"]
         if ml:
             error = f"±{u.se_txt(ml['roi_se'])} pp (1 SE)" if np.isfinite(ml['roi_se']) and ml['n'] > 1 else 'not estimable from one pick'
@@ -752,7 +747,7 @@ class PublicSite:
                        "<details><summary>How the matrix works</summary><p>"
                        "Each square stakes 1 unit on the model’s selected team; both WP bands refer to that same team, across all NBA teams. "
                        "Market WP removes the bookmaker’s margin. Below 50% includes model-picked market underdogs. "
-                       "Uses the current stage/source/season filters, then the latest 50 graded priced games per cell; pending and unpriced games are excluded. "
+                       "Uses the current source and season filters (games 1+), then the latest 50 graded priced games per cell; pending and unpriced games are excluded. "
                        "Live uses five-hour lock probabilities and prices; replay uses historical model forecasts and closing prices.</p></details></section>")
 
     def stage(self, hyp, season):
@@ -848,16 +843,16 @@ class PublicSite:
 
     def guide_page(self):
         body = self.head("How it works", "One ML forecast per game. A fixed rule and a visible record.")
-        body += """<div class='guide'><section><h2>The 10+ game ML rule</h2>
-<p>Both teams must have completed at least 10 regular-season games before the slate to enter the main record. Early games (1–9), opening games and games with unavailable stage data remain accessible separately.</p>
+        body += """<div class='guide'><section><h2>The ML record</h2>
+<p>The public record counts every game after each team’s season opener: early-season games and games with both teams at 10+ together. Opening games (each team’s first game) appear on Today as forecasts only. The registered ML rule, frozen on November 10, 2026, counts only games where both teams have completed at least 10 games; it is tracked separately and unchanged. Since November 13, 2026 the public pages show games 1+.</p>
 <p>Pick the team with the higher v11 win probability; at exactly 50%, pick the home team. Track a flat <b>1 unit</b> at its saved DraftKings moneyline, with both prices available. There is no edge, favorite, confidence or price-band filter.</p>
 <p>A live pick freezes at the first valid priced snapshot within 5 hours of tip whose game data include every completed game. Later forecasts and closing prices never replace it. A missing lock or price means no ML return; a forecast without a price still keeps its winner W/L.</p>
 <p>This rule was frozen on November 10, 2026 after reviewing historical results. Future model families need a separate decision. Accuracy is a forecast measure; it does not establish a profitable bet.</p></section>
-<section><h2>Reading ML performance</h2>""" + self.mixed_note() + """
-<p>The default is the <b>saved live games-10+ record across seasons</b>. Live and replay summaries appear side by side. Source and season filters retain the combined record and each source separately. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
+<section><h2>Reading ML performance</h2>""" + self.source_note() + """
+<p>The default is the <b>saved live record across seasons</b>. Live and replay summaries appear side by side and are never added together. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
 <p>Historical replays must carry a v11-family tag and a graded result, and use their saved DraftKings <b>closing</b> prices. They are reconstructed or rebuilt with historical inputs, rather than predictions captured live. Replays do not demonstrate executable five-hour returns. The record never uses another book’s prices.</p>
 <p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark.</p>
-<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the stage, source and season filters, then retains the latest 50 completed priced picks in each cell, ordered by slate date and game ID. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI combines sources within that season and stage and does not change with filters.</p>""" + self.void_note() + """</section>
+<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the source and season filters, then retains the latest 50 completed priced picks in each cell, ordered by slate date and game ID. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI accumulates within each season and source and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates from the current score, time left and spread at tip every 30 seconds while games are in progress. It is display context, is not saved and never changes a pick or record.</p>
@@ -870,7 +865,7 @@ class PublicSite:
 <p>Early games and games 10+ share calibration evidence; opening games remain separate. Each historical game contributes once, oriented to its model’s selected team. Model and market picks can disagree: a model-picked market underdog belongs in a market-WP-below-50% cell. The other side’s implied estimate is the complement; the two sides are not counted as independent results.</p>
 <p>Previous-season replay uses its saved v11 model forecast and DraftKings closing prices. Current native evidence uses saved five-hour model probabilities and prices. These price timings differ, and the available previous-season DraftKings seed contains games 10+ only. The card shows how many retained observations come from each season.</p>
 <p>Model bands: 50–60%, 60–70%, 70–80%, 80–100%. Market bands: below 50%, 50–60%, 60–70%, 70–80%, 80–100%. Boundaries enter the higher band; 100% enters the final band.</p>
-<p>The current forecast and price define the new game’s cell and can update until tip. This display is separate from live win chance and the frozen pick. It does not change the model, tracked selections, grades or separate early/10+ performance records. A predictive or betting advantage has not been established.</p></section>
+<p>The current forecast and price define the new game’s cell and can update until tip. This display is separate from live win chance and the frozen pick. It does not change the model, tracked selections, grades or performance records. A predictive or betting advantage has not been established.</p></section>
 <section><h2>The model</h2>
 <p>The same v11 model predicts a points margin and converts it to a win probability. Inputs include recent shooting, turnovers, rebounding and free-throw rates for and against; home court, back-to-backs and season phase; roster value and the NBA injury report. Last season’s team rating fades out over the first 10 games. Market prices are benchmarks, never model inputs.</p>""" + self.model_note() + """</section>
 """

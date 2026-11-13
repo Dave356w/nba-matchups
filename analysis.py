@@ -312,7 +312,20 @@ def moneyline_model_predictions(native, replay=None):
     return pd.concat([live, g], ignore_index=True)
 
 
-def model_prediction_moneyline(predictions):
+# Public games 1+ record (owner approval, 2026-11-13): early and established
+# predictions together; openers and unknown stages stay out. The frozen 10+
+# ML rule and every internal record keep their own stages.
+PUBLIC_STAGES = ("early", "established")
+
+
+def public_predictions(predictions):
+    """The public pages' games 1+ rows of moneyline_model_predictions."""
+    if predictions is None or not len(predictions):
+        return predictions
+    return predictions[predictions["prediction_stage"].isin(PUBLIC_STAGES)]
+
+
+def model_prediction_moneyline(predictions, by="stage"):
     """`predictions` (model_predictions) with a flat 1-unit moneyline return
     on each winner pick. Live uses its frozen DraftKings lock price; the
     owner-approved mixed record also accepts identified v11 replays at the
@@ -322,8 +335,10 @@ def model_prediction_moneyline(predictions):
     nonzero prices). ml_units: +profit / -1 once graded. ml_units_null: the
     return expected if the lock's no-vig probability is right. ml_run_*: the
     graded, priced picks to date within the same season x stage in tip
-    order (n, units, ROI = units / n); never pooled across either. A pick
-    without a price keeps its W/L and has no return.
+    order (n, units, ROI = units / n); never pooled across either. With
+    by="source" (the public games 1+ record) the running figures are per
+    season x source instead. A pick without a price keeps its W/L and has
+    no return.
     """
     d = predictions.copy() if predictions is not None else pd.DataFrame()
     for c in PREDICTION_ML_COLUMNS:
@@ -347,7 +362,8 @@ def model_prediction_moneyline(predictions):
     ok = done & q.between(0, 1, inclusive='neither')
     d.loc[ok, 'ml_units_null'] = q[ok] * [market.decimal_payout(m) for m in d.loc[ok, 'ml']] - 1
     order = d[done].sort_values(['tip_utc', 'game_id'])
-    for _, part in order.groupby([order['season'].astype(int), order['prediction_stage']], sort=False):
+    key = order['prediction_source'] if by == "source" else order['prediction_stage']
+    for _, part in order.groupby([order['season'].astype(int), key], sort=False):
         units = part['ml_units'].cumsum()
         n = np.arange(1, len(part) + 1)
         d.loc[part.index, 'ml_run_n'] = n

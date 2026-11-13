@@ -5,7 +5,7 @@ desktop: How it works · navigation, overflow and screenshot passed
 desktop: DFS lineups · the browser optimizer ran on the live slate (10 lineups)
 desktop: DFS · navigation, overflow and screenshot passed
 desktop: matchup context · season W/L, prior-slate four factors and timestamped player injuries passed
-desktop: ML focus · 10+ default, separate early record, W/L, matched scores, source/outcome/stage filters, empty states and exclusion of betting tests passed
+desktop: ML record · games 1+ together, live default, live/replay only, W/L, matched scores, source/outcome filters, empty states and exclusion of betting tests passed
 desktop: labelled fixture · ML outcomes, filters, details, theme and return chart passed
 desktop: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show median examples from 5,000 independent evaluation slates; New draws reseeds; the min player salary leaves out cheaper players except a locked one
 mobile: Today · navigation, overflow and screenshot passed
@@ -15,7 +15,7 @@ mobile: How it works · navigation, overflow and screenshot passed
 mobile: DFS lineups · the browser optimizer ran on the live slate (10 lineups)
 mobile: DFS · navigation, overflow and screenshot passed
 mobile: matchup context · season W/L, prior-slate four factors and timestamped player injuries passed
-mobile: ML focus · 10+ default, separate early record, W/L, matched scores, source/outcome/stage filters, empty states and exclusion of betting tests passed
+mobile: ML record · games 1+ together, live default, live/replay only, W/L, matched scores, source/outcome filters, empty states and exclusion of betting tests passed
 mobile: labelled fixture · ML outcomes, filters, details, theme and return chart passed
 mobile: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show median examples from 5,000 independent evaluation slates; New draws reseeds; the min player salary leaves out cheaper players except a locked one
 Live-score overlay updated status, scores and actual forecast outcome without changing the frozen ML selection
