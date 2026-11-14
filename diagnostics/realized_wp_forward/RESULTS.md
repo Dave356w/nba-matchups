@@ -12,17 +12,17 @@ Saved distinct pre-tip captures: 207.
 
 ## realized_wp_rolling200_bandadj_v3
 
-Official games: 5; graded: 0; pending: 5.
+Official games: 5; graded: 5; pending: 0.
 
 ### pooled
 
 | Estimator | Brier | Log loss | Winner accuracy | Bets | Net units | ROI |
 | --- | --- | --- | --- | --- | --- | --- |
-| model | — | — | — | 0 | 0.0000 | — |
-| market | — | — | — | 0 | 0.0000 | — |
-| realized | — | — | — | 0 | 0.0000 | — |
+| model | 0.2598 | 0.7101 | 0.4000 | 5 | 3.5973 | 0.7195 |
+| market | 0.2937 | 0.7916 | 0.6000 | 0 | 0.0000 | — |
+| realized | 0.3148 | 0.8319 | 0.4000 | 2 | -2.0000 | -1.0000 |
 
-Same-game market favorite: {"bets":0,"net_units":0,"roi":null}
+Same-game market favorite: {"bets":5,"net_units":-0.38881075167995005,"roi":-0.07776215033599002}
 
 ### opener
 
@@ -48,11 +48,11 @@ Same-game market favorite: {"bets":0,"net_units":0,"roi":null}
 
 | Estimator | Brier | Log loss | Winner accuracy | Bets | Net units | ROI |
 | --- | --- | --- | --- | --- | --- | --- |
-| model | — | — | — | 0 | 0.0000 | — |
-| market | — | — | — | 0 | 0.0000 | — |
-| realized | — | — | — | 0 | 0.0000 | — |
+| model | 0.2598 | 0.7101 | 0.4000 | 5 | 3.5973 | 0.7195 |
+| market | 0.2937 | 0.7916 | 0.6000 | 0 | 0.0000 | — |
+| realized | 0.3148 | 0.8319 | 0.4000 | 2 | -2.0000 | -1.0000 |
 
-Same-game market favorite: {"bets":0,"net_units":0,"roi":null}
+Same-game market favorite: {"bets":5,"net_units":-0.38881075167995005,"roi":-0.07776215033599002}
 
 ## realized_wp_rolling50_bandadj_v2
 
@@ -144,17 +144,17 @@ Same-game market favorite: {"bets":4,"net_units":1.4837925886344416,"roi":0.3709
 
 ## realized_wp_shrunk200_drift_v4
 
-Official games: 9; graded: 0; pending: 9.
+Official games: 9; graded: 9; pending: 0.
 
 ### pooled
 
 | Estimator | Brier | Log loss | Winner accuracy | Bets | Net units | ROI |
 | --- | --- | --- | --- | --- | --- | --- |
-| model | — | — | — | 0 | 0.0000 | — |
-| market | — | — | — | 0 | 0.0000 | — |
-| realized | — | — | — | 0 | 0.0000 | — |
+| model | 0.2054 | 0.5899 | 0.5556 | 9 | 2.9073 | 0.3230 |
+| market | 0.2284 | 0.6366 | 0.6667 | 0 | 0.0000 | — |
+| realized | 0.2480 | 0.6762 | 0.5556 | 9 | -2.6819 | -0.2980 |
 
-Same-game market favorite: {"bets":0,"net_units":0,"roi":null}
+Same-game market favorite: {"bets":9,"net_units":-0.9411360439495884,"roi":-0.10457067154995427}
 
 ### opener
 
@@ -180,9 +180,9 @@ Same-game market favorite: {"bets":0,"net_units":0,"roi":null}
 
 | Estimator | Brier | Log loss | Winner accuracy | Bets | Net units | ROI |
 | --- | --- | --- | --- | --- | --- | --- |
-| model | — | — | — | 0 | 0.0000 | — |
-| market | — | — | — | 0 | 0.0000 | — |
-| realized | — | — | — | 0 | 0.0000 | — |
+| model | 0.2054 | 0.5899 | 0.5556 | 9 | 2.9073 | 0.3230 |
+| market | 0.2284 | 0.6366 | 0.6667 | 0 | 0.0000 | — |
+| realized | 0.2480 | 0.6762 | 0.5556 | 9 | -2.6819 | -0.2980 |
 
-Same-game market favorite: {"bets":0,"net_units":0,"roi":null}
+Same-game market favorite: {"bets":9,"net_units":-0.9411360439495884,"roi":-0.10457067154995427}
 
