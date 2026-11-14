@@ -8,7 +8,7 @@ Flat 1u only at positive expected return; either side; at most one position per 
 All probability scores use the same official graded games, including abstentions. Saved prices are paper quotes.
 Build-time saves do not prove publication, viewing or executable prices. Public records and picks are unchanged.
 
-Saved distinct pre-tip captures: 201.
+Saved distinct pre-tip captures: 204.
 
 ## realized_wp_rolling200_bandadj_v3
 
