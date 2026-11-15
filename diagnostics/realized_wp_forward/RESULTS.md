@@ -144,17 +144,17 @@ Same-game market favorite: {"bets":4,"net_units":1.4837925886344416,"roi":0.3709
 
 ## realized_wp_shrunk200_drift_v4
 
-Official games: 14; graded: 9; pending: 5.
+Official games: 14; graded: 14; pending: 0.
 
 ### pooled
 
 | Estimator | Brier | Log loss | Winner accuracy | Bets | Net units | ROI |
 | --- | --- | --- | --- | --- | --- | --- |
-| model | 0.2054 | 0.5899 | 0.5556 | 9 | 2.9073 | 0.3230 |
-| market | 0.2284 | 0.6366 | 0.6667 | 0 | 0.0000 | — |
-| realized | 0.2480 | 0.6762 | 0.5556 | 9 | -2.6819 | -0.2980 |
+| model | 0.2504 | 0.7061 | 0.5000 | 14 | 10.2670 | 0.7334 |
+| market | 0.2753 | 0.7577 | 0.5714 | 0 | 0.0000 | — |
+| realized | 0.2987 | 0.8302 | 0.5000 | 14 | -4.7130 | -0.3366 |
 
-Same-game market favorite: {"bets":9,"net_units":-0.9411360439495884,"roi":-0.10457067154995427}
+Same-game market favorite: {"bets":14,"net_units":-2.972210181458764,"roi":-0.21230072724705457}
 
 ### opener
 
@@ -180,9 +180,9 @@ Same-game market favorite: {"bets":0,"net_units":0,"roi":null}
 
 | Estimator | Brier | Log loss | Winner accuracy | Bets | Net units | ROI |
 | --- | --- | --- | --- | --- | --- | --- |
-| model | 0.2054 | 0.5899 | 0.5556 | 9 | 2.9073 | 0.3230 |
-| market | 0.2284 | 0.6366 | 0.6667 | 0 | 0.0000 | — |
-| realized | 0.2480 | 0.6762 | 0.5556 | 9 | -2.6819 | -0.2980 |
+| model | 0.2504 | 0.7061 | 0.5000 | 14 | 10.2670 | 0.7334 |
+| market | 0.2753 | 0.7577 | 0.5714 | 0 | 0.0000 | — |
+| realized | 0.2987 | 0.8302 | 0.5000 | 14 | -4.7130 | -0.3366 |
 
-Same-game market favorite: {"bets":9,"net_units":-0.9411360439495884,"roi":-0.10457067154995427}
+Same-game market favorite: {"bets":14,"net_units":-2.972210181458764,"roi":-0.21230072724705457}
 
