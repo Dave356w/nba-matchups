@@ -6,7 +6,7 @@
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z",
     "realized_wp_shrunk200_drift_v4": "2026-11-13T20:03:04Z"
   },
-  "captures": 267,
+  "captures": 276,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
@@ -454,9 +454,9 @@
     },
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
-        "official_games": 15,
+        "official_games": 16,
         "graded_games": 14,
-        "pending_games": 1,
+        "pending_games": 2,
         "estimators": {
           "model": {
             "brier": 0.2503777414,
@@ -563,9 +563,9 @@
           }
         },
         "established": {
-          "official_games": 15,
+          "official_games": 16,
           "graded_games": 14,
-          "pending_games": 1,
+          "pending_games": 2,
           "estimators": {
             "model": {
               "brier": 0.2503777414,
@@ -1466,6 +1466,37 @@
           "side": "home",
           "price": -270.0,
           "expected_net_return": 0.02095481068136107,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "7d1f4ba3a746861799b029325a4139e995c128646c6999363b09fba0b893c18f",
+      "version": "realized_wp_shrunk200_drift_v4",
+      "game_id": "401909986",
+      "captured_utc": "2026-11-15T16:03:14.254525+00:00",
+      "tip_utc": "2026-11-15T21:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.37728,
+          "side": "away",
+          "price": -148.0,
+          "expected_net_return": 0.04347675675675666,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.42794036443953615,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.4008760731289376,
+          "side": "away",
+          "price": -148.0,
+          "expected_net_return": 0.003937390973131505,
           "net_units": null
         }
       }
