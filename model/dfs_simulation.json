@@ -1,46 +1,46 @@
 {
   "version": "dfs_sim_v2",
   "accepted": true,
-  "as_of": "2026-11-14",
+  "as_of": "2026-11-15",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
-    "high:bench": 1.152715043474053,
-    "high:starter": 1.0839254683887023,
-    "low:bench": 3.3759140750229415,
-    "mid:bench": 1.5206922936156866,
-    "mid:starter": 1.2158263719721025
+    "high:bench": 1.1671907278847502,
+    "high:starter": 1.0891123325145946,
+    "low:bench": 3.3637842508086857,
+    "mid:bench": 1.5508951952175523,
+    "mid:starter": 1.1989344333700398
   },
-  "trained_through": "2026-11-11",
-  "validation_from": "2026-11-12",
-  "validated_through": "2026-11-13",
-  "train_rows": 3268,
-  "test_rows": 278,
-  "train_dates": 20,
+  "trained_through": "2026-11-12",
+  "validation_from": "2026-11-13",
+  "validated_through": "2026-11-14",
+  "train_rows": 3349,
+  "test_rows": 296,
+  "train_dates": 21,
   "test_dates": 2,
   "factors": {
     "team": 0.0,
-    "starter": 0.0036679857128515386,
-    "game_star": 0.03898647681443509,
-    "star_split": 0.027081699736925764,
+    "starter": 0.003550199264454675,
+    "game_star": 0.04656016572636928,
+    "star_split": 0.02680321550241256,
     "center_pair": 0.0
   },
   "holdout": {
-    "n": 278,
-    "bias": -0.5370755395683452,
-    "rmse": 10.179346009967805,
-    "variance_loss": 5.635806632673374,
-    "p90_coverage": 0.8884892086330936
+    "n": 296,
+    "bias": -0.6014256756756755,
+    "rmse": 9.839710920550461,
+    "variance_loss": 5.641411770316825,
+    "p90_coverage": 0.8851351351351351
   },
   "baseline": {
-    "n": 278,
-    "bias": -0.5370755395683452,
-    "rmse": 10.179346009967805,
-    "variance_loss": 5.946747004962173,
-    "p90_coverage": 0.8489208633093526
+    "n": 296,
+    "bias": -0.6014256756756755,
+    "rmse": 9.839710920550461,
+    "variance_loss": 6.232850731214134,
+    "p90_coverage": 0.8412162162162162
   },
-  "coverage_date_se": 0.008428902675941595,
+  "coverage_date_se": 0.012357073270778838,
   "reason": "passed chronological variance-loss and p90 coverage checks",
-  "projected_rows": 3601,
-  "matched_rows": 3546,
-  "matched_games": 169
+  "projected_rows": 3702,
+  "matched_rows": 3645,
+  "matched_games": 174
 }
