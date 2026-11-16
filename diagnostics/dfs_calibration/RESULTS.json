@@ -1,49 +1,49 @@
 {
   "version": "dfs_sim_v2",
   "accepted": true,
-  "as_of": "2026-11-15",
+  "as_of": "2026-11-16",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
-    "high:bench": 1.1671907278847502,
-    "high:starter": 1.0891123325145946,
-    "low:bench": 3.3637842508086857,
-    "mid:bench": 1.5508951952175523,
-    "mid:starter": 1.1989344333700398
+    "high:bench": 1.158654146828928,
+    "high:starter": 1.0888003305947864,
+    "low:bench": 3.3203794160797764,
+    "mid:bench": 1.55537487867573,
+    "mid:starter": 1.2081409986087122
   },
-  "trained_through": "2026-11-12",
-  "validation_from": "2026-11-13",
-  "validated_through": "2026-11-14",
-  "train_rows": 3349,
-  "test_rows": 296,
-  "train_dates": 21,
+  "trained_through": "2026-11-13",
+  "validation_from": "2026-11-14",
+  "validated_through": "2026-11-15",
+  "train_rows": 3546,
+  "test_rows": 292,
+  "train_dates": 22,
   "test_dates": 2,
   "factors": {
     "team": 0.0,
-    "starter": 0.003550199264454675,
-    "game_star": 0.04656016572636928,
-    "star_split": 0.02680321550241256,
+    "starter": 0.004706088806054424,
+    "game_star": 0.044681968336156654,
+    "star_split": 0.0079937528458668,
     "center_pair": 0.0
   },
   "holdout": {
-    "n": 296,
-    "bias": -0.6014256756756755,
-    "rmse": 9.839710920550461,
-    "variance_loss": 5.641411770316825,
-    "p90_coverage": 0.8851351351351351
+    "n": 292,
+    "bias": -0.35828424657534236,
+    "rmse": 9.944115997027025,
+    "variance_loss": 5.820850801150871,
+    "p90_coverage": 0.8732876712328768
   },
   "baseline": {
-    "n": 296,
-    "bias": -0.6014256756756755,
-    "rmse": 9.839710920550461,
-    "variance_loss": 6.232850731214134,
-    "p90_coverage": 0.8412162162162162
+    "n": 292,
+    "bias": -0.35828424657534236,
+    "rmse": 9.944115997027025,
+    "variance_loss": 6.748361129449231,
+    "p90_coverage": 0.8527397260273972
   },
-  "coverage_date_se": 0.012357073270778838,
+  "coverage_date_se": 0.0034803998534568277,
   "reason": "passed chronological variance-loss and p90 coverage checks",
-  "projected_rows": 3702,
-  "matched_rows": 3645,
-  "matched_games": 174,
+  "projected_rows": 3896,
+  "matched_rows": 3838,
+  "matched_games": 183,
   "model_updated": true,
-  "active_model_as_of": "2026-11-15",
-  "active_model_status": "native holdout checked \u00b7 early sample \u00b7 296 player-games / 2 dates"
+  "active_model_as_of": "2026-11-16",
+  "active_model_status": "native holdout checked \u00b7 early sample \u00b7 292 player-games / 2 dates"
 }
