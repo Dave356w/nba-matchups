@@ -65,7 +65,7 @@ OUT_STATUSES = ("out", "ir")
 SIM = {"version": "dfs_sim_v2", "sd_base": 7.48, "sd_slope": 0.102,
        "team": 0.012, "starter": 0.068, "game_star": 0.038,
        "star_split": 0.09, "center_pair": -0.04, "seed": 356,
-       "evaluation_sims": 5000, "bins": {}, "calibration_status": "provisional"}
+       "evaluation_sims": 5000, "bins": {}, "play": {}, "calibration_status": "provisional"}
 STARTERS, STARS = 5, 2   # per team: by Sleeper minutes, by projection
 
 
@@ -92,6 +92,13 @@ def simulation_model(today, path="model/dfs_simulation.json"):
         if not isinstance(bins, dict) or any(
                 not np.isfinite(v) or not 0.25 <= v <= 4 for v in bins.values()):
             return out
+        play = fit.get("play", {})
+        if not isinstance(play, dict) or any(
+                not isinstance(v, dict) or not k.startswith("low:")
+                or not (np.isfinite(v["p"]) and .2 <= v["p"] <= 1)
+                or not (np.isfinite(v["c"]) and .25 <= v["c"] <= 10)
+                for k, v in play.items()):
+            return out
         factors = fit["factors"]
         if (any(not np.isfinite(factors[k]) or not 0 <= factors[k] <= .2
                 for k in ("team", "starter", "game_star", "star_split"))
@@ -102,7 +109,8 @@ def simulation_model(today, path="model/dfs_simulation.json"):
                 + max(0, pair-factors["center_pair"]) > 1):
             return out
         out.update(factors)
-        out.update(bins=bins, calibration_status=("native holdout checked · early sample · "
+        out.update(bins=bins, play={k: dict(p=float(v["p"]), c=float(v["c"])) for k, v in play.items()},
+                   calibration_status=("native holdout checked · early sample · "
                    f"{fit.get('test_rows', 0)} player-games / {fit.get('test_dates', 0)} dates"),
                    trained_through=fit["trained_through"],
                    validated_through=fit["validated_through"])
@@ -462,11 +470,15 @@ def guide():
         "not a fitted bench-player error distribution. Gaussian factors provide shared team, "
         "starter and star dependence; correlations of the transformed scores differ from those "
         "latent factors. Starter means the five highest projected minutes, not a confirmed lineup. "
-        "No explicit DNP, injury-availability, overtime or game-script process is simulated; "
-        "positive marginals also omit negative fantasy scores.</p>"
+        "Overtime and game script are not simulated, and scores are never negative. "
+        "Under a native fit, low-minute players (under 12 projected minutes) score 0 with a "
+        "fitted probability (did not play or scored nothing) and otherwise draw a lognormal "
+        "with its own fitted spread, the two together keeping the projection as the mean; "
+        "other players have no separate did-not-play outcome.</p>"
         "<p>A native calibration fit uses only timestamped pregame Sleeper projections and final "
-        "ESPN player results, including listed DNPs. It fits error variance by projected-minute "
-        "band and starter role and estimates dependence from projection errors. Earlier dates "
+        "ESPN player results, including listed DNPs; a projected player missing from their "
+        "team's final box (ESPN omits inactive players) counts as 0. It fits error variance by projected-minute "
+        "band and starter role, the low-minute play rate and spread when playing, and estimates dependence from projection errors. Earlier dates "
         "train the fit; later dates check variance loss and p90 coverage before activation. The "
         "untimed historical projection archive is excluded. Daily morning builds refit DFS "
         "uncertainty after the prior slate is graded. Rejected candidates retain the last "
@@ -573,9 +585,30 @@ function teamsOk(ids,team,minTeams,maxPer){var c={};ids.forEach(function(i){var 
 function rng(seed){var a=seed>>>0;return function(){a=(a+0x6D2B79F5)>>>0;var t=a;t=Math.imul(t^(t>>>15),t|1);
  t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};}
 function gauss(r){var u=0,v=0;while(u===0)u=r();while(v===0)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
-function simSd(p,M){var minutes=p.min===null||p.min===undefined?30:Math.max(0,p.min),
- key=(minutes<12?'low':minutes<24?'mid':'high')+':'+(p.starter?'starter':'bench');
- return (M.sd_base+M.sd_slope*p.v)*Math.sqrt(Math.min(1,minutes/30)*(M.bins&&M.bins[key]||1));}
+// Normal CDF (Abramowitz-Stegun 7.1.26 erf, |err| < 1.5e-7) and its inverse
+// (Acklam, refined by one Halley step).
+function ncdf(x){var s=x<0?-1:1,a=Math.abs(x)/Math.SQRT2,t=1/(1+.3275911*a),
+ y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-a*a);return .5*(1+s*y);}
+function nppf(p){if(p<=0)return -Infinity;if(p>=1)return Infinity;
+ var a=[-39.69683028665376,220.9460984245205,-275.9285104469687,138.357751867269,-30.66479806614716,2.506628277459239],
+ b=[-54.47609879822406,161.5858368580409,-155.6989798598866,66.80131188771972,-13.28068155288572],
+ c=[-.007784894002430293,-.3223964580411365,-2.400758277161838,-2.549732539343734,4.374664141464968,2.938163982698783],
+ d=[.007784695709041462,.3224671290700398,2.445134137142996,3.754408661907416],q,r,x;
+ if(p<.02425){q=Math.sqrt(-2*Math.log(p));x=(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+ else if(p>1-.02425){q=Math.sqrt(-2*Math.log(1-p));x=-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+ else{q=p-.5;r=q*q;x=(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+ var e=ncdf(x)-p,u=e*Math.sqrt(2*Math.PI)*Math.exp(x*x/2);return x-u/(1+x*u/2);}
+// Marginal for one player: plain lognormal (p=1) or, in fitted low-minute
+// bins, a play/no-play mixture: 0 with probability 1-p, else lognormal with
+// mean v/p and variance c*base. Both keep E[score] = projection.
+function marg(p,M){var minutes=p.min===null||p.min===undefined?30:Math.max(0,p.min),
+ key=(minutes<12?'low':minutes<24?'mid':'high')+':'+(p.starter?'starter':'bench'),
+ base=Math.pow(M.sd_base+M.sd_slope*p.v,2)*Math.min(1,minutes/30),pl=M.play&&M.play[key];
+ if(pl&&p.v>0&&pl.p<1){var mu=p.v/pl.p,cv=pl.c*base;
+  return {p:pl.p,mu:mu,tau:Math.sqrt(Math.log1p(cv/(mu*mu))),sd:Math.sqrt(Math.max(0,pl.p*(cv+mu*mu)-p.v*p.v))};}
+ var sd=Math.sqrt(base*(M.bins&&M.bins[key]||1));
+ return {p:1,mu:p.v,tau:p.v>0?Math.sqrt(Math.log1p(Math.pow(sd/p.v,2))):0,sd:sd};}
+function simSd(p,M){return marg(p,M).sd;}
 function draw(P,M,r){var f={},out=new Float64Array(P.length);function F(k){if(!(k in f))f[k]=gauss(r);return f[k];}
  for(var i=0;i<P.length;i++){var p=P[i],w=M.team,z=Math.sqrt(M.team)*F('T'+p.team);
   if(p.starter){z+=Math.sqrt(M.starter)*F('U'+p.team);w+=M.starter;}
@@ -583,11 +616,13 @@ function draw(P,M,r){var f={},out=new Float64Array(P.length);function F(k){if(!(
   if(p.big){z+=(p.big===1?1:-1)*Math.sqrt(p.big_split)*F('R'+p.team);w+=p.big_split;}
   if(w>1+1e-9)throw new Error('Simulation factor variance exceeds one');
   z+=Math.sqrt(Math.max(0,1-w))*gauss(r);
-  // Lognormal marginals: E[score] = projection and SD = simSd, including
-  // low-minute bench players. Zero stays exactly zero. Factors describe
-  // latent Gaussian dependence; nonlinear score correlations differ.
-  var sd=simSd(p,M),tau=p.v>0?Math.sqrt(Math.log1p(Math.pow(sd/p.v,2))):0;
-  out[i]=p.v>0?p.v*Math.exp(tau*z-.5*tau*tau):0;}
+  // Lognormal (or low-minute play/no-play) marginals: E[score] = projection
+  // and SD = simSd. Zero stays exactly zero. Factors describe latent
+  // Gaussian dependence; nonlinear score correlations differ.
+  var g=marg(p,M),tau=g.tau;
+  if(p.v<=0)out[i]=0;
+  else if(g.p<1){var u=ncdf(z);out[i]=u<1-g.p?0:g.mu*Math.exp(tau*nppf((u-(1-g.p))/g.p)-.5*tau*tau);}
+  else out[i]=p.v*Math.exp(tau*z-.5*tau*tau);}
  return out;}
 // S simulated slates, each solved exactly (ok(ids): the team rules). Returns
 // the distinct winning lineups and every draw, so any lineup can be scored
@@ -626,7 +661,7 @@ function portfolio(P,N,share,lock,make){for(var n=N;n>=1;n--){var caps={};P.forE
  var R=make(n,caps),counts={};R.L.forEach(function(l){l.ids.forEach(function(id){counts[id]=(counts[id]||0)+1;});});
  if(R.L.length===n&&Object.keys(counts).every(function(id){return lock[id]||counts[id]<=caps[id];})){R.cnt=counts;R.cap=caps;R.target=n;return R;}}
  return {L:[],cnt:{},cap:{},target:0};}
-return {solve:solve,kbest:kbest,teamsOk:teamsOk,rng:rng,draw:draw,simSd:simSd,evaluations:evaluations,simulate:simulate,rank:rank,portfolio:portfolio};
+return {solve:solve,kbest:kbest,teamsOk:teamsOk,rng:rng,draw:draw,simSd:simSd,marg:marg,ncdf:ncdf,nppf:nppf,evaluations:evaluations,simulate:simulate,rank:rank,portfolio:portfolio};
 })();
 """
 

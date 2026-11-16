@@ -2,7 +2,9 @@
 
 python research/dfs_calibration.py --as-of YYYY-MM-DD
 
-Only final native games strictly before --as-of are read. The last two
+Only final native games strictly before --as-of are read. A projected
+player absent from their team's final box (ESPN omits inactive players)
+scores 0; low-minute bins get a play/no-play mixture. The last two
 slate dates are a chronological holdout and never enter the fit. Untimed
 Sleeper archives and reconstructed/rebuilt forecasts are not inputs.
 Promotes accepted fits and records every completed candidate in diagnostics.
@@ -16,6 +18,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
+from statistics import NormalDist
 from pathlib import Path
 import sys
 import tempfile
@@ -30,6 +33,11 @@ import dfs  # noqa: E402
 import ledger  # noqa: E402
 import market  # noqa: E402
 
+# Low-minute bins get a play/no-play mixture (fixed before the fit, from the
+# 2026-11-16 sanity check: ~37% of low:bench player-games score <= 0).
+PLAY_PREFIX = "low:"
+PLAY_MIN_ROWS = 100      # played training rows needed before a bin gets one
+PHI = NormalDist()
 SCORE_KEYS = {"pts": "points", "reb": "rebounds", "ast": "assists",
               "stl": "steals", "blk": "blocks", "to": "turnovers"}
 
@@ -108,7 +116,42 @@ def fit_bins(train):
             for key, g in train.groupby("bin")}
 
 
-def fit_factors(train, bins):
+def fit_play(train):
+    """Play/no-play mixture for low-minute bins.
+
+    p = share of training player-games scoring > 0 (DNPs, inactive players
+    and non-positive lines are the zero mass); c = the played games' squared
+    error around projection / p, relative to base_var. The mean stays the
+    projection: p × projection / p. Bins with fewer than PLAY_MIN_ROWS
+    played rows keep the plain lognormal.
+    """
+    out = {}
+    for key, g in train.groupby("bin"):
+        played = g[g["actual"] > 0]
+        if not key.startswith(PLAY_PREFIX) or len(played) < PLAY_MIN_ROWS:
+            continue
+        p = float(np.clip(len(played) / len(g), .2, 1))
+        c = (played["actual"] - played["projection"] / p).pow(2).sum() / played["base_var"].sum()
+        out[key] = dict(p=p, c=float(np.clip(c, .25, 10)))
+    return out
+
+
+def _mixture(frame, bins, play):
+    """Per-row (p, mu, tau, total variance); p = 1 rows are the plain lognormal."""
+    m, base = frame["projection"].to_numpy(float), frame["base_var"].to_numpy(float)
+    keys = frame["bin"].to_numpy()
+    var = base * np.array([bins.get(k, 1) for k in keys])
+    p = np.array([play[k]["p"] if k in play else 1. for k in keys])
+    c = np.array([play[k]["c"] if k in play else np.nan for k in keys])
+    mix = p < 1
+    mu = m / p
+    cond = np.where(mix, c * base, var)
+    tau = np.sqrt(np.log1p(cond / mu ** 2))
+    total = np.where(mix, p * (cond + mu ** 2) - m ** 2, var)
+    return p, mu, tau, total
+
+
+def fit_factors(train, bins, play=None):
     """Conservative latent dependence estimated from *projection errors*.
 
     Gaussianize the lognormal residuals, winsorize DNP/negative tails, then
@@ -116,9 +159,19 @@ def fit_factors(train, bins):
     hundreds of within-game pairs as independent games. Shrink to zero.
     """
     t = train.copy()
-    var = t["base_var"] * t["bin"].map(bins).fillna(1)
-    tau = np.sqrt(np.log1p(var / t["projection"].pow(2)))
-    t["z"] = ((np.log(t["actual"].clip(lower=.01) / t["projection"]) + tau ** 2 / 2) / tau).clip(-3, 3)
+    p, mu, tau, _ = _mixture(t, bins, play or {})
+    actual = t["actual"].to_numpy(float)
+    z = (np.log(np.clip(actual, .01, None) / mu) + tau ** 2 / 2) / tau
+    # Mixture rows: the browser draws 0 when Phi(z) < 1 - p, else the
+    # conditional lognormal at (Phi(z) - (1 - p)) / p. Invert that map, a zero
+    # at the middle of its mass.
+    mix = p < 1
+    if mix.any():
+        u = np.where(actual[mix] > 0,
+                     (1 - p[mix]) + p[mix] * np.vectorize(PHI.cdf)(z[mix]),
+                     (1 - p[mix]) / 2)
+        z[mix] = np.vectorize(PHI.inv_cdf)(np.clip(u, 1e-6, 1 - 1e-6))
+    t["z"] = np.clip(z, -3, 3)
     t["z"] = t.groupby("bin")["z"].transform(lambda x: (x-x.mean()) / max(x.std(), .01))
     pairs = {k: [] for k in ("team", "starter", "own_star", "game_star", "center")}
     for _, g in t.groupby("game_id"):
@@ -149,10 +202,11 @@ def fit_factors(train, bins):
                 star_split=float(split), center_pair=0.0)
 
 
-def metrics(test, bins):
-    var = test["base_var"] * test["bin"].map(bins).fillna(1)
-    tau = np.sqrt(np.log1p(var / test["projection"].pow(2)))
-    p90 = test["projection"] * np.exp(1.281551565545 * tau - tau ** 2 / 2)
+def metrics(test, bins, play=None):
+    p, mu, tau, var = _mixture(test, bins, play or {})
+    u = np.clip((.9 - (1 - p)) / p, 0, None)
+    zq = np.array([PHI.inv_cdf(x) if x > 0 else -np.inf for x in u])
+    p90 = mu * np.exp(zq * tau - tau ** 2 / 2)
     return dict(n=len(test), bias=float(test["error"].mean()),
                 rmse=float(np.sqrt(test["error"].pow(2).mean())),
                 variance_loss=float((test["error"].pow(2)/var+np.log(var)).mean()),
@@ -173,16 +227,16 @@ def calibrate(frame, as_of):
     if len(train) < 500 or len(test) < 200 or train["date"].nunique() < 5 or len(hold) < 2:
         fit["reason"] = "insufficient native history: need 500 training rows / 5 dates and 200 holdout rows / 2 dates"
         return fit
-    bins = fit_bins(train)
-    candidate, baseline = metrics(test, bins), metrics(test, {})
+    bins, play = fit_bins(train), fit_play(train)
+    candidate, baseline = metrics(test, bins, play), metrics(test, {})
     # Resampling whole slate dates, not player rows, respects same-game and
     # same-slate dependence. Two dates are a check, not evidence of maturity.
-    coverage = [metrics(g, bins)["p90_coverage"] for _, g in test.groupby("date")]
+    coverage = [metrics(g, bins, play)["p90_coverage"] for _, g in test.groupby("date")]
     coverage_se = float(np.std(coverage, ddof=1)/np.sqrt(len(coverage)))
     tolerance = max(.03, 3*coverage_se)
     accepted = (candidate["variance_loss"] <= baseline["variance_loss"]
                 and abs(candidate["p90_coverage"]-.9) <= tolerance)
-    fit.update(accepted=bool(accepted), bins=bins, factors=fit_factors(train, bins),
+    fit.update(accepted=bool(accepted), bins=bins, play=play, factors=fit_factors(train, bins, play),
                holdout=candidate, baseline=baseline, coverage_date_se=coverage_se,
                reason="passed chronological variance-loss and p90 coverage checks" if accepted
                else "holdout gate failed; candidate will not be activated")
@@ -269,9 +323,18 @@ def collect_fit(sleeper, native, as_of, cache, fetch=fetch_final):
     actuals = pd.DataFrame(rows, columns=["game_id", "team", "key", "actual"])
     actuals = actuals.drop_duplicates(["game_id", "team", "key"])
     s["game_id"] = s["game_id"].astype(str)
-    frame = s.merge(actuals, on=["game_id", "team", "key"], how="inner")
+    frame = s.merge(actuals, on=["game_id", "team", "key"], how="left")
+    # ESPN's final box omits inactive players. A projected player missing from
+    # their team's final box did not play: score 0. Without that team's box the
+    # row stays unmatched and counts against the matching gate.
+    boxed = set(zip(actuals["game_id"], actuals["team"]))
+    absent = frame["actual"].isna() & pd.Series(
+        [k in boxed for k in zip(frame["game_id"], frame["team"])], index=frame.index)
+    frame.loc[absent, "actual"] = 0.0
+    frame = frame[frame["actual"].notna()]
     fit = calibrate(frame, as_of)
-    fit.update(projected_rows=len(s), matched_rows=len(frame), matched_games=int(frame["game_id"].nunique()))
+    fit.update(projected_rows=len(s), matched_rows=len(frame), absent_zero_rows=int(absent.sum()),
+               matched_games=int(frame["game_id"].nunique()))
     if len(frame) < .95*len(s):
         fit.update(accepted=False, reason="fewer than 95% of positive pregame projections matched final boxes")
     return fit
