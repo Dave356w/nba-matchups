@@ -163,3 +163,76 @@ def test_page_labels_fixed_candidate_comparison_and_uncertainty():
     assert "pp (1 SE)" in dfs.UI_JS
     assert "not a contest finish" in dfs.guide()
     assert "Gaussian factors" in dfs.guide()
+
+
+# --- 2026-11-16 sanity check: absent players and low-minute play/no-play ---
+
+def test_player_absent_from_team_box_scores_zero_but_missing_box_stays_unmatched(tmp_path):
+    native = pd.DataFrame([dict(game_id=g, basis="native", home_won=1, slate_date="2026-10-22",
+                                tip_utc="2026-10-23T00:00Z") for g in ("1", "2")])
+    base = dict(kind="pre", snapshot_utc="2026-10-22T23:00Z", minutes="30", pts="20", reb="5",
+                ast="2", stl="1", blk="1", to="2", injury_status="")
+    sleeper = pd.DataFrame([{**base, "game_id": "1", "team": "BOS", "sleeper_id": "a", "name": "A"},
+                            {**base, "game_id": "1", "team": "BOS", "sleeper_id": "b", "name": "Inactive"},
+                            {**base, "game_id": "2", "team": "NYK", "sleeper_id": "c", "name": "C"}])
+    frames = []
+    def fake(gid, cache):
+        return [dict(game_id="1", team="BOS", key=dfs.norm_name("A"), actual=30.0)] if gid == "1" else []
+    real = cal.calibrate
+    try:
+        cal.calibrate = lambda frame, as_of: (frames.append(frame), dict(accepted=True))[1]
+        fit = cal.collect_fit(sleeper, native, "2026-10-23", tmp_path, fetch=fake)
+    finally:
+        cal.calibrate = real
+    got = frames[0].set_index("name")["actual"].to_dict()
+    assert got == {"A": 30.0, "Inactive": 0.0}          # NYK had no box: not scored
+    assert fit["absent_zero_rows"] == 1 and fit["matched_rows"] == 2 and fit["projected_rows"] == 3
+    assert not fit["accepted"]                           # 2/3 < 95% matching gate
+
+
+def test_play_mixture_fits_only_low_minute_bins_and_keeps_the_mean():
+    rng = np.random.default_rng(5)
+    rows = []
+    for i in range(400):
+        played = rng.random() < .6
+        rows.append(dict(bin="low:bench", projection=6., base_var=9.,
+                         actual=float(rng.gamma(2, 5)) if played else 0.))
+        rows.append(dict(bin="high:starter", projection=30., base_var=100., actual=30.))
+    play = cal.fit_play(pd.DataFrame(rows))
+    assert list(play) == ["low:bench"]
+    assert play["low:bench"]["p"] == pytest.approx(.6, abs=.06)
+    assert .25 <= play["low:bench"]["c"] <= 10
+    assert cal.fit_play(pd.DataFrame(rows[:60])) == {}   # too few played rows
+
+
+def test_mixture_draw_matches_zero_mass_mean_sd_and_quantile_inverse():
+    sim = dict(dfs.SIM, play={"low:bench": dict(p=.6, c=3.5)})
+    pool = [dict(id="0", team="A", game="g", v=5, min=6), dict(id="1", team="B", game="g", v=30, min=34)]
+    out = node("""
+var n=200000,r=DFS.rng(9),zero=0,sum=[0,0],ss=[0,0];
+for(var s=0;s<n;s++){var x=DFS.draw(I.pool,I.sim,r);if(x[0]===0)zero++;for(var i=0;i<2;i++){sum[i]+=x[i];ss[i]+=x[i]*x[i];}}
+var inv=[1e-6,.01,.3,.5,.9,.999999].map(function(p){return DFS.ncdf(DFS.nppf(p))-p;});
+process.stdout.write(JSON.stringify({zero:zero/n,mean:sum.map(s=>s/n),sd:sum.map((s,i)=>Math.sqrt(ss[i]/n-(s/n)**2)),
+ want:I.pool.map(p=>DFS.simSd(p,I.sim)),inv:inv}));
+""", dict(pool=pool, sim=sim))
+    assert out["zero"] == pytest.approx(.4, abs=.005)
+    assert out["mean"][0] == pytest.approx(5, rel=.01) and out["mean"][1] == pytest.approx(30, rel=.01)
+    assert out["sd"][0] == pytest.approx(out["want"][0], rel=.03)
+    assert out["sd"][1] == pytest.approx(out["want"][1], rel=.03)
+    assert max(abs(e) for e in out["inv"]) < 1e-6
+
+
+def test_play_fit_is_loaded_only_when_valid(tmp_path):
+    fit = dict(version=dfs.SIM["version"], accepted=True, trained_through="2026-10-26",
+               validation_from="2026-10-27", validated_through="2026-10-29",
+               bins={"low:bench": 1.2}, play={"low:bench": dict(p=.63, c=3.5)},
+               factors={k: dfs.SIM[k] for k in ("team", "starter", "game_star", "star_split", "center_pair")})
+    path = tmp_path/"fit.json"
+    path.write_text(json.dumps(fit))
+    assert dfs.simulation_model("2026-10-30", path)["play"] == fit["play"]
+    for bad in ({"high:starter": dict(p=.9, c=1)}, {"low:bench": dict(p=.1, c=3)},
+                {"low:bench": dict(p=.6, c=40)}):
+        path.write_text(json.dumps({**fit, "play": bad}))
+        assert dfs.simulation_model("2026-10-30", path) == dfs.SIM
+    path.write_text(json.dumps({k: v for k, v in fit.items() if k != "play"}))
+    assert dfs.simulation_model("2026-10-30", path)["play"] == {}

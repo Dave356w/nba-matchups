@@ -897,3 +897,9 @@ rejected candidate updates diagnostics but retains the last accepted fit.
 The same build renders accepted changes and commits only the DFS fit/report
 alongside its normal data. A timeout or failed refit must not prevent
 snapshot commits or publication. No extra workflow or tracked-model refit.
+Owner request, 2026-11-16 (after a sanity check): a projected player absent
+from their team's final ESPN box (inactive) scores 0 in the refit; a missing
+team box still counts against the matching gate. Low-minute bins (`low:*`,
+≥ 100 played training rows) get a play/no-play mixture: P(score > 0) and the
+played spread are fitted, the projection stays the mean, and the browser
+draws it through the same latent factors. Gate and other bins unchanged.
