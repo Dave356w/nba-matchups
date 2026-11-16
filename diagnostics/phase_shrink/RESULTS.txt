@@ -1,0 +1,25 @@
+Season-phase shrinkage test (research/phase_shrink_backtest.py;
+docs/realized_wp_phase_shrink_test_registration.md). Walk-forward, earlier slates only; ± is 95%.
+Brier / log loss minus the price on identical games (negative = better).
+Phases (min games played): 1-9, 10-29, 30-59, 60+.
+2025-26 books: {'dk': 964, 'espnbet': 260}. ESPN BET allowed where DraftKings replay is missing (owner, 2026-11-16).
+
+Constants from 2024-25 games 1+ (frozen): sigma2 0.2008, tau1^2 -0.000767, tau2^2 +0.000889 -> k1 2000, k2 = k3 226 (clipped 50-2000)
+
+== 2025-26 replay, games 1+, previous season 2024-25 (primary): 1208 games (market Brier 0.1939)
+   arm           d Brier        d log loss mean |adj| max |adj|
+    v4 -0.0007 ± 0.0011 -0.0032 ± 0.0030       2.0p      6.6p
+    P1 -0.0000 ± 0.0000 -0.0000 ± 0.0001       0.1p      0.1p
+    P2 -0.0000 ± 0.0005 -0.0004 ± 0.0011       0.8p      2.2p
+    PS -0.0000 ± 0.0006 -0.0006 ± 0.0014       1.0p      3.1p
+  PS minus v4, paired: Brier +0.0007 ± 0.0011, log loss +0.0026 ± 0.0027
+
+== 2026-27 native five-hour locks, games 1+, previous season 2025-26 (information only): 121 games (market Brier 0.1814)
+   arm           d Brier        d log loss mean |adj| max |adj|
+    v4 -0.0040 ± 0.0073 -0.0101 ± 0.0191       4.4p      8.7p
+    P1 -0.0003 ± 0.0006 -0.0010 ± 0.0014       0.4p      0.4p
+    P2 -0.0012 ± 0.0018 -0.0030 ± 0.0041       0.9p      2.6p
+    PS -0.0007 ± 0.0018 -0.0019 ± 0.0041       0.9p      3.3p
+  PS minus v4, paired: Brier +0.0033 ± 0.0069, log loss +0.0082 ± 0.0184
+
+Pre-set reading (primary cohort): FAIL: PS - v4 paired Brier +0.0007, upper 95% bound +0.0018 (>= 0); log loss +0.0026 (> 0).

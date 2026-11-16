@@ -859,6 +859,9 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   The model-WP x market-WP cell carries no walk-forward signal at any
   window (10 .. all); larger windows only sit closer to the price:
   [matrix window](diagnostics/matrix_window/RESULTS.txt).
+  A previous-season same-phase prior (ESPN BET allowed) does not beat
+  Realized WP v4; the phase gaps do not repeat across seasons:
+  [phase shrink](diagnostics/phase_shrink/RESULTS.txt).
 - Kalshi and live trading: [benchmark](diagnostics/kalshi_benchmark/RESULTS.txt),
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
   In-game win probability from the score and the pregame line (display only):
