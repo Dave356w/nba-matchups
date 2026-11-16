@@ -89,6 +89,9 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     assert 'Realized WP' in card and '<strong>75.2%</strong>' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
     assert 'data-cell-adjustment' in card and 'market average' in card
     assert 'counted as +0.1 after shrinkage' in card and 'recent drift +0.1 pts' in card
+    # one prior win at -300: +0.33u on 1 priced game
+    assert 'ROI +33.3%, +0.33u over 1 priced' in card and 'data-cell-roi' in card
+    assert '1 unit on the model pick in each of those same games' in site.guide_page()
     guide=site.guide_page()
     assert 'shrunk cell adjustment + recent drift' in guide and 'n ÷ (n + 200)' in guide
     assert 'did not predict results better than the price' in guide

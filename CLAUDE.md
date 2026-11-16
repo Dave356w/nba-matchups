@@ -5,6 +5,15 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Pooled cell ROI on cards — owner request, November 16, 2026
+
+Each card's pooled-cell line adds the cell's flat 1-unit return on the model
+pick over the same games Realized WP reads (latest 200 in the cell): ROI,
+± 1 SE, net units and priced count, each result at its own saved price (live
+locks at the lock price, previous-season replay at its DraftKings close).
+Descriptive only: it does not enter Realized WP, the shadow record, any rule
+or filter. The guide says so. Model, locks, grades and records are unchanged.
+
 ### Realized WP shrunk cell + drift (v4) — owner instruction, November 13, 2026
 
 The owner asked whether Realized WP can stay on the latest 200 cell results

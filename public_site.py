@@ -5,6 +5,7 @@ All selections and grades come from analysis; this module never scores a game.
 """
 from __future__ import annotations
 
+import math
 import re
 from statistics import NormalDist
 
@@ -405,10 +406,25 @@ class PublicSite:
                         f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts, "
                         f"counted as {100 * estimate['cell_adjustment']:+.1f} after shrinkage)</span>"
                         f" · <span data-drift>recent drift {100 * estimate['drift']:+.1f} pts</span>")
+            support += self.cell_roi(estimate['evidence'])
         return (f"<div class='calibration-main' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
                 f"<small>Realized WP</small><strong>{u.pct(estimate['probability'])}</strong><small>{u.esc(team)} estimate</small></div>"
                 f"<div class='calibration-evidence'><small>{support}</small>"
                 f"<small>{estimate['previous_games']} previous season + {estimate['current_games']} current season · prices at {u.tip_pt(row.get('snapshot_utc'))}</small></div>")
+
+    @staticmethod
+    def cell_roi(evidence):
+        """The pooled cell's flat 1-unit return on the model pick at each
+        result's own saved price (owner request, 2026-11-16): live locks at
+        their lock price, previous-season replay at its DraftKings close.
+        Display only; Realized WP does not read it."""
+        profits = [p for p in (market.unit_profit(r['price'], r['won']) for r in evidence) if np.isfinite(p)]
+        if not profits:
+            return ''
+        n, units = len(profits), math.fsum(profits)
+        se = f" ± {100 * np.std(profits, ddof=1) / math.sqrt(n):.1f} pp (1 SE)" if n > 1 else ''
+        return (f" · <span data-cell-roi>1u on the model pick in these games: ROI {100 * units / n:+.1f}%{se}, "
+                f"{units:+.2f}u over {n} priced</span>")
 
     def live_block(self, row, dk):
         """The live win chance (owner request, 2026-11-07; live_wp.py): the
@@ -886,6 +902,7 @@ class PublicSite:
 <section id='in-season-calibration'><h2>Realized WP</h2>
 <p>This experimental estimate is a lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
 <p><b>Realized WP = this game’s no-vig DraftKings WP + shrunk cell adjustment + recent drift</b>, limited to 0–100%. The cell adjustment is the cell win rate minus the cell average no-vig market WP: wins ÷ games among the latest 200 actual results in that cell, against those same games’ no-vig DraftKings WP for their model-selected teams. A market band is 10 to 20 points wide, so the cell’s games rarely carry the same price as tonight’s game; the adjustment measures how far the cell beat or missed its own prices rather than its raw win rate.</p>
+<p>The card also shows the cell’s <b>ROI</b>: 1 unit on the model pick in each of those same games at its own saved price (live picks at their lock price, previous-season replays at their DraftKings close), with ± 1 standard error. It describes those past games only; it does not enter Realized WP and is not a rule or a recommendation.</p>
 <p><b>Shrinkage.</b> The cell adjustment is multiplied by n ÷ (n + 200), where n is the number of results the cell holds. A cell with 200 results counts for half of its measured gap; a cell with 10 counts for about 5%. Unshrunk, a small cell could move a card by tens of points on a handful of games. Use all available results if a cell has fewer than 200; an empty cell has no estimate.</p>
 <p><b>Recent drift</b> is one number added to every card of a slate. It is a weighted average of (result − no-vig market WP) across the latest 600 model picks from every cell, with the most recent pick weighted 1, a pick 100 picks back weighted ½, 200 back ¼, and 200 pseudo-games at zero. It rises when the model’s picks have recently been winning more often than their prices implied and falls when they have been winning less. Because the model usually picks the favorite, it mostly tracks whether favorites have been running hot or cold. It is a description of recent results, not a forecast of an edge, and it moves every card together.</p>
 <p>History of this display: the raw cell win rate until November 12, 2026; the cell adjustment over the latest 50 results from November 12; the latest 200 from November 13; shrinkage and drift (version 4) after that. A walk-forward backtest on two replay seasons scored version 4 better than the unshrunk latest-200 estimate and about level with the price itself; it did not predict results better than the price.</p>
