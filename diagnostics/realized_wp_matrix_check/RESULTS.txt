@@ -1,0 +1,61 @@
+Realized WP matrix: interim forward record and current cells (research/realized_wp_matrix_check.py).
+Descriptive monitoring. v4's registered primary reading is read once at the end of the
+2026-27 regular season; everything here is interim. ± 95% by game; negative = better.
+
+== 1. Forward record by version (official graded observations)
+  realized_wp_rolling200_bandadj_v3
+    graded 5 (established 5)
+    Realized − price  Brier +0.0211 ± 0.0441   log loss +0.0402 ± 0.0904
+    model − price     Brier -0.0339 ± 0.0830
+    winner accuracy   Realized 40.0%  price 60.0%  model 40.0%
+  realized_wp_rolling50_bandadj_v2
+    graded 4 (established 4)
+    Realized − price  Brier -0.0246 ± 0.0420   log loss -0.0685 ± 0.1033
+    model − price     Brier +0.0025 ± 0.0368
+    winner accuracy   Realized 100.0%  price 100.0%  model 100.0%
+  realized_wp_rolling50_v1
+    graded 4 (established 4)
+    Realized − price  Brier -0.0229 ± 0.0475   log loss -0.0664 ± 0.1243
+    model − price     Brier +0.0025 ± 0.0368
+    winner accuracy   Realized 100.0%  price 100.0%  model 100.0%
+  realized_wp_shrunk200_drift_v4
+    graded 31 (established 31)
+    Realized − price  Brier +0.0065 ± 0.0156   log loss +0.0241 ± 0.0489
+    model − price     Brier -0.0035 ± 0.0264
+    winner accuracy   Realized 67.7%  price 64.5%  model 64.5%
+  (v1-v3 are closed and never pooled with v4.)
+
+== 2. v4 coverage
+  saved captures 376 over 36 games (slates 2026-11-13 .. 2026-11-17); official games 31
+  captures inside 5 h of tip 245; of those with the source forecast also inside 5 h 245
+  games with captures but no official observation yet: 5 (slates 2026-11-17: no capture inside the 5 h window so far)
+    2026-11-13: games  9, official  9
+    2026-11-14: games  5, official  5
+    2026-11-15: games  9, official  9
+    2026-11-16: games  8, official  8
+    2026-11-17: games  5, official  0
+
+== 3. Current matrix (latest slate's saved v4 evidence)
+  slate 2026-11-17; cells seen on it 6; pooled drift +3.27 pts
+  model WP market WP    n      W-L  mean q  raw adj  shrunk  2026-27
+  50-60    50-60      156  94-62     55.3%    +4.9   +2.2    14 (9%)
+  50-60    60-70       85  58-27     64.2%    +4.0   +1.2    13 (15%)
+  60-70    50-60       58  32-26     56.8%    -1.6   -0.4    10 (17%)
+  60-70    60-70      138  92-46     65.4%    +1.3   +0.5    17 (12%)
+  70-80    70-80      128  96-32     75.3%    -0.3   -0.1    15 (12%)
+  80-100   70-80       23  20-3      77.6%    +9.4   +1.0     0 (0%)
+  raw/shrunk adj in percentage points; shrunk = raw × n/(n+200), as v4 applies it.
+
+== 4. Size of the v4 move off the price (official games)
+  |Realized − price|: median 4.25 pts, max 7.93; mean toward home -0.06; flips the side of 50% in 3 of 31
+
+== 5. What moves v4 off the price: the pooled drift vs the cell (official graded games)
+  price + cell only    − price  Brier +0.0002 ± 0.0046
+  price + drift only   − price  Brier +0.0059 ± 0.0132
+  Realized WP v4       − price  Brier +0.0065 ± 0.0156
+  mean |cell| 1.06 pts; mean |drift| 3.76 pts (toward the model's pick on every game)
+  side of 50% right: Realized WP 21, price 20, model pick 20 of 31
+    2026-11-13: drift +4.42 pts toward the pick
+    2026-11-14: drift +3.73 pts toward the pick
+    2026-11-15: drift +3.17 pts toward the pick
+    2026-11-16: drift +3.71 pts toward the pick
