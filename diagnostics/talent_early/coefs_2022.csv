@@ -1,0 +1,3 @@
+season,arm,route,n,sigma,intercept,delta,b2b_net,d_phase,luck_def,talent_diff,ft_diff,talent_early
+2022,prod,base,5549,12.7292,2.2352,0.108705,1.74351,0.0865349,0.0769715,0.467442,0.0801849,
+2022,tE,base,5549,12.73,2.23486,0.106311,1.74208,0.0922286,0.0772905,0.462163,0.0800766,0.0692618
