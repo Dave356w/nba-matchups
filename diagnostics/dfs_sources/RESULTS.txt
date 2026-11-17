@@ -1,0 +1,22 @@
+DFS projection sources (research/dfs_sources.py, terms committed in 5cea91f before the first run)
+As of 2026-11-17: 4,073 native pregame Sleeper player-games, 25 slate dates (2026-10-22 .. 11-16),
+actual = Yahoo points from ESPN final boxes (absent from the team's box = 0). MAE in Yahoo points.
+
+No keyless per-game NBA projection exists at ESPN (season only) or CBS (daily page serves YTD
+stats), so the NFL repo's three-source mean cannot be ported as is. Second source tested: B =
+player's Yahoo points per minute this season before the slate (>= 3 games) x Sleeper minutes.
+
+A. Mean M = (Sleeper + B) / 2 (Sleeper alone when no B; 3,245 rows have B)
+   all rows      MAE 7.802 vs Sleeper 7.880   diff -0.078  95% -0.140 .. -0.016 (date-clustered)
+   later half    diff -0.126  95% -0.204 .. -0.049 (13 dates)
+   -> pre-set rule met (upper bound < 0 and later half < 0): ADOPT.
+   Information only, rows with B: B alone -0.005 (-0.155 .. +0.145), level with Sleeper;
+   B with its own average minutes +0.204 (+0.017 .. +0.391), worse: Sleeper's minutes carry
+   the news, the box rate carries the scoring.
+
+B. ESPN-out override (ESPN injury list Out/Suspension, Sleeper not Out -> 0)
+   15 rows; 10 of the 15 played (mean actual 11.8 vs Sleeper 20.2).
+   MAE on those rows 11.80 (zero) vs 12.24 (Sleeper); all rows -0.002 (-0.040 .. +0.037).
+   The pre-set rule is technically met, but on 15 rows, with two thirds of "Out" players
+   playing (ESPN's list lags returns), there is no evidence either way. NOT implemented
+   pending the owner's decision. Day-To-Day: 126 rows, 86 played (reported only).

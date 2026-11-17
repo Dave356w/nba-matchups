@@ -341,3 +341,52 @@ def test_the_page_stays_short_and_how_it_works_explains_it():
     import public_site
     guide = public_site.PublicSite(build_site, ledger.empty(), "2026-10-29", "built").guide_page()
     assert "<section id='dfs'><h2>DFS lineups</h2>" in guide
+
+
+# ------------------------------------------- box-score source and the mean ---
+def _box(gid, lines, done=True):
+    keys = ["minutes", "points", "rebounds", "assists", "steals", "blocks", "turnovers"]
+    return {"header": {"competitions": [{"status": {"type": {"completed": done}}}]},
+            "boxscore": {"players": [{"team": {"abbreviation": "NO"}, "statistics": [{
+                "keys": keys, "athletes": [
+                    {"athlete": {"displayName": n}, "didNotPlay": m == 0,
+                     "stats": [str(m), str(p), "0", "0", "0", "0", "0"]} for n, m, p in lines]}]}]}}
+
+
+def test_box_rates_use_strictly_earlier_games_of_the_season():
+    native = pd.DataFrame([
+        dict(game_id=g, slate_date=d, season=s, home_won=w, basis="native")
+        for g, d, s, w in [("1", "2026-10-25", 2027, 1), ("2", "2026-10-26", 2027, 0),
+                           ("3", "2026-10-27", 2027, 1), ("4", "2026-10-28", 2027, 1),
+                           ("5", "2026-10-29", 2027, None), ("0", "2026-04-01", 2026, 1)]])
+    boxes = {g: _box(g, [("Zion Williamson", 30, 30), ("Bench Guy", 0, 0)]) for g in "1234"}
+    boxes["4"] = _box("4", [("Zion Williamson", 20, 40), ("Two Games", 10, 10)])
+    boxes["0"] = _box("0", [("Zion Williamson", 10, 100)])           # last season: ignored
+    seen = []
+    rates = dfs.box_rates("2026-10-29", native, fetch=lambda g: seen.append(g) or boxes[g])
+    assert sorted(seen) == ["1", "2", "3", "4"]                       # no same-day, no ungraded
+    assert rates["zion williamson"][0] == pytest.approx(130 / 110)
+    assert rates["zion williamson"][1] == 4
+    assert "two games" not in rates and "bench guy" not in rates      # < BOX_MIN_GAMES / DNP
+    failing = dfs.box_rates("2026-10-29", native, fetch=lambda g: 1 / 0, log=lambda m: None)
+    assert failing == {}
+
+
+def test_slate_projects_the_mean_of_sleeper_and_box_line():
+    yahoo = pd.DataFrame(dfs.parse_feed(_feed([
+        _yp("p1", "Zion Williamson", "NO", "PF", 36), _yp("p2", "Darius Acuff Jr.", "SAC", "PG", 25),
+        _yp("p3", "Hurt Guy", "SAC", "C", 12)]), now=NOW), columns=dfs.YAHOO_COLUMNS).astype(str)
+    line = dict(minutes="32", pts="20", reb="5", ast="3", stl="1", blk="1", to="2", tpm="1")
+    sl = _sleeper([dict(kind="pre", team="NOP", sleeper_id="1", name="Zion Williamson", **line),
+                   dict(kind="pre", team="SAC", sleeper_id="2", name="Darius Acuff", **line),
+                   dict(kind="pre", team="SAC", sleeper_id="3", name="Hurt Guy", injury_status="Out", **line)])
+    rates = {"zion williamson": (1.0, 5), "hurt guy": (2.0, 5)}
+    d = dfs.slate("2026-10-29", yahoo=yahoo, sleeper=sl, native=_native(), now=NOW, rates=rates)
+    by = {p["name"]: p for p in d["players"]}
+    want = 20 + 1.2 * 5 + 1.5 * 3 + 3 + 3 - 2
+    z = by["Zion Williamson"]
+    assert (z["sleeper"], z["box"]) == (pytest.approx(want), 32.0)
+    assert z["proj"] == pytest.approx((want + 32) / 2)
+    a = by["Darius Acuff Jr."]                                        # no box line: Sleeper alone
+    assert a["proj"] == pytest.approx(want) and a["box"] is None
+    assert by["Hurt Guy"]["proj"] == 0                                # Out stays 0

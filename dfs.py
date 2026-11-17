@@ -7,9 +7,15 @@ it reads no model probability, tracked pick or record and feeds nothing back.
     (YAHOO_FEED), snapshot to data/nba_yahoo_dfs.csv by the build. A row is
     replaced only before its game starts and frozen after, like the other
     pregame snapshots.
-  * Projections: Sleeper's latest pregame line for the player
-    (data/nba_sleeper.csv, kind "pre"; "first" if no "pre"), in Yahoo scoring
-    (yahoo_points). Listed at 0 minutes, Out or IR = 0; no Sleeper match = none.
+  * Projections: the equal-weight mean of two sources (owner request,
+    2026-11-17, after research/dfs_sources.py): Sleeper's latest pregame line
+    for the player (data/nba_sleeper.csv, kind "pre"; "first" if no "pre"),
+    in Yahoo scoring (yahoo_points), and a box-score line: the player's Yahoo
+    points per minute over this season's graded games strictly before the
+    slate (ESPN final boxes, BOX_MIN_GAMES or more) times Sleeper's projected
+    minutes. Without a box line the projection is Sleeper's alone. Listed at
+    0 minutes, Out or IR = 0; no Sleeper match = none. A box fetch failure
+    leaves Sleeper alone.
   * The page embeds the slate as JSON; the visitor's browser finds the best
     lineups exactly (SOLVER_JS: a knapsack per position, combined by
     salary, and Lawler's k-best partition for the next-best lineups) under
@@ -37,6 +43,8 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
+from concurrent.futures import ThreadPoolExecutor
+
 import ledger
 import market
 
@@ -55,6 +63,14 @@ SCORING = {"pts": 1.0, "reb": 1.2, "ast": 1.5, "stl": 3.0, "blk": 3.0, "to": -1.
 # Yahoo codes that differ from Basketball-Reference's, beyond ESPN's.
 YAHOO2BBR = {**market.ESPN2BBR, "PHO": "PHO", "UTH": "UTA", "WAS": "WAS"}
 ET = ZoneInfo("America/New_York")
+# The box-score source (research/dfs_sources.py): ESPN final boxes, cached
+# where research/dfs_calibration.py caches them.
+BOX_CACHE = os.path.join("bbr_cache", "dfs_final_boxes")
+BOX_SUMMARY = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event={}"
+BOX_MIN_GAMES = 3
+BOX_KEYS = {"pts": "points", "reb": "rebounds", "ast": "assists",
+            "stl": "steals", "blk": "blocks", "to": "turnovers"}
+
 # Sleeper statuses that project 0 (GTD / DTD keep their projection).
 OUT_STATUSES = ("out", "ir")
 # Provisional priors from season-mean outcome research, not projection
@@ -230,10 +246,104 @@ def snapshot(log=print, fetch=fetch_feed, now=None):
 
 
 # --------------------------------------------------------------- the slate ---
-def slate(today, yahoo=None, sleeper=None, native=None, now=None):
+def box_lines(js):
+    """A final ESPN box's played lines: team, match name, Yahoo points, minutes."""
+    comps = (js.get("header") or {}).get("competitions") or []
+    if not comps or not comps[0].get("status", {}).get("type", {}).get("completed"):
+        return []
+    out = []
+    for team in (js.get("boxscore") or {}).get("players") or []:
+        code = market.bbr_code((team.get("team") or {}).get("abbreviation"))
+        for block in team.get("statistics") or []:
+            for a in block.get("athletes") or []:
+                name = (a.get("athlete") or {}).get("displayName")
+                if not name or a.get("didNotPlay"):
+                    continue
+                st = dict(zip(block.get("keys") or [], a.get("stats") or []))
+                try:
+                    fp = sum(SCORING[k] * float(st[v]) for k, v in BOX_KEYS.items())
+                    mins = float(st.get("minutes"))
+                except (KeyError, ValueError, TypeError):
+                    continue
+                if mins > 0:
+                    out.append(dict(team=code, key=norm_name(name), fp=fp, min=mins))
+    return out
+
+
+def final_summary(gid, cache=BOX_CACHE, timeout=20):
+    """ESPN's game summary, cached once the game is final."""
+    path = os.path.join(cache, f"{gid}.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    req = urllib.request.Request(BOX_SUMMARY.format(gid),
+                                 headers={"User-Agent": "Mozilla/5.0 nba-matchups"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        js = json.load(r)
+    if box_lines(js):
+        os.makedirs(cache, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(js, f)
+    return js
+
+
+def box_history(today, native, fetch=final_summary, log=print):
+    """Played lines (date, key, fp, min) of the graded native games of
+    today's season strictly before `today` (the latest graded season when
+    `today` has no games). Unfetchable games are skipped."""
+    cols = ["date", "key", "fp", "min"]
+    if native is None or not len(native) or "home_won" not in native:
+        return pd.DataFrame(columns=cols)
+    n = native[native["home_won"].notna() & (native["slate_date"].astype(str) < str(today))]
+    if "basis" in n:
+        n = n[n["basis"] == "native"]
+    if "season" in n and len(n):
+        season = native.loc[native["slate_date"].astype(str) == str(today), "season"]
+        n = n[n["season"] == (season.iloc[0] if len(season) else n["season"].max())]
+    dates = dict(zip(n["game_id"].astype(str), n["slate_date"].astype(str)))
+
+    def one(gid):
+        try:
+            return [dict(date=dates[gid], **r) for r in box_lines(fetch(gid))]
+        except Exception as e:  # noqa: BLE001 - a missing box only thins the rate
+            log(f"DFS box {gid} unavailable: {type(e).__name__}")
+            return []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        rows = [r for grp in ex.map(one, sorted(dates)) for r in grp]
+    return pd.DataFrame(rows, columns=["date", "team", "key", "fp", "min"])[cols]
+
+
+def rates_before(hist, date):
+    """{match name: (Yahoo points per minute, games)} from lines strictly
+    before `date`; players with fewer than BOX_MIN_GAMES games left out."""
+    h = hist[hist["date"].astype(str) < str(date)]
+    if not len(h):
+        return {}
+    g = h.groupby("key").agg(fp=("fp", "sum"), mins=("min", "sum"), games=("fp", "size"))
+    g = g[g["games"] >= BOX_MIN_GAMES]
+    return {k: (float(r.fp / r.mins), int(r.games)) for k, r in g.iterrows()}
+
+
+def box_rates(today, native, fetch=final_summary, log=print):
+    """Rates for the slate `today` (box_history, then rates_before)."""
+    return rates_before(box_history(today, native, fetch=fetch, log=log), today)
+
+
+def mean_projection(sleeper_pts, minutes, rate):
+    """The page's projection: mean of Sleeper and rate x Sleeper minutes,
+    Sleeper alone without a rate or positive minutes."""
+    if rate and sleeper_pts > 0 and np.isfinite(minutes) and minutes > 0:
+        box = rate[0] * minutes
+        return (sleeper_pts + box) / 2, box
+    return sleeper_pts, None
+
+
+def slate(today, yahoo=None, sleeper=None, native=None, now=None, rates=None):
     """The page's data for ET date `today`: dict(cap, games, players, ...) or
     None when Yahoo has no salaries for it. Each player carries his Yahoo
-    salary and position and his Sleeper projection in Yahoo points."""
+    salary and position and his projection in Yahoo points: the mean of
+    Sleeper's line and the box-score line (rates: box_rates, fetched when
+    None; a failure leaves Sleeper alone)."""
     now = now or ledger.utc_now()
     sim = simulation_model(today)
     yahoo = load() if yahoo is None else yahoo
@@ -250,19 +360,30 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None):
     s = s.sort_values("kind_order", kind="stable").drop_duplicates(
         ["game_id", "team", "sleeper_id", "name"])
     s["match_name"] = s["name"].map(norm_name)
+    if rates is None:
+        try:
+            rates = box_rates(today, native)
+        except Exception as e:  # noqa: BLE001 - Sleeper alone
+            print(f"DFS box-score source unavailable ({e!r}); Sleeper alone", flush=True)
+            rates = {}
     by_team = {(str(r.game_id), str(r.team), r.match_name): r for r in s.itertuples()}
     players, unmatched = [], []
     for r in y.itertuples():
         g = gid.get((str(r.home), str(r.away)))
         hit = by_team.get((g, str(r.team), norm_name(r.name))) if g else None
-        proj, minutes, inj = None, None, ""
+        proj, minutes, inj, sl, box = None, None, "", None, None
         if hit is not None:
             line = hit._asdict()
             minutes = pd.to_numeric(line.get("minutes"), errors="coerce")
             inj = str(line.get("injury_status") or "")
             pts = yahoo_points(line)
             if np.isfinite(pts):
-                proj = 0.0 if (minutes == 0 or inj.lower() in OUT_STATUSES) else round(pts, 2)
+                if minutes == 0 or inj.lower() in OUT_STATUSES:
+                    proj = 0.0
+                else:
+                    sl = round(pts, 2)
+                    mean, box = mean_projection(pts, minutes, rates.get(norm_name(r.name)))
+                    proj, box = round(mean, 2), None if box is None else round(box, 2)
         else:
             unmatched.append(r.name)
         opp = r.away if r.team == r.home else r.home
@@ -270,7 +391,7 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None):
                             home=r.team == r.home, pos=r.position, sal=int(r.salary),
                             proj=proj, fppg=_num(r.fppg),
                             min=None if minutes is None or not np.isfinite(minutes) else float(minutes),
-                            inj=inj, start=r.start_utc, game=r.game_code))
+                            inj=inj, start=r.start_utc, game=r.game_code, sleeper=sl, box=box))
     # starters (most projected minutes) and stars (highest projections) per team
     for team in {p["team"] for p in players}:
         mine = [p for p in players if p["team"] == team and (p["proj"] or 0) > 0]
@@ -363,10 +484,12 @@ def body(data, ui):
     pool and lineups are drawn by UI_JS (SOLVER_JS finds them) from the
     embedded JSON."""
     head = ("<div class='public-head'><div><div class='eyebrow'>Yahoo daily fantasy · NBA</div>"
-            "<h1>DFS lineups</h1><p>Build Yahoo classic lineups for today’s slate from Sleeper’s "
-            "projections and Yahoo’s salaries. The best lineups are found on your device; lock, "
+            "<h1>DFS lineups</h1><p>Build Yahoo classic lineups for today’s slate from projections "
+            "(Sleeper’s, averaged with each player’s own scoring rate this season) and Yahoo’s "
+            "salaries. The best lineups are found on your device; lock, "
             "exclude or re-project any player.</p></div></div>")
-    note = ("<p class='public-note'>Projections are Sleeper’s, in Yahoo scoring: not this site’s model, "
+    note = ("<p class='public-note'>Projections average Sleeper’s line with each player’s scoring rate "
+            "this season, in Yahoo scoring: not this site’s model, "
             "and nothing here is a tracked pick. Check each contest’s rules and lock. Not betting "
             "advice. <a href='how-it-works.html#dfs'>How the optimizer works →</a></p>")
     if not data:
@@ -409,7 +532,7 @@ def body(data, ui):
     pool = ("<section class='dfs-panel'><h2>Player pool</h2>"
             "<div class='dfs-pos' id='dfs-pos' role='group' aria-label='Filter by position'></div>"
             "<div class='dfs-scroll'><table class='dfs-table'><thead><tr><th>Lock</th><th>Out</th>"
-            "<th>Player</th><th class='x'>Pos</th><th class='n'>Salary</th><th class='n'>Proj</th>"
+            "<th>Player</th><th class='x'>Pos</th><th class='n'>Salary</th><th class='n' title='Mean of Sleeper and the player’s scoring rate × Sleeper minutes'>Proj</th>"
             "<th class='n x' title='Projection per $10 of salary'>Value</th>"
             "<th class='n x' title='Yahoo season average'>FPPG</th>"
             "<th class='n x' title='Sleeper projected minutes'>Min</th></tr></thead>"
@@ -436,8 +559,14 @@ def guide():
         "<p>The DFS page builds Yahoo daily-fantasy lineups for the day’s games. It is a separate "
         "tool: it uses none of this site’s forecasts or tracked picks and does not affect them.</p>"
         "<h3>Projections and salaries</h3><p>Salaries, positions and the cap come from Yahoo. "
-        "Projections are Sleeper’s (RotoWire) stat projections in Yahoo scoring: points 1, rebounds "
-        "1.2, assists 1.5, steals 3, blocks 3, turnovers −1, with no three-pointer bonus. A player "
+        "Each projection is the equal-weight mean of two sources in Yahoo scoring (points 1, rebounds "
+        "1.2, assists 1.5, steals 3, blocks 3, turnovers −1, with no three-pointer bonus): "
+        "Sleeper’s (RotoWire) stat projection, and the player’s own Yahoo points per minute in "
+        "this season’s completed games before today (ESPN box scores) times Sleeper’s projected "
+        "minutes. A player with fewer than " + str(BOX_MIN_GAMES) + " games this season, or "
+        "when the box scores cannot be read, gets Sleeper’s alone. On this season’s first 25 "
+        "slates (4,073 player-games) the mean’s average miss was 7.80 points against Sleeper’s "
+        "7.88 (difference −0.08 ± 0.03, 1 SE, by date); a small gain, not a proven edge. A player "
         "listed at 0 minutes, Out or on IR projects 0; a Yahoo player Sleeper does not list has no "
         "projection until you enter one. <b>Value</b> is projection per $10 of salary, <b>FPPG</b> "
         "Yahoo’s season average and <b>Min</b> Sleeper’s projected minutes.</p>"
@@ -475,7 +604,8 @@ def guide():
         "fitted probability (did not play or scored nothing) and otherwise draw a lognormal "
         "with its own fitted spread, the two together keeping the projection as the mean; "
         "other players have no separate did-not-play outcome.</p>"
-        "<p>A native calibration fit uses only timestamped pregame Sleeper projections and final "
+        "<p>A native calibration fit uses only timestamped pregame Sleeper projections, averaged "
+        "with each player’s box-score line from earlier slates exactly as the page does, and final "
         "ESPN player results, including listed DNPs; a projected player missing from their "
         "team's final box (ESPN omits inactive players) counts as 0. It fits error variance by projected-minute "
         "band and starter role, the low-minute play rate and spread when playing, and estimates dependence from projection errors. Earlier dates "

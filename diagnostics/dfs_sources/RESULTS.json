@@ -1,0 +1,208 @@
+{
+  "as_of": "2026-11-17",
+  "rows": 4073,
+  "dates": 25,
+  "first_date": "2026-10-22",
+  "last_date": "2026-11-16",
+  "rows_with_B": 3245,
+  "A_primary_M_vs_sleeper": {
+    "n": 4073,
+    "dates": 25,
+    "diff": -0.07765723781043088,
+    "se": 0.031616651013751884,
+    "lo": -0.13962587379738456,
+    "hi": -0.015688601823477186,
+    "mae_col": 7.8020397914063615,
+    "mae_base": 7.879697029216794
+  },
+  "A_later_half_M_vs_sleeper": {
+    "n": 2127,
+    "dates": 13,
+    "diff": -0.12619482852480854,
+    "se": 0.03951481972194937,
+    "lo": -0.2036438751798293,
+    "hi": -0.048745781869787785,
+    "mae_col": 7.729184108945807,
+    "mae_base": 7.855378937470616
+  },
+  "A_adopt": true,
+  "A_info_rows_with_B": {
+    "M": {
+      "n": 3245,
+      "dates": 22,
+      "diff": -0.09747239741198303,
+      "se": 0.03737458446963186,
+      "lo": -0.17072658297246146,
+      "hi": -0.024218211851504592,
+      "mae_col": 7.8921229800918695,
+      "mae_base": 7.989595377503853
+    },
+    "B": {
+      "n": 3245,
+      "dates": 22,
+      "diff": -0.004942666668363225,
+      "se": 0.07636326537112016,
+      "lo": -0.15461466679575875,
+      "hi": 0.14472933345903227,
+      "mae_col": 7.98465271083549,
+      "mae_base": 7.989595377503853
+    },
+    "B_own_minutes": {
+      "n": 3245,
+      "dates": 22,
+      "diff": 0.20440553401400866,
+      "se": 0.09542165140204721,
+      "lo": 0.017379097265996124,
+      "hi": 0.3914319707620212,
+      "mae_col": 8.194000911517861,
+      "mae_base": 7.989595377503853
+    }
+  },
+  "B_espn_out": {
+    "rows": 15,
+    "rows_any_time": 15,
+    "played": 10,
+    "mean_actual": 11.8,
+    "mean_sleeper": 20.18593333333333,
+    "mae_sleeper": 12.235133333333335,
+    "mae_zero": 11.8,
+    "players": [
+      {
+        "date": "2026-11-11",
+        "team": "CLE",
+        "name": "Jaylon Tyson",
+        "minutes": 20.0,
+        "projection": 16.67,
+        "actual": 6.5
+      },
+      {
+        "date": "2026-11-11",
+        "team": "NYK",
+        "name": "Josh Hart",
+        "minutes": 32.0,
+        "projection": 31.89,
+        "actual": 15.3
+      },
+      {
+        "date": "2026-11-09",
+        "team": "ATL",
+        "name": "Jock Landale",
+        "minutes": 10.0,
+        "projection": 9.59,
+        "actual": 13.5
+      },
+      {
+        "date": "2026-11-09",
+        "team": "PHO",
+        "name": "Jordan Goodwin",
+        "minutes": 12.0,
+        "projection": 12.23,
+        "actual": 0.0
+      },
+      {
+        "date": "2026-11-09",
+        "team": "NOP",
+        "name": "Zion Williamson",
+        "minutes": 34.0,
+        "projection": 38.71,
+        "actual": 0.0
+      },
+      {
+        "date": "2026-11-07",
+        "team": "ATL",
+        "name": "Jalen Johnson",
+        "minutes": 33.0,
+        "projection": 45.41,
+        "actual": 47.4
+      },
+      {
+        "date": "2026-11-06",
+        "team": "DAL",
+        "name": "Santi Aldama",
+        "minutes": 10.0,
+        "projection": 10.68,
+        "actual": 18.3
+      },
+      {
+        "date": "2026-11-04",
+        "team": "IND",
+        "name": "Ivica Zubac",
+        "minutes": 23.0,
+        "projection": 26.49,
+        "actual": 6.8
+      },
+      {
+        "date": "2026-11-04",
+        "team": "IND",
+        "name": "Obi Toppin",
+        "minutes": 23.0,
+        "projection": 24.29,
+        "actual": 15.5
+      },
+      {
+        "date": "2026-11-04",
+        "team": "NOP",
+        "name": "Jordan Poole",
+        "minutes": 14.0,
+        "projection": 14.17,
+        "actual": 0.0
+      },
+      {
+        "date": "2026-11-02",
+        "team": "NYK",
+        "name": "Jose Alvarado",
+        "minutes": 13.0,
+        "projection": 10.06,
+        "actual": 3.0
+      },
+      {
+        "date": "2026-11-02",
+        "team": "SAC",
+        "name": "Dylan Cardwell",
+        "minutes": 10.0,
+        "projection": 11.87,
+        "actual": 0.0
+      },
+      {
+        "date": "2026-10-30",
+        "team": "DEN",
+        "name": "Cameron Johnson",
+        "minutes": 23.0,
+        "projection": 17.89,
+        "actual": 28.3
+      },
+      {
+        "date": "2026-10-30",
+        "team": "HOU",
+        "name": "Marcus Smart",
+        "minutes": 23.0,
+        "projection": 17.46,
+        "actual": 22.4
+      },
+      {
+        "date": "2026-10-23",
+        "team": "HOU",
+        "name": "Reed Sheppard",
+        "minutes": 16.0,
+        "projection": 15.38,
+        "actual": 0.0
+      }
+    ],
+    "all_rows": {
+      "n": 4073,
+      "dates": 25,
+      "diff": -0.0016025042965872828,
+      "se": 0.019486700394998415,
+      "lo": -0.039796437070784174,
+      "hi": 0.036591428477609614,
+      "mae_col": 7.878094524920207,
+      "mae_base": 7.879697029216794
+    }
+  },
+  "B_adopt": true,
+  "B_info_day_to_day": {
+    "rows": 126,
+    "played": 86,
+    "mae_sleeper": 13.475682539682541
+  }
+}
