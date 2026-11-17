@@ -897,6 +897,17 @@ rejected candidate updates diagnostics but retains the last accepted fit.
 The same build renders accepted changes and commits only the DFS fit/report
 alongside its normal data. A timeout or failed refit must not prevent
 snapshot commits or publication. No extra workflow or tracked-model refit.
+Owner request, 2026-11-17 (after `research/dfs_sources.py`, terms committed
+before its run): the DFS page's projection is the equal-weight mean of
+Sleeper's line and a box-score line, the player's Yahoo points per minute in
+this season's graded native games strictly before the slate (ESPN final
+boxes, ≥ 3 games) × Sleeper's projected minutes; Sleeper alone without one
+or when the boxes cannot be read. Sleeper's Out/IR/0-minute zeros are kept.
+Result: MAE 7.80 vs 7.88, −0.08 (95% −0.14 .. −0.02, date-clustered), later
+half −0.13 ([DFS sources](diagnostics/dfs_sources/RESULTS.txt)). The page
+and guide say so. The ESPN-out override was tested (15 rows, 10 played) and
+is not implemented. The simulation fit still calibrates errors around
+Sleeper's projection; nothing else changes.
 Owner request, 2026-11-16 (after a sanity check): a projected player absent
 from their team's final ESPN box (inactive) scores 0 in the refit; a missing
 team box still counts against the matching gate. Low-minute bins (`low:*`,

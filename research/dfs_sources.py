@@ -114,6 +114,7 @@ def history(native, as_of, cache):
 def population(sleeper, native, as_of, cache):
     s = cal.snapshots(sleeper, native, as_of)
     s["game_id"] = s["game_id"].astype(str)
+    Path(cache).mkdir(parents=True, exist_ok=True)
     gids = sorted(s["game_id"].unique())
     with ThreadPoolExecutor(max_workers=4) as ex:
         rows = [r for grp in ex.map(lambda g: cal.fetch_final(g, Path(cache)), gids) for r in grp]
