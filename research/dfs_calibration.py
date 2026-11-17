@@ -1,5 +1,9 @@
 """Fit DFS uncertainty from native, timestamped pregame projection errors.
 
+Errors are read around the page's projection: the mean of Sleeper's line
+and the box-score line from slates strictly before the row's (dfs.py,
+owner request 2026-11-17); Sleeper's alone where there is none.
+
 python research/dfs_calibration.py --as-of YYYY-MM-DD
 
 Only final native games strictly before --as-of are read. A projected
@@ -87,6 +91,13 @@ def snapshots(sleeper, native, as_of):
     s = s[(s["projection"] > 0) & (s["minutes"] > 0)
           & ~s["injury_status"].fillna("").str.lower().isin(dfs.OUT_STATUSES)].copy()
     s["date"] = s["game_id"].astype(str).map(dates)
+    return roles(s)
+
+
+def roles(s):
+    """Starter/star flags, minute bins and the provisional variance, all
+    read from the row's projection and minutes."""
+    s = s.copy()
     s["starter"] = s.groupby(["game_id", "team"])["minutes"].rank(method="first", ascending=False) <= 5
     s["star"] = s.groupby(["game_id", "team"])["projection"].rank(method="first", ascending=False) <= 2
     s["bin"] = np.where(s["minutes"] < 12, "low", np.where(s["minutes"] < 24, "mid", "high"))
@@ -307,10 +318,30 @@ def save_candidate(fit, output, report):
     return updated
 
 
+def with_box_mean(s, hist):
+    """The page's projection (dfs.mean_projection): each row's Sleeper
+    projection averaged with the box line from slates strictly before its
+    own; rows without one keep Sleeper's. Roles are re-read afterwards."""
+    s = s.copy()
+    s["sleeper_projection"] = s["projection"]
+    by_date = {d: dfs.rates_before(hist, d) for d in s["date"].dropna().unique()}
+    out = [dfs.mean_projection(p, m, by_date.get(d, {}).get(k))
+           for p, m, d, k in zip(s["projection"], s["minutes"], s["date"], s["key"])]
+    s["projection"] = [o[0] for o in out]
+    s["has_box"] = [o[1] is not None for o in out]
+    return roles(s)
+
+
 def collect_fit(sleeper, native, as_of, cache, fetch=fetch_final):
     s = snapshots(sleeper, native, as_of)
     cache = Path(cache)
     cache.mkdir(parents=True, exist_ok=True)
+
+    def summary(gid):            # through `fetch`, which caches final boxes
+        fetch(gid, cache)
+        return json.loads((cache / f"{gid}.json").read_text())
+    s = with_box_mean(s, dfs.box_history(as_of, native, fetch=summary,
+                                         log=lambda m: print(m, flush=True)))
     gids = sorted(s["game_id"].astype(str).unique())
     def fetch_one(gid):
         try:
@@ -334,7 +365,9 @@ def collect_fit(sleeper, native, as_of, cache, fetch=fetch_final):
     frame = frame[frame["actual"].notna()]
     fit = calibrate(frame, as_of)
     fit.update(projected_rows=len(s), matched_rows=len(frame), absent_zero_rows=int(absent.sum()),
-               matched_games=int(frame["game_id"].nunique()))
+               matched_games=int(frame["game_id"].nunique()),
+               projection="mean of Sleeper and box-score line (dfs.mean_projection)",
+               box_rows=int(frame["has_box"].sum()))
     if len(frame) < .95*len(s):
         fit.update(accepted=False, reason="fewer than 95% of positive pregame projections matched final boxes")
     return fit

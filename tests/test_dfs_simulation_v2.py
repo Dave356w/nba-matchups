@@ -236,3 +236,20 @@ def test_play_fit_is_loaded_only_when_valid(tmp_path):
         assert dfs.simulation_model("2026-10-30", path) == dfs.SIM
     path.write_text(json.dumps({k: v for k, v in fit.items() if k != "play"}))
     assert dfs.simulation_model("2026-10-30", path)["play"] == {}
+
+
+def test_calibration_reads_errors_around_the_pages_mean_from_earlier_slates():
+    s = pd.DataFrame([dict(game_id=g, team="BOS", key=k, date=d, minutes=m, projection=p)
+                      for g, k, d, m, p in [("1", "a", "2026-10-25", 30., 20.),
+                                            ("1", "b", "2026-10-25", 30., 30.),
+                                            ("2", "a", "2026-10-22", 30., 20.)]])
+    hist = pd.DataFrame([dict(date=d, key=k, fp=f, min=30.) for d, k, f in
+                         [("2026-10-21", "a", 60.), ("2026-10-22", "a", 60.),
+                          ("2026-10-23", "a", 60.), ("2026-10-25", "a", 999.)]])
+    got = cal.with_box_mean(s, hist)
+    assert got["projection"].tolist() == pytest.approx([(20 + 60) / 2, 30., 20.])
+    assert got["has_box"].tolist() == [True, False, False]   # 3 games before 10-25 only
+    assert got["sleeper_projection"].tolist() == [20., 30., 20.]
+    assert got.loc[0, "star"] and got.loc[1, "star"]          # roles re-read from the mean
+    assert dfs.mean_projection(20., 30., (2.0, 5)) == (40., 60.)
+    assert dfs.mean_projection(20., 0., (2.0, 5)) == (20., None)

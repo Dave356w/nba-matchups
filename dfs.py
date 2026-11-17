@@ -287,35 +287,55 @@ def final_summary(gid, cache=BOX_CACHE, timeout=20):
     return js
 
 
-def box_rates(today, native, fetch=final_summary, log=print):
-    """{match name: (Yahoo points per minute, games)} over the graded native
-    games of today's season strictly before `today`. Unfetchable games are
-    skipped; players with fewer than BOX_MIN_GAMES games are left out."""
+def box_history(today, native, fetch=final_summary, log=print):
+    """Played lines (date, key, fp, min) of the graded native games of
+    today's season strictly before `today` (the latest graded season when
+    `today` has no games). Unfetchable games are skipped."""
+    cols = ["date", "key", "fp", "min"]
     if native is None or not len(native) or "home_won" not in native:
-        return {}
+        return pd.DataFrame(columns=cols)
     n = native[native["home_won"].notna() & (native["slate_date"].astype(str) < str(today))]
     if "basis" in n:
         n = n[n["basis"] == "native"]
-    if "season" in native:
+    if "season" in n and len(n):
         season = native.loc[native["slate_date"].astype(str) == str(today), "season"]
-        if not len(season):
-            return {}
-        n = n[n["season"] == season.iloc[0]]
+        n = n[n["season"] == (season.iloc[0] if len(season) else n["season"].max())]
+    dates = dict(zip(n["game_id"].astype(str), n["slate_date"].astype(str)))
 
     def one(gid):
         try:
-            return box_lines(fetch(gid))
+            return [dict(date=dates[gid], **r) for r in box_lines(fetch(gid))]
         except Exception as e:  # noqa: BLE001 - a missing box only thins the rate
             log(f"DFS box {gid} unavailable: {type(e).__name__}")
             return []
     with ThreadPoolExecutor(max_workers=4) as ex:
-        rows = [r for grp in ex.map(one, sorted(n["game_id"].astype(str).unique())) for r in grp]
-    if not rows:
+        rows = [r for grp in ex.map(one, sorted(dates)) for r in grp]
+    return pd.DataFrame(rows, columns=["date", "team", "key", "fp", "min"])[cols]
+
+
+def rates_before(hist, date):
+    """{match name: (Yahoo points per minute, games)} from lines strictly
+    before `date`; players with fewer than BOX_MIN_GAMES games left out."""
+    h = hist[hist["date"].astype(str) < str(date)]
+    if not len(h):
         return {}
-    g = pd.DataFrame(rows).groupby("key").agg(fp=("fp", "sum"), mins=("min", "sum"),
-                                              games=("fp", "size"))
+    g = h.groupby("key").agg(fp=("fp", "sum"), mins=("min", "sum"), games=("fp", "size"))
     g = g[g["games"] >= BOX_MIN_GAMES]
     return {k: (float(r.fp / r.mins), int(r.games)) for k, r in g.iterrows()}
+
+
+def box_rates(today, native, fetch=final_summary, log=print):
+    """Rates for the slate `today` (box_history, then rates_before)."""
+    return rates_before(box_history(today, native, fetch=fetch, log=log), today)
+
+
+def mean_projection(sleeper_pts, minutes, rate):
+    """The page's projection: mean of Sleeper and rate x Sleeper minutes,
+    Sleeper alone without a rate or positive minutes."""
+    if rate and sleeper_pts > 0 and np.isfinite(minutes) and minutes > 0:
+        box = rate[0] * minutes
+        return (sleeper_pts + box) / 2, box
+    return sleeper_pts, None
 
 
 def slate(today, yahoo=None, sleeper=None, native=None, now=None, rates=None):
@@ -361,12 +381,9 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None, rates=None):
                 if minutes == 0 or inj.lower() in OUT_STATUSES:
                     proj = 0.0
                 else:
-                    sl, rate = round(pts, 2), rates.get(norm_name(r.name))
-                    if rate and pts > 0 and np.isfinite(minutes) and minutes > 0:
-                        box = round(rate[0] * minutes, 2)
-                        proj = round((pts + box) / 2, 2)
-                    else:
-                        proj = sl
+                    sl = round(pts, 2)
+                    mean, box = mean_projection(pts, minutes, rates.get(norm_name(r.name)))
+                    proj, box = round(mean, 2), None if box is None else round(box, 2)
         else:
             unmatched.append(r.name)
         opp = r.away if r.team == r.home else r.home
@@ -587,7 +604,8 @@ def guide():
         "fitted probability (did not play or scored nothing) and otherwise draw a lognormal "
         "with its own fitted spread, the two together keeping the projection as the mean; "
         "other players have no separate did-not-play outcome.</p>"
-        "<p>A native calibration fit uses only timestamped pregame Sleeper projections and final "
+        "<p>A native calibration fit uses only timestamped pregame Sleeper projections, averaged "
+        "with each player’s box-score line from earlier slates exactly as the page does, and final "
         "ESPN player results, including listed DNPs; a projected player missing from their "
         "team's final box (ESPN omits inactive players) counts as 0. It fits error variance by projected-minute "
         "band and starter role, the low-minute play rate and spread when playing, and estimates dependence from projection errors. Earlier dates "

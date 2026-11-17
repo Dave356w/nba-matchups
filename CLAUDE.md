@@ -906,8 +906,11 @@ or when the boxes cannot be read. Sleeper's Out/IR/0-minute zeros are kept.
 Result: MAE 7.80 vs 7.88, −0.08 (95% −0.14 .. −0.02, date-clustered), later
 half −0.13 ([DFS sources](diagnostics/dfs_sources/RESULTS.txt)). The page
 and guide say so. The ESPN-out override was tested (15 rows, 10 played) and
-is not implemented. The simulation fit still calibrates errors around
-Sleeper's projection; nothing else changes.
+is not implemented. Owner follow-up, same day: the daily simulation refit
+reads errors around this same mean (`dfs.mean_projection`, box line from
+slates strictly before each row's), roles and variance re-read from it; gate,
+bins and holdout unchanged. A scratch refit as of 2026-11-17 passed the gate
+(holdout variance loss 5.567 → 5.540, p90 coverage 0.916 → 0.903).
 Owner request, 2026-11-16 (after a sanity check): a projected player absent
 from their team's final ESPN box (inactive) scores 0 in the refit; a missing
 team box still counts against the matching gate. Low-minute bins (`low:*`,
