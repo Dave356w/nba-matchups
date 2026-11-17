@@ -1,10 +1,10 @@
 # Early-season talent weight: walk-forward test registration
 
-**Status: DRAFT, not registered.** It becomes the registration when the owner
-approves it. The approving commit records the time; it changes only this file
-and comes before any test code or run. Test version: `talent_early_v1`.
+**Registered 2026-11-17T16:24:42Z** on the owner's approval of the draft as written
+(the strict pass rule and the single arm). Committed on its own before any
+test code or run. Test version: `talent_early_v1`.
 
-State of the data when drafted (2026-11-17): `main` at `0ac87e4`. The native
+State of the data at registration (drafted 2026-11-17): `main` at `0ac87e4`. The native
 ledger there has 210 rows, its last lock at 2026-11-16T21:02:35Z. The
 motivating audit is `diagnostics/loss_feature_audit/RESULTS.txt` (PR
 Dave356w/nba-matchups#185).
