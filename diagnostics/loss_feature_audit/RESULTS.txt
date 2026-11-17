@@ -1,0 +1,152 @@
+2026-27 losses: feature weighting audit (research/loss_feature_audit.py).
+Research only; ± is 95%. Features are hindsight rebuilds of v11's inputs;
+lock P, prices and results are the native ledger's (voids out). Contributions
+use each route's fitted file (the report route is refitted per slate in
+production, so its contributions here are approximate).
+
+Population: 129 graded native v11 locks, games 1+; features rebuilt for 129; report-route locks 129, with av terms rebuilt 129.
+
+== games 1-9: n=80, model picks 60-20
+  1. contribution toward the pick (points of home margin x pick side)
+     feature                 wins          losses         loss-win
+     delta         +3.26 ± 0.80   +2.52 ± 0.94   -0.73 ± 1.24
+     b2b_net       -0.07 ± 0.23   +0.00 ± 0.00   +0.07 ± 0.23
+     d_phase       +0.36 ± 0.09   +0.24 ± 0.09   -0.12 ± 0.13
+     luck_def      -0.31 ± 0.22   -0.56 ± 0.36   -0.24 ± 0.42
+     talent_diff   +1.77 ± 0.42   +0.72 ± 0.53   -1.05 ± 0.68
+     ft_diff       +0.14 ± 0.21   +0.24 ± 0.37   +0.10 ± 0.42
+     av_min        -0.04 ± 0.20   +0.27 ± 0.24   +0.30 ± 0.31
+     av_bpm        +0.01 ± 0.19   +0.25 ± 0.26   +0.23 ± 0.32
+     intercept     +0.41 ± 0.52   +0.62 ± 0.88   +0.21 ± 1.02
+  2. actual − model margin on base features (n=80; weight change per unit, and as a share of the base coefficient)
+     intercept  +1.10 ±  3.52
+     delta         -0.071 ±  0.494  ( -62% of 0.113; 1 SD of feature = -2.16 pts)
+     b2b_net       +1.569 ± 10.191  ( +71% of 2.223; 1 SD of feature = +0.55 pts)
+     d_phase       +0.809 ±  4.933  (+550% of 0.147; 1 SD of feature = +2.23 pts)
+     luck_def      -0.017 ±  0.529  ( -19% of 0.087; 1 SD of feature = -0.15 pts)
+     talent_diff   +0.480 ±  0.680  (+115% of 0.418; 1 SD of feature = +3.52 pts)
+     ft_diff       -0.207 ±  0.617  (-216% of 0.096; 1 SD of feature = -1.16 pts)
+  3a. actual − market margin on base features (n=80; weight change per unit, and as a share of the base coefficient)
+     intercept  +1.28 ±  3.37
+     delta         -0.073 ±  0.480  ( -65% of 0.113; 1 SD of feature = -2.23 pts)
+     b2b_net       +1.117 ±  9.909  ( +50% of 2.223; 1 SD of feature = +0.39 pts)
+     d_phase       +0.758 ±  4.735  (+515% of 0.147; 1 SD of feature = +2.09 pts)
+     luck_def      +0.027 ±  0.512  ( +31% of 0.087; 1 SD of feature = +0.23 pts)
+     talent_diff   +0.282 ±  0.648  ( +68% of 0.418; 1 SD of feature = +2.07 pts)
+     ft_diff       -0.103 ±  0.599  (-107% of 0.096; 1 SD of feature = -0.57 pts)
+  3b. model − market margin on base features (n=80; weight change per unit, and as a share of the base coefficient)
+     intercept  +0.17 ±  0.56
+     delta         -0.003 ±  0.070  (  -2% of 0.113; 1 SD of feature = -0.08 pts)
+     b2b_net       -0.452 ±  1.656  ( -20% of 2.223; 1 SD of feature = -0.16 pts)
+     d_phase       -0.051 ±  0.621  ( -35% of 0.147; 1 SD of feature = -0.14 pts)
+     luck_def      +0.044 ±  0.087  ( +50% of 0.087; 1 SD of feature = +0.38 pts)
+     talent_diff   -0.198 ±  0.112  ( -47% of 0.418; 1 SD of feature = -1.45 pts)
+     ft_diff       +0.104 ±  0.102  (+109% of 0.096; 1 SD of feature = +0.58 pts)
+
+== games 10+: n=49, model picks 35-14
+  1. contribution toward the pick (points of home margin x pick side)
+     feature                 wins          losses         loss-win
+     delta         +3.31 ± 0.95   +3.66 ± 2.16   +0.35 ± 2.36
+     b2b_net       +0.38 ± 0.42   +0.80 ± 0.74   +0.41 ± 0.85
+     d_phase       +0.56 ± 0.16   +0.62 ± 0.36   +0.07 ± 0.40
+     luck_def      -0.05 ± 0.28   -0.99 ± 0.42   -0.94 ± 0.50
+     talent_diff   +1.57 ± 0.55   +0.61 ± 0.95   -0.96 ± 1.10
+     ft_diff       -0.00 ± 0.24   +0.06 ± 0.35   +0.06 ± 0.43
+     av_min        +0.10 ± 0.24   +0.39 ± 0.57   +0.28 ± 0.62
+     av_bpm        +0.07 ± 0.27   +0.21 ± 0.70   +0.14 ± 0.75
+     intercept     +0.06 ± 0.69   -0.29 ± 1.11   -0.35 ± 1.31
+  2. actual − model margin on base features (n=49; weight change per unit, and as a share of the base coefficient)
+     intercept  +2.87 ±  5.15
+     delta         +0.440 ±  1.543  (+388% of 0.113; 1 SD of feature = +14.30 pts)
+     b2b_net       -2.957 ±  6.928  (-133% of 2.223; 1 SD of feature = -1.86 pts)
+     d_phase       -2.995 ± 10.810  (-2035% of 0.147; 1 SD of feature = -13.60 pts)
+     luck_def      +0.921 ±  0.479  (+1060% of 0.087; 1 SD of feature = +8.37 pts)
+     talent_diff   +0.621 ±  0.778  (+149% of 0.418; 1 SD of feature = +4.32 pts)
+     ft_diff       -0.088 ±  1.325  ( -92% of 0.096; 1 SD of feature = -0.40 pts)
+  3a. actual − market margin on base features (n=49; weight change per unit, and as a share of the base coefficient)
+     intercept  +2.40 ±  5.25
+     delta         +0.506 ±  1.510  (+447% of 0.113; 1 SD of feature = +16.47 pts)
+     b2b_net       -2.344 ±  6.765  (-105% of 2.223; 1 SD of feature = -1.47 pts)
+     d_phase       -3.376 ± 10.595  (-2293% of 0.147; 1 SD of feature = -15.33 pts)
+     luck_def      +0.913 ±  0.470  (+1051% of 0.087; 1 SD of feature = +8.30 pts)
+     talent_diff   +0.349 ±  0.768  ( +84% of 0.418; 1 SD of feature = +2.43 pts)
+     ft_diff       -0.124 ±  1.399  (-129% of 0.096; 1 SD of feature = -0.56 pts)
+  3b. model − market margin on base features (n=49; weight change per unit, and as a share of the base coefficient)
+     intercept  -0.46 ±  0.85
+     delta         +0.067 ±  0.186  ( +59% of 0.113; 1 SD of feature = +2.17 pts)
+     b2b_net       +0.613 ±  1.447  ( +28% of 2.223; 1 SD of feature = +0.39 pts)
+     d_phase       -0.381 ±  1.393  (-259% of 0.147; 1 SD of feature = -1.73 pts)
+     luck_def      -0.008 ±  0.090  (  -9% of 0.087; 1 SD of feature = -0.07 pts)
+     talent_diff   -0.272 ±  0.167  ( -65% of 0.418; 1 SD of feature = -1.89 pts)
+     ft_diff       -0.036 ±  0.165  ( -37% of 0.096; 1 SD of feature = -0.16 pts)
+
+== games 1+: n=129, model picks 95-34
+  1. contribution toward the pick (points of home margin x pick side)
+     feature                 wins          losses         loss-win
+     delta         +3.28 ± 0.61   +2.99 ± 1.04   -0.29 ± 1.21
+     b2b_net       +0.09 ± 0.22   +0.33 ± 0.33   +0.23 ± 0.39
+     d_phase       +0.43 ± 0.09   +0.40 ± 0.17   -0.04 ± 0.19
+     luck_def      -0.22 ± 0.17   -0.74 ± 0.28   -0.52 ± 0.33
+     talent_diff   +1.70 ± 0.33   +0.67 ± 0.49   -1.02 ± 0.59
+     ft_diff       +0.09 ± 0.16   +0.16 ± 0.26   +0.08 ± 0.30
+     av_min        +0.02 ± 0.15   +0.32 ± 0.27   +0.30 ± 0.31
+     av_bpm        +0.03 ± 0.16   +0.23 ± 0.32   +0.20 ± 0.35
+     intercept     +0.28 ± 0.41   +0.24 ± 0.70   -0.04 ± 0.81
+  2. actual − model margin on base features (n=129; weight change per unit, and as a share of the base coefficient)
+     intercept  +1.63 ±  2.79
+     delta         +0.208 ±  0.353  (+184% of 0.113; 1 SD of feature = +6.54 pts)
+     b2b_net       -0.509 ±  5.859  ( -23% of 2.223; 1 SD of feature = -0.24 pts)
+     d_phase       -1.575 ±  2.807  (-1070% of 0.147; 1 SD of feature = -5.62 pts)
+     luck_def      +0.411 ±  0.343  (+473% of 0.087; 1 SD of feature = +3.62 pts)
+     talent_diff   +0.401 ±  0.520  ( +96% of 0.418; 1 SD of feature = +2.88 pts)
+     ft_diff       -0.147 ±  0.564  (-153% of 0.096; 1 SD of feature = -0.77 pts)
+  3a. actual − market margin on base features (n=129; weight change per unit, and as a share of the base coefficient)
+     intercept  +1.64 ±  2.70
+     delta         +0.190 ±  0.345  (+168% of 0.113; 1 SD of feature = +5.97 pts)
+     b2b_net       -0.203 ±  5.701  (  -9% of 2.223; 1 SD of feature = -0.10 pts)
+     d_phase       -1.367 ±  2.769  (-929% of 0.147; 1 SD of feature = -4.87 pts)
+     luck_def      +0.445 ±  0.325  (+512% of 0.087; 1 SD of feature = +3.92 pts)
+     talent_diff   +0.178 ±  0.499  ( +43% of 0.418; 1 SD of feature = +1.28 pts)
+     ft_diff       -0.081 ±  0.565  ( -85% of 0.096; 1 SD of feature = -0.43 pts)
+  3b. model − market margin on base features (n=129; weight change per unit, and as a share of the base coefficient)
+     intercept  +0.01 ±  0.46
+     delta         -0.018 ±  0.047  ( -16% of 0.113; 1 SD of feature = -0.57 pts)
+     b2b_net       +0.306 ±  0.914  ( +14% of 2.223; 1 SD of feature = +0.15 pts)
+     d_phase       +0.208 ±  0.378  (+141% of 0.147; 1 SD of feature = +0.74 pts)
+     luck_def      +0.033 ±  0.062  ( +38% of 0.087; 1 SD of feature = +0.29 pts)
+     talent_diff   -0.223 ±  0.095  ( -53% of 0.418; 1 SD of feature = -1.60 pts)
+     ft_diff       +0.066 ±  0.080  ( +68% of 0.096; 1 SD of feature = +0.34 pts)
+
+== one feature at a time, games 1+: residual on that feature's contribution
+   (coef x value, report-route file); slope = extra multiple of its weight
+  delta        vs results x+0.23 ± 0.62   vs market x+0.25 ± 0.09
+  b2b_net      vs results x-0.21 ± 2.74   vs market x-0.15 ± 0.42
+  av_min       vs results x-2.34 ± 3.23   vs market x-0.67 ± 0.78
+  av_bpm       vs results x-1.09 ± 3.06   vs market x-0.54 ± 0.79
+  d_phase      vs results x+0.96 ± 4.62   vs market x+1.57 ± 0.67
+  luck_def     vs results x+2.54 ± 2.73   vs market x-0.52 ± 0.48
+  talent_diff  vs results x+1.30 ± 1.02   vs market x+0.69 ± 0.18
+  ft_diff      vs results x-0.83 ± 3.46   vs market x+0.07 ± 0.55
+  whole model margin: results ask x+0.22 ± 0.40 (dispersion)
+  in-sample log loss (talent multiple chosen after seeing results; not evidence):
+    talent x1: 0.5859  talent x1.5: 0.5737  talent x2: 0.5645  | lock market: 0.5576
+
+== residual by route (actual − model margin, mean ± 95%)
+  report  n= 129  +1.06 ± 2.64  (|resid| 12.2)
+
+== benchmark: same regression (2) with the production base fit, prior seasons
+   (in-sample for the fit: those seasons are in its training data, so these
+   show the usual spread of a season's weight 'errors' at this sample size,
+   not an out-of-sample test)
+  2024-25 games 1-15 (n=231), talent omitted:
+     delta         +0.064 ±  0.130  ( +56%)
+     b2b_net       -1.484 ±  3.039  ( -67%)
+     d_phase       +0.100 ±  1.114  ( +68%)
+     luck_def      -0.073 ±  0.231  ( -84%)
+     ft_diff       -0.263 ±  0.427  (-274%)
+  2025-26 games 1-15 (n=230), talent omitted:
+     delta         +0.211 ±  0.148  (+186%)
+     b2b_net       +0.238 ±  3.708  ( +11%)
+     d_phase       -0.624 ±  1.126  (-424%)
+     luck_def      +0.044 ±  0.198  ( +50%)
+     ft_diff       +0.207 ±  0.379  (+216%)
