@@ -1,0 +1,68 @@
+Early-season talent weight: walk-forward test (research/talent_early.py, talent_early_v1).
+Registration: docs/talent_weight_test_registration.md (registered 2026-11-17T16:24:42Z, c71a8d2).
+Arm tE minus prod, paired by game, ± 95%; negative = tE better. Production routing;
+report route at the 5 h lock (q rule, 300 min), trained od at 30 min.
+
+Games: 10910 over seasons 2016-17, 2017-18, 2018-19, 2020-21, 2021-22, 2022-23, 2023-24, 2024-25, 2025-26; report route 3617; prod log loss games 1+ 0.6118
+
+== 1-2. Primary: games 1-9 against outcomes (log loss; Brier)
+  pooled     +0.00018 ± 0.00160  Brier +0.00023 ± 0.00067  (n 1219)
+  2016-17    +0.00553 ± 0.00750  Brier +0.00269 ± 0.00264  (n 120)
+  2017-18    -0.00265 ± 0.00673  Brier -0.00066 ± 0.00266  (n 120)
+  2018-19    +0.00121 ± 0.00213  Brier +0.00047 ± 0.00095  (n 140)
+  2020-21    -0.00038 ± 0.00116  Brier -0.00013 ± 0.00048  (n 140)
+  2021-22    -0.00035 ± 0.00205  Brier -0.00025 ± 0.00078  (n 141)
+  2022-23    -0.00008 ± 0.00287  Brier +0.00001 ± 0.00117  (n 141)
+  2023-24    -0.00070 ± 0.00846  Brier -0.00008 ± 0.00388  (n 141)
+  2024-25    +0.00063 ± 0.00373  Brier +0.00060 ± 0.00158  (n 138)
+  2025-26    -0.00121 ± 0.00384  Brier -0.00035 ± 0.00170  (n 138)
+  route base   +0.00051 ± 0.00168  Brier +0.00032 ± 0.00064  (n 804)
+  route report -0.00045 ± 0.00337  Brier +0.00005 ± 0.00152  (n 415)
+  tE better in 6 of 9 seasons
+
+== 3. Games 10+ against outcomes
+  pooled     +0.00009 ± 0.00012  Brier +0.00004 ± 0.00005  (n 9225)
+  2016-17    +0.00012 ± 0.00057  Brier +0.00000 ± 0.00020  (n 933)
+  2017-18    +0.00017 ± 0.00051  Brier +0.00007 ± 0.00020  (n 932)
+  2018-19    -0.00003 ± 0.00018  Brier -0.00001 ± 0.00007  (n 1074)
+  2020-21    +0.00004 ± 0.00010  Brier +0.00002 ± 0.00004  (n 924)
+  2021-22    -0.00009 ± 0.00015  Brier -0.00004 ± 0.00006  (n 1073)
+  2022-23    +0.00004 ± 0.00019  Brier +0.00001 ± 0.00008  (n 1073)
+  2023-24    +0.00092 ± 0.00055  Brier +0.00039 ± 0.00024  (n 1074)
+  2024-25    -0.00010 ± 0.00022  Brier -0.00004 ± 0.00009  (n 1071)
+  2025-26    -0.00022 ± 0.00048  Brier -0.00007 ± 0.00019  (n 1071)
+  game 0 (not in the rule) -0.00009 ± 0.00640  Brier -0.00030 ± 0.00270  (n 141)
+
+== 4-5. Against the close (reconstructed): arm − close log loss; [tE − prod]
+  dk      2025-26 games 10+ n  964  prod +0.0163 ± 0.0105  tE +0.0158 ± 0.0105  [-0.00053 ± 0.00045, Brier -0.00019]
+  espnbet 2024-25 games 1-9 n  138  prod -0.0175 ± 0.0266  tE -0.0169 ± 0.0256  [+0.00063 ± 0.00373, Brier +0.00060]
+  espnbet 2024-25 games 10+ n 1071  prod +0.0150 ± 0.0097  tE +0.0149 ± 0.0097  [-0.00010 ± 0.00022, Brier -0.00004]
+  espnbet 2025-26 games 1-9 n  138  prod +0.0029 ± 0.0287  tE +0.0017 ± 0.0275  [-0.00121 ± 0.00384, Brier -0.00035]
+  espnbet 2025-26 games 10+ n  107  prod -0.0122 ± 0.0331  tE -0.0097 ± 0.0331  [+0.00257 ± 0.00242, Brier +0.00103]
+
+== 6. Fitted coefficients per fold (season-start fit; report route refits per slate)
+  2016-17 base   n  1102  tE: talent_early -0.235 talent_diff +0.447 delta +0.148 d_phase +0.042 | prod talent_diff +0.428
+  2017-18 base   n  2171  tE: talent_early -0.204 talent_diff +0.515 delta +0.126 d_phase +0.017 | prod talent_diff +0.499
+  2018-19 base   n  3239  tE: talent_early -0.091 talent_diff +0.435 delta +0.123 d_phase +0.051 | prod talent_diff +0.427
+  2020-21 base   n  4469  tE: talent_early -0.045 talent_diff +0.458 delta +0.123 d_phase +0.054 | prod talent_diff +0.454
+  2021-22 base   n  5549  tE: talent_early +0.069 talent_diff +0.462 delta +0.106 d_phase +0.092 | prod talent_diff +0.467
+  2022-23 base   n  6777  tE: talent_early +0.096 talent_diff +0.430 delta +0.105 d_phase +0.120 | prod talent_diff +0.436
+  2023-24 base   n  8007  tE: talent_early +0.083 talent_diff +0.426 delta +0.102 d_phase +0.132 | prod talent_diff +0.432
+  2023-24 report n  1214  tE: talent_early +0.238 talent_diff +0.347 delta +0.067 d_phase +0.218 | prod talent_diff +0.363
+  2024-25 base   n  9237  tE: talent_early +0.086 talent_diff +0.441 delta +0.105 d_phase +0.124 | prod talent_diff +0.447
+  2024-25 report n  2429  tE: talent_early +0.177 talent_diff +0.363 delta +0.129 d_phase +0.119 | prod talent_diff +0.375
+  2025-26 base   n 10462  tE: talent_early +0.116 talent_diff +0.418 delta +0.111 d_phase +0.138 | prod talent_diff +0.426
+  2025-26 report n  3638  tE: talent_early +0.145 talent_diff +0.304 delta +0.137 d_phase +0.155 | prod talent_diff +0.313
+  corr(talent_early, talent_diff) games 1-9: +0.89
+
+== Pass rule (registered)
+  (a) FAIL  games 1-9 log loss +0.00018 ± 0.00160, upper bound +0.00178 < 0
+  (b) pass  Brier +0.00023, same sign
+  (c) pass  better in 6 of 9 seasons (need ≥ half)
+  (d) pass  games 10+ outcomes +0.00009 ± 0.00012; dk 2026 -0.00053 ± 0.00045; espnbet 2025 -0.00010 ± 0.00022
+  (e) pass  no season gain over 0.008
+  VERDICT: tE FAILS the registered rule
+
+== 7. Information only (selection data, not in the rule): 2026-27 native locks
+  games 1-9: tE − lock log loss -0.0042 ± 0.0035 (n 80), talent_early coef +0.145 (fold 2026)
+  games 1+: tE − lock log loss -0.0026 ± 0.0022 (n 129), talent_early coef +0.145 (fold 2026)

@@ -986,3 +986,23 @@ registration commit: `2e301d3`, 2026-10-23T19:46:58Z.
   gain is the shrinkage. Constants were picked the same day from a small grid
   on these seasons (in-sample). Research only; the estimate changes only by
   the owner's amendment.
+- Early-season talent weight (owner's request, 2026-11-17;
+  `research/loss_feature_audit.py`, `research/talent_early.py`,
+  `diagnostics/loss_feature_audit/RESULTS.txt`,
+  `diagnostics/talent_early/RESULTS.txt`, PR Dave356w/nba-matchups#185).
+  An audit of the 2026-27 native locks (129 games 1+, picks 95–34) found
+  `talent_diff` the one consistent lean in the losses: half the talent
+  support of the wins, and the lock market weighting it about 1.7× the model.
+  Registered before any test code (`docs/talent_weight_test_registration.md`,
+  2026-11-17T16:24:42Z, `c71a8d2`): arm tE adds talent_diff × max(0, 1 − g/10)
+  (g = min games played) to both routes, walk-forward on 2016-17 .. 2025-26
+  with production routing, 2026-27 never in a fit. Primary, games 1–9 against
+  outcomes (n = 1,219): +0.00018 ± 0.00160 log loss (Brier +0.00023 ±
+  0.00067), better in 6 of 9 seasons; games 10+ +0.00009 ± 0.00012; G7
+  closes not worse (DK 2025-26 −0.00053 ± 0.00045, ESPN BET 2024-25 −0.00010
+  ± 0.00022). The fitted early weight is negative in the first folds and
+  +0.08 .. +0.24 from 2021-22, but adds nothing out of sample (corr with
+  talent_diff +0.89 on games 1–9). **Fails** the registered rule (a): closed
+  at the pre-game view of talent, with no tuned variant. The 2026-27 replay
+  (−0.0042 ± 0.0035, games 1–9) is the selection data and is not evidence.
+  Research only; no model, rule or record change.

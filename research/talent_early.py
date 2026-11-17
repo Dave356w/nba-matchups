@@ -159,7 +159,7 @@ def report():
          f"Registration: {REG}.",
          "Arm tE minus prod, paired by game, ± 95%; negative = tE better. Production routing;",
          "report route at the 5 h lock (q rule, 300 min), trained od at 30 min.", ""]
-    L.append(f"Games: {len(P)} over seasons {sorted(P['season'].unique())}; "
+    L.append(f"Games: {len(P)} over seasons {', '.join(f'{s - 1}-{str(s)[2:]}' for s in sorted(P['season'].unique().tolist()))}; "
              f"report route {(P['route'] == 'report').sum()}; prod log loss games 1+ "
              f"{dyn.ll(P.loc[P['stage'] != 'game 0', 'p_prod'], y_all[P['stage'] != 'game 0']).mean():.4f}")
     L.append("")
@@ -212,9 +212,8 @@ def report():
                  f"{te['talent_early']:+.3f} talent_diff {te['talent_diff']:+.3f} delta "
                  f"{te['delta']:+.3f} d_phase {te['d_phase']:+.3f} | prod talent_diff "
                  f"{pr['talent_diff']:+.3f}")
-    for f in ("talent_diff", "delta", "d_phase"):
-        L.append(f"  corr(talent_early, {f}) games 1-9: {E[['talent_early', f]].corr().iloc[0, 1]:+.2f}"
-                 if f in E else "")
+    L.append(f"  corr(talent_early, talent_diff) games 1-9: "
+             f"{E[['talent_early', 'talent_diff']].corr().iloc[0, 1]:+.2f}")
     L.append("")
     L.append("== Pass rule (registered)")
 
