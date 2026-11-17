@@ -75,8 +75,8 @@ hand.
   matcher is the one the deployed files use; if the suffix fix is active by
   then, both arms use it.
 - **Base route.** Each test season Y is fitted on the base fit's seasons
-  before Y (from 2015-16; 2019-20 is not used). Test seasons: 2016-17 ..
-  2025-26 games 1+, excluding 2019-20 and 2020-21.
+  before Y (from 2015-16; 2019-20 is not in the fit's seasons). Test seasons:
+  2016-17 .. 2025-26 games 1+, excluding 2019-20.
 - **Report route.** Each test season Y is fitted on the report seasons
   before Y (from 2022-23). Test seasons: 2023-24 .. 2025-26, covered games
   1+.
