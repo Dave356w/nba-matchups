@@ -11,10 +11,11 @@ logit(close q) fitted together (model weight ~0 = the close already prices it).
              ΔLL +0.0465 ± 0.0288  ΔBrier +0.0188 ± 0.0133  | accuracy model 75.0% close 73.8%
              home won 53.8%; lean model +0.006 close -0.005
              note: worse than the close
-  games 10+  n=   18  sd logit P 0.81 vs close 0.88 (ratio 0.91)
-             fits need 30+ games with both outcomes
-             ΔLL -0.0003 ± 0.0597  ΔBrier -0.0012 ± 0.0281  | accuracy model 83.3% close 77.8%
-             home won 50.0%; lean model -0.006 close +0.010
+  games 10+  n=   49  sd logit P 0.86 vs close 1.04 (ratio 0.83)
+             slope model 1.14 ± 0.85  intercept +0.20 ± 0.62  | slope close 0.92 ± 0.67
+             joint  model +0.61 ± 2.07  close +0.46 ± 1.67
+             ΔLL +0.0006 ± 0.0472  ΔBrier -0.0009 ± 0.0214  | accuracy model 71.4% close 71.4%
+             home won 53.1%; lean model -0.040 close -0.037
 
 == native 2026-27, first snapshot (_v11)
   games 1-9  n=   85  sd logit P 0.75 vs close 0.97 (ratio 0.77)
@@ -23,22 +24,24 @@ logit(close q) fitted together (model weight ~0 = the close already prices it).
              ΔLL +0.0500 ± 0.0290  ΔBrier +0.0203 ± 0.0135  | accuracy model 74.1% close 75.3%
              home won 52.9%; lean model +0.016 close -0.001
              note: worse than the close
-  games 10+  n=   18  sd logit P 0.64 vs close 0.88 (ratio 0.73)
-             fits need 30+ games with both outcomes
-             ΔLL +0.0152 ± 0.0672  ΔBrier +0.0041 ± 0.0310  | accuracy model 83.3% close 77.8%
-             home won 50.0%; lean model -0.014 close +0.010
+  games 10+  n=   49  sd logit P 0.78 vs close 1.04 (ratio 0.75)
+             slope model 1.43 ± 0.97  intercept +0.23 ± 0.64  | slope close 0.92 ± 0.67
+             joint  model +1.49 ± 2.14  close -0.04 ± 1.55
+             ΔLL -0.0145 ± 0.0585  ΔBrier -0.0073 ± 0.0254  | accuracy model 73.5% close 71.4%
+             home won 53.1%; lean model -0.040 close -0.037
 
 == rebuilt 2026-27 (hindsight)
   games 1-9  n=  140  sd logit P 0.71 vs close 0.95 (ratio 0.76)
              slope model 1.77 ± 0.67  intercept -0.43 ± 0.42  | slope close 1.72 ± 0.60
-             joint  model -0.78 ± 1.45  close +2.27 ± 1.22
-             ΔLL +0.0519 ± 0.0233  ΔBrier +0.0212 ± 0.0109  | accuracy model 71.4% close 72.9%
+             joint  model -0.78 ± 1.46  close +2.28 ± 1.22
+             ΔLL +0.0519 ± 0.0233  ΔBrier +0.0213 ± 0.0109  | accuracy model 71.4% close 72.9%
              home won 50.0%; lean model +0.053 close +0.039
              note: too timid (slope > 1); worse than the close
-  games 10+  n=   14  sd logit P 0.75 vs close 0.88 (ratio 0.86)
-             fits need 30+ games with both outcomes
-             ΔLL +0.0121 ± 0.0666  ΔBrier +0.0039 ± 0.0315  | accuracy model 78.6% close 71.4%
-             home won 42.9%; lean model +0.049 close +0.067
+  games 10+  n=   41  sd logit P 0.92 vs close 1.09 (ratio 0.84)
+             slope model 1.45 ± 1.02  intercept +0.34 ± 0.74  | slope close 1.13 ± 0.79
+             joint  model +1.22 ± 2.77  close +0.20 ± 2.22
+             ΔLL +0.0003 ± 0.0461  ΔBrier -0.0013 ± 0.0207  | accuracy model 75.6% close 75.6%
+             home won 53.7%; lean model -0.056 close -0.054
 
 == reconstructed 2024-25 espnbet (hindsight)
   games 1-9  n=  138  sd logit P 0.78 vs close 0.93 (ratio 0.84)
