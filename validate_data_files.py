@@ -404,12 +404,21 @@ def shadow_errors():
         return [f"shadow Realized WP validation crashed: {exc!r}"]
 
 
+def cell_forward_errors():
+    """Problems in the cell ROI forward log (research only)."""
+    try:
+        import cell_forward
+        return list(cell_forward.validate())
+    except Exception as exc:
+        return [f"cell ROI forward log validation crashed: {exc!r}"]
+
+
 def main(argv=None):
     # The build passes --shadow-warn: a bad shadow research file is reported
     # but never holds back the ledger commit (pregame snapshots cannot be
     # re-derived after tip). Without the flag (PRs, manual runs) it fails.
     shadow_warn = "--shadow-warn" in (sys.argv[1:] if argv is None else argv)
-    shadow = shadow_errors()
+    shadow = shadow_errors() + cell_forward_errors()
     if shadow_warn:
         for e in shadow:
             print(f"::warning::SHADOW {e}")

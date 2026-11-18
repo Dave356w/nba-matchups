@@ -205,6 +205,27 @@ function update(){document.querySelectorAll('[data-ml-panel], [data-source-summa
 cs.forEach(function(c){c.addEventListener('change',update);});update();})();</script>"""
 
 
+def cell_roi(evidence):
+    """A pooled cell's flat 1-unit return on the model pick at each result's
+    own saved price (owner request, 2026-11-16): live locks at their lock
+    price, previous-season replay at its DraftKings close. Display and
+    monitoring only; Realized WP does not read it."""
+    profits = [p for p in (market.unit_profit(r['price'], r['won']) for r in evidence) if np.isfinite(p)]
+    units = math.fsum(profits)
+    return dict(priced=len(profits), units=units, roi=units / len(profits) if profits else float('nan'),
+                se=unit_se(profits))
+
+
+def unit_se(units):
+    """1 SE of the mean 1-unit return (ROI) over `units`. nan below two
+    results, and when every result is a win or every one a loss: the
+    results' spread is then near zero and would understate the uncertainty."""
+    units = [u for u in units if np.isfinite(u)]
+    if len(units) < 2 or all(u > 0 for u in units) or all(u < 0 for u in units):
+        return float('nan')
+    return float(np.std(units, ddof=1) / math.sqrt(len(units)))
+
+
 class PublicSite:
     def __init__(self, ui, native, today, built, model_ok=True, context=None, injuries=None, replay=None):
         self.ui, self.today, self.built, self.model_ok = ui, today, built, model_ok
@@ -394,42 +415,37 @@ class PublicSite:
                 + f"<div class='g-detail'>{detail}</div></details>")
 
     def calibrated_readout(self, row, team):
+        """The pooled cell's 1u ROI on the model pick as the card's third
+        headline metric (owner request, 2026-11-18), with Realized WP and the
+        cell's record as its evidence. Display only."""
         u = self.ui
         estimate = self.calibration.estimate(row)
         if estimate is None:
-            return ("<div class='calibration-main metric' data-season-calibration><small>Realized WP</small><strong>—</strong>"
+            return ("<div class='calibration-main metric' data-season-calibration><small>Cell ROI</small><strong>—</strong>"
                     "<span>Requires a v11 forecast, team experience and valid DraftKings prices.</span></div>")
         n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
         head = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams" if n
                 else 'No historical results in this cell yet')
+        roi = cell_roi(estimate['evidence'])
+        if roi['priced']:
+            se = f" ± {100 * roi['se']:.1f} pp (1 SE)" if np.isfinite(roi['se']) else ''
+            tile = (f"<strong data-cell-roi>{100 * roi['roi']:+.1f}%</strong>"
+                    f"<span>{se.strip()}{' · ' if se else ''}{roi['units']:+.2f}u over {roi['priced']} priced</span>")
+        else:
+            tile = "<strong>—</strong><span>No priced results in this cell yet</span>"
         rows = []
         if n:
             gap = 100 * (estimate['cell_rate'] - estimate['cell_market'])
             rows.append(("Cell vs market", f"<span data-cell-adjustment>Won {u.pct(estimate['cell_rate'])} vs a "
                          f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts, "
                          f"counted as {100 * estimate['cell_adjustment']:+.1f} after shrinkage)</span>"))
-            roi = self.cell_roi(estimate['evidence'])
-            if roi:
-                rows.append(("1u on model pick", roi))
+            rows.append(("Realized WP", f"<span data-realized-wp>{u.pct(estimate['public_probability'])} {u.esc(team)}</span>"))
         rows.append(("Sample", f"{estimate['previous_games']} previous season + {estimate['current_games']} current season"
                      f" · prices at {u.tip_pt(row.get('snapshot_utc'))}"))
         body = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
         return (f"<div class='calibration-main metric' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
-                f"<small>Realized WP</small><strong>{u.pct(estimate['public_probability'])}</strong><span>{u.esc(team)} estimate</span></div>"
+                f"<small>Cell ROI · 1u on {u.esc(team)}</small>{tile}</div>"
                 f"<div class='calibration-evidence'><p class='cell-head'>{head}</p><dl>{body}</dl></div>")
-
-    @staticmethod
-    def cell_roi(evidence):
-        """The pooled cell's flat 1-unit return on the model pick at each
-        result's own saved price (owner request, 2026-11-16): live locks at
-        their lock price, previous-season replay at its DraftKings close.
-        Display only; Realized WP does not read it."""
-        profits = [p for p in (market.unit_profit(r['price'], r['won']) for r in evidence) if np.isfinite(p)]
-        if not profits:
-            return ''
-        n, units = len(profits), math.fsum(profits)
-        se = f" ± {100 * np.std(profits, ddof=1) / math.sqrt(n):.1f} pp (1 SE)" if n > 1 else ''
-        return (f"<span data-cell-roi>ROI {100 * units / n:+.1f}%{se}, {units:+.2f}u over {n} priced</span>")
 
     def live_block(self, row, dk):
         """The live win chance (owner request, 2026-11-07; live_wp.py): the
@@ -778,19 +794,23 @@ class PublicSite:
                     if not n:
                         body += f"<td data-model-band='{pb}' data-market-band='{qb}' data-n='0'>—</td>"
                         continue
-                    profit = sum(float(r.ml_units) for r in cell)
+                    units_each = [float(r.ml_units) for r in cell]
+                    profit = math.fsum(units_each)
                     wins = sum(int(r.prediction_won) for r in cell)
                     roi = profit/n
+                    se = unit_se(units_each)
+                    se_text = (f"<small data-roi-se>± {100*se:.1f} pp</small>" if np.isfinite(se)
+                               else f"<small data-roi-se>{'all wins' if wins == n else 'all losses'} · no SE</small>" if n > 1 else '')
                     color = 'positive' if profit > 0 else 'negative' if profit < 0 else 'neutral'
                     body += (f"<td class='{color}' data-model-band='{pb}' data-market-band='{qb}' data-n='{n}'>"
-                             f"<strong>{100*roi:+.1f}%</strong><small>{n} game{'s' if n != 1 else ''} · {wins}–{n-wins}</small>"
+                             f"<strong>{100*roi:+.1f}%</strong>{se_text}<small>{n} game{'s' if n != 1 else ''} · {wins}–{n-wins}</small>"
                              f"<small>{profit:+.2f}u</small></td>")
                     retained += n
                     units += profit
                 body += '</tr>'
             body += ('</tbody></table></div>'
                      f"<p class='public-note'>{scope.capitalize()}: {retained} priced results · {units:+.2f}u. "
-                     "Cells are descriptive, not a filter or a betting rule. Small samples can show extreme ROI.</p></div>")
+                     "± is 1 standard error of the ROI; a square where every result is a win (or every one a loss) shows none, since its spread would understate the uncertainty. Cells are descriptive, not a filter or a betting rule. Small samples can show extreme ROI.</p></div>")
         return body + ("<details><summary>How the matrix works</summary><p>"
                        "Each square stakes 1 unit on the model’s selected team; both WP bands refer to that same team, across all NBA teams. "
                        "Market WP removes the bookmaker’s margin. Below 50% includes model-picked market underdogs. "
@@ -899,15 +919,16 @@ class PublicSite:
 <p>The default is the <b>saved live record across seasons</b>. Live and replay summaries appear side by side and are never added together. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
 <p>Historical replays must carry a v11-family tag and a graded result, and use their saved DraftKings <b>closing</b> prices. They are reconstructed or rebuilt with historical inputs, rather than predictions captured live. Replays do not demonstrate executable five-hour returns. The record never uses another book’s prices.</p>
 <p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark.</p>
-<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the source and season filters, then retains the latest 50 completed priced picks in each cell by default, ordered by slate date and game ID; a switch shows the latest 100 or all games in the selection instead. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI accumulates within each season and source and does not change with filters.</p>""" + self.void_note() + """</section>
+<p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the source and season filters, then retains the latest 50 completed priced picks in each cell by default, ordered by slate date and game ID; a switch shows the latest 100 or all games in the selection instead. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI ± 1 standard error, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI accumulates within each season and source and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates every 30 seconds while games are in progress, from the current score, the time left and the last DraftKings spread saved before tip. A build runs about 20 minutes before each tip so that spread is close to the closing line; a line that moves in the final minutes is not captured. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
-<section id='in-season-calibration'><h2>Realized WP</h2>
-<p>This experimental estimate is a lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
+<section id='in-season-calibration'><h2>Cell ROI and Realized WP</h2>
+<p><b>Cell ROI</b> is the card’s third headline figure: 1 unit on the model pick in each of the cell’s latest 200 past games, each at its own saved price (live picks at their lock price, previous-season replays at their DraftKings close), with ± 1 standard error, net units and the number of priced results. It describes those past games only. A backtest found that a cell’s past ROI did not predict its next results, so it is a record to monitor, not a forecast, a rule or a recommendation. From November 18, 2026 each lock’s cell and that cell’s record are also saved once before tip, so the cells’ later results can be checked against what was known at the time.</p>
+<p><b>Realized WP</b>, in the cell details, is an experimental estimate built from the same lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
 <p><b>Realized WP = this game’s no-vig DraftKings WP + shrunk cell adjustment</b>, limited to 0–100%. The cell adjustment is the cell win rate minus the cell average no-vig market WP: wins ÷ games among the latest 200 actual results in that cell, against those same games’ no-vig DraftKings WP for their model-selected teams. A market band is 10 to 20 points wide, so the cell’s games rarely carry the same price as tonight’s game; the adjustment measures how far the cell beat or missed its own prices rather than its raw win rate.</p>
-<p>The card also shows the cell’s <b>ROI</b>: 1 unit on the model pick in each of those same games at its own saved price (live picks at their lock price, previous-season replays at their DraftKings close), with ± 1 standard error. It describes those past games only; it does not enter Realized WP and is not a rule or a recommendation.</p>
+<p>Cell ROI does not enter Realized WP.</p>
 <p><b>Shrinkage.</b> The cell adjustment is multiplied by n ÷ (n + 200), where n is the number of results the cell holds. A cell with 200 results counts for half of its measured gap; a cell with 10 counts for about 5%. Unshrunk, a small cell could move a card by tens of points on a handful of games. Use all available results if a cell has fewer than 200; an empty cell has no estimate.</p>
 <p>History of this display: the raw cell win rate until November 12, 2026; the cell adjustment over the latest 50 results from November 12; the latest 200, shrunk, from November 13 (until November 18 it also added one pooled recent-results term to every card). A walk-forward backtest on two replay seasons scored the shrunk estimate better than the unshrunk latest-200 estimate and about level with the price itself; it did not predict results better than the price.</p>
 <p>The <b>immediately previous season</b> supplies the starting matrix. Current-season evidence uses valid graded native v11 five-hour locks on strictly earlier slates. Same-season replay, older seasons, pending games and void locks do not enter. New results replace the oldest matching observations once the cell reaches 200. Order is slate date, then game ID for ties.</p>

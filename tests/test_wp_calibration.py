@@ -89,12 +89,13 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     # (owner, 2026-11-18); the backend estimate keeps v4's + .25/201 drift
     est=site.calibration.estimate(target)
     assert abs(est['probability']-est['public_probability']-est['drift'])<1e-12 and est['drift']>0
-    assert 'Realized WP' in card and '<strong>75.1%</strong>' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
+    assert 'Realized WP</dt><dd><span data-realized-wp>75.1%' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
     assert 'data-cell-adjustment' in card and 'market average' in card
     assert 'counted as +0.1 after shrinkage' in card and 'drift' not in card.lower()
-    # one prior win at -300: +0.33u on 1 priced game
-    assert 'ROI +33.3%, +0.33u over 1 priced' in card and 'data-cell-roi' in card
-    assert '1 unit on the model pick in each of those same games' in site.guide_page()
+    # one prior win at -300: +0.33u on 1 priced game, the card's headline (owner, 2026-11-18)
+    assert 'Cell ROI · 1u on' in card and '<strong data-cell-roi>+33.3%</strong>' in card
+    assert '+0.33u over 1 priced' in card and '1 SE' not in card   # one result has no SE
+    assert '1 unit on the model pick in each of the cell’s latest 200 past games' in site.guide_page()
     guide=site.guide_page()
     assert 'no-vig DraftKings WP + shrunk cell adjustment</b>' in guide and 'n ÷ (n + 200)' in guide
     assert 'drift' not in guide.lower()
@@ -192,3 +193,9 @@ def test_drift_reads_only_the_latest_six_hundred_and_is_the_same_for_every_cell_
     # a later slate's result never enters an earlier slate's drift
     assert RollingCalibration(pd.DataFrame([record('live0'),record('later',date='2026-11-12')]),history).estimate(
         record('target',date='2026-11-11'))['drift']==a['drift']
+
+
+def test_roi_standard_error_is_blank_when_degenerate():
+    from public_site import unit_se
+    assert np.isnan(unit_se([.5])) and np.isnan(unit_se([.5, .3, .9])) and np.isnan(unit_se([-1, -1]))
+    assert unit_se([1., -1.]) == pytest.approx(np.std([1., -1.], ddof=1) / np.sqrt(2))

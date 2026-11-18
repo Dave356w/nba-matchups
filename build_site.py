@@ -3565,6 +3565,17 @@ def write_pages(native, recon, today, model_ok, pre=None, page_day=None, capture
             realized_forward.report(native)
         except Exception as exc:
             log(f"::warning::shadow Realized WP capture failed, build continues: {exc!r}")
+        # Cell ROI forward log (docs/cell_roi_forward_registration.md):
+        # monitoring only, and like the shadow record it never blocks a build.
+        try:
+            import cell_forward
+            log(f"saved {cell_forward.capture(site)} new cell ROI forward lock(s)")
+            errors = cell_forward.validate()
+            if errors:
+                raise ValueError('; '.join(errors))
+            cell_forward.report(native)
+        except Exception as exc:
+            log(f"::warning::cell ROI forward log failed, build continues: {exc!r}")
     pages = site.render()
     internal = OUT_DIR.parent / "diagnostics" / "site"
     text = write_research(native, recon, today, model_ok, pre, out_dir=internal)
