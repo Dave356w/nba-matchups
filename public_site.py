@@ -69,7 +69,7 @@ CSS = """
 .inj-team h4{font-size:12px;margin:0 0 4px}.inj-team ul{list-style:none;margin:0;padding:0}
 .inj-team li{padding:7px 0;border-bottom:1px solid var(--line-2)}.inj-player{display:flex;justify-content:space-between;align-items:start;gap:8px}
 .inj-team small{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.inj-team .badge{white-space:normal;text-align:right}
-.forecast-readout{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 0;margin-top:8px;border-top:1px solid var(--line-2)}
+.forecast-readout{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 0 8px;margin-top:8px;border-top:1px solid var(--line-2)}
 .forecast-readout small,.tracked-label{display:block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .forecast-readout strong{display:block;font:750 24px/1.35 var(--sans);letter-spacing:-.03em}.forecast-readout span{font-size:12px;color:var(--muted)}
 .ou-readout{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:0 0 12px;font-size:12px;color:var(--muted)}
@@ -77,7 +77,7 @@ CSS = """
 .tracked-box{border-radius:9px;background:rgba(var(--accent),.07);padding:12px;border:1px solid rgba(var(--accent),.18)}
 .tracked-box .tracked-label{color:rgb(var(--accent-tx));margin-bottom:7px}.tracked-line{font-size:12px;display:flex;justify-content:space-between;gap:8px;margin:5px 0}
 .tracked-line b{font-family:var(--mono);font-size:12px;white-space:nowrap}.forecast-only{padding:10px 0 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line-2)}
-.forecast-only b{color:var(--ink)}
+.forecast-only b{display:inline-block;color:var(--ink);font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:2px}.forecast-only span{display:block}
 .live-wp{padding:12px 0 4px;margin-top:8px;border-top:1px solid var(--line-2)}[data-live-wp][hidden]{display:none!important}
 .live-wp .lwp-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
 .live-wp .lwp-head small{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgb(var(--bad))}
@@ -138,13 +138,13 @@ details.public-note summary{cursor:pointer;color:rgb(var(--accent-tx));font-weig
 .ml-hero details{margin-top:14px;font-size:13px}.ml-hero details>summary{cursor:pointer;color:rgb(var(--accent-tx));font-weight:650;padding:4px 0}
 .ml-hero details>p{color:var(--muted);max-width:780px}
 .ml-section{margin-top:28px;padding-top:20px;border-top:1px solid var(--line-2)}.ml-section>h3{font-size:15px;margin:0 0 6px}
-.forecast-readout.ml-focus{grid-template-columns:1.2fr 1fr}.stage-label{font-size:11px;color:var(--muted)}
+.stage-label{font-size:11px;color:var(--muted)}
 [data-source-summary][hidden],[data-ml-panel][hidden],.gcard[hidden]{display:none!important}
 .game-filters{display:flex;flex-wrap:wrap;gap:8px 16px;margin:16px 0 12px}.filter-group>span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.filter-group .seg{display:flex;margin:0}
-.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin:0 0 10px}.calibration-main{order:0}.actual-result{order:1}.calibration-evidence{order:2;grid-column:1/-1}.forecast-outcome .calibration-main strong,.forecast-outcome .break-even strong{font:750 22px/1.35 var(--sans);color:var(--ink)}.forecast-outcome .break-even{margin:0 0 8px}.forecast-outcome small{display:block;color:var(--muted);font-size:10px}.forecast-outcome strong{display:block;font-size:14px}.forecast-outcome .calibration-evidence small{font-size:11px}.break-even{font-size:11px;color:var(--muted);margin:0 0 12px}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
+.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}.calibration-evidence,.actual-result{grid-column:1/-1}.calibration-main{order:0}.break-even{order:1}.actual-result{order:2}.calibration-evidence{order:3}.metric,.break-even{display:flex;flex-direction:column;padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2);min-width:0}.metric small,.break-even small{display:block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}.metric strong,.break-even strong{display:block;margin-top:auto!important;font:750 24px/1.3 var(--sans);letter-spacing:-.03em;color:var(--ink);padding-top:2px;font-variant-numeric:tabular-nums}.metric span,.break-even span{display:block;font-size:12px;color:var(--muted)}.metric-primary{background:rgba(var(--accent),.07);border-color:rgba(var(--accent),.22)}.metric-primary strong{color:rgb(var(--accent-tx))}.actual-result{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 2px 0;font-size:12px}.actual-result small{color:var(--muted);font-size:12px}.actual-result strong{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}.calibration-evidence{font-size:11px;color:var(--muted);padding:10px 12px;border-radius:10px;border:1px dashed var(--line)}.calibration-evidence .cell-head{margin:0 0 6px;font-size:12px;font-weight:650;color:var(--ink)}.calibration-evidence dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}.calibration-evidence dt{white-space:nowrap}.calibration-evidence dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
 .source-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.source-summary article{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}.source-summary h3{margin:0 0 6px;font-size:15px}.source-summary p{font-size:12px;color:var(--muted);margin:6px 0}.source-summary strong{color:var(--ink)}
 .public-empty button{margin-top:14px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;cursor:pointer}
-@media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
+@media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0 8px}.metric strong,.break-even strong{font-size:22px}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
 @media(max-width:640px){.ml-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.ml-hero{padding:18px}}
 @media(max-width:1000px){.tool-grid,.rule-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.public-head{display:block;margin:20px 0 18px}.public-head p{font-size:14px}.update{text-align:left;margin-top:12px;white-space:normal}.update time{display:inline;margin-left:6px}
@@ -330,16 +330,18 @@ class PublicSite:
             breakeven = market.implied(price)
             q_home = number('pre_q_home') if dk else np.nan
             q_pick = (q_home if p >= .5 else 1-q_home) if 0 < q_home < 1 else np.nan
-            forecast = (f"<div class='forecast-readout ml-focus'><div><small>Model probability</small><strong>{u.pct(prob)}</strong><span>{u.esc(team)} to win</span></div>"
-                        f"<div data-market-probability><small>DraftKings no vig</small><strong>{u.pct(q_pick)}</strong><span>{u.esc(team)}</span></div></div>")
+            forecast = (f"<div class='forecast-readout ml-focus'><div class='metric metric-primary'><small>Model probability</small><strong>{u.pct(prob)}</strong><span>{u.esc(team)} to win</span></div>"
+                        f"<div class='metric' data-market-probability><small>DraftKings no vig</small><strong>{u.pct(q_pick)}</strong><span>{u.esc(team)}</span></div></div>")
             actual = 'Pending' if not final else 'Win' if (p >= .5) == (number('home_won') == 1) else 'Loss'
             threshold = (f"<small>Price required break even</small><strong>{u.pct(breakeven)}</strong>"
-                         + ("" if np.isfinite(breakeven) else "<small>DraftKings price unavailable.</small>"))
+                         + (f"<span>{u.esc(team)} at {u.ml_txt(price)}</span>" if np.isfinite(breakeven)
+                            else "<span>DraftKings price unavailable.</span>"))
             forecast += ("<div class='forecast-outcome'>" + self.calibrated_readout(row, team)
-                         + f"<div class='actual-result'><div class='break-even'>{threshold}</div><small>Actual result · {u.esc(team)}</small>"
+                         + f"<div class='break-even'>{threshold}</div>"
+                         + f"<div class='actual-result'><small>Actual result · {u.esc(team)}</small>"
                          f"<strong data-forecast-result data-pick-side='{'home' if p >= .5 else 'away'}'>{actual}</strong></div></div>")
         else:
-            forecast = ("<div class='forecast-only'><b>Forecast unavailable</b><br>A required model input was unavailable.</div>"
+            forecast = ("<div class='forecast-only'><b>Forecast unavailable</b><span>A required model input was unavailable.</span></div>"
                         + "<div class='forecast-outcome'>" + self.calibrated_readout(row, None) + "</div>")
         tracking = ""
         saved = self.predictions[self.predictions.game_id.astype(str).eq(str(row.game_id))] if len(self.predictions) else self.predictions
@@ -350,7 +352,7 @@ class PublicSite:
             why = ("The 5 h lock used an earlier model." if pd.notna(row.get("lock_p_home")) and not tag.endswith(analysis.FAMILY_TAGS) else
                    "No valid five-hour lock was saved before tip." if started else
                    "The ML pick freezes at the first valid snapshot within 5 hours of tip.")
-            tracking = f"<div class='forecast-only'><b>Forecast only</b><br>{why}</div>"
+            tracking = f"<div class='forecast-only'><b>Forecast only</b><span>{why}</span></div>"
         if len(self.predictions):
             saved = self.predictions[self.predictions.game_id.astype(str).eq(str(row.game_id))]
             if len(saved):
@@ -395,22 +397,27 @@ class PublicSite:
         u = self.ui
         estimate = self.calibration.estimate(row)
         if estimate is None:
-            return ("<div class='calibration-main' data-season-calibration><small>Realized WP</small><strong>—</strong>"
-                    "<small>Requires a v11 forecast, team experience and valid DraftKings prices.</small></div>")
+            return ("<div class='calibration-main metric' data-season-calibration><small>Realized WP</small><strong>—</strong>"
+                    "<span>Requires a v11 forecast, team experience and valid DraftKings prices.</span></div>")
         n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
-        support = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams" if n
-                   else 'No historical results in this cell yet')
+        head = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams" if n
+                else 'No historical results in this cell yet')
+        rows = []
         if n:
             gap = 100 * (estimate['cell_rate'] - estimate['cell_market'])
-            support += (f" · <span data-cell-adjustment>won {u.pct(estimate['cell_rate'])} vs a "
-                        f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts, "
-                        f"counted as {100 * estimate['cell_adjustment']:+.1f} after shrinkage)</span>"
-                        f" · <span data-drift>recent drift {100 * estimate['drift']:+.1f} pts</span>")
-            support += self.cell_roi(estimate['evidence'])
-        return (f"<div class='calibration-main' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
-                f"<small>Realized WP</small><strong>{u.pct(estimate['probability'])}</strong><small>{u.esc(team)} estimate</small></div>"
-                f"<div class='calibration-evidence'><small>{support}</small>"
-                f"<small>{estimate['previous_games']} previous season + {estimate['current_games']} current season · prices at {u.tip_pt(row.get('snapshot_utc'))}</small></div>")
+            rows.append(("Cell vs market", f"<span data-cell-adjustment>Won {u.pct(estimate['cell_rate'])} vs a "
+                         f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts, "
+                         f"counted as {100 * estimate['cell_adjustment']:+.1f} after shrinkage)</span>"))
+            rows.append(("Recent drift", f"<span data-drift>{100 * estimate['drift']:+.1f} pts</span>"))
+            roi = self.cell_roi(estimate['evidence'])
+            if roi:
+                rows.append(("1u on model pick", roi))
+        rows.append(("Sample", f"{estimate['previous_games']} previous season + {estimate['current_games']} current season"
+                     f" · prices at {u.tip_pt(row.get('snapshot_utc'))}"))
+        body = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
+        return (f"<div class='calibration-main metric' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
+                f"<small>Realized WP</small><strong>{u.pct(estimate['probability'])}</strong><span>{u.esc(team)} estimate</span></div>"
+                f"<div class='calibration-evidence'><p class='cell-head'>{head}</p><dl>{body}</dl></div>")
 
     @staticmethod
     def cell_roi(evidence):
@@ -423,8 +430,7 @@ class PublicSite:
             return ''
         n, units = len(profits), math.fsum(profits)
         se = f" ± {100 * np.std(profits, ddof=1) / math.sqrt(n):.1f} pp (1 SE)" if n > 1 else ''
-        return (f" · <span data-cell-roi>1u on the model pick in these games: ROI {100 * units / n:+.1f}%{se}, "
-                f"{units:+.2f}u over {n} priced</span>")
+        return (f"<span data-cell-roi>ROI {100 * units / n:+.1f}%{se}, {units:+.2f}u over {n} priced</span>")
 
     def live_block(self, row, dk):
         """The live win chance (owner request, 2026-11-07; live_wp.py): the
