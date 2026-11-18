@@ -57,3 +57,10 @@ Descriptive, at any time: forward 1-unit ROI ± 1 SE overall and by cell. No
 cell figure is evidence for a rule. The matrix window backtest already found
 no carry-over in replay (diagnostics/matrix_window/RESULTS.txt); this log is
 its forward test, not a search for profitable cells.
+
+## Clarification before implementation (2026-11-18, before any capture)
+
+The saved trailing "1 SE" is the standard error of the mean 1-unit return,
+left blank for fewer than two priced results and when every result is a win
+or every one a loss (the results' spread would then understate the
+uncertainty). The pages' matrix and cards follow the same rule.

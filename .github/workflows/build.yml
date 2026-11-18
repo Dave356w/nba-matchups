@@ -87,6 +87,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/ model/dfs_simulation.json diagnostics/dfs_calibration/RESULTS.json
           if [ -d diagnostics/realized_wp_forward ]; then git add diagnostics/realized_wp_forward/; fi
+          if [ -d diagnostics/cell_roi_forward ]; then git add diagnostics/cell_roi_forward/; fi
           if git diff --cached --quiet; then echo "no data changes"; exit 0; fi
           git commit -m "ledger $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4; do

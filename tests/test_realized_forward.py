@@ -18,6 +18,16 @@ V2_REGISTERED = forward.REGISTERED_BY_VERSION[forward.V2]
 
 
 @pytest.fixture(autouse=True)
+def no_cell_log_writes(monkeypatch):
+    # write_pages(capture_realized=True) also runs the cell ROI forward log;
+    # these tests must never write it into the repository's data/ or diagnostics/.
+    import cell_forward
+    monkeypatch.setattr(cell_forward, 'capture', lambda site: 0)
+    monkeypatch.setattr(cell_forward, 'validate', lambda: [])
+    monkeypatch.setattr(cell_forward, 'report', lambda native: 0)
+
+
+@pytest.fixture(autouse=True)
 def fixture_clock_predates_v2(monkeypatch):
     # The fixtures' clock (22:00Z) is before v2's registration (22:35Z); the
     # registration gate itself is tested with the real time below.
