@@ -16,6 +16,8 @@ it reads no model probability, tracked pick or record and feeds nothing back.
     minutes. Without a box line the projection is Sleeper's alone. Listed at
     0 minutes, Out or IR = 0; no Sleeper match = none. A box fetch failure
     leaves Sleeper alone.
+  * Pregame Bovada and Underdog props are archived by game for forward
+    comparison with Sleeper and displayed in the player pool.
   * The page embeds the slate as JSON; the visitor's browser finds the best
     lineups exactly (SOLVER_JS: a knapsack per position, combined by
     salary, and Lawler's k-best partition for the next-best lineups) under
@@ -45,6 +47,7 @@ import pandas as pd
 
 from concurrent.futures import ThreadPoolExecutor
 
+import dfs_market
 import ledger
 import market
 
@@ -245,9 +248,13 @@ def snapshot(log=print, fetch=fetch_feed, now=None):
         log(f"yahoo dfs unavailable ({e!r})")
 
 
+def capture_market(native, today, team_names, log=print):
+    dfs_market.snapshot(native, today, team_names, norm_name, log)
+
+
 # --------------------------------------------------------------- the slate ---
-def box_lines(js):
-    """A final ESPN box's played lines: team, match name, Yahoo points, minutes."""
+def box_stats(js):
+    """A final ESPN box's played lines with individual scoring components."""
     comps = (js.get("header") or {}).get("competitions") or []
     if not comps or not comps[0].get("status", {}).get("type", {}).get("completed"):
         return []
@@ -261,13 +268,20 @@ def box_lines(js):
                     continue
                 st = dict(zip(block.get("keys") or [], a.get("stats") or []))
                 try:
-                    fp = sum(SCORING[k] * float(st[v]) for k, v in BOX_KEYS.items())
+                    components = {k: float(st[v]) for k, v in BOX_KEYS.items()}
                     mins = float(st.get("minutes"))
                 except (KeyError, ValueError, TypeError):
                     continue
                 if mins > 0:
-                    out.append(dict(team=code, key=norm_name(name), fp=fp, min=mins))
+                    out.append(dict(team=code, key=norm_name(name), min=mins, **components))
     return out
+
+
+
+def box_lines(js):
+    """A final ESPN box's played lines: team, match name, Yahoo points, minutes."""
+    return [dict(team=r["team"], key=r["key"], min=r["min"],
+                 fp=sum(SCORING[k] * r[k] for k in SCORING)) for r in box_stats(js)]
 
 
 def final_summary(gid, cache=BOX_CACHE, timeout=20):
@@ -338,7 +352,7 @@ def mean_projection(sleeper_pts, minutes, rate):
     return sleeper_pts, None
 
 
-def slate(today, yahoo=None, sleeper=None, native=None, now=None, rates=None):
+def slate(today, yahoo=None, sleeper=None, native=None, now=None, rates=None, market_rows=None):
     """The page's data for ET date `today`: dict(cap, games, players, ...) or
     None when Yahoo has no salaries for it. Each player carries his Yahoo
     salary and position and his projection in Yahoo points: the mean of
@@ -366,16 +380,33 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None, rates=None):
         except Exception as e:  # noqa: BLE001 - Sleeper alone
             print(f"DFS box-score source unavailable ({e!r}); Sleeper alone", flush=True)
             rates = {}
+    game_tips = {str(r.game_id): ledger.parse_utc(r.tip_utc) for r in games.itertuples()}
+    try:
+        markets = dfs_market.index(dfs_market.load() if market_rows is None else market_rows,
+                                   game_tips, norm_name, now)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        print(f"DFS market archive unavailable ({exc!r})", flush=True)
+        markets = {}
     by_team = {(str(r.game_id), str(r.team), r.match_name): r for r in s.itertuples()}
     players, unmatched = [], []
     for r in y.itertuples():
         g = gid.get((str(r.home), str(r.away)))
         hit = by_team.get((g, str(r.team), norm_name(r.name))) if g else None
         proj, minutes, inj, sl, box = None, None, "", None, None
+        props = markets.get((g, str(r.team), norm_name(r.name)), {})
+        core = ("pts", "reb", "ast")
+        components = tuple(SCORING) if all(k in props for k in SCORING) else core
+        market_points = sleeper_comparable = None
+        if all(k in props for k in components):
+            market_points = round(sum(SCORING[k] * props[k]["mean"] for k in components), 2)
         if hit is not None:
             line = hit._asdict()
             minutes = pd.to_numeric(line.get("minutes"), errors="coerce")
             inj = str(line.get("injury_status") or "")
+            if market_points is not None:
+                subtotal = sum(SCORING[k] * pd.to_numeric(line.get(k), errors="coerce")
+                               for k in components)
+                sleeper_comparable = _num(subtotal)
             pts = yahoo_points(line)
             if np.isfinite(pts):
                 if minutes == 0 or inj.lower() in OUT_STATUSES:
@@ -391,7 +422,10 @@ def slate(today, yahoo=None, sleeper=None, native=None, now=None, rates=None):
                             home=r.team == r.home, pos=r.position, sal=int(r.salary),
                             proj=proj, fppg=_num(r.fppg),
                             min=None if minutes is None or not np.isfinite(minutes) else float(minutes),
-                            inj=inj, start=r.start_utc, game=r.game_code, sleeper=sl, box=box))
+                            inj=inj, start=r.start_utc, game=r.game_code, sleeper=sl, box=box,
+                            market_props=props, market_points=market_points,
+                            market_partial=components == core,
+                            sleeper_comparable=sleeper_comparable))
     # starters (most projected minutes) and stars (highest projections) per team
     for team in {p["team"] for p in players}:
         mine = [p for p in players if p["team"] == team and (p["proj"] or 0) > 0]
@@ -443,12 +477,14 @@ CSS = """
 .dfs-pos{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .dfs-pos button{min-height:32px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font:650 12px var(--sans);cursor:pointer}
 .dfs-pos button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.dfs-market-filter{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:12px}
 .dfs-scroll{overflow:auto;max-height:640px;border:1px solid var(--line-2);border-radius:10px}
 .dfs-table{width:100%;border-collapse:collapse;font-size:12.5px}
 .dfs-table th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:8px;z-index:1;white-space:nowrap}
 .dfs-table th,.dfs-table td{text-align:left;font-family:var(--sans);border-bottom:0}
 .dfs-table td{padding:6px 8px;border-top:1px solid var(--line-2);white-space:nowrap;font-size:12.5px}
 .dfs-table td.n{font-family:var(--mono);text-align:right}.dfs-table th.n{text-align:right}
+.dfs-table .dfs-prop-summary{white-space:normal;min-width:100px}
 .dfs-table small{display:block;color:var(--muted);font-size:10.5px}
 .dfs-table input[type=number]{width:64px;min-height:30px;border:1px solid var(--line);border-radius:6px;padding:3px 5px;background:var(--surface);color:var(--ink);font:12px var(--mono);text-align:right}
 .dfs-table tr.locked td{background:rgba(var(--accent),.08)}.dfs-table tr.out td{opacity:.45}
@@ -531,8 +567,15 @@ def body(data, ui):
                 "<button type='button' class='dfs-btn' id='dfs-reset'>Reset</button></div>")
     pool = ("<section class='dfs-panel'><h2>Player pool</h2>"
             "<div class='dfs-pos' id='dfs-pos' role='group' aria-label='Filter by position'></div>"
+            "<label class='dfs-market-filter'><input id='dfs-market-only' type='checkbox'>"
+            "Show only players with market estimates</label>"
+            "<p class='dfs-msg'>Market and Sleeper are shown in Yahoo points. "
+            "PTS/REB/AST is the weighted subtotal. Individual estimates appear when only some props are available. "
+            "The filter applies to the player table.</p>"
             "<div class='dfs-scroll'><table class='dfs-table'><thead><tr><th>Lock</th><th>Out</th>"
             "<th>Player</th><th class='x'>Pos</th><th class='n'>Salary</th><th class='n' title='Mean of Sleeper and the player’s scoring rate × Sleeper minutes'>Proj</th>"
+            "<th class='n' title='Sleeper projection in Yahoo scoring'>Sleeper</th>"
+            "<th class='n' title='Pregame estimates from Bovada and Underdog, adjusted for vig'>Market</th>"
             "<th class='n x' title='Projection per $10 of salary'>Value</th>"
             "<th class='n x' title='Yahoo season average'>FPPG</th>"
             "<th class='n x' title='Sleeper projected minutes'>Min</th></tr></thead>"
@@ -887,14 +930,28 @@ function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){by
  var ex=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||byId[a].name.localeCompare(byId[b].name);});
  $('dfs-exposure').innerHTML=ex.map(function(id){return "<li><span>"+esc(byId[id].name)+"</span><b class='mono'>"+Math.round(100*cnt[id]/L.length)+"%"+
   (lock[id]?" · locked":" <small>/ "+Math.round(100*share[id])+"% max</small>")+"</b></li>";}).join('');}
-function draw(){var rows=D.players.slice().sort(function(a,b){return (proj(b)||0)-(proj(a)||0)||b.sal-a.sal;});
- $('dfs-pool').innerHTML=rows.filter(function(p){return inSlate(p);}).filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
+function marketCells(p){
+ var props=p.market_props||{},statKeys=Object.keys(props),hasTotal=Number.isFinite(p.market_points);
+ var summary=statKeys.map(function(stat){return stat.toUpperCase()+' '+props[stat].mean.toFixed(1);}).join(' · ');
+ var provenance=statKeys.map(function(stat){return stat.toUpperCase()+' '+props[stat].source+' '+hm(props[stat].snapshot_utc)+' PT';}).join(' · ');
+ var sleeper=Number.isFinite(p.sleeper)?p.sleeper.toFixed(1):'—';
+ var market=hasTotal?p.market_points.toFixed(1):(statKeys.length?'Partial':'—');
+ if(hasTotal&&p.market_partial){
+  market+='<small>PTS/REB/AST</small>';
+  if(Number.isFinite(p.sleeper_comparable))sleeper+='<small>'+p.sleeper_comparable.toFixed(1)+' PTS/REB/AST</small>';
+ }
+ return "<td class='n'>"+sleeper+"</td><td class='n' title='"+esc(provenance)+"'>"+market+
+  (summary?"<small class='dfs-prop-summary'>"+esc(summary)+"</small>":"")+"</td>";
+}
+function draw(){var onlyMarket=$('dfs-market-only').checked,rows=D.players.slice().sort(function(a,b){return (proj(b)||0)-(proj(a)||0)||b.sal-a.sal;});
+ $('dfs-pool').innerHTML=rows.filter(function(p){return inSlate(p)&&(!onlyMarket||Object.keys(p.market_props||{}).length);}).filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
   var v=proj(p),gone=started(p),cls=st.lock[p.id]?'locked':(st.out[p.id]||gone||cheap(p)?'out':'');
   return "<tr class='"+cls+"' data-id='"+esc(p.id)+"'><td><input type='checkbox' data-act='lock' aria-label='Lock "+esc(p.name)+"'"+(st.lock[p.id]?' checked':'')+(gone?' disabled':'')+"></td>"+
    "<td><input type='checkbox' data-act='out' aria-label='Exclude "+esc(p.name)+"'"+(st.out[p.id]||gone?' checked':'')+(gone?' disabled':'')+"></td>"+
    "<td class='nm'>"+esc(p.name)+(p.inj?"<span class='dfs-inj'>"+esc(p.inj)+"</span>":"")+"<small><span class='mpos'>"+p.pos+" · </span>"+esc(p.team)+(p.home?' vs ':' @ ')+esc(p.opp)+(gone?' · started':'')+"</small></td>"+
    "<td class='x'>"+p.pos+"</td><td class='n'>$"+p.sal+(cheap(p)?"<small>below min</small>":"")+"</td><td class='n'><input type='number' step='0.1' min='0' data-act='proj' aria-label='Projection for "+esc(p.name)+"' value='"+(v===null||v===undefined?'':v)+"'></td>"+
-   "<td class='n x'>"+(v?(10*v/p.sal).toFixed(2):'—')+"</td><td class='n x'>"+(p.fppg===null?'—':p.fppg.toFixed(1))+"</td><td class='n x'>"+(p.min===null?'—':p.min)+"</td></tr>";}).join('');}
+   marketCells(p)+"<td class='n x'>"+(v?(10*v/p.sal).toFixed(2):'—')+"</td><td class='n x'>"+(p.fppg===null?'—':p.fppg.toFixed(1))+"</td><td class='n x'>"+(p.min===null?'—':p.min)+"</td></tr>";}).join('')||"<tr><td colspan='11'>No players match these filters.</td></tr>";}
+$('dfs-market-only').addEventListener('change',draw);
 $('dfs-pos').innerHTML=['ALL','PG','SG','G','SF','PF','F','C'].map(function(k){return "<button type='button' data-pos='"+k+"' aria-pressed='"+(k===st.pos)+"'>"+(k==='ALL'?'All':k)+"</button>";}).join('');
 $('dfs-pos').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;st.pos=b.dataset.pos;
  this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});draw();});
@@ -910,7 +967,7 @@ $('dfs-reseed').addEventListener('click',function(){st.seed=1+Math.floor(Math.ra
 $('dfs-exprule').addEventListener('change',function(){$('dfs-k-l').hidden=this.value!=='salary';run();});
 $('dfs-go').addEventListener('click',run);
 $('dfs-min').addEventListener('change',draw);
-$('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};st.seed=D.sim.seed;draw();run();});
+$('dfs-reset').addEventListener('click',function(){st.lock={};st.out={};st.proj={};st.seed=D.sim.seed;$('dfs-market-only').checked=false;draw();run();});
 draw();run();
 })();
 """
