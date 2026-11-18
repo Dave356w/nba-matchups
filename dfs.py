@@ -571,7 +571,7 @@ def body(data, ui):
             "Show only players with market estimates</label>"
             "<p class='dfs-msg'>Market and Sleeper are shown in Yahoo points. "
             "PTS/REB/AST is the weighted subtotal. Individual estimates appear when only some props are available. "
-            "The filter applies to the player table.</p>"
+            "The filter applies to the player table and lineup builder. Locks on filtered players resume when the filter is cleared.</p>"
             "<div class='dfs-scroll'><table class='dfs-table'><thead><tr><th>Lock</th><th>Out</th>"
             "<th>Player</th><th class='x'>Pos</th><th class='n'>Salary</th><th class='n' title='Mean of Sleeper and the player’s scoring rate × Sleeper minutes'>Proj</th>"
             "<th class='n' title='Sleeper projection in Yahoo scoring'>Sleeper</th>"
@@ -863,6 +863,7 @@ function started(p){return Date.parse(p.start)<=Date.now();}
 // players under the min player salary are left out unless locked
 function floor(){return Math.max(0,+$('dfs-min').value||0);}
 function cheap(p){return p.sal<floor()&&!st.lock[p.id];}
+function passesMarketFilter(p){return !$("dfs-market-only").checked||Object.keys(p.market_props||{}).length>0;}
 function pool(){
  // Role factors describe the basketball roster, including excluded players;
  // edits to projections refresh star/centre ranks without inventing minutes.
@@ -873,7 +874,7 @@ function pool(){
   var bigs=mine.filter(function(p){return p.pos==='C';}).sort(function(a,b){return b.v-a.v;}).slice(0,2);
   if(bigs.length===2){var a=bigs[0],b=bigs[1],pair=D.sim.team+(a.starter&&b.starter?D.sim.starter:0)+(a.star&&b.star?D.sim.game_star-D.sim.star_split:0);
    bigs.forEach(function(p,i){p.big=i+1;p.big_split=Math.max(0,pair-D.sim.center_pair);});}});
- return roster.filter(function(p,i){var source=D.players[i];return inSlate(source)&&!st.out[p.id]&&!started(source)&&!cheap(source)&&p.v!==null&&p.v!==undefined&&(p.v>0||st.lock[p.id]);});}
+ return roster.filter(function(p,i){var source=D.players[i];return inSlate(source)&&passesMarketFilter(source)&&!st.out[p.id]&&!started(source)&&!cheap(source)&&p.v!==null&&p.v!==undefined&&(p.v>0||st.lock[p.id]);});}
 function slots(ids,byId){var ps=ids.map(function(i){return byId[i];}),used={},at={};
  function take(ok){for(var i=0;i<ps.length;i++){if(!used[i]&&ok(ps[i])){used[i]=1;return ps[i];}}return null;}
  [['PG',function(p){return p.pos==='PG';}],['SG',function(p){return p.pos==='SG';}],['SF',function(p){return p.pos==='SF';}],
@@ -917,10 +918,10 @@ function capShare(p){var mx=Math.max(10,Math.min(100,+$('dfs-exp').value||100))/
 function build(){var all=pool(),byId={},team={};D.players.forEach(function(p){byId[p.id]=p;team[p.id]=p.team;});
  var N=Math.max(1,Math.min(20,Math.floor(+$('dfs-n').value||10))),minSal=0,share={},lock={},t0=performance.now();
  all.forEach(function(p){share[p.id]=capShare(p);});
- Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id])&&inSlate(byId[id]))lock[id]=1;});
+ Object.keys(st.lock).forEach(function(id){if(st.lock[id]&&byId[id]&&!started(byId[id])&&inSlate(byId[id])&&passesMarketFilter(byId[id]))lock[id]=1;});
  var R=$('dfs-mode').value==='gpp'?gpp(all,team,N,share,minSal,lock):DFS.portfolio(all,N,share,lock,function(n,cap){return cash(all,team,n,cap,minSal,lock);}),
  L=R.L,cnt=R.cnt,cap=R.cap,el=$('dfs-out');
- if(!L.length){el.innerHTML='';$('dfs-exposure').innerHTML='';$('dfs-msg').textContent=($('dfs-mode').value==='gpp'?'No portfolio found among the generated candidates; try New draws or relax caps. ':'No complete portfolio found under these exposure caps. ')+'Check locks, exclusions and salary; one lineup requires 100% exposure for every unlocked player.';return;}
+ if(!L.length){el.innerHTML='';$('dfs-exposure').innerHTML='';$('dfs-msg').textContent=($('dfs-mode').value==='gpp'?'No portfolio found among the generated candidates; try New draws or relax caps. ':'No complete portfolio found under these exposure caps. ')+'Check locks, exclusions and salary; one lineup requires 100% exposure for every unlocked player.'+($('dfs-market-only').checked?' Clear the market filter to expand the optimizer pool.':'');return;}
  $('dfs-msg').textContent=L.length+' lineup'+(L.length>1?'s':'')+(R.note?' · '+R.note:' · best '+L[0].v.toFixed(2)+' pts')+(L.length<N?' · fewer than asked under these caps':'')+' · '+Math.round(performance.now()-t0)+' ms';
  el.innerHTML=L.map(function(l,i){var sim=!!l.sim;return "<article class='dfs-lineup'><header><span>#"+(i+1)+(l.top!==undefined?" · candidate top 5%: <b>"+(100*l.top).toFixed(1)+"%</b> ± "+(100*l.topSE).toFixed(1)+" pp (1 SE) · p90 <b>"+l.p90.toFixed(1)+"</b>":"")+"</span><span>$<b>"+l.sal+"</b> · <b>"+l.v.toFixed(2)+"</b> pts</span></header>"+
   (sim?"<p class='dfs-msg' style='margin:0 0 4px'>Median evaluation example, slate "+(l.slate+1)+": <b class='mono'>"+l.simTotal.toFixed(1)+"</b> pts</p>":"")+"<ol>"+
@@ -943,15 +944,15 @@ function marketCells(p){
  return "<td class='n'>"+sleeper+"</td><td class='n' title='"+esc(provenance)+"'>"+market+
   (summary?"<small class='dfs-prop-summary'>"+esc(summary)+"</small>":"")+"</td>";
 }
-function draw(){var onlyMarket=$('dfs-market-only').checked,rows=D.players.slice().sort(function(a,b){return (proj(b)||0)-(proj(a)||0)||b.sal-a.sal;});
- $('dfs-pool').innerHTML=rows.filter(function(p){return inSlate(p)&&(!onlyMarket||Object.keys(p.market_props||{}).length);}).filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
+function draw(){var rows=D.players.slice().sort(function(a,b){return (proj(b)||0)-(proj(a)||0)||b.sal-a.sal;});
+ $('dfs-pool').innerHTML=rows.filter(function(p){return inSlate(p)&&passesMarketFilter(p);}).filter(function(p){return st.pos==='ALL'||p.pos===st.pos||(st.pos==='G'&&(p.pos==='PG'||p.pos==='SG'))||(st.pos==='F'&&(p.pos==='SF'||p.pos==='PF'));}).map(function(p){
   var v=proj(p),gone=started(p),cls=st.lock[p.id]?'locked':(st.out[p.id]||gone||cheap(p)?'out':'');
   return "<tr class='"+cls+"' data-id='"+esc(p.id)+"'><td><input type='checkbox' data-act='lock' aria-label='Lock "+esc(p.name)+"'"+(st.lock[p.id]?' checked':'')+(gone?' disabled':'')+"></td>"+
    "<td><input type='checkbox' data-act='out' aria-label='Exclude "+esc(p.name)+"'"+(st.out[p.id]||gone?' checked':'')+(gone?' disabled':'')+"></td>"+
    "<td class='nm'>"+esc(p.name)+(p.inj?"<span class='dfs-inj'>"+esc(p.inj)+"</span>":"")+"<small><span class='mpos'>"+p.pos+" · </span>"+esc(p.team)+(p.home?' vs ':' @ ')+esc(p.opp)+(gone?' · started':'')+"</small></td>"+
    "<td class='x'>"+p.pos+"</td><td class='n'>$"+p.sal+(cheap(p)?"<small>below min</small>":"")+"</td><td class='n'><input type='number' step='0.1' min='0' data-act='proj' aria-label='Projection for "+esc(p.name)+"' value='"+(v===null||v===undefined?'':v)+"'></td>"+
    marketCells(p)+"<td class='n x'>"+(v?(10*v/p.sal).toFixed(2):'—')+"</td><td class='n x'>"+(p.fppg===null?'—':p.fppg.toFixed(1))+"</td><td class='n x'>"+(p.min===null?'—':p.min)+"</td></tr>";}).join('')||"<tr><td colspan='11'>No players match these filters.</td></tr>";}
-$('dfs-market-only').addEventListener('change',draw);
+$('dfs-market-only').addEventListener('change',function(){draw();run();});
 $('dfs-pos').innerHTML=['ALL','PG','SG','G','SF','PF','F','C'].map(function(k){return "<button type='button' data-pos='"+k+"' aria-pressed='"+(k===st.pos)+"'>"+(k==='ALL'?'All':k)+"</button>";}).join('');
 $('dfs-pos').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;st.pos=b.dataset.pos;
  this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});draw();});
