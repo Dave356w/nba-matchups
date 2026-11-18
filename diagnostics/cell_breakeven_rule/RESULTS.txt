@@ -1,0 +1,35 @@
+Cell vs break-even, walk-forward (research/cell_breakeven_rule.py). ± is 95%.
+Model's pick, flat 1u at the source price; cell from strictly earlier slates.
+
+== 2025-26 DraftKings replay at the close, seeded by 2024-25 ESPN BET (primary) ==
+games 963 · all model picks ROI   -0.1 ±  4.6% · null -4.1%
+   rule                    bet n       bet ROI %  pass n      pass ROI %   bet - pass pp   bet excess pp
+   ROI>0 (50)                300     -4.6 ±  8.3     663     +1.9 ±  5.5     -6.5 ±  9.9     -0.5 ±  8.3
+   RWP>BE (50)               312     -3.3 ±  8.2     651     +1.5 ±  5.5     -4.8 ±  9.8     +0.7 ±  8.2
+   ROI>0 (200)               154     -0.4 ± 15.6     809     -0.0 ±  4.5     -0.4 ± 16.2     +3.7 ± 15.6
+   RWP>BE (200)              176     -4.0 ± 14.0     787     +0.8 ±  4.6     -4.8 ± 14.8     +0.1 ± 14.0
+   ROI>0 (all)               216     -1.9 ± 12.7     747     +0.4 ±  4.6     -2.4 ± 13.5     +2.2 ± 12.7
+   RWP>BE (all)              236     -5.1 ± 11.9     727     +1.5 ±  4.6     -6.7 ± 12.8     -1.0 ± 11.9
+   RWP4>BE (200, shrunk)       5    -2.0 ± 119.6     958     -0.1 ±  4.5    -1.9 ± 119.7    +2.1 ± 119.6
+
+== 2024-25 ESPN BET replay at the close, no seed ==
+games 1187 · all model picks ROI   -4.3 ±  4.0% · null -4.2%
+   rule                    bet n       bet ROI %  pass n      pass ROI %   bet - pass pp   bet excess pp
+   ROI>0 (50)                400     -2.1 ±  7.4     787     -5.5 ±  4.7     +3.4 ±  8.8     +2.2 ±  7.4
+   RWP>BE (50)               388     -2.7 ±  7.6     799     -5.1 ±  4.6     +2.4 ±  8.9     +1.6 ±  7.6
+   ROI>0 (200)               384     -2.6 ±  8.1     803     -5.2 ±  4.5     +2.6 ±  9.3     +1.7 ±  8.1
+   RWP>BE (200)              386     -2.4 ±  8.1     801     -5.3 ±  4.5     +2.9 ±  9.2     +1.9 ±  8.1
+   ROI>0 (all)               384     -2.6 ±  8.1     803     -5.2 ±  4.5     +2.6 ±  9.3     +1.7 ±  8.1
+   RWP>BE (all)              386     -2.4 ±  8.1     801     -5.3 ±  4.5     +2.9 ±  9.2     +1.9 ±  8.1
+   RWP4>BE (200, shrunk)      41    -16.3 ± 32.4    1146     -3.9 ±  4.0    -12.4 ± 32.7    -12.3 ± 32.4
+
+== 2026-27 live five-hour locks, seeded by 2025-26 DraftKings replay (information only) ==
+games 134 · all model picks ROI   +6.4 ± 11.8% · null -4.0%
+   rule                    bet n       bet ROI %  pass n      pass ROI %   bet - pass pp   bet excess pp
+   ROI>0 (50)                107     +4.0 ± 13.7      27    +15.9 ± 22.5    -11.9 ± 26.4     +7.9 ± 13.7
+   RWP>BE (50)               109     +5.2 ± 13.5      25    +11.4 ± 23.8     -6.2 ± 27.4     +9.2 ± 13.5
+   ROI>0 (200)                41    +24.2 ± 26.2      93     -1.5 ± 12.3    +25.7 ± 28.9    +28.2 ± 26.2
+   RWP>BE (200)               41    +24.2 ± 26.2      93     -1.5 ± 12.3    +25.7 ± 28.9    +28.2 ± 26.2
+   ROI>0 (all)                41    +24.2 ± 26.2      93     -1.5 ± 12.3    +25.7 ± 28.9    +28.2 ± 26.2
+   RWP>BE (all)               41    +24.2 ± 26.2      93     -1.5 ± 12.3    +25.7 ± 28.9    +28.2 ± 26.2
+   RWP4>BE (200, shrunk)      12    +31.2 ± 65.8     122     +3.9 ± 11.3    +27.3 ± 66.8    +35.2 ± 65.8

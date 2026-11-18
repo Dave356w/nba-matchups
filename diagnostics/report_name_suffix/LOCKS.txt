@@ -1,0 +1,37 @@
+Compare research/suffix_lock_replay.py runs with the frozen 2026-27 locks.
+
+2026-27 locks 154 (voided stale-log 8); replayed: deployed 154, fixed 154, repro 154
+
+== 1. Reproduction: deployed replay minus frozen lock P (non-void locks)
+   |dP|: n 146  mean 0.03  p90 0.12  max 0.55 pts;  > 0.5 pt 1  > 2 pts 0
+   within 0.005: 145 of 146; tag equal: 143
+     2026-10-28 OKC @ DAL (401909891) lock 0.3534 replay 0.3590
+   O/U total, native ou3 locks on the same snapshot: n 87, within 0.05 pt 87, max |dT| 0.01
+   O/U total, earlier locks against their ou3 rescore: n 56, within 0.05 pt 56, max |dT| 0.01
+
+== fixed minus deployed (what activation would roughly do)
+   |dP|: n 146  mean 0.23  p90 0.55  max 4.26 pts;  > 0.5 pt 15  > 2 pts 5;  winner changes 1
+   graded 137: Brier +0.0002 ± 0.0010 (95%)
+     2026-11-06 MIN @ NOP: deployed 0.4525 -> fixed 0.4951 (+4.26 pts)
+     2026-11-09 NOP @ GSW: deployed 0.7832 -> fixed 0.8134 (+3.02 pts)
+     2026-10-29 MEM @ POR: deployed 0.6530 -> fixed 0.6291 (-2.39 pts)
+     2026-11-07 SAS @ POR: deployed 0.4022 -> fixed 0.3796 (-2.26 pts)
+     2026-11-04 UTA @ NOP: deployed 0.6760 -> fixed 0.6554 (-2.06 pts)
+   O/U total |dT|: n 146 mean 0.09 max 1.93 pts; > 0.5 pt 3
+
+== fixed minus repro (the matcher alone, same BBR pages)
+   |dP|: n 146  mean 0.23  p90 0.56  max 4.29 pts;  > 0.5 pt 15  > 2 pts 5;  winner changes 1
+   graded 137: Brier +0.0003 ± 0.0010 (95%)
+     2026-11-06 MIN @ NOP: repro 0.4522 -> fixed 0.4951 (+4.29 pts)
+     2026-11-09 NOP @ GSW: repro 0.7833 -> fixed 0.8134 (+3.02 pts)
+     2026-10-29 MEM @ POR: repro 0.6531 -> fixed 0.6291 (-2.39 pts)
+     2026-11-07 SAS @ POR: repro 0.4016 -> fixed 0.3796 (-2.21 pts)
+     2026-11-04 UTA @ NOP: repro 0.6760 -> fixed 0.6554 (-2.06 pts)
+   O/U total |dT|: n 146 mean 0.09 max 1.93 pts; > 0.5 pt 3
+
+== repro minus deployed (BBR page drift alone)
+   |dP|: n 146  mean 0.03  p90 0.06  max 0.09 pts;  > 0.5 pt 0  > 2 pts 0;  winner changes 0
+   graded 137: Brier -0.0001 ± 0.0000 (95%)
+   O/U total |dT|: n 146 mean 0.00 max 0.00 pts; > 0.5 pt 0
+
+fixed tags: {'fourfactors_hl25_b2b_fade10_phase_luck_talent_ft_orbpct_rookies_qweight_sfx_margin_avail_v11': 146}
