@@ -5,6 +5,20 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Cell ROI tracking — owner request, November 18, 2026
+
+The owner's original intent for the matrix was the realized result and
+1-unit ROI of the model pick by model WP × market WP. Three changes:
+(1) each ML stats matrix cell shows its ROI ± 1 SE; (2) each card's headline
+third metric becomes its pooled cell's 1u ROI ± 1 SE (same latest-200 cell
+population), and Realized WP moves to a secondary line in the cell evidence,
+its formula unchanged; (3) a write-once forward log of each lock's cell and
+trailing cell record, `data/cell_roi_forward_<season>.csv`, with terms and a
+fixed season-end reading in `docs/cell_roi_forward_registration.md`,
+committed before implementation. Research and monitoring only: no rule,
+filter, record, lock, grade or model change; the Realized WP shadow record
+is unchanged.
+
 ### Public Realized WP without drift — owner instruction, November 18, 2026
 
 After reviewing the drift's evidence (backtest: drift alone −0.0012 ± 0.0009
