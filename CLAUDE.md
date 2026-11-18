@@ -5,6 +5,20 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Public Realized WP without drift — owner instruction, November 18, 2026
+
+After reviewing the drift's evidence (backtest: drift alone −0.0012 ± 0.0009
+Brier on 2025-26, +0.0004 ± 0.0004 on 2024-25, constants in-sample; live v4,
+36 graded games: with minus without drift +0.0020 ± 0.0123), the owner
+dropped the drift from the public number. Cards show **Realized WP = this
+game's no-vig DraftKings WP + shrunk cell adjustment**, clipped to 0–100%
+(v4 with drift 0); the drift row leaves the cards and the drift leaves the
+public guide. The v4 shadow record is unchanged: it keeps capturing v4 with
+the drift, its proofs and its registered reading; its
+`displayed_realized_wp` column records the v4 value, which no longer equals
+the card. The drift stays in backend reporting for analysis. Presentation
+only: model, locks, grades, records, the ROI matrix and cell ROI unchanged.
+
 ### Pooled cell ROI on cards — owner request, November 16, 2026
 
 Each card's pooled-cell line adds the cell's flat 1-unit return on the model

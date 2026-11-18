@@ -85,15 +85,19 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     target=record('target',date='2026-11-11',won=np.nan)
     site=PublicSite(ui,pd.DataFrame([record('prior'),target]),'2026-11-11','built')
     card=site.card(target)
-    # one prior win at a 75% price: 75% + .25/201 (shrunk cell) + .25/201 (drift)
-    assert 'Realized WP' in card and '<strong>75.2%</strong>' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
+    # one prior win at a 75% price: public card 75% + .25/201 (shrunk cell), no drift
+    # (owner, 2026-11-18); the backend estimate keeps v4's + .25/201 drift
+    est=site.calibration.estimate(target)
+    assert abs(est['probability']-est['public_probability']-est['drift'])<1e-12 and est['drift']>0
+    assert 'Realized WP' in card and '<strong>75.1%</strong>' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
     assert 'data-cell-adjustment' in card and 'market average' in card
-    assert 'counted as +0.1 after shrinkage' in card and 'Recent drift</dt><dd><span data-drift>+0.1 pts' in card
+    assert 'counted as +0.1 after shrinkage' in card and 'drift' not in card.lower()
     # one prior win at -300: +0.33u on 1 priced game
     assert 'ROI +33.3%, +0.33u over 1 priced' in card and 'data-cell-roi' in card
     assert '1 unit on the model pick in each of those same games' in site.guide_page()
     guide=site.guide_page()
-    assert 'shrunk cell adjustment + recent drift' in guide and 'n ÷ (n + 200)' in guide
+    assert 'no-vig DraftKings WP + shrunk cell adjustment</b>' in guide and 'n ÷ (n + 200)' in guide
+    assert 'drift' not in guide.lower()
     assert 'did not predict results better than the price' in guide
     assert 'latest 200 actual results in that cell' in site.guide_page()
     assert "data-cell-games='1'" in card
