@@ -149,6 +149,8 @@ class RollingCalibration:
         pool = sorted(earlier, key=order)[-DRIFT_GAMES:]
         pooled_drift = drift([(r['won'], r['market_probability']) for r in pool])
         return dict(probability=shrunk_with_drift(q_pick, wins, n, member_market, pooled_drift),
+                    # public cards: v4 without the drift (owner, 2026-11-18)
+                    public_probability=shrunk_with_drift(q_pick, wins, n, member_market, 0.),
                     band_adjusted=band_adjusted(q_pick, wins, n, member_market),
                     cell_adjustment=shrunk_cell(wins, n, member_market) if n else np.nan,
                     drift=pooled_drift, drift_games=len(pool),
