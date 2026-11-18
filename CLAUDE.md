@@ -727,6 +727,23 @@ information only, separate from DraftKings and native evidence.
     games) and the 2026-27 lock reconstruction, reviewed by the owner. After
     activation: rescore, rebuild, build, model review, DraftKings and
     History backtests.
+  - **Activation despite the gate (owner's decision, 2026-11-18).** PR
+    #181 merged the code on 2026-11-13 without the fitted files, so no lock
+    used the fix before this date. The gate then ran
+    ([report-name suffix](diagnostics/report_name_suffix/RESULTS.txt),
+    [2026-27 locks](diagnostics/report_name_suffix/LOCKS.txt)). Reproduction:
+    q_rates and ou3's report stage exact; the report route's coefficients
+    differ in the third decimal from today's Basketball-Reference BPM and
+    draft pages (|dP| ≤ 0.0015 on identical inputs); deployed lock replay
+    145 of 146 within 0.005. G7 **fails** as registered: fixed minus current
+    log loss, games 10+, DraftKings 2025-26 −0.0005 (18 h) / −0.0013 (5 h),
+    ESPN BET 2024-25 +0.0001 / +0.0004; games 1+ +0.0000 ± 0.0003 /
+    −0.0002 ± 0.0004. ou3 report stage −0.30 ± 0.30 points². Fixed lock
+    replay: 15 locks move > 0.5 points of P, 5 > 2 (largest 4.3), one
+    winner (CLE @ OKC, 50.11% → 50.00%), Brier +0.0002 ± 0.0010. The owner
+    activated the fix knowingly, as a correctness fix, through Fit model
+    (v11). Every term above is unchanged; the after-activation checks
+    follow.
 
 ## Sources of truth and engineering rules
 
