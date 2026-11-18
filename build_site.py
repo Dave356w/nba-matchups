@@ -3642,6 +3642,7 @@ def main(argv=None):
         # each earlier ou1 / ou2 lock once to data/nba_ou3_rescore.csv; never raises
         ou3_rescore.update(native, log)
         dfs.snapshot(log)   # Yahoo salaries for the DFS page; never raises
+        dfs.capture_market(native, today, TEAM_NAMES, log)
     day = today if a.date else page_slate(native, today)
     if day != today:
         log(f"public pages show the {day} slate until {SLATE_ROLLOVER_HOUR}:00 ET")

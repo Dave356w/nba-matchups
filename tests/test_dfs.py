@@ -390,3 +390,39 @@ def test_slate_projects_the_mean_of_sleeper_and_box_line():
     a = by["Darius Acuff Jr."]                                        # no box line: Sleeper alone
     assert a["proj"] == pytest.approx(want) and a["box"] is None
     assert by["Hurt Guy"]["proj"] == 0                                # Out stays 0
+
+
+def test_market_snapshot_is_pregame_and_comparable_to_sleeper(tmp_path, monkeypatch):
+    import dfs_market
+
+    tip = "2026-10-30T00:00:00Z"
+    quotes = [(("SAC", "NOP"), "NOP", "Zion Williamson", stat, tip,
+               [(line, "over", -110), (line, "under", -110)])
+              for stat, line in (("pts", 20.5), ("reb", 5.5), ("ast", 3.5))]
+    monkeypatch.setattr(dfs_market, "bovada", lambda *_: iter(quotes))
+    monkeypatch.setattr(dfs_market, "underdog", lambda *_: iter([]))
+    path = tmp_path / "market.csv"
+    native = _native()
+
+    def capture(now):
+        dfs_market.snapshot(native, "2026-10-29", {}, dfs.norm_name, path=path,
+                            fetch=lambda *_, **__: {}, clock=lambda: now)
+
+    capture(NOW)
+    rows = dfs_market.load(path)
+    assert len(rows) == 3
+    assert all(r["source"] == "Bovada" for r in rows)
+    original = path.read_bytes()
+    capture(NOW + timedelta(hours=3))
+    assert path.read_bytes() == original
+
+    yahoo = pd.DataFrame(dfs.parse_feed(_feed([_yp("p1", "Zion Williamson", "NO", "PF", 36)]),
+                                        now=NOW), columns=dfs.YAHOO_COLUMNS).astype(str)
+    sleeper = _sleeper([dict(kind="pre", team="NOP", sleeper_id="1", name="Zion Williamson",
+                            minutes=32, pts=20, reb=5, ast=3, stl=1, blk=1, to=2)])
+    player = dfs.slate("2026-10-29", yahoo, sleeper, native, now=NOW, rates={},
+                       market_rows=rows)["players"][0]
+    assert player["market_partial"]
+    assert player["market_points"] == pytest.approx(32.98)
+    assert player["sleeper_comparable"] == 30.5
+    assert player["sleeper"] == player["proj"] == 34.5
