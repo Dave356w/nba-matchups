@@ -53,7 +53,7 @@ def main():
     L = L[L["season"].astype(str).eq("2027") & L["lock_snapshot_utc"].notna()].copy()
     L["game_id"] = L["game_id"].astype(str)
     m = L[["game_id", "slate_date", "away", "home", "lock_p_home", "lock_model_tag", "home_won",
-           "lock_snapshot_utc", "lock_ou_snapshot_utc", "lock_ou_total"]].copy()
+           "lock_snapshot_utc", "lock_ou_snapshot_utc", "lock_ou_total", "lock_ou_tag"]].copy()
     for p, a in zip(paths, arms):
         m = m.merge(load(p, a), on="game_id", how="left")
     void = m["game_id"].isin(analysis.VOID_LOCKS)
@@ -73,11 +73,17 @@ def main():
                    f"replay {float(r.p_home_deployed):.4f}")
     if "ou_total_deployed" in v:
         same = v["lock_ou_snapshot_utc"].astype(str) == v["lock_snapshot_utc"].astype(str)
-        dt = (pd.to_numeric(v["ou_total_deployed"], errors="coerce")
-              - pd.to_numeric(v["lock_ou_total"], errors="coerce"))[same].abs()
-        dt = dt[dt.notna()]
-        out.append(f"   O/U total, locks whose O/U lock is the same snapshot: n {len(dt)}, within 0.05 pt "
+        rep = pd.to_numeric(v["ou_total_deployed"], errors="coerce")
+        nat = same & v["lock_ou_tag"].astype(str).str.endswith("_ou3")
+        dt = (rep - pd.to_numeric(v["lock_ou_total"], errors="coerce"))[nat].abs().dropna()
+        out.append(f"   O/U total, native ou3 locks on the same snapshot: n {len(dt)}, within 0.05 pt "
                    f"{int((dt <= .05).sum())}, max |dT| {dt.max() if len(dt) else float('nan'):.2f}")
+        rs = pd.read_csv(os.path.join(ROOT, "data", "nba_ou3_rescore.csv"), dtype={"game_id": str})
+        rs = v[["game_id", "lock_snapshot_utc"]].assign(rep=rep.values).merge(rs, on="game_id")
+        rs = rs[rs["lock_snapshot_utc"].astype(str) == rs["lock_ou_snapshot_utc"].astype(str)]
+        dr = (rs["rep"] - pd.to_numeric(rs["rescore_ou_total"], errors="coerce")).abs().dropna()
+        out.append(f"   O/U total, earlier locks against their ou3 rescore: n {len(dr)}, within 0.05 pt "
+                   f"{int((dr <= .05).sum())}, max |dT| {dr.max() if len(dr) else float('nan'):.2f}")
     out.append("")
     y = pd.to_numeric(v["home_won"], errors="coerce")
     for a, b, title in [("fixed", "deployed", "fixed minus deployed (what activation would roughly do)"),
