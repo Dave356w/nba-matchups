@@ -743,7 +743,14 @@ information only, separate from DraftKings and native evidence.
     winner (CLE @ OKC, 50.11% → 50.00%), Brier +0.0002 ± 0.0010. The owner
     activated the fix knowingly, as a correctness fix, through Fit model
     (v11). Every term above is unchanged; the after-activation checks
-    follow.
+    follow. Fit model refitted the margin route (`39ed018`; weights and
+    base logit equal to floating-point noise), but its totals step failed
+    twice on NBA CDN 403s while re-reading 2022-23 reports. With the
+    owner's approval (2026-11-19), `model/totals.json` is the gate's local
+    report-only refit (`totals.py fit --report-only --split-suffix`, complete
+    local report archive, unchanged code first reproducing the deployed
+    report stage exactly): T* identical, report stage refitted with the fix
+    and the shared fixed play-rate table, tag `..._rest_sfx_ou3`.
 
 ## Sources of truth and engineering rules
 
