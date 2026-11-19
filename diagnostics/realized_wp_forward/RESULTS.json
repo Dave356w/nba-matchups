@@ -455,38 +455,38 @@
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
         "official_games": 48,
-        "graded_games": 36,
-        "pending_games": 12,
+        "graded_games": 48,
+        "pending_games": 0,
         "estimators": {
           "model": {
-            "brier": 0.23128479695555557,
-            "log_loss": 0.6584788999869343,
-            "winner_accuracy": 0.6388888888888888,
-            "bets": 34,
-            "net_units": 10.657823731079542,
-            "roi": 0.31346540385528066
+            "brier": 0.24592418167708333,
+            "log_loss": 0.6900574541954528,
+            "winner_accuracy": 0.5833333333333334,
+            "bets": 43,
+            "net_units": 9.097823731079542,
+            "roi": 0.21157729607161724
           },
           "market": {
-            "brier": 0.23782080219740406,
-            "log_loss": 0.6721044495672232,
-            "winner_accuracy": 0.6388888888888888,
+            "brier": 0.24699838195172197,
+            "log_loss": 0.6915832542324284,
+            "winner_accuracy": 0.6041666666666666,
             "bets": 0,
             "net_units": 0.0,
             "roi": null
           },
           "realized": {
-            "brier": 0.24426632027467785,
-            "log_loss": 0.6960925710509234,
-            "winner_accuracy": 0.6666666666666666,
-            "bets": 30,
-            "net_units": -1.9648974072009717,
-            "roi": -0.0654965802400324
+            "brier": 0.2564184663870074,
+            "log_loss": 0.7213283077926427,
+            "winner_accuracy": 0.625,
+            "bets": 41,
+            "net_units": -6.763136098012551,
+            "roi": -0.1649545389759159
           }
         },
         "market_favorite": {
-          "bets": 36,
-          "net_units": -3.7241417303177404,
-          "roi": -0.103448381397715
+          "bets": 48,
+          "net_units": -6.958063243823051,
+          "roi": -0.14495965091298021
         }
       },
       "stages": {
@@ -564,38 +564,38 @@
         },
         "established": {
           "official_games": 48,
-          "graded_games": 36,
-          "pending_games": 12,
+          "graded_games": 48,
+          "pending_games": 0,
           "estimators": {
             "model": {
-              "brier": 0.23128479695555557,
-              "log_loss": 0.6584788999869343,
-              "winner_accuracy": 0.6388888888888888,
-              "bets": 34,
-              "net_units": 10.657823731079542,
-              "roi": 0.31346540385528066
+              "brier": 0.24592418167708333,
+              "log_loss": 0.6900574541954528,
+              "winner_accuracy": 0.5833333333333334,
+              "bets": 43,
+              "net_units": 9.097823731079542,
+              "roi": 0.21157729607161724
             },
             "market": {
-              "brier": 0.23782080219740406,
-              "log_loss": 0.6721044495672232,
-              "winner_accuracy": 0.6388888888888888,
+              "brier": 0.24699838195172197,
+              "log_loss": 0.6915832542324284,
+              "winner_accuracy": 0.6041666666666666,
               "bets": 0,
               "net_units": 0.0,
               "roi": null
             },
             "realized": {
-              "brier": 0.24426632027467785,
-              "log_loss": 0.6960925710509234,
-              "winner_accuracy": 0.6666666666666666,
-              "bets": 30,
-              "net_units": -1.9648974072009717,
-              "roi": -0.0654965802400324
+              "brier": 0.2564184663870074,
+              "log_loss": 0.7213283077926427,
+              "winner_accuracy": 0.625,
+              "bets": 41,
+              "net_units": -6.763136098012551,
+              "roi": -0.1649545389759159
             }
           },
           "market_favorite": {
-            "bets": 36,
-            "net_units": -3.7241417303177404,
-            "roi": -0.103448381397715
+            "bets": 48,
+            "net_units": -6.958063243823051,
+            "roi": -0.14495965091298021
           }
         }
       }
@@ -2127,14 +2127,14 @@
       "game_id": "401910007",
       "captured_utc": "2026-11-18T19:02:33.230066+00:00",
       "tip_utc": "2026-11-19T00:00:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.55563,
           "side": "away",
           "price": 164.0,
           "expected_net_return": 0.17313679999999998,
-          "net_units": null
+          "net_units": 1.64
         },
         "market": {
           "p_home": 0.6361132966168371,
@@ -2148,7 +2148,7 @@
           "side": "home",
           "price": -196.0,
           "expected_net_return": 0.026883212127068346,
-          "net_units": null
+          "net_units": -1.0
         }
       }
     },
@@ -2158,14 +2158,14 @@
       "game_id": "401910008",
       "captured_utc": "2026-11-18T19:02:33.262292+00:00",
       "tip_utc": "2026-11-19T00:00:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.40517,
           "side": "home",
           "price": 247.0,
           "expected_net_return": 0.4059398999999999,
-          "net_units": null
+          "net_units": -1.0
         },
         "market": {
           "p_home": 0.27692476420267603,
@@ -2179,7 +2179,7 @@
           "side": "away",
           "price": -304.0,
           "expected_net_return": 0.01982042819288732,
-          "net_units": null
+          "net_units": 0.32894736842105265
         }
       }
     },
@@ -2189,14 +2189,14 @@
       "game_id": "401910009",
       "captured_utc": "2026-11-18T19:02:33.294330+00:00",
       "tip_utc": "2026-11-19T00:00:00+00:00",
-      "home_won": null,
+      "home_won": 1.0,
       "estimators": {
         "model": {
           "p_home": 0.82554,
           "side": "away",
           "price": 487.0,
           "expected_net_return": 0.024080199999999774,
-          "net_units": null
+          "net_units": -1.0
         },
         "market": {
           "p_home": 0.8362712368963832,
@@ -2210,7 +2210,7 @@
           "side": "home",
           "price": -670.0,
           "expected_net_return": 0.010653688086883495,
-          "net_units": null
+          "net_units": 0.14925373134328357
         }
       }
     },
@@ -2220,14 +2220,14 @@
       "game_id": "401910010",
       "captured_utc": "2026-11-18T19:02:33.326239+00:00",
       "tip_utc": "2026-11-19T00:00:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.61011,
           "side": "home",
           "price": -105.0,
           "expected_net_return": 0.19116714285714287,
-          "net_units": null
+          "net_units": -1.0
         },
         "market": {
           "p_home": 0.49121458379090716,
@@ -2241,7 +2241,7 @@
           "side": "home",
           "price": -105.0,
           "expected_net_return": 0.03454426343604422,
-          "net_units": null
+          "net_units": -1.0
         }
       }
     },
@@ -2251,14 +2251,14 @@
       "game_id": "401910011",
       "captured_utc": "2026-11-18T19:32:40.814220+00:00",
       "tip_utc": "2026-11-19T00:30:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.62659,
           "side": "home",
           "price": -152.0,
           "expected_net_return": 0.03882026315789466,
-          "net_units": null
+          "net_units": -1.0
         },
         "market": {
           "p_home": 0.578989574979952,
@@ -2272,7 +2272,7 @@
           "side": "home",
           "price": -152.0,
           "expected_net_return": 0.007239956759501842,
-          "net_units": null
+          "net_units": -1.0
         }
       }
     },
@@ -2282,14 +2282,14 @@
       "game_id": "401910012",
       "captured_utc": "2026-11-18T19:32:40.849690+00:00",
       "tip_utc": "2026-11-19T00:30:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.57901,
           "side": "away",
           "price": 160.0,
           "expected_net_return": 0.09457399999999994,
-          "net_units": null
+          "net_units": 1.6
         },
         "market": {
           "p_home": 0.6305231081767394,
@@ -2303,7 +2303,7 @@
           "side": "home",
           "price": -191.0,
           "expected_net_return": 0.027447898956473926,
-          "net_units": null
+          "net_units": -1.0
         }
       }
     },
@@ -2313,14 +2313,14 @@
       "game_id": "401910013",
       "captured_utc": "2026-11-18T20:02:46.803516+00:00",
       "tip_utc": "2026-11-19T01:00:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.38903,
           "side": "home",
           "price": 160.0,
           "expected_net_return": 0.0114780000000001,
-          "net_units": null
+          "net_units": -1.0
         },
         "market": {
           "p_home": 0.36947689182326054,
@@ -2334,7 +2334,7 @@
           "side": "away",
           "price": -191.0,
           "expected_net_return": 0.012251246476989275,
-          "net_units": null
+          "net_units": 0.5235602094240838
         }
       }
     },
@@ -2344,7 +2344,7 @@
       "game_id": "401910014",
       "captured_utc": "2026-11-18T20:02:46.833777+00:00",
       "tip_utc": "2026-11-19T01:00:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.68115,
@@ -2365,7 +2365,7 @@
           "side": "home",
           "price": -249.0,
           "expected_net_return": 0.007785015536812434,
-          "net_units": null
+          "net_units": -1.0
         }
       }
     },
@@ -2375,14 +2375,14 @@
       "game_id": "401910016",
       "captured_utc": "2026-11-18T20:02:46.863549+00:00",
       "tip_utc": "2026-11-19T01:00:00+00:00",
-      "home_won": null,
+      "home_won": 1.0,
       "estimators": {
         "model": {
           "p_home": 0.49829,
           "side": "away",
           "price": 164.0,
           "expected_net_return": 0.32451439999999976,
-          "net_units": null
+          "net_units": -1.0
         },
         "market": {
           "p_home": 0.6365105008077545,
@@ -2396,7 +2396,7 @@
           "side": "away",
           "price": 164.0,
           "expected_net_return": 0.12994499972564633,
-          "net_units": null
+          "net_units": -1.0
         }
       }
     },
@@ -2406,14 +2406,14 @@
       "game_id": "401910015",
       "captured_utc": "2026-11-18T21:32:33.871387+00:00",
       "tip_utc": "2026-11-19T02:30:00+00:00",
-      "home_won": null,
+      "home_won": 1.0,
       "estimators": {
         "model": {
           "p_home": 0.51848,
           "side": "home",
           "price": 120.0,
           "expected_net_return": 0.14065600000000011,
-          "net_units": null
+          "net_units": 1.2
         },
         "market": {
           "p_home": 0.43650793650793646,
@@ -2427,7 +2427,7 @@
           "side": "home",
           "price": 120.0,
           "expected_net_return": 0.1022613951992255,
-          "net_units": null
+          "net_units": 1.2
         }
       }
     },
@@ -2437,7 +2437,7 @@
       "game_id": "401910017",
       "captured_utc": "2026-11-18T22:02:39.454979+00:00",
       "tip_utc": "2026-11-19T03:00:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.82612,
@@ -2458,7 +2458,7 @@
           "side": "home",
           "price": -567.0,
           "expected_net_return": 0.011428755262392176,
-          "net_units": null
+          "net_units": -1.0
         }
       }
     },
@@ -2468,7 +2468,7 @@
       "game_id": "401910018",
       "captured_utc": "2026-11-18T22:02:39.485483+00:00",
       "tip_utc": "2026-11-19T03:00:00+00:00",
-      "home_won": null,
+      "home_won": 0.0,
       "estimators": {
         "model": {
           "p_home": 0.30549,
