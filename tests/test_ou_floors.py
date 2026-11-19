@@ -88,7 +88,9 @@ def test_committed_fit_is_the_registered_model():
     m = totals.load()
     # O/U model ou2 amendment; ou3 (amendment 2026-11-06) once Fit model writes it
     ou3 = "rest_tot" in m["coef"]
-    assert m["tag"] == (totals.TAG if ou3 else "totals_hl25_form5_rep_ou2")
+    # report-name suffix fix (CLAUDE.md ou3 amendment, 2026-11-13): its own tag
+    want = totals.TAG_SFX if totals.splits_suffix(m) else totals.TAG
+    assert m["tag"] == (want if ou3 else "totals_hl25_form5_rep_ou2")
     rep = m["report"]
     assert rep["lead"] == 300 and rep["seasons"] == [2023, 2024, 2025, 2026]
     assert set(rep["coef"]) == {"intercept", *totals.REPORT_TERMS}
