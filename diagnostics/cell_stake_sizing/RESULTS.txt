@@ -1,0 +1,13 @@
+Cell stake sizing (research/cell_stake_sizing.py). Walk-forward, earlier slates only; ± is 95%.
+Sized: stake = clip(1 + pooled ΔROI, 0.5, 1.5) units (latest 200); flat: 1 unit. Games 1+.
+
+== 2025-26 DraftKings replay at the close, seeded by 2024-25 ESPN BET (PRIMARY): 964 games 1+ picks
+  flat    staked    964.0u  net   +3.57u  return per unit  +0.4%
+  sized   staked    966.4u  net   +1.37u  return per unit  +0.1%  (stakes 0.50–1.44, 0 at 1.5, 1 at 0.5)
+  sized minus flat, per game: -0.0023 ± 0.0062u; total -2.20u
+  READING: sizing does not beat flat
+
+== 2026-27 native five-hour locks, seeded by 2025-26 DraftKings replay (information only): 150 games 1+ picks
+  flat    staked    150.0u  net   +3.85u  return per unit  +2.6%
+  sized   staked    156.1u  net   +4.68u  return per unit  +3.0%  (stakes 0.93–1.28, 0 at 1.5, 0 at 0.5)
+  sized minus flat, per game: +0.0055 ± 0.0159u; total +0.83u
