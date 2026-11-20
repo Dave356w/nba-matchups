@@ -89,16 +89,18 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     # (owner, 2026-11-18); the backend estimate keeps v4's + .25/201 drift
     est=site.calibration.estimate(target)
     assert abs(est['probability']-est['public_probability']-est['drift'])<1e-12 and est['drift']>0
-    assert 'Realized WP</dt><dd><span data-realized-wp>75.1%' in card and 'Pooled cell: 1–0 across 1 game, all teams · past results, not a forecast' in card
+    assert 'Realized WP</dt><dd><span data-realized-wp>75.1%' in card
     assert 'data-cell-adjustment' in card and 'market average' in card
     assert 'counted as +0.1 after shrinkage' in card and 'drift' not in card.lower()
     # one prior win at -300: +0.33u on 1 priced game, the card's headline (owner, 2026-11-18)
-    # ΔROI headline (owner, 2026-11-20): a -300 win at a 75% no-vig price
-    # returns +33.3% where the price expected 0.0%
-    assert 'Cell ΔROI · model picks like' in card and '<strong data-cell-delta-roi>+33.3 pp</strong>' in card
-    assert 'ROI <b data-cell-roi>+33.3%</b> vs +0.0% expected' in card
-    assert '+0.33u, last 1 priced pick, all teams' in card and '1\u00a0SE' not in card   # one result has no SE
-    assert 'past results, not a forecast' in card and "data-cell-timing='lock'" in card
+    # owner, 2026-11-20: no headline tile; the details show this season, then
+    # the pooled cell, each W–L and ΔROI (a -300 win at a 75% no-vig price:
+    # +33.3% where the price expected 0.0%)
+    assert 'calibration-main' not in card and 'data-cell-delta-roi' not in card
+    assert 'Model picks like' in card and 'all teams · past results, not a forecast' in card
+    assert '<span data-cell-pooled>1–0, ΔROI +33.3 pp</span>' in card   # one result has no SE
+    assert '<span data-cell-season>1–0, ΔROI +33.3 pp</span>' in card
+    assert "data-cell-timing='lock'" in card
     assert '1 unit on the model pick in each of the cell’s latest 200 past games' in site.guide_page()
     guide=site.guide_page()
     assert 'no-vig DraftKings WP + shrunk cell adjustment</b>' in guide and 'n ÷ (n + 200)' in guide
@@ -106,7 +108,7 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     assert 'did not predict results better than the price' in guide
     assert 'latest 200 actual results in that cell' in site.guide_page()
     assert "data-cell-games='1'" in card
-    assert 'No historical results in this cell yet' in site.card(record('empty',date='2026-11-09'))
+    assert '<span data-cell-pooled>No results in this cell yet</span>' in site.card(record('empty',date='2026-11-09'))
 
 
 def test_early_and_ten_plus_pool_only_calibration_evidence():
@@ -252,6 +254,9 @@ def test_card_adds_this_seasons_part_of_the_pooled_cell():
     card=site.card(target)
     # current season: one -300 win (+1/3) and one loss (-1), each at a 75% price (null 0)
     assert "<span data-cell-season>1–1, ΔROI -33.3 ± 66.7 pp</span>" in card
+    # pooled: two replay results (1–1 at -300) plus the two live ones
+    assert "<span data-cell-pooled>2–2, ΔROI -33.3 ± 38.5 pp</span>" in card
+    assert card.index('data-cell-season') < card.index('data-cell-pooled')
     assert "data-cell-games='4'" in card
     empty=PublicSite(ui,pd.DataFrame([target]),'2026-11-11','built',replay=hist).card(target)
     assert "<span data-cell-season>No results in this cell yet</span>" in empty

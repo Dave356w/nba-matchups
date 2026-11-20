@@ -260,15 +260,16 @@ def test_roi_matrix_places_replay_model_underdog_at_closing_price():
 ])
 def test_card_compares_same_team_probability_price_and_actual_result(p, price, book, break_even, market_p, result):
     from lxml import html as lh
+    # no lock: break even reads the current price (a locked card reads the lock's)
     g = rows().iloc[3:4].assign(p_home=p, pre_home_ml=price, pre_away_ml=price,
-                              pre_book=book, pre_q_home=.6, home_won=1)
+                              pre_book=book, pre_q_home=.6, home_won=1, lock_snapshot_utc=None)
     before = g.copy(deep=True)
     card = lh.fromstring(PublicSite(ui, g, CLOSED, 'built').card(g.iloc[0]))
     outcome = card.xpath("//*[@data-forecast-result]")[0]
     assert outcome.text == result
     assert outcome.get('data-pick-side') == ('home' if p >= .5 else 'away')
     assert market_p in card.xpath("//*[@data-market-probability]")[0].text_content()
-    text = card.xpath("//*[@class='break-even']")[0].text_content()
+    text = card.xpath("//*[@data-break-even]")[0].text_content()
     assert (break_even in text) if break_even else ('unavailable' in text)
     pd.testing.assert_frame_equal(before, g)
 
@@ -301,3 +302,11 @@ def test_results_page_the_table_without_dropping_rows_or_columns():
     from lxml import html as lh
     game = lh.fromstring(html).xpath("//td[@data-label='Game']")[0].text_content()
     assert '2026-27' in game and 'games 10+' not in game
+
+
+def test_locked_card_break_even_reads_the_lock_price_beside_realized_wp():
+    g = rows().iloc[3:4].assign(p_home=.75, pre_home_ml=-449, pre_away_ml=300, pre_book='dk', pre_q_home=.8)
+    card = PublicSite(ui, g, CLOSED, 'built').card(g.iloc[0])
+    r = g.iloc[0]
+    assert r.lock_home_ml == -150 and "data-cell-timing='lock'" in card
+    assert f'<span data-break-even>break even 60.0% ({r.home} at -150)</span>' in card
