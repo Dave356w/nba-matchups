@@ -112,7 +112,7 @@ CSS = """
 .prediction-grid .stage-panel{border:0;padding:0}.prediction-grid .stage-panel .sample{display:block;margin:6px 0 0}
 .prediction-grid .rule-panel>p{min-height:0}.prediction-comparison{width:100%;font-size:12px;border-collapse:collapse;margin-top:14px}
 .prediction-comparison th,.prediction-comparison td{text-align:right;padding:8px 4px;border-bottom:1px solid var(--line-2)}
-.prediction-comparison th:first-child,.prediction-comparison td:first-child{text-align:left}.prediction-comparison th{font-size:10px;color:var(--muted)}
+.prediction-comparison th:first-child,.prediction-comparison td:first-child{text-align:left}.chalk-table{width:100%;max-width:560px;table-layout:fixed;border-collapse:collapse;font:12px/1.35 var(--sans);font-variant-numeric:tabular-nums;margin-top:10px}.chalk-table caption{text-align:left;font-size:11px;color:var(--muted);padding-bottom:4px}.chalk-table th,.chalk-table td{padding:5px 4px;text-align:right;border-bottom:1px solid var(--line-2);white-space:nowrap}.chalk-table th:first-child,.chalk-table td:first-child{text-align:left;width:26%}.chalk-table thead th{font-size:10px;color:var(--muted);font-weight:700}.chalk-table tr.grp th{text-align:left;font-size:11px;font-weight:650;color:var(--ink);padding-top:10px;white-space:normal}.prediction-comparison th{font-size:10px;color:var(--muted)}
 [data-record-panel][hidden],[data-prediction-row][hidden]{display:none!important}
 .public-empty{padding:32px;border:1px dashed var(--line);border-radius:14px;margin:24px 0;background:var(--surface);color:var(--muted)}
 .public-empty h2{color:var(--ink);font-size:18px;margin:0 0 8px}.public-empty p{font-size:14px;margin:0;max-width:600px}
@@ -757,9 +757,8 @@ class PublicSite:
         if ml:
             error = f"±{u.se_txt(ml['roi_se'])} pp (1 SE)" if np.isfinite(ml['roi_se']) and ml['n'] > 1 else 'not estimable from one pick'
             null = f"{100 * ml['roi_null']:+.1f}%" if np.isfinite(ml['roi_null']) else 'unavailable'
-            bench = f"{100 * ml['fav_roi']:+.1f}% on {ml['fav_n']} matched priced games" if ml['fav_n'] else 'unavailable'
             facts += [f"{ml['n']} priced picks · ROI uncertainty {error}",
-                      f"Market-price baseline {null}", f"Same-game market favorite ROI: {bench}"]
+                      f"Market-price baseline {null}"]
         body += "<ul class='panel-facts'>" + "".join(f"<li>{f}</li>" for f in facts) + "</ul>"
         if ml:
             ordered = part[part.ml_units.notna()].sort_values(['tip_utc', 'game_id'])
@@ -770,6 +769,7 @@ class PublicSite:
             body += "<p class='public-note'>The observed ROI is within one standard error of zero; this sample does not separate the return from break-even at that uncertainty level.</p>"
         body += ("<p class='public-note'>Every result is retained. Accuracy counts winners; ROI includes the price paid, so a high win rate can still lose money. "
                  "Missing-price forecasts stay in winner W/L. Small samples have wide uncertainty; a high win rate alone does not establish profitable betting.</p>")
+        body += self.chalk_section(part)
         c = r['comparison']
         body += "<section class='ml-section'><h3>Against the closing market</h3>"
         if c:
@@ -789,6 +789,62 @@ class PublicSite:
             body += "<p class='public-note'>The market comparison appears when graded games have usable DraftKings closing prices.</p>"
         body += "</section>"
         return body + self.roi_matrix(part)
+
+    def both_positive_ids(self, part):
+        """Live picks whose cell ΔROI was > 0 both this season and pooled at
+        their lock, as the card read it (earlier slates only). Research
+        rule (research/cell_both_positive.py), shown for comparison only."""
+        cache = self.__dict__.setdefault('_both_positive', {})
+        out = set()
+        for _, row in part[part.prediction_source.eq('live')].iterrows():
+            gid = str(row.game_id)
+            if gid not in cache:
+                view = cell_forward.lock_view(row)
+                est = self.calibration.estimate(view) if view is not None else None
+                ok = False
+                if est and est['evidence']:
+                    season = pd.to_numeric(view.get('season'), errors='coerce')
+                    current = [r for r in est['evidence'] if r['season'] == season]
+                    ok = bool(current) and cell_roi(current)['delta'] > 0 and cell_roi(est['evidence'])['delta'] > 0
+                cache[gid] = ok
+            if cache[gid]:
+                out.add(gid)
+        return out
+
+    def chalk_section(self, part):
+        """The model's pick against always betting the favorite on the same
+        games and prices (owner request, 2026-11-20). Descriptive only."""
+        u = self.ui
+        live = part['prediction_source'].eq('live').all() if len(part) else False
+        c = analysis.model_vs_chalk(part, self.both_positive_ids(part) if live else None)
+        if not c:
+            return ""
+
+        def roi(r):
+            if not r['n']:
+                return '—'
+            se = f" ± {u.se_txt(r['se'])}" if np.isfinite(r['se']) else ''
+            return f"{100 * r['roi']:+.1f}%{se}"
+
+        def group(title, g):
+            head = f"<tr class='grp'><th colspan='4'>{title} · {g['n']}</th></tr>"
+            if not g['n']:
+                return head
+            return head + ''.join(f"<tr><td>{k}</td><td>{r['w']}–{r['n'] - r['w']}</td><td>{roi(r)}</td>"
+                                  f"<td>{r['units']:+.1f}u</td></tr>"
+                                  for k, r in (('Model', g['model']), ('Favorite', g['chalk'])))
+        rows = (group('All games', c) + group('Model backs the underdog', c['differ'])
+                + (group('Cell ΔROI > 0, season and pooled', c['rule']) if c['rule'] else ''))
+        gap = (f"{100 * c['diff']:+.1f} ± {u.se_txt(c['diff_se'])} pp per pick"
+               if np.isfinite(c['diff_se']) else f"{100 * c['diff']:+.1f} pp per pick")
+        note = ("The cell rows use each lock’s card as it stood before tip; a walk-forward found that rule does not beat every pick."
+                if c['rule'] else "Cell rows need an earlier DraftKings season, so replay has none. "
+                "Replay probabilities come from a model fitted on these seasons, which flatters it.")
+        return ("<section class='ml-section' data-chalk><h3>Against always betting the favorite</h3>"
+                "<table class='chalk-table'><caption>Same games and saved prices · 1u · ROI ± 1 SE</caption>"
+                "<thead><tr><th></th><th>W–L</th><th>ROI</th><th>Units</th></tr></thead><tbody>"
+                f"{rows}</tbody></table>"
+                f"<p class='public-note'>Model minus favorite: <b data-chalk-diff>{gap}</b> (1 SE). {note}</p></section>")
 
     def roi_matrix(self, part):
         """Graded, priced model-winner picks per joint WP cell, cut to each
@@ -964,7 +1020,7 @@ class PublicSite:
 <section><h2>Reading ML performance</h2>""" + self.source_note() + """
 <p>The default is the <b>saved live record across seasons</b>. Live and replay summaries appear side by side and are never added together. Every game counts once: a native game is never replaced by a replay, including when its live lock is missing or void.</p>
 <p>Historical replays must carry a v11-family tag and a graded result, and use their saved DraftKings <b>closing</b> prices. They are reconstructed or rebuilt with historical inputs, rather than predictions captured live. Replays do not demonstrate executable five-hour returns. The record never uses another book’s prices.</p>
-<p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark.</p>
+<p><b>ROI</b> is net return divided by stakes. Uncertainty is ±1 standard error, narrower than a 95% interval. The market-price baseline is the return expected if the no-vig market probability is right, including the bookmaker’s margin. The same-game favorite is a separate betting benchmark: <b>Against always betting the favorite</b> compares the model’s pick with betting the no-vig favorite in every game, on the same games at the same saved prices, and shows the games where they differ.</p>
 <p>Winner accuracy has a 95% Wilson interval. Log loss and Brier compare the model with the closing DraftKings market on identical games; lower is better. <b>ROI lookup matrix</b> groups model-selected teams jointly by saved model WP (rows) and no-vig DraftKings WP for the same team (columns). It applies the source and season filters, then retains the latest 50 completed priced picks in each cell by default, ordered by slate date and game ID; a switch shows the latest 100 or all games in the selection instead. Each pick stakes 1 unit at its source price: five-hour locks for live and closing prices for replay. Cells show net ROI ± 1 standard error, count, W/L and units; missing prices and pending games do not enter. Model-picked market underdogs appear below 50% market WP. The filtered matrix can have a different population from the cards’ pooled previous/current-season Realized WP. Cells are descriptive and never select picks. Results keeps each game, source, price and outcome. Its running ROI accumulates within each season and source and does not change with filters.</p>""" + self.void_note() + """</section>
 <section><h2>Reading today’s games</h2>
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b>, in the card’s details beside Realized WP, is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
