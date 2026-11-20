@@ -1,0 +1,23 @@
+Cell ΔROI both positive (research/cell_both_positive.py). Walk-forward, earlier slates only; ± is 95%.
+Rule: bet the model pick when its cell's ΔROI > 0 this season AND pooled (latest 200). Games 1+.
+
+== 2025-26 DraftKings replay at the close, seeded by 2024-25 ESPN BET (PRIMARY): 964 games 1+ picks
+  every pick (public record)          964 bets  678-286  ROI   +0.4 ±  4.6%  null  -4.1%  ΔROI   +4.4 ±  4.6 pp
+  RULE: season > 0 and pooled > 0     296 bets  189-107  ROI   +1.7 ±  9.6%  null  -4.1%  ΔROI   +5.8 ±  9.6 pp
+  skipped by the rule                 668 bets  489-179  ROI   -0.2 ±  5.0%  null  -4.1%  ΔROI   +3.8 ±  5.0 pp
+  rule minus skipped, ΔROI: +2.0 ± 10.8 pp
+  READING: the rule does not separate from betting every pick
+  context only (not a search):
+    pooled > 0 only                   621 bets  431-190  ROI   -0.7 ±  5.7%  null  -4.1%  ΔROI   +3.4 ±  5.7 pp
+    season > 0 only                   358 bets  233-125  ROI   +1.6 ±  8.4%  null  -4.1%  ΔROI   +5.7 ±  8.4 pp
+  no season result in the cell yet (never bet): 22 picks
+
+== 2026-27 native five-hour locks, seeded by 2025-26 DraftKings replay (information only): 150 games 1+ picks
+  every pick (public record)          150 bets  106-44   ROI   +2.6 ± 11.4%  null  -4.0%  ΔROI   +6.5 ± 11.4 pp
+  RULE: season > 0 and pooled > 0      55 bets   36-19   ROI   +0.6 ± 21.4%  null  -4.0%  ΔROI   +4.6 ± 21.4 pp
+  skipped by the rule                  95 bets   70-25   ROI   +3.7 ± 13.2%  null  -4.0%  ΔROI   +7.7 ± 13.1 pp
+  rule minus skipped, ΔROI: -3.1 ± 25.1 pp
+  context only (not a search):
+    pooled > 0 only                    89 bets   62-27   ROI   +7.4 ± 16.0%  null  -4.0%  ΔROI  +11.4 ± 16.0 pp
+    season > 0 only                    85 bets   55-30   ROI   -4.8 ± 16.3%  null  -4.0%  ΔROI   -0.9 ± 16.3 pp
+  no season result in the cell yet (never bet): 15 picks
