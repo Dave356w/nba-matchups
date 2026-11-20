@@ -911,6 +911,13 @@ History backtest (G7/G10). No activation until these checks are reviewed.
   The model-WP x market-WP cell carries no walk-forward signal at any
   window (10 .. all); larger windows only sit closer to the price:
   [matrix window](diagnostics/matrix_window/RESULTS.txt).
+- No-vig method: proportional stays (owner decision, 2026-11-20). Shin and
+  power were not shown better calibrated (DraftKings 2025-26 close, paired
+  log loss −0.0006 / −0.0008, both 95% intervals spanning zero); they mainly
+  raise the ML record's null by ~1–1.4 points and would drop 4 H2·F·5 lock
+  bets; Realized WP is unchanged within ±0.0005 Brier:
+  [no-vig method](diagnostics/novig_compare/RESULTS.txt),
+  terms in `docs/novig_method_research.md`.
 - Kalshi and live trading: [benchmark](diagnostics/kalshi_benchmark/RESULTS.txt),
   [strength vs reaction](diagnostics/strength_vs_reaction/RESULTS.txt).
   In-game win probability from the score and the pregame line (display only):
