@@ -267,6 +267,13 @@ def main():
                     panel.get_by_text('Return over time',exact=True).click()
                     page.screenshot(path=str(out/f'{device}-fixture-performance.jpg'),full_page=True,type='jpeg',quality=85)
                     checks.append(f'{device}: labelled fixture · ML outcomes, filters, details, theme and return chart passed')
+                    # The page leaves out players whose game has started by the
+                    # reader's clock; freeze it at the fixture's snapshot (games
+                    # tip 4:00-7:00 PM PT on 2026-11-19) in a page of its own, so
+                    # the check does not expire and no other check sees the clock.
+                    main_page, page = page, browser.new_page(viewport={'width':width,'height':height})
+                    page.on('pageerror',lambda e: errors.append(str(e)))
+                    page.clock.set_fixed_time('2026-11-19T15:00:00Z')
                     page.goto(f'{base}/fixture/dfs.html')
                     page.locator('.dfs-lineup').first.wait_for()
                     labels = page.locator('#dfs-slate option').all_inner_texts()
@@ -338,6 +345,8 @@ def main():
                     page.click('#dfs-reset')
                     page.wait_for_function("/seed 356\\)/.test(document.getElementById('dfs-msg').textContent)")
                     page.screenshot(path=str(out/f'{device}-fixture-dfs.jpg'),full_page=True,type='jpeg',quality=85)
+                    page.close()
+                    page = main_page
                     checks.append(f'{device}: DFS fixture · Main, Early and Late slates each build 10 lineups from their own games; tournament mode builds 10 simulated lineups; exposure by salary (2% per $1, max 70%) and flat caps hold in both modes; tournament lineups show median examples from 5,000 independent evaluation slates; New draws reseeds; the min player salary leaves out cheaper players except a locked one')
                 assert not errors,errors
                 # Live-score overlay may update status/score only, never a selection.
