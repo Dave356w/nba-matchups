@@ -396,6 +396,51 @@ def model_prediction_moneyline_summary(part):
                 fav_roi=float(np.mean(fav_units)) if fav_units else float('nan'), fav_n=len(fav_units))
 
 
+def model_vs_chalk(part, rule_ids=None):
+    """The model's pick against always betting the market favourite ("chalk")
+    on the same graded games at the same saved price (owner request,
+    2026-11-20): live at its DraftKings lock, replay at its DraftKings close;
+    the favourite is the higher no-vig side, home at exactly 50%.
+    dict(n, model / chalk / differ records, diff, diff_se) or None.
+    diff is the paired mean of (model 1u return − chalk 1u return), ± 1 SE;
+    `differ` holds the games where the model backs the underdog, the only
+    games where the two differ; `rule`, when `rule_ids` is given, the games
+    in it (the cell ΔROI both-positive picks). Descriptive only: never a
+    rule or filter."""
+    d = part[part['ml_units'].notna()] if part is not None and len(part) else None
+    if d is None or not len(d):
+        return None
+    replay = d['basis'].isin(('reconstructed', 'rebuilt'))
+    qh = pd.to_numeric(d['lock_q_home'].where(~replay, d['close_q_home']), errors='coerce')
+    hml = pd.to_numeric(d['lock_home_ml'].where(~replay, d['close_home_ml']), errors='coerce')
+    aml = pd.to_numeric(d['lock_away_ml'].where(~replay, d['close_away_ml']), errors='coerce')
+    ok = qh.between(0, 1, inclusive='neither')
+    d, qh, hml, aml = d[ok], qh[ok], hml[ok], aml[ok]
+    if not len(d):
+        return None
+    fav_home = qh.ge(.5).to_numpy()
+    home_won = pd.to_numeric(d['home_won']).eq(1).to_numpy()
+    chalk_won = fav_home == home_won
+    chalk = np.array([market.unit_profit(m, w) for m, w in
+                      zip(np.where(fav_home, hml, aml), chalk_won)], dtype=float)
+    model = d['ml_units'].to_numpy(float)
+    model_won = pd.to_numeric(d['prediction_won']).eq(1).to_numpy()
+    differ = d['prediction'].eq(d['home']).to_numpy() != fav_home
+
+    def rec(units, won):
+        n = len(units)
+        return dict(n=n, w=int(won.sum()), units=float(units.sum()),
+                    roi=float(units.mean()) if n else float('nan'),
+                    se=float(units.std(ddof=1) / np.sqrt(n)) if n > 1 else float('nan'))
+    gap = model - chalk
+    group = lambda m: dict(n=int(m.sum()), model=rec(model[m], model_won[m]), chalk=rec(chalk[m], chalk_won[m]))  # noqa: E731
+    rule = (group(d['game_id'].astype(str).isin(rule_ids).to_numpy()) if rule_ids is not None else None)
+    return dict(n=len(d), model=rec(model, model_won), chalk=rec(chalk, chalk_won),
+                differ=group(differ), rule=rule,
+                diff=float(gap.mean()),
+                diff_se=float(gap.std(ddof=1) / np.sqrt(len(gap))) if len(gap) > 1 else float('nan'))
+
+
 def model_prediction_summary(predictions):
     """W/L for one season/stage, plus a same-game closing-market comparison.
 

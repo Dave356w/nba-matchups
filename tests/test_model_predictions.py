@@ -310,3 +310,37 @@ def test_locked_card_break_even_reads_the_lock_price_beside_realized_wp():
     r = g.iloc[0]
     assert r.lock_home_ml == -150 and "data-cell-timing='lock'" in card
     assert f'<span data-break-even>break even 60.0% ({r.home} at -150)</span>' in card
+
+
+def test_model_vs_chalk_uses_the_same_games_and_saved_prices():
+    # owner request, 2026-11-20: the model pick against always the no-vig
+    # favorite, same games, same lock price; differ = model on the underdog
+    g = forecasts().assign(lock_book='dk', lock_home_ml=-150, lock_away_ml=130, lock_q_home=.6)
+    d = analysis.model_prediction_moneyline(analysis.model_predictions(g))
+    c = analysis.model_vs_chalk(d)
+    graded = d[d.ml_units.notna()]
+    won = pd.to_numeric(graded.home_won).eq(1)
+    chalk = np.where(won, 100 / 150, -1.0)                 # home is the favorite
+    assert c['n'] == len(graded) and np.isclose(c['chalk']['units'], chalk.sum())
+    assert np.isclose(c['model']['units'], graded.ml_units.sum())
+    gap = graded.ml_units.to_numpy() - chalk
+    assert np.isclose(c['diff'], gap.mean()) and np.isclose(c['diff_se'], gap.std(ddof=1) / np.sqrt(len(gap)))
+    away = graded.prediction.ne(graded.home)
+    assert c['differ']['n'] == int(away.sum())
+    assert np.isclose(c['differ']['model']['units'], graded.ml_units[away].sum())
+    # same games only where the model agrees with the favorite: no gap there
+    assert np.allclose(gap[~away.to_numpy()], 0)
+    assert analysis.model_vs_chalk(d.iloc[:0]) is None
+    perf = PublicSite(ui, g, CLOSED, 'built').performance_page()
+    assert 'Against always betting the favorite' in perf and 'data-chalk-diff' in perf
+    assert 'Same-game market favorite ROI:' not in perf
+
+
+def test_chalk_section_adds_the_cell_rule_for_live_picks_only():
+    g = forecasts().assign(lock_book='dk', lock_home_ml=-150, lock_away_ml=130, lock_q_home=.6)
+    site = PublicSite(ui, g, CLOSED, 'built')
+    d = analysis.model_prediction_moneyline(analysis.public_predictions(site.predictions))
+    live = site.chalk_section(d[d.prediction_source.eq('live')])
+    assert 'Cell ΔROI &gt; 0, season and pooled' in live or 'Cell ΔROI > 0, season and pooled' in live
+    c = analysis.model_vs_chalk(d, rule_ids=set())
+    assert c['rule']['n'] == 0 and analysis.model_vs_chalk(d)['rule'] is None

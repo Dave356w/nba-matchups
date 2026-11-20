@@ -5,6 +5,21 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Model pick vs always the favorite — owner request, November 20, 2026
+
+Each ML stats panel replaces the one-line same-game favorite ROI with a
+small table on the same graded games at the same saved prices (live lock,
+replay close): the model's pick against always betting the no-vig favorite
+(home at 50%), W–L, ROI ± 1 SE and units, for all games, the games where the
+model backs the underdog (the only ones where they differ) and, for saved
+live locks, the picks whose cell ΔROI was > 0 both this season and pooled at
+their lock as the card read it (`research/cell_both_positive.py`; its
+walk-forward found no separation, and the page says so). Replay has no
+earlier DraftKings season for cells and notes that its probabilities come
+from a model fitted on those seasons. Model minus favorite is the paired
+per-pick difference ± 1 SE. `analysis.model_vs_chalk`. Descriptive only: no
+rule, filter, record, lock or grade change.
+
 ### Cell record at the lock — owner request, November 20, 2026
 
 Once a game has a valid five-hour lock, the card's cell record, its Realized
