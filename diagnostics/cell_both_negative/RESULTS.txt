@@ -5,6 +5,11 @@ Group: the cell's ΔROI < -4 pp this season AND pooled (latest 200). Games 1+.
   model pick, cold cells           88 bets   65-23   ROI   +3.9 ± 13.4%  null  -4.1%  ΔROI   +8.0 ± 13.4 pp
   model pick, all other games     876 bets  613-263  ROI   +0.0 ±  4.8%  null  -4.1%  ΔROI   +4.1 ±  4.8 pp
   cold minus other, model ΔROI: +3.9 ± 14.2 pp
+  split at -4 pp (added after the first run, descriptive):
+    both > -4                     462 bets  311-151  ROI   +0.3 ±  7.0%  null  -4.1%  ΔROI   +4.4 ±  7.0 pp
+    mixed or no season result     414 bets  302-112  ROI   -0.3 ±  6.6%  null  -4.1%  ΔROI   +3.8 ±  6.6 pp
+    both < -4                      88 bets   65-23   ROI   +3.9 ± 13.4%  null  -4.1%  ΔROI   +8.0 ± 13.4 pp
+    both > -4 minus both < -4, ΔROI: -3.7 ± 15.1 pp
   fade (other side), cold cells    88 bets   23-65   ROI  -16.1 ± 30.6%  null  -4.1%  ΔROI  -12.0 ± 30.6 pp
   READING: cold cells do not stay cold; the fade does not pay
 
@@ -12,4 +17,9 @@ Group: the cell's ΔROI < -4 pp this season AND pooled (latest 200). Games 1+.
   model pick, cold cells            2 bets    1-1    ROI  -28.2 ± 140.8%  null  -3.9%  ΔROI  -24.2 ± 140.8 pp
   model pick, all other games     148 bets  105-43   ROI   +3.0 ± 11.5%  null  -4.0%  ΔROI   +7.0 ± 11.5 pp
   cold minus other, model ΔROI: -31.2 ± 141.2 pp
+  split at -4 pp (added after the first run, descriptive):
+    both > -4                      92 bets   59-33   ROI   -7.0 ± 15.4%  null  -4.0%  ΔROI   -3.1 ± 15.4 pp
+    mixed or no season result      56 bets   46-10   ROI  +19.4 ± 15.8%  null  -4.0%  ΔROI  +23.4 ± 15.8 pp
+    both < -4                       2 bets    1-1    ROI  -28.2 ± 140.8%  null  -3.9%  ΔROI  -24.2 ± 140.8 pp
+    both > -4 minus both < -4, ΔROI: +21.2 ± 141.6 pp
   fade (other side), cold cells     2 bets    1-1    ROI  +48.0 ± 290.1%  null  -3.9%  ΔROI  +51.9 ± 290.1 pp

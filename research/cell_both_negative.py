@@ -109,6 +109,19 @@ def main():
             lines.append(f"  cold minus other, model ΔROI: {100 * est:+.1f} ± {100 * h:.1f} pp")
         else:
             est = h = float("nan")
+        # owner follow-up (2026-11-20), added after the first run: the split
+        # at -4 pp both ways; descriptive, no reading attached
+        lines.append("  split at -4 pp (added after the first run, descriptive):")
+        for name, m in (("both > -4", d.pooled.gt(CUT) & d.season.gt(CUT)),
+                        ("mixed or no season result", ~(d.pooled.gt(CUT) & d.season.gt(CUT)) & ~cold),
+                        ("both < -4", cold)):
+            x = d[m]
+            lines.append(line("  " + name, stats(x.units, x.null, x.won)))
+        hot = d.pooled.gt(CUT) & d.season.gt(CUT)
+        x, y = (d[hot].units - d[hot].null).to_numpy(float), (d[cold].units - d[cold].null).to_numpy(float)
+        if len(x) > 1 and len(y) > 1:
+            lines.append(f"    both > -4 minus both < -4, ΔROI: {100 * (x.mean() - y.mean()):+.1f} ± "
+                         f"{100 * cb.Z95 * math.sqrt(x.var(ddof=1) / len(x) + y.var(ddof=1) / len(y)):.1f} pp")
         f = [F[i] for i in g.game_id if i in F]
         fs = stats([a for a, _, _ in f], [b for _, b, _ in f], [c for _, _, c in f])
         lines.append(line("fade (other side), cold cells", fs))
