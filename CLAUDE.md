@@ -5,6 +5,19 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Cell record at the lock — owner request, November 20, 2026
+
+Once a game has a valid five-hour lock, the card's cell record, its Realized
+WP line and their evidence read the cell the lock's model P and DraftKings
+prices select (`cell_forward.lock_view`, as the forward log saves it), so a
+later price move cannot swap the record. Before the lock the card reads the
+current forecast and price, marked provisional; a void or missed lock says
+there is no valid lock. The headline is relabelled "Cell record · model picks
+like <team>'s" with "all teams" and "past results, not a forecast" stated.
+Pooling stays across all teams (owner, same day). Presentation only: the
+cell population, ROI and Realized WP formulas, the forward log, the Realized
+WP shadow record, model, locks, grades and records are unchanged.
+
 ### Cell ROI tracking — owner request, November 18, 2026
 
 The owner's original intent for the matrix was the realized result and

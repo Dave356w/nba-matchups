@@ -89,12 +89,13 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     # (owner, 2026-11-18); the backend estimate keeps v4's + .25/201 drift
     est=site.calibration.estimate(target)
     assert abs(est['probability']-est['public_probability']-est['drift'])<1e-12 and est['drift']>0
-    assert 'Realized WP</dt><dd><span data-realized-wp>75.1%' in card and 'Pooled cell: 1–0 across 1 game, all teams' in card
+    assert 'Realized WP</dt><dd><span data-realized-wp>75.1%' in card and 'Pooled cell: 1–0 across 1 game, all teams · past results, not a forecast' in card
     assert 'data-cell-adjustment' in card and 'market average' in card
     assert 'counted as +0.1 after shrinkage' in card and 'drift' not in card.lower()
     # one prior win at -300: +0.33u on 1 priced game, the card's headline (owner, 2026-11-18)
-    assert 'Cell ROI · 1u on' in card and '<strong data-cell-roi>+33.3%</strong>' in card
-    assert '+0.33u over 1 priced' in card and '1 SE' not in card   # one result has no SE
+    assert 'Cell record · model picks like' in card and '<strong data-cell-roi>+33.3%</strong>' in card
+    assert '+0.33u over the last 1 priced pick, all teams' in card and '1 SE' not in card   # one result has no SE
+    assert 'past results, not a forecast' in card and "data-cell-timing='lock'" in card
     assert '1 unit on the model pick in each of the cell’s latest 200 past games' in site.guide_page()
     guide=site.guide_page()
     assert 'no-vig DraftKings WP + shrunk cell adjustment</b>' in guide and 'n ÷ (n + 200)' in guide
@@ -199,3 +200,27 @@ def test_roi_standard_error_is_blank_when_degenerate():
     from public_site import unit_se
     assert np.isnan(unit_se([.5])) and np.isnan(unit_se([.5, .3, .9])) and np.isnan(unit_se([-1, -1]))
     assert unit_se([1., -1.]) == pytest.approx(np.std([1., -1.], ddof=1) / np.sqrt(2))
+
+
+def test_card_reads_the_cell_at_the_five_hour_lock_and_marks_unlocked_cards():
+    # owner request, 2026-11-20: once locked, the lock's P and prices pick the
+    # cell, so a later price move cannot swap the record
+    prior=record('prior')                          # lock cell: model 60-70, market 70-80
+    moved=record('target',date='2026-11-11',won=np.nan,
+                 pre_home_ml=-150,pre_away_ml=150,pre_q_home=.6)   # current price: market 60-70
+    site=PublicSite(ui,pd.DataFrame([prior,moved]),'2026-11-11','built')
+    card=site.card(moved)
+    assert "data-cell-games='1'" in card and "data-cell-timing='lock'" in card
+    assert 'At the 5-hour lock' in card and 'Provisional' not in card
+    # the same game before its lock reads the current price's (empty) cell
+    unlocked=moved.copy()
+    for k in ('lock_snapshot_utc','lock_p_home','lock_home_ml','lock_away_ml','lock_book','lock_model_tag'):
+        unlocked[k]=np.nan
+    unlocked['tip_utc']=(site.built_utc+pd.Timedelta(hours=8)).isoformat()
+    card=PublicSite(ui,pd.DataFrame([prior,unlocked]),'2026-11-11','built').card(unlocked)
+    assert "data-cell-games='0'" in card and "data-cell-timing='provisional'" in card
+    assert 'Provisional until the 5-hour lock' in card
+    # a void lock keeps the current price and says there is no valid lock
+    void=moved.copy();void['game_id']='401909897'
+    card=PublicSite(ui,pd.DataFrame([prior,void]),'2026-11-11','built').card(void)
+    assert "data-cell-timing='current'" in card and 'No valid 5-hour lock' in card

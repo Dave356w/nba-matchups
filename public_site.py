@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 import analysis
+import cell_forward
 import dfs
 import ledger
 import live_wp
@@ -141,7 +142,7 @@ details.public-note summary{cursor:pointer;color:rgb(var(--accent-tx));font-weig
 .stage-label{font-size:11px;color:var(--muted)}
 [data-source-summary][hidden],[data-ml-panel][hidden],.gcard[hidden]{display:none!important}
 .game-filters{display:flex;flex-wrap:wrap;gap:8px 16px;margin:16px 0 12px}.filter-group>span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.filter-group .seg{display:flex;margin:0}
-.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}.calibration-evidence,.actual-result{grid-column:1/-1}.calibration-main{order:0}.break-even{order:1}.actual-result{order:2}.calibration-evidence{order:3}.metric,.break-even{display:flex;flex-direction:column;padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2);min-width:0}.metric small,.break-even small{display:block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}.metric strong,.break-even strong{display:block;margin-top:auto!important;font:750 24px/1.3 var(--sans);letter-spacing:-.03em;color:var(--ink);padding-top:2px;font-variant-numeric:tabular-nums}.metric span,.break-even span{display:block;font-size:12px;color:var(--muted)}.metric-primary{background:rgba(var(--accent),.07);border-color:rgba(var(--accent),.22)}.metric-primary strong{color:rgb(var(--accent-tx))}.actual-result{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 2px 0;font-size:12px}.actual-result small{color:var(--muted);font-size:12px}.actual-result strong{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}.calibration-evidence{font-size:11px;color:var(--muted);padding:10px 12px;border-radius:10px;border:1px dashed var(--line)}.calibration-evidence .cell-head{margin:0 0 6px;font-size:12px;font-weight:650;color:var(--ink)}.calibration-evidence dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}.calibration-evidence dt{white-space:nowrap}.calibration-evidence dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
+.forecast-outcome{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}.calibration-evidence,.actual-result{grid-column:1/-1}.calibration-main{order:0}.break-even{order:1}.actual-result{order:2}.calibration-evidence{order:3}.metric,.break-even{display:flex;flex-direction:column;padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2);min-width:0}.metric small,.break-even small{display:block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}.metric strong,.break-even strong{display:block;margin-top:auto!important;font:750 24px/1.3 var(--sans);letter-spacing:-.03em;color:var(--ink);padding-top:2px;font-variant-numeric:tabular-nums}.metric span,.break-even span{display:block;font-size:12px;color:var(--muted)}.metric-primary{background:rgba(var(--accent),.07);border-color:rgba(var(--accent),.22)}.metric-primary strong{color:rgb(var(--accent-tx))}.actual-result{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 2px 0;font-size:12px}.actual-result small{color:var(--muted);font-size:12px}.actual-result strong{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}.metric .cell-timing{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:4px}.calibration-evidence{font-size:11px;color:var(--muted);padding:10px 12px;border-radius:10px;border:1px dashed var(--line)}.calibration-evidence .cell-head{margin:0 0 6px;font-size:12px;font-weight:650;color:var(--ink)}.calibration-evidence dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}.calibration-evidence dt{white-space:nowrap}.calibration-evidence dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums}.lock-summary{margin-top:4px}.lock-summary strong{display:block;font-size:13px;text-transform:none;letter-spacing:0}.lock-summary small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
 .source-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.source-summary article{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}.source-summary h3{margin:0 0 6px;font-size:15px}.source-summary p{font-size:12px;color:var(--muted);margin:6px 0}.source-summary strong{color:var(--ink)}
 .public-empty button{margin-top:14px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;cursor:pointer}
 @media(max-width:640px){.today-head.public-head{margin:12px 0}.today-head .eyebrow{display:none}.today-head h1{font-size:26px}.today-head.public-head p{font-size:12px;margin-top:4px}.today-head .update{margin-top:8px}.today-intro.public-intro{margin:12px 0}.game-filters{margin:12px 0;gap:8px}.filter-group{width:100%}.filter-group .seg{width:100%}.filter-group .seg button{flex:1;padding:8px 6px}.source-summary{grid-template-columns:1fr}.forecast-readout{padding:10px 0 8px}.metric strong,.break-even strong{font-size:22px}.tool-card .g-meta{margin-bottom:8px}.lock-summary{padding:10px}}
@@ -415,22 +416,45 @@ class PublicSite:
                 + f"<div class='g-detail'>{detail}</div></details>")
 
     def calibrated_readout(self, row, team):
-        """The pooled cell's 1u ROI on the model pick as the card's third
+        """The pooled cell's record, 1u on the model pick, as the card's third
         headline metric (owner request, 2026-11-18), with Realized WP and the
-        cell's record as its evidence. Display only."""
+        cell's record as its evidence. Display only.
+
+        Read at the five-hour lock once the game has a valid one (owner
+        request, 2026-11-20): the lock's model P and DraftKings prices pick the
+        cell, as the cell ROI forward log saves it, so a later price move does
+        not swap the record. Before the lock, or without a valid lock, it reads
+        the current forecast and price and says so."""
         u = self.ui
-        estimate = self.calibration.estimate(row)
+        locked = None
+        if pd.notna(pd.to_datetime(row.get('lock_snapshot_utc'), utc=True, errors='coerce')):
+            locked = cell_forward.lock_view(row)
+        view = locked if locked is not None else row
+        if locked is not None:
+            p_lock = float(locked['p_home'])
+            team = locked['home'] if p_lock >= .5 else locked['away']
+        estimate = self.calibration.estimate(view)
         if estimate is None:
-            return ("<div class='calibration-main metric' data-season-calibration><small>Cell ROI</small><strong>—</strong>"
+            return ("<div class='calibration-main metric' data-season-calibration><small>Cell record</small><strong>—</strong>"
                     "<span>Requires a v11 forecast, team experience and valid DraftKings prices.</span></div>")
         n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
-        head = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams" if n
+        head = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams · past results, not a forecast" if n
                 else 'No historical results in this cell yet')
+        if locked is not None:
+            timing = (f"<em class='cell-timing' data-cell-timing='lock'>At the 5-hour lock · "
+                      f"{u.tip_pt(row.get('lock_snapshot_utc'))}</em>")
+        elif (str(row.get('game_id')) in analysis.VOID_LOCKS
+              or pd.notna(pd.to_numeric(row.get('home_won'), errors='coerce'))
+              or pd.to_datetime(row.get('tip_utc'), utc=True, errors='coerce') <= self.built_utc):
+            timing = "<em class='cell-timing' data-cell-timing='current'>No valid 5-hour lock · last saved price</em>"
+        else:
+            timing = "<em class='cell-timing' data-cell-timing='provisional'>Provisional until the 5-hour lock · current price</em>"
         roi = cell_roi(estimate['evidence'])
         if roi['priced']:
-            se = f" ± {100 * roi['se']:.1f} pp (1 SE)" if np.isfinite(roi['se']) else ''
+            se = f" ± {100 * roi['se']:.1f} pp (1\u00a0SE) ·" if np.isfinite(roi['se']) else ''
             tile = (f"<strong data-cell-roi>{100 * roi['roi']:+.1f}%</strong>"
-                    f"<span>{se.strip()}{' · ' if se else ''}{roi['units']:+.2f}u over {roi['priced']} priced</span>")
+                    f"<span>ROI, 1u each{se} {roi['units']:+.2f}u over the last {roi['priced']} priced "
+                    f"pick{'s' if roi['priced'] != 1 else ''}, all teams</span>")
         else:
             tile = "<strong>—</strong><span>No priced results in this cell yet</span>"
         rows = []
@@ -440,11 +464,13 @@ class PublicSite:
                          f"{u.pct(estimate['cell_market'])} market average ({gap:+.1f} pts, "
                          f"counted as {100 * estimate['cell_adjustment']:+.1f} after shrinkage)</span>"))
             rows.append(("Realized WP", f"<span data-realized-wp>{u.pct(estimate['public_probability'])} {u.esc(team)}</span>"))
+        priced_at = row.get('lock_snapshot_utc') if locked is not None else row.get('snapshot_utc')
         rows.append(("Sample", f"{estimate['previous_games']} previous season + {estimate['current_games']} current season"
-                     f" · prices at {u.tip_pt(row.get('snapshot_utc'))}"))
+                     f" · prices at {u.tip_pt(priced_at)}"))
         body = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
+        label = f"Cell record · model picks like {u.esc(team)}’s" if team else "Cell record"
         return (f"<div class='calibration-main metric' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
-                f"<small>Cell ROI · 1u on {u.esc(team)}</small>{tile}</div>"
+                f"<small>{label}</small>{tile}{timing}</div>"
                 f"<div class='calibration-evidence'><p class='cell-head'>{head}</p><dl>{body}</dl></div>")
 
     def live_block(self, row, dk):
@@ -924,11 +950,11 @@ class PublicSite:
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates every 30 seconds while games are in progress, from the current score, the time left and the last DraftKings spread saved before tip. A build runs about 20 minutes before each tip so that spread is close to the closing line; a line that moves in the final minutes is not captured. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
-<section id='in-season-calibration'><h2>Cell ROI and Realized WP</h2>
-<p><b>Cell ROI</b> is the card’s third headline figure: 1 unit on the model pick in each of the cell’s latest 200 past games, each at its own saved price (live picks at their lock price, previous-season replays at their DraftKings close), with ± 1 standard error, net units and the number of priced results. It describes those past games only. A backtest found that a cell’s past ROI did not predict its next results, so it is a record to monitor, not a forecast, a rule or a recommendation. From November 18, 2026 each lock’s cell and that cell’s record are also saved once before tip, so the cells’ later results can be checked against what was known at the time.</p>
-<p><b>Realized WP</b>, in the cell details, is an experimental estimate built from the same lookup of realized model–market interactions for the <b>same team as the current model forecast</b>. Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
+<section id='in-season-calibration'><h2>Cell record and Realized WP</h2>
+<p><b>Cell record</b> is the card’s third headline figure: the ROI of 1 unit on the model pick in each of the cell’s latest 200 past games, each at its own saved price (live picks at their lock price, previous-season replays at their DraftKings close), with ± 1 standard error, net units and the number of priced results. “Model picks like a team’s” means every team’s games in the same cell, not that team’s own record. It describes those past games only. Once a game locks, the cell is the one the 5-hour lock’s model probability and DraftKings price select, so a later price move does not swap the record; before the lock it follows the current forecast and price and is marked provisional. A backtest found that a cell’s past ROI did not predict its next results, so it is a record to monitor, not a forecast, a rule or a recommendation. From November 18, 2026 each lock’s cell and that cell’s record are also saved once before tip, so the cells’ later results can be checked against what was known at the time.</p>
+<p><b>Realized WP</b>, in the cell details, is an experimental estimate built from the same lookup of realized model–market interactions for the <b>same team and cell as the record above</b> (the lock’s once the game locks). Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
 <p><b>Realized WP = this game’s no-vig DraftKings WP + shrunk cell adjustment</b>, limited to 0–100%. The cell adjustment is the cell win rate minus the cell average no-vig market WP: wins ÷ games among the latest 200 actual results in that cell, against those same games’ no-vig DraftKings WP for their model-selected teams. A market band is 10 to 20 points wide, so the cell’s games rarely carry the same price as tonight’s game; the adjustment measures how far the cell beat or missed its own prices rather than its raw win rate.</p>
-<p>Cell ROI does not enter Realized WP.</p>
+<p>The cell record does not enter Realized WP.</p>
 <p><b>Shrinkage.</b> The cell adjustment is multiplied by n ÷ (n + 200), where n is the number of results the cell holds. A cell with 200 results counts for half of its measured gap; a cell with 10 counts for about 5%. Unshrunk, a small cell could move a card by tens of points on a handful of games. Use all available results if a cell has fewer than 200; an empty cell has no estimate.</p>
 <p>History of this display: the raw cell win rate until November 12, 2026; the cell adjustment over the latest 50 results from November 12; the latest 200, shrunk, from November 13 (until November 18 it also added one pooled recent-results term to every card). A walk-forward backtest on two replay seasons scored the shrunk estimate better than the unshrunk latest-200 estimate and about level with the price itself; it did not predict results better than the price.</p>
 <p>The <b>immediately previous season</b> supplies the starting matrix. Current-season evidence uses valid graded native v11 five-hour locks on strictly earlier slates. Same-season replay, older seasons, pending games and void locks do not enter. New results replace the oldest matching observations once the cell reaches 200. Order is slate date, then game ID for ties.</p>
