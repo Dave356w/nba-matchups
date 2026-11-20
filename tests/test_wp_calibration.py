@@ -93,8 +93,11 @@ def test_boundary_membership_and_public_card_explain_support_and_formula():
     assert 'data-cell-adjustment' in card and 'market average' in card
     assert 'counted as +0.1 after shrinkage' in card and 'drift' not in card.lower()
     # one prior win at -300: +0.33u on 1 priced game, the card's headline (owner, 2026-11-18)
-    assert 'Cell record · model picks like' in card and '<strong data-cell-roi>+33.3%</strong>' in card
-    assert '+0.33u over the last 1 priced pick, all teams' in card and '1 SE' not in card   # one result has no SE
+    # ΔROI headline (owner, 2026-11-20): a -300 win at a 75% no-vig price
+    # returns +33.3% where the price expected 0.0%
+    assert 'Cell ΔROI · model picks like' in card and '<strong data-cell-delta-roi>+33.3 pp</strong>' in card
+    assert 'ROI <b data-cell-roi>+33.3%</b> vs +0.0% expected' in card
+    assert '+0.33u, last 1 priced pick, all teams' in card and '1\u00a0SE' not in card   # one result has no SE
     assert 'past results, not a forecast' in card and "data-cell-timing='lock'" in card
     assert '1 unit on the model pick in each of the cell’s latest 200 past games' in site.guide_page()
     guide=site.guide_page()
@@ -224,3 +227,17 @@ def test_card_reads_the_cell_at_the_five_hour_lock_and_marks_unlocked_cards():
     void=moved.copy();void['game_id']='401909897'
     card=PublicSite(ui,pd.DataFrame([prior,void]),'2026-11-11','built').card(void)
     assert "data-cell-timing='current'" in card and 'No valid 5-hour lock' in card
+
+
+def test_cell_delta_roi_subtracts_each_results_own_no_vig_null():
+    from public_site import cell_roi
+    ev=[dict(price=-200,won=1,market_probability=.64),dict(price=150,won=0,market_probability=.38),
+        dict(price=-110,won=1,market_probability=.5),dict(price=np.nan,won=1,market_probability=.5)]
+    r=cell_roi(ev)
+    u=[.5,-1.,100/110]; z=[.64*1.5-1,.38*2.5-1,.5*(1+100/110)-1]
+    assert r['priced']==3 and r['roi']==pytest.approx(np.mean(u)) and r['null']==pytest.approx(np.mean(z))
+    assert r['delta']==pytest.approx(np.mean(u)-np.mean(z))
+    d=np.subtract(u,z)
+    assert r['delta_se']==pytest.approx(d.std(ddof=1)/np.sqrt(3))
+    # all wins: no SE for the ROI, none for its difference either
+    assert np.isnan(cell_roi(ev[:1]+ev[2:3])['delta_se'])

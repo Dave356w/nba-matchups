@@ -12,10 +12,15 @@ WP line and their evidence read the cell the lock's model P and DraftKings
 prices select (`cell_forward.lock_view`, as the forward log saves it), so a
 later price move cannot swap the record. Before the lock the card reads the
 current forecast and price, marked provisional; a void or missed lock says
-there is no valid lock. The headline is relabelled "Cell record · model picks
-like <team>'s" with "all teams" and "past results, not a forecast" stated.
-Pooling stays across all teams (owner, same day). Presentation only: the
-cell population, ROI and Realized WP formulas, the forward log, the Realized
+there is no valid lock. The headline becomes the cell's **ΔROI** (owner, same
+day): its 1u ROI minus the ROI the same results' own no-vig prices imply
+(null = q × decimal payout − 1, proportional no-vig as the records), in
+points, ± 1 SE of the per-result difference (blank when the ROI's is), with
+the ROI, the expected ROI, net units and priced count beside it; labelled
+"Cell ΔROI · model picks like <team>'s", "all teams" and "past results, not
+a forecast" stated. Pooling stays across all teams (owner, same day). The
+ML stats matrix keeps ROI. Presentation only: the cell population, ROI and
+Realized WP formulas, the forward log (which keeps saving ROI), the Realized
 WP shadow record, model, locks, grades and records are unchanged.
 
 ### Cell ROI tracking — owner request, November 18, 2026

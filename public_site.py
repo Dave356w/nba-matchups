@@ -210,11 +210,24 @@ def cell_roi(evidence):
     """A pooled cell's flat 1-unit return on the model pick at each result's
     own saved price (owner request, 2026-11-16): live locks at their lock
     price, previous-season replay at its DraftKings close. Display and
-    monitoring only; Realized WP does not read it."""
-    profits = [p for p in (market.unit_profit(r['price'], r['won']) for r in evidence) if np.isfinite(p)]
+    monitoring only; Realized WP does not read it.
+
+    ΔROI (owner request, 2026-11-20): the ROI minus the ROI the same bets'
+    own no-vig prices imply (null = q × decimal payout − 1, proportional
+    no-vig, the records' null), with 1 SE of the per-result difference under
+    the same blanking rule as the ROI's."""
+    pairs = [(u, r['market_probability'] * market.decimal_payout(r['price']) - 1)
+             for u, r in ((market.unit_profit(r['price'], r['won']), r) for r in evidence) if np.isfinite(u)]
+    profits = [u for u, _ in pairs]
     units = math.fsum(profits)
-    return dict(priced=len(profits), units=units, roi=units / len(profits) if profits else float('nan'),
-                se=unit_se(profits))
+    n = len(profits)
+    null = math.fsum(z for _, z in pairs) / n if n else float('nan')
+    se = unit_se(profits)
+    diffs = [u - z for u, z in pairs]
+    delta_se = float(np.std(diffs, ddof=1) / math.sqrt(n)) if np.isfinite(se) else float('nan')
+    roi = units / n if n else float('nan')
+    return dict(priced=n, units=units, roi=roi, se=se, null=null,
+                delta=roi - null if n else float('nan'), delta_se=delta_se)
 
 
 def unit_se(units):
@@ -435,7 +448,7 @@ class PublicSite:
             team = locked['home'] if p_lock >= .5 else locked['away']
         estimate = self.calibration.estimate(view)
         if estimate is None:
-            return ("<div class='calibration-main metric' data-season-calibration><small>Cell record</small><strong>—</strong>"
+            return ("<div class='calibration-main metric' data-season-calibration><small>Cell ΔROI</small><strong>—</strong>"
                     "<span>Requires a v11 forecast, team experience and valid DraftKings prices.</span></div>")
         n, wins, losses = estimate['games'], estimate['wins'], estimate['losses']
         head = (f"Pooled cell: {wins}–{losses} across {n} game{'s' if n != 1 else ''}, all teams · past results, not a forecast" if n
@@ -451,9 +464,10 @@ class PublicSite:
             timing = "<em class='cell-timing' data-cell-timing='provisional'>Provisional until the 5-hour lock · current price</em>"
         roi = cell_roi(estimate['evidence'])
         if roi['priced']:
-            se = f" ± {100 * roi['se']:.1f} pp (1\u00a0SE) ·" if np.isfinite(roi['se']) else ''
-            tile = (f"<strong data-cell-roi>{100 * roi['roi']:+.1f}%</strong>"
-                    f"<span>ROI, 1u each{se} {roi['units']:+.2f}u over the last {roi['priced']} priced "
+            se = f" ± {100 * roi['delta_se']:.1f} pp (1\u00a0SE) ·" if np.isfinite(roi['delta_se']) else ''
+            tile = (f"<strong data-cell-delta-roi>{100 * roi['delta']:+.1f} pp</strong>"
+                    f"<span>{se.strip(' ·')}{' · ' if se else ''}ROI <b data-cell-roi>{100 * roi['roi']:+.1f}%</b> vs "
+                    f"{100 * roi['null']:+.1f}% expected · {roi['units']:+.2f}u, last {roi['priced']} priced "
                     f"pick{'s' if roi['priced'] != 1 else ''}, all teams</span>")
         else:
             tile = "<strong>—</strong><span>No priced results in this cell yet</span>"
@@ -468,7 +482,7 @@ class PublicSite:
         rows.append(("Sample", f"{estimate['previous_games']} previous season + {estimate['current_games']} current season"
                      f" · prices at {u.tip_pt(priced_at)}"))
         body = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
-        label = f"Cell record · model picks like {u.esc(team)}’s" if team else "Cell record"
+        label = f"Cell ΔROI · model picks like {u.esc(team)}’s" if team else "Cell ΔROI"
         return (f"<div class='calibration-main metric' data-season-calibration data-cell-games='{n}' data-cell-wins='{wins}'>"
                 f"<small>{label}</small>{tile}{timing}</div>"
                 f"<div class='calibration-evidence'><p class='cell-head'>{head}</p><dl>{body}</dl></div>")
@@ -950,11 +964,11 @@ class PublicSite:
 <p><b>Model probability</b> is the chance of the model’s predicted winner winning; <b>DraftKings no vig</b> is that team’s current market-implied win probability with the bookmaker’s margin removed. Posted moneylines remain beside each team. The <b>break-even probability</b> is the win rate needed to cover that price, including the bookmaker’s margin. A predicted winner is not necessarily good value. Model and market probabilities refer to the same team and can update until tip. Actual result is that team’s Win or Loss; realized win rates across games appear in ML performance. A saved <b>locked pick</b> is shown separately at its original price. Times are Pacific.</p>
 <p><b>Live win chance</b> updates every 30 seconds while games are in progress, from the current score, the time left and the last DraftKings spread saved before tip. A build runs about 20 minutes before each tip so that spread is close to the closing line; a line that moves in the final minutes is not captured. It is display context, is not saved and never changes a pick or record.</p>
 <p>Game details retain the predicted margin, both teams’ season records, four factors from games before the slate, and timestamped ESPN injuries. The model uses the NBA’s official injury report separately.</p></section>
-<section id='in-season-calibration'><h2>Cell record and Realized WP</h2>
-<p><b>Cell record</b> is the card’s third headline figure: the ROI of 1 unit on the model pick in each of the cell’s latest 200 past games, each at its own saved price (live picks at their lock price, previous-season replays at their DraftKings close), with ± 1 standard error, net units and the number of priced results. “Model picks like a team’s” means every team’s games in the same cell, not that team’s own record. It describes those past games only. Once a game locks, the cell is the one the 5-hour lock’s model probability and DraftKings price select, so a later price move does not swap the record; before the lock it follows the current forecast and price and is marked provisional. A backtest found that a cell’s past ROI did not predict its next results, so it is a record to monitor, not a forecast, a rule or a recommendation. From November 18, 2026 each lock’s cell and that cell’s record are also saved once before tip, so the cells’ later results can be checked against what was known at the time.</p>
+<section id='in-season-calibration'><h2>Cell ΔROI and Realized WP</h2>
+<p><b>Cell ΔROI</b> is the card’s third headline figure. It starts from the ROI of 1 unit on the model pick in each of the cell’s latest 200 past games, each at its own saved price (live picks at their lock price, previous-season replays at their DraftKings close). Even fairly priced bets lose the bookmaker’s margin, so the card subtracts the ROI those same bets’ no-vig DraftKings prices expected (about −4%): <b>ΔROI = ROI − expected ROI</b>, in percentage points. 0 means the picks did exactly as their prices implied; above 0, better. It shows ± 1 standard error, the ROI and expected ROI themselves, net units and the number of priced results. “Model picks like a team’s” means every team’s games in the same cell, not that team’s own record. It describes those past games only. Once a game locks, the cell is the one the 5-hour lock’s model probability and DraftKings price select, so a later price move does not swap the record; before the lock it follows the current forecast and price and is marked provisional. A backtest found that a cell’s past ROI did not predict its next results, so it is a record to monitor, not a forecast, a rule or a recommendation. From November 18, 2026 each lock’s cell and that cell’s record are also saved once before tip, so the cells’ later results can be checked against what was known at the time.</p>
 <p><b>Realized WP</b>, in the cell details, is an experimental estimate built from the same lookup of realized model–market interactions for the <b>same team and cell as the record above</b> (the lock’s once the game locks). Model WP selects the matrix row and no-vig DraftKings WP selects the column. The cell pools games across <b>all NBA teams</b>; it is not that franchise’s record.</p>
 <p><b>Realized WP = this game’s no-vig DraftKings WP + shrunk cell adjustment</b>, limited to 0–100%. The cell adjustment is the cell win rate minus the cell average no-vig market WP: wins ÷ games among the latest 200 actual results in that cell, against those same games’ no-vig DraftKings WP for their model-selected teams. A market band is 10 to 20 points wide, so the cell’s games rarely carry the same price as tonight’s game; the adjustment measures how far the cell beat or missed its own prices rather than its raw win rate.</p>
-<p>The cell record does not enter Realized WP.</p>
+<p>Cell ΔROI does not enter Realized WP.</p>
 <p><b>Shrinkage.</b> The cell adjustment is multiplied by n ÷ (n + 200), where n is the number of results the cell holds. A cell with 200 results counts for half of its measured gap; a cell with 10 counts for about 5%. Unshrunk, a small cell could move a card by tens of points on a handful of games. Use all available results if a cell has fewer than 200; an empty cell has no estimate.</p>
 <p>History of this display: the raw cell win rate until November 12, 2026; the cell adjustment over the latest 50 results from November 12; the latest 200, shrunk, from November 13 (until November 18 it also added one pooled recent-results term to every card). A walk-forward backtest on two replay seasons scored the shrunk estimate better than the unshrunk latest-200 estimate and about level with the price itself; it did not predict results better than the price.</p>
 <p>The <b>immediately previous season</b> supplies the starting matrix. Current-season evidence uses valid graded native v11 five-hour locks on strictly earlier slates. Same-season replay, older seasons, pending games and void locks do not enter. New results replace the oldest matching observations once the cell reaches 200. Order is slate date, then game ID for ties.</p>
