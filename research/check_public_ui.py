@@ -189,7 +189,7 @@ def main():
                     assert page.locator('[data-group="stage"]').count()==0
                     assert page.locator('.gcard:visible').count()==5
                     assert page.locator('.gcard:visible [data-season-calibration]').count()==5
-                    assert 'No historical results in this cell yet' in page.locator('.gcard:visible').first.inner_text()
+                    assert 'No results in this cell yet' in page.locator('.gcard:visible').first.inner_text()
                     page.locator('[data-group="state"][data-show="final"]').click()
                     assert page.locator('.gcard:visible').count()==4
                     page.locator('[data-group="state"][data-show="upcoming"]').click()

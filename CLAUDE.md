@@ -5,6 +5,29 @@ state uncertainty, and turn findings into concrete tests.
 
 ## Live model and forward tests
 
+### Cell record at the lock — owner request, November 20, 2026
+
+Once a game has a valid five-hour lock, the card's cell record, its Realized
+WP line and their evidence read the cell the lock's model P and DraftKings
+prices select (`cell_forward.lock_view`, as the forward log saves it), so a
+later price move cannot swap the record. Before the lock the card reads the
+current forecast and price, marked provisional; a void or missed lock says
+there is no valid lock. No cell headline tile (owner, same day): the
+card's details show "Model picks like <team>'s, all teams · past results, not
+a forecast" with **This season** (current-season results in the cell) and,
+beneath it, **Pooled** (the latest 200), each W–L and **ΔROI**: the 1u ROI
+minus the ROI the same results' own no-vig prices imply (null = q × decimal
+payout − 1, proportional no-vig as the records), in points, ± 1 SE of the
+per-result difference (blank when the ROI's is). Pooling stays across all
+teams (owner, same day). The break-even tile also leaves the headline: the
+pick's raw break-even probability sits beside Realized WP in the details,
+at the price the cell reads (the lock's once locked), and "Price required
+break even" amends the November 12 headline instruction (owner, same day).
+The ML stats matrix keeps ROI. Presentation only:
+the cell population, ROI and
+Realized WP formulas, the forward log (which keeps saving ROI), the Realized
+WP shadow record, model, locks, grades and records are unchanged.
+
 ### Cell ROI tracking — owner request, November 18, 2026
 
 The owner's original intent for the matrix was the realized result and
