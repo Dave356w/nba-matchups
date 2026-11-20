@@ -19,6 +19,8 @@ points, ± 1 SE of the per-result difference (blank when the ROI's is), with
 the ROI, the expected ROI, net units and priced count beside it; labelled
 "Cell ΔROI · model picks like <team>'s", "all teams" and "past results, not
 a forecast" stated. Pooling stays across all teams (owner, same day). The
+headline stays pooled; the evidence adds one line, "This season: W–L, ΔROI
+± SE pp", from the same cell's current-season results (owner, same day). The
 ML stats matrix keeps ROI. Presentation only: the cell population, ROI and
 Realized WP formulas, the forward log (which keeps saving ROI), the Realized
 WP shadow record, model, locks, grades and records are unchanged.

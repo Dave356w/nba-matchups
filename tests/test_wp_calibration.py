@@ -241,3 +241,17 @@ def test_cell_delta_roi_subtracts_each_results_own_no_vig_null():
     assert r['delta_se']==pytest.approx(d.std(ddof=1)/np.sqrt(3))
     # all wins: no SE for the ROI, none for its difference either
     assert np.isnan(cell_roi(ev[:1]+ev[2:3])['delta_se'])
+
+
+def test_card_adds_this_seasons_part_of_the_pooled_cell():
+    # owner request, 2026-11-20: headline pooled; one evidence line per season
+    hist=pd.DataFrame([replay('s1',won=0),replay('s2',won=1)])
+    live=pd.DataFrame([record('l1'),record('l2',date='2026-11-09',won=0)])
+    target=record('target',date='2026-11-11',won=np.nan)
+    site=PublicSite(ui,pd.concat([live,pd.DataFrame([target])],ignore_index=True),'2026-11-11','built',replay=hist)
+    card=site.card(target)
+    # current season: one -300 win (+1/3) and one loss (-1), each at a 75% price (null 0)
+    assert "<span data-cell-season>1–1, ΔROI -33.3 ± 66.7 pp</span>" in card
+    assert "data-cell-games='4'" in card
+    empty=PublicSite(ui,pd.DataFrame([target]),'2026-11-11','built',replay=hist).card(target)
+    assert "<span data-cell-season>No results in this cell yet</span>" in empty
