@@ -2,7 +2,7 @@
 
 Version cell_roi_lock_v1; terms and the fixed season-end reading in `docs/cell_roi_forward_registration.md`. Monitoring only: never a rule or filter.
 
-Logged locks: 17; graded: 16; pending: 1.
+Logged locks: 20; graded: 16; pending: 4.
 
 ## Games 1+ (primary)
 
