@@ -1,55 +1,55 @@
 {
   "version": "dfs_sim_v2",
   "accepted": true,
-  "as_of": "2026-11-20",
+  "as_of": "2026-11-21",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
-    "high:bench": 1.1726380352057384,
-    "high:starter": 1.1619235911549113,
-    "low:bench": 3.294791716935985,
-    "mid:bench": 1.619953866036988,
-    "mid:starter": 1.223925728977769
+    "high:bench": 1.1767416742158376,
+    "high:starter": 1.1699620770362937,
+    "low:bench": 3.203625572083413,
+    "mid:bench": 1.6217974803605173,
+    "mid:starter": 1.2316107218519894
   },
-  "trained_through": "2026-11-17",
-  "validation_from": "2026-11-18",
-  "validated_through": "2026-11-19",
-  "train_rows": 4178,
-  "test_rows": 346,
-  "train_dates": 26,
+  "trained_through": "2026-11-18",
+  "validation_from": "2026-11-19",
+  "validated_through": "2026-11-20",
+  "train_rows": 4435,
+  "test_rows": 286,
+  "train_dates": 27,
   "test_dates": 2,
   "play": {
     "low:bench": {
-      "p": 0.6294117647058823,
-      "c": 3.521578603549767
+      "p": 0.6347222222222222,
+      "c": 3.368150824092684
     }
   },
   "factors": {
     "team": 0.0,
-    "starter": 0.0025192966946716924,
-    "game_star": 0.04421516047427454,
-    "star_split": 0.01800916766857776,
+    "starter": 0.0030110199832356784,
+    "game_star": 0.03940775059032696,
+    "star_split": 0.0023678197345068028,
     "center_pair": 0.0
   },
   "holdout": {
-    "n": 346,
-    "bias": -1.007179738748308,
-    "rmse": 9.755754206948458,
-    "variance_loss": 5.388454267446101,
-    "p90_coverage": 0.9017341040462428
+    "n": 286,
+    "bias": -0.5776887695074443,
+    "rmse": 9.273582944959365,
+    "variance_loss": 5.489829078265837,
+    "p90_coverage": 0.8951048951048951
   },
   "baseline": {
-    "n": 346,
-    "bias": -1.007179738748308,
-    "rmse": 9.755754206948458,
-    "variance_loss": 5.410463792956131,
-    "p90_coverage": 0.8670520231213873
+    "n": 286,
+    "bias": -0.5776887695074443,
+    "rmse": 9.273582944959365,
+    "variance_loss": 5.837748771125622,
+    "p90_coverage": 0.8776223776223776
   },
-  "coverage_date_se": 0.005639837362829524,
+  "coverage_date_se": 0.010893743227057549,
   "reason": "passed chronological variance-loss and p90 coverage checks",
-  "projected_rows": 4524,
-  "matched_rows": 4524,
+  "projected_rows": 4721,
+  "matched_rows": 4721,
   "absent_zero_rows": 61,
-  "matched_games": 212,
+  "matched_games": 221,
   "projection": "mean of Sleeper and box-score line (dfs.mean_projection)",
-  "box_rows": 3689
+  "box_rows": 3885
 }

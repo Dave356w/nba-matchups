@@ -6,7 +6,7 @@
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z",
     "realized_wp_shrunk200_drift_v4": "2026-11-13T20:03:04Z"
   },
-  "captures": 866,
+  "captures": 872,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
@@ -454,9 +454,9 @@
     },
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
-        "official_games": 61,
+        "official_games": 62,
         "graded_games": 61,
-        "pending_games": 0,
+        "pending_games": 1,
         "estimators": {
           "model": {
             "brier": 0.2290704324704918,
@@ -563,9 +563,9 @@
           }
         },
         "established": {
-          "official_games": 61,
+          "official_games": 62,
           "graded_games": 61,
-          "pending_games": 0,
+          "pending_games": 1,
           "estimators": {
             "model": {
               "brier": 0.2290704324704918,
@@ -2889,6 +2889,37 @@
         },
         "realized": {
           "p_home": 0.8957155741322534,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "819ed1c3ca03a1a7be8ad35a852d79068ce36b178b0afe1bdb5e5ee6dea550d6",
+      "version": "realized_wp_shrunk200_drift_v4",
+      "game_id": "401910023",
+      "captured_utc": "2026-11-21T13:03:44.682896+00:00",
+      "tip_utc": "2026-11-21T18:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.71416,
+          "side": "away",
+          "price": 458.0,
+          "expected_net_return": 0.5949871999999998,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.8277347114556418,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.8462692436764196,
           "side": null,
           "price": null,
           "expected_net_return": null,
