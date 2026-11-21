@@ -6,7 +6,7 @@
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z",
     "realized_wp_shrunk200_drift_v4": "2026-11-13T20:03:04Z"
   },
-  "captures": 884,
+  "captures": 889,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
@@ -454,9 +454,9 @@
     },
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
-        "official_games": 62,
+        "official_games": 63,
         "graded_games": 61,
-        "pending_games": 1,
+        "pending_games": 2,
         "estimators": {
           "model": {
             "brier": 0.2290704324704918,
@@ -563,9 +563,9 @@
           }
         },
         "established": {
-          "official_games": 62,
+          "official_games": 63,
           "graded_games": 61,
-          "pending_games": 1,
+          "pending_games": 2,
           "estimators": {
             "model": {
               "brier": 0.2290704324704918,
@@ -2920,6 +2920,37 @@
         },
         "realized": {
           "p_home": 0.8462692436764196,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "37d1487c64fead938e05e321eb60ad61832052d32651061c27c3b493058db7fa",
+      "version": "realized_wp_shrunk200_drift_v4",
+      "game_id": "401910024",
+      "captured_utc": "2026-11-21T19:33:47.753614+00:00",
+      "tip_utc": "2026-11-22T00:30:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.64866,
+          "side": "home",
+          "price": -155.0,
+          "expected_net_return": 0.06715032258064513,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.5840469782236358,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.604402885072335,
           "side": null,
           "price": null,
           "expected_net_return": null,
