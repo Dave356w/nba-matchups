@@ -6,7 +6,7 @@
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z",
     "realized_wp_shrunk200_drift_v4": "2026-11-13T20:03:04Z"
   },
-  "captures": 1064,
+  "captures": 1074,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
@@ -454,9 +454,9 @@
     },
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
-        "official_games": 81,
+        "official_games": 82,
         "graded_games": 74,
-        "pending_games": 7,
+        "pending_games": 8,
         "estimators": {
           "model": {
             "brier": 0.22858093150135134,
@@ -563,9 +563,9 @@
           }
         },
         "established": {
-          "official_games": 81,
+          "official_games": 82,
           "graded_games": 74,
-          "pending_games": 7,
+          "pending_games": 8,
           "estimators": {
             "model": {
               "brier": 0.22858093150135134,
@@ -3509,6 +3509,37 @@
         },
         "realized": {
           "p_home": 0.39897409505921866,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "db48d97beeb86ca3a6f0530a4369fcc651472a9f2b14205d5015d772f2dd0c7c",
+      "version": "realized_wp_shrunk200_drift_v4",
+      "game_id": "401910043",
+      "captured_utc": "2026-11-23T20:32:45.806595+00:00",
+      "tip_utc": "2026-11-24T01:30:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.79461,
+          "side": "away",
+          "price": 470.0,
+          "expected_net_return": 0.17072299999999974,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.8316498316498315,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.8458355230364513,
           "side": null,
           "price": null,
           "expected_net_return": null,
