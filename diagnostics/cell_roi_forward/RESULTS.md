@@ -2,11 +2,11 @@
 
 Version cell_roi_lock_v1; terms and the fixed season-end reading in `docs/cell_roi_forward_registration.md`. Monitoring only: never a rule or filter.
 
-Logged locks: 47; graded: 46; pending: 1.
+Logged locks: 47; graded: 47; pending: 0.
 
 ## Games 1+ (primary)
 
-Forward 1u on the model pick: -11.4% ± 11.4 pp (1 SE), -5.25u over 46.
+Forward 1u on the model pick: -10.9% ± 11.2 pp (1 SE), -5.13u over 47.
 
 | Model WP | Market WP | Forward | Trailing cell ROI at lock (mean) |
 | --- | --- | --- | --- |
@@ -21,9 +21,9 @@ Forward 1u on the model pick: -11.4% ± 11.4 pp (1 SE), -5.25u over 46.
 | 70–80% | 60–70% | -100.0%, -1.00u over 1 | -10.1% |
 | 70–80% | 70–80% | -19.0% ± 40.5 pp (1 SE), -0.57u over 3 | -5.9% |
 | 70–80% | 80–100% | +16.1%, +0.64u over 4 | -5.9% |
-| 80–100% | 80–100% | -24.6% ± 23.9 pp (1 SE), -1.47u over 6 | -1.1% |
+| 80–100% | 80–100% | -19.3% ± 20.9 pp (1 SE), -1.35u over 7 | -1.2% |
 
-Return on trailing cell ROI (registered reading at season end): slope -0.558 ± 2.410 (95%), n = 46. Interim, descriptive.
+Return on trailing cell ROI (registered reading at season end): slope -0.575 ± 2.382 (95%), n = 47. Interim, descriptive.
 
 ## Opening games
 
