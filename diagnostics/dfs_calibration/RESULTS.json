@@ -1,58 +1,58 @@
 {
   "version": "dfs_sim_v2",
-  "accepted": true,
-  "as_of": "2026-11-24",
+  "accepted": false,
+  "as_of": "2026-11-25",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
-    "high:bench": 1.1977140960831811,
-    "high:starter": 1.1666816546953163,
-    "low:bench": 3.244044713300577,
-    "mid:bench": 1.6076188834570921,
-    "mid:starter": 1.2087960640093856
+    "high:bench": 1.1826275513942832,
+    "high:starter": 1.1797033843858356,
+    "low:bench": 3.290382277003128,
+    "mid:bench": 1.6137787844624698,
+    "mid:starter": 1.20079994174245
   },
-  "trained_through": "2026-11-21",
-  "validation_from": "2026-11-22",
-  "validated_through": "2026-11-23",
-  "train_rows": 4856,
-  "test_rows": 377,
-  "train_dates": 30,
+  "trained_through": "2026-11-22",
+  "validation_from": "2026-11-23",
+  "validated_through": "2026-11-24",
+  "train_rows": 5003,
+  "test_rows": 295,
+  "train_dates": 31,
   "test_dates": 2,
   "play": {
     "low:bench": {
-      "p": 0.6203007518796992,
-      "c": 3.488171303427004
+      "p": 0.6234718826405868,
+      "c": 3.5001649744717795
     }
   },
   "factors": {
     "team": 0.0,
-    "starter": 0.0030103502218194137,
-    "game_star": 0.03281527783450939,
+    "starter": 0.0051245906877866254,
+    "game_star": 0.04068127651346994,
     "star_split": 0.0,
     "center_pair": 0.0
   },
   "holdout": {
-    "n": 377,
-    "bias": 0.16712430934785566,
-    "rmse": 9.927566526276435,
-    "variance_loss": 5.461780022011631,
-    "p90_coverage": 0.9018567639257294
+    "n": 295,
+    "bias": 0.01587717354012021,
+    "rmse": 9.330805358297145,
+    "variance_loss": 5.312511531719802,
+    "p90_coverage": 0.9491525423728814
   },
   "baseline": {
-    "n": 377,
-    "bias": 0.16712430934785566,
-    "rmse": 9.927566526276435,
-    "variance_loss": 5.8854813993031705,
-    "p90_coverage": 0.8620689655172413
+    "n": 295,
+    "bias": 0.01587717354012021,
+    "rmse": 9.330805358297145,
+    "variance_loss": 5.650890923567792,
+    "p90_coverage": 0.9084745762711864
   },
-  "coverage_date_se": 0.04779650990831113,
-  "reason": "passed chronological variance-loss and p90 coverage checks",
-  "projected_rows": 5233,
-  "matched_rows": 5233,
+  "coverage_date_se": 0.01287625418060201,
+  "reason": "holdout gate failed; candidate will not be activated",
+  "projected_rows": 5298,
+  "matched_rows": 5298,
   "absent_zero_rows": 70,
-  "matched_games": 244,
+  "matched_games": 247,
   "projection": "mean of Sleeper and box-score line (dfs.mean_projection)",
-  "box_rows": 4384,
-  "model_updated": true,
+  "box_rows": 4448,
+  "model_updated": false,
   "active_model_as_of": "2026-11-24",
   "active_model_status": "native holdout checked \u00b7 early sample \u00b7 377 player-games / 2 dates"
 }
