@@ -6,7 +6,7 @@
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z",
     "realized_wp_shrunk200_drift_v4": "2026-11-13T20:03:04Z"
   },
-  "captures": 1152,
+  "captures": 1161,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
@@ -454,9 +454,9 @@
     },
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
-        "official_games": 87,
+        "official_games": 88,
         "graded_games": 87,
-        "pending_games": 0,
+        "pending_games": 1,
         "estimators": {
           "model": {
             "brier": 0.2272367709045977,
@@ -563,9 +563,9 @@
           }
         },
         "established": {
-          "official_games": 87,
+          "official_games": 88,
           "graded_games": 87,
-          "pending_games": 0,
+          "pending_games": 1,
           "estimators": {
             "model": {
               "brier": 0.2272367709045977,
@@ -3695,6 +3695,37 @@
         },
         "realized": {
           "p_home": 0.7355177713920646,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "ef3916264793c57697596b7a37cec95e26c31eae27b2df419535f4ba323128bd",
+      "version": "realized_wp_shrunk200_drift_v4",
+      "game_id": "401909317",
+      "captured_utc": "2026-11-25T17:02:42.330677+00:00",
+      "tip_utc": "2026-11-25T22:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.60826,
+          "side": "home",
+          "price": -125.0,
+          "expected_net_return": 0.09486800000000017,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.5324675324675325,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.551201418892193,
           "side": null,
           "price": null,
           "expected_net_return": null,
