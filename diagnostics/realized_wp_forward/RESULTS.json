@@ -6,7 +6,7 @@
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z",
     "realized_wp_shrunk200_drift_v4": "2026-11-13T20:03:04Z"
   },
-  "captures": 1314,
+  "captures": 1325,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
@@ -454,9 +454,9 @@
     },
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
-        "official_games": 101,
+        "official_games": 102,
         "graded_games": 96,
-        "pending_games": 5,
+        "pending_games": 6,
         "estimators": {
           "model": {
             "brier": 0.223140976053125,
@@ -563,9 +563,9 @@
           }
         },
         "established": {
-          "official_games": 101,
+          "official_games": 102,
           "graded_games": 96,
-          "pending_games": 5,
+          "pending_games": 6,
           "estimators": {
             "model": {
               "brier": 0.223140976053125,
@@ -4132,6 +4132,37 @@
           "side": null,
           "price": null,
           "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "0fd4c0023d92322c91bbf2af739b8f3fb8b5553329e1ea09d562030ef20c75ed",
+      "version": "realized_wp_shrunk200_drift_v4",
+      "game_id": "401909331",
+      "captured_utc": "2026-11-27T20:32:44.526677+00:00",
+      "tip_utc": "2026-11-28T01:30:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.56033,
+          "side": "away",
+          "price": 130.0,
+          "expected_net_return": 0.011240999999999834,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.5829926410466066,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.6129754191986536,
+          "side": "home",
+          "price": -155.0,
+          "expected_net_return": 0.008443431584881589,
           "net_units": null
         }
       }
