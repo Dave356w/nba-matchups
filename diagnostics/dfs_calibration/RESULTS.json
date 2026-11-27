@@ -1,7 +1,7 @@
 {
   "version": "dfs_sim_v2",
   "accepted": true,
-  "as_of": "2026-11-26",
+  "as_of": "2026-11-27",
   "source": "native timestamped pregame Sleeper + final ESPN box",
   "bins": {
     "high:bench": 1.1787273392072999,
@@ -53,6 +53,6 @@
   "projection": "mean of Sleeper and box-score line (dfs.mean_projection)",
   "box_rows": 4653,
   "model_updated": true,
-  "active_model_as_of": "2026-11-26",
+  "active_model_as_of": "2026-11-27",
   "active_model_status": "native holdout checked \u00b7 early sample \u00b7 276 player-games / 2 dates"
 }
