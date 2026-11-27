@@ -6,7 +6,7 @@
     "realized_wp_rolling200_bandadj_v3": "2026-11-13T17:02:13Z",
     "realized_wp_shrunk200_drift_v4": "2026-11-13T20:03:04Z"
   },
-  "captures": 1303,
+  "captures": 1314,
   "versions": {
     "realized_wp_rolling200_bandadj_v3": {
       "pooled": {
@@ -454,9 +454,9 @@
     },
     "realized_wp_shrunk200_drift_v4": {
       "pooled": {
-        "official_games": 100,
+        "official_games": 101,
         "graded_games": 96,
-        "pending_games": 4,
+        "pending_games": 5,
         "estimators": {
           "model": {
             "brier": 0.223140976053125,
@@ -563,9 +563,9 @@
           }
         },
         "established": {
-          "official_games": 100,
+          "official_games": 101,
           "graded_games": 96,
-          "pending_games": 4,
+          "pending_games": 5,
           "estimators": {
             "model": {
               "brier": 0.223140976053125,
@@ -4098,6 +4098,37 @@
         },
         "realized": {
           "p_home": 0.7641499420212675,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        }
+      }
+    },
+    {
+      "snapshot_id": "ab0e3d61ea3a222cce5ad79b3ac83c883400ef0996fee42671251038e729e390",
+      "version": "realized_wp_shrunk200_drift_v4",
+      "game_id": "401909330",
+      "captured_utc": "2026-11-27T20:02:36.494985+00:00",
+      "tip_utc": "2026-11-28T01:00:00+00:00",
+      "home_won": null,
+      "estimators": {
+        "model": {
+          "p_home": 0.70223,
+          "side": "away",
+          "price": 312.0,
+          "expected_net_return": 0.22681240000000003,
+          "net_units": null
+        },
+        "market": {
+          "p_home": 0.7667734640030155,
+          "side": null,
+          "price": null,
+          "expected_net_return": null,
+          "net_units": null
+        },
+        "realized": {
+          "p_home": 0.7725192277426148,
           "side": null,
           "price": null,
           "expected_net_return": null,
